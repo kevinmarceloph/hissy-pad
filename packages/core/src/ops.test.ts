@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   dedent, indent, insertAfter, insertAtTop, insertBefore, mergeIntoPrev, moveNodes, moveSibling,
-  remove, setCollapsed, setText, splitNode, sweepDone, toggleDone,
+  remove, removeDone, setCollapsed, setDone, setNumbered, setText, splitNode, sweepDone, toggleDone, toggleNumbered,
 } from './ops'
 import { idOf, pad, shape, testCtx } from './testing'
 
@@ -213,5 +213,37 @@ describe('sweepDone', () => {
     expect(shape(sweepDone(rows, ctx))).toBe('A\nDone\n  old\n  ~B')
     const clean = pad('A', ctx)
     expect(sweepDone(clean, ctx)).toBe(clean)
+  })
+})
+
+describe('numbered lists', () => {
+  it('numbers runs of consecutive numbered siblings, restarting after a plain line', () => {
+    const ctx = testCtx()
+    let rows = pad('a\nb\nc\nd\ne', ctx)
+    rows = toggleNumbered(rows, ctx, [idOf(rows, 'a'), idOf(rows, 'b'), idOf(rows, 'd'), idOf(rows, 'e')])
+    expect(shape(rows)).toBe('1.a\n2.b\nc\n1.d\n2.e')
+    rows = toggleNumbered(rows, ctx, [idOf(rows, 'a'), idOf(rows, 'c')])
+    expect(shape(rows)).toBe('1.a\n2.b\n3.c\n4.d\n5.e')
+    rows = toggleNumbered(rows, ctx, [idOf(rows, 'a'), idOf(rows, 'b')])
+    expect(shape(rows)).toBe('a\nb\n1.c\n2.d\n3.e')
+  })
+
+  it('Enter continues a numbered list; a new first child starts plain', () => {
+    const ctx = testCtx()
+    let rows = pad('a\n  a1\nb', ctx)
+    rows = setNumbered(rows, ctx, [idOf(rows, 'a'), idOf(rows, 'b')], true)
+    rows = insertAfter(rows, ctx, idOf(rows, 'b'), 'c').rows
+    rows = insertAfter(rows, ctx, idOf(rows, 'a'), 'a0').rows // first child of expanded a
+    rows = insertBefore(rows, ctx, idOf(rows, 'a'), 'z').rows
+    expect(shape(rows)).toBe('1.z\n2.a\n  a0\n  a1\n3.b\n4.c')
+  })
+
+  it('removeDone deletes every crossed-out line with its subtree', () => {
+    const ctx = testCtx()
+    let rows = pad('a\n  a1\nb\n  b1\nc', ctx)
+    rows = setDone(rows, ctx, [idOf(rows, 'a'), idOf(rows, 'b1')], true)
+    expect(shape(removeDone(rows, ctx))).toBe('b\nc')
+    const clean = pad('x', ctx)
+    expect(removeDone(clean, ctx)).toBe(clean)
   })
 })

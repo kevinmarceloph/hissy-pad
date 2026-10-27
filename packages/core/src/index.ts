@@ -13,6 +13,7 @@ export {
   isAncestor,
   depthOf,
   topmost,
+  listNumbers,
   isLive,
   compareSiblings,
   type TreeIndex,
@@ -29,6 +30,8 @@ export {
   setText,
   setDone,
   toggleDone,
+  setNumbered,
+  toggleNumbered,
   setCollapsed,
   toggleCollapsed,
   remove,
@@ -37,7 +40,9 @@ export {
   dedent,
   moveSibling,
   mergeIntoPrev,
+  removeDone,
   sweepDone,
 } from './ops'
 export { parseOutline, insertOutline, toOutline, type OutlineLine, type OutlineFormat } from './paste'
 export { testCtx, pad, shape, idOf } from './testing'
+export { type LocalStore, createMemoryStore, changedRows } from './sync/store'

@@ -2,7 +2,7 @@
 
 A scratchpad that sits between Google Docs and Hissycal. One freeform outline, always open, where the top of the page is whatever needs attention next. Drag things around in a hierarchy, multi-select, cross things out. Nothing else.
 
-Status (2026-10-28): phase 1 done. `packages/core` builds, typechecks and passes its tests (ranks, clock, tree, ops, paste, and a 500-run random-op invariant check). Nothing committed yet; the repo has no git history.
+Status (2026-10-28): phases 1 and 2 built. `packages/core` (51 tests) and `apps/web` (18 tests) typecheck and pass; the web app was clicked through in a browser (typing, Enter/Tab, selection keys, paste import, hide/sweep done, reload persistence, dark, phone width). Not deployed yet: `render.yaml` is ready for a Render static site once the GitHub repo exists.
 
 Decisions (2026-10-28): public repo from day one; login by magic link and Google; domain `hissypad.marcelo.ph`; `collapsed` syncs across devices.
 
@@ -10,8 +10,9 @@ Decisions (2026-10-28): public repo from day one; login by magic link and Google
 
 - One document ("the pad"), a tree of nodes. No days, divisions, inboxes, blocks or time fields. Urgency is position: what matters is near the top, like the Docs inbox today.
 - A node is a line of text with optional children. Blank nodes are allowed and act as spacers, the way blank lines do in Docs. Headings are just nodes with children ("WL:", "Housey:"). No node types.
-- Done is a strikethrough that stays in place (item 3 in the screenshot stays crossed out where it was). A "sweep" action later tucks done nodes under a Done node at the bottom.
-- Collapse and expand per node. Links are auto-linked. Plain text otherwise. No formatting.
+- Done is a strikethrough that stays in place (item 3 in the screenshot stays crossed out where it was), with a × bullet like a bullet journal. "Delete done" removes every crossed-out line in one go; undo is the safety net. (An earlier "sweep under a Done node" idea was dropped 2026-10-28 in favour of deleting.)
+- Collapse and expand per node. Links are auto-linked. Plain text otherwise. No formatting, except that any line can be numbered: a run of consecutive numbered siblings counts 1, 2, 3 and a plain line restarts the count, like a Docs list. Pasting "1." lines keeps them numbered.
+- Blank lines are spacers and show no bullet until typed into.
 - Paste from Google Docs imports indentation as hierarchy, so the current inbox moves over in one paste. Hissycal's `indentWidth` + `createItemsAfter` already do this for a single day; the same logic ported to the flat model.
 - Capture from the phone: share sheet appends to the top of the pad.
 
@@ -34,6 +35,7 @@ One table, `nodes`. Flat, not nested.
 | text | text | plain text, may contain newlines |
 | done | boolean | |
 | collapsed | boolean | synced on purpose: if I fold "Project Ideas" on the laptop I want it folded on the phone too |
+| numbered | boolean | shown as "1." within its run of consecutive numbered siblings |
 | updated_at | timestamptz | set by the client that made the change, see sync |
 | deleted_at | timestamptz or null | tombstone; rows are never hard-deleted by clients |
 
@@ -78,7 +80,8 @@ Simpler than Hissycal's Normal/Edit modes. Always editing, like Workflowy, with 
 - Escape: leave the textarea and select the node. Shift+Up/Down extends the selection. Cmd+click toggles, Shift+click ranges. Every keyboard action above works on the selection as a batch. Enter or typing goes back to editing.
 - Drag: pointer-based, hand-rolled, no dnd-kit. The pad is a flat list of visible rows, so a drop resolves from pointer y (which gap) and pointer x (which depth, snapped to indent width). That resolver is a pure function in core, `resolveDrop(rows, y, x)`, and both platforms call it. Hissycal's band engine is the same idea with more cases; this one has one list and one axis of depth.
 - Mobile: long-press selects, a drag handle on the bullet moves, swipe right marks done. Keyboard shortcuts work with an external keyboard.
-- Cross-outs are visible, not hidden. A "Hide done" toggle filters them. "Sweep done" moves every done top-level node under a Done node at the bottom. Hissycal's Vacuum had the same job.
+- Cross-outs stay visible where they are. "Delete done" removes them all; undo brings them back. Numbered list: Cmd+Shift+7 on a line or a selection.
+- Mobile selection: tap a bullet to select, then tap more bullets to add or remove them (no modifier key). The floating toolbar carries every action.
 
 ## Repository layout
 
@@ -116,11 +119,11 @@ hissy-pad/
 Each phase ends with something usable. Phase 2 is the point where the Docs inbox moves over.
 
 1. **Core** (done 2026-10-28). Types, tree index, ops, rank helpers, paste importer, clock. Vitest, including a property test that any sequence of ops keeps ranks unique and the tree acyclic. No UI. See `packages/core/README.md`.
-2. **Web, local only** (2-3 evenings). Editor with the keyboard model, done, collapse, IndexedDB store, PWA manifest, deploy to Render static. Paste the Google Docs inbox in and start using it. Sync is a stub.
+2. **Web, local only** (built 2026-10-28, deploy pending). Editor with the keyboard model, done, collapse, IndexedDB store, PWA manifest, undo/redo, Paste-in dialog, Copy all. Deploy to Render static, then paste the Google Docs inbox in and start using it. Sync is a stub (`LocalStore` already tracks dirty rows for phase 3).
 3. **Supabase + sync** (2-3 evenings). Migration, RLS, pgTAP tests, magic-link login, sync engine push/pull/realtime. Test the engine in Vitest against an in-memory `LocalStore` with two simulated devices going offline and back. Two browsers, one pad.
 4. **Drag and multi-select** (2 evenings). `resolveDrop` in core with tests, pointer drag on web, selection bar actions. Playwright E2E with real drag coordinates, the item tech-to-learn.md calls a cheap win.
 5. **Mobile** (3-4 evenings). Expo app on the same core, expo-sqlite adapter, Reanimated drag, share-sheet capture. EAS Build to the phone, EAS Update for JS-only fixes. iOS first, since the share sheet is the point.
-6. **Polish**. Sweep done, hide done, search (`Cmd+K` jumps to a node), dark mode, undo (an in-memory op log on the client; sync does not need to know).
+6. **Polish**. Search (`Cmd+K` jumps to a node). Dark mode, undo, Delete done and numbered lists already landed in phase 2.
 
 Later, not planned: multiple pads as top-level tabs, a Hissycal rewrite that adds `date`, `start_time`, `end_time` and `division` columns to `nodes` and renders days as filtered views over the same table.
 

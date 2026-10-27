@@ -28,15 +28,15 @@ const DOCS = [
 describe('parseOutline', () => {
   it('reads depth from indentation and strips bullets', () => {
     expect(parseOutline(DOCS)).toEqual([
-      { text: 'IGS Meal Planning - tonight too', depth: 0 },
-      { text: 'Job Hunt (before 9pm)', depth: 0 },
-      { text: '(breaktime) Bathe!', depth: 0 },
-      { text: 'Personal Website', depth: 0 },
+      { text: 'IGS Meal Planning - tonight too', depth: 0, numbered: true },
+      { text: 'Job Hunt (before 9pm)', depth: 0, numbered: true },
+      { text: '(breaktime) Bathe!', depth: 0, numbered: true },
+      { text: 'Personal Website', depth: 0, numbered: true },
       { text: 'Fix current copy: now -> about -> home', depth: 1 },
       { text: 'Write about Astro and the book tracker code', depth: 1 },
       { text: 'sub point', depth: 2 },
       { text: 'Project: YTCH clone', depth: 1 },
-      { text: 'Make eggnog: https://cheneetoday.com/oat-milk-eggnog/', depth: 0 },
+      { text: 'Make eggnog: https://cheneetoday.com/oat-milk-eggnog/', depth: 0, numbered: true },
       { text: '', depth: 0 },
       { text: 'Lyrics: Review EN lyrics', depth: 0 },
       { text: 'Government req: review timeline', depth: 0 },
@@ -89,9 +89,9 @@ describe('insertOutline', () => {
     const rows = pad(DOCS, ctx)
     expect(shape(rows)).toBe(
       [
-        'IGS Meal Planning - tonight too', 'Job Hunt (before 9pm)', '(breaktime) Bathe!', 'Personal Website',
+        '1.IGS Meal Planning - tonight too', '2.Job Hunt (before 9pm)', '3.(breaktime) Bathe!', '4.Personal Website',
         '  Fix current copy: now -> about -> home', '  Write about Astro and the book tracker code', '    sub point',
-        '  Project: YTCH clone', 'Make eggnog: https://cheneetoday.com/oat-milk-eggnog/', '', 'Lyrics: Review EN lyrics',
+        '  Project: YTCH clone', '5.Make eggnog: https://cheneetoday.com/oat-milk-eggnog/', '', 'Lyrics: Review EN lyrics',
         'Government req: review timeline', '', 'WL:', '  Audre Lorde on Eroticism', '  Ben Rosenberg',
       ].join('\n'),
     )
@@ -108,5 +108,20 @@ describe('toOutline', () => {
     const done = { ...rows, [a1]: { ...rows[a1]!, done: true } }
     expect(toOutline(done, [idOf(rows, 'A'), a1])).toBe('- A\n  - A1 (done)\n    - A1a\n  - A2')
     expect(toOutline(done, [a1], { bullet: '', indent: '\t', done: ' x' })).toBe('A1 x\n\tA1a')
+  })
+})
+
+describe('numbered lines', () => {
+  it('keeps "1." markers as numbered lines and round-trips them', () => {
+    const lines = parseOutline('1. one\n2. two\n• plain\n1) again\n\t3. nested')
+    expect(lines.map((l) => [l.text, l.numbered === true])).toEqual([
+      ['one', true], ['two', true], ['plain', false], ['again', true], ['nested', true],
+    ])
+    const ctx = testCtx()
+    const rows = pad('1. one\n2. two\n• plain\n1) again\n\t3. nested', ctx)
+    expect(shape(rows)).toBe('1.one\n2.two\nplain\n1.again\n  1.nested')
+    const text = toOutline(rows, Object.keys(rows), { bullet: '', indent: '\t' })
+    expect(text).toBe('1. one\n2. two\nplain\n1. again\n\t1. nested')
+    expect(shape(pad(text, testCtx()))).toBe(shape(rows))
   })
 })

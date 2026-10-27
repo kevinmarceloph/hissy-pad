@@ -1,0 +1,164 @@
+// Editor commands shared by the textarea key handler (Row) and the selection-mode key
+// handler (Pad). Each one picks its targets from the store and decides where the caret or
+// selection goes afterwards.
+import {
+  buildIndex, childrenOf, dedent, indent, insertAt, mergeIntoPrev, moveSibling, remove, removeDone,
+  setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline,
+} from '@hissypad/core'
+import { copyText } from './clipboard'
+import { apply, edit, importOutline, neighbor, select, stopEditing, targets, usePad, visibleIds } from './store'
+
+export function cmdSplit(id: string, caret: number) {
+  let newId = ''
+  apply((rows, ctx) => {
+    const res = splitNode(rows, ctx, id, caret)
+    newId = res.newId
+    return res.rows
+  })
+  edit(newId, 0)
+}
+
+export function cmdSetText(id: string, text: string) {
+  apply((rows, ctx) => setTextOp(rows, ctx, id, text), { coalesce: `text:${id}` })
+}
+
+// Backspace at the start of a node.
+export function cmdBackspaceAtStart(id: string) {
+  const prev = neighbor(id, -1)
+  const row = usePad.getState().rows[id]
+  if (!row) return
+  if (row.text === '') {
+    const hasKids = childrenOf(buildIndex(usePad.getState().rows), id).length > 0
+    if (hasKids || !prev) return
+    apply((rows, ctx) => remove(rows, ctx, [id]))
+    edit(prev, 'end')
+    return
+  }
+  const landing: { prevId: string; caret: number }[] = []
+  apply((rows, ctx) => {
+    const res = mergeIntoPrev(rows, ctx, id)
+    if (!res) return rows
+    landing.push({ prevId: res.prevId, caret: res.caret })
+    return res.rows
+  })
+  const l = landing[0]
+  if (l) edit(l.prevId, l.caret)
+}
+
+export function cmdIndent() {
+  const ids = targets()
+  if (ids.length) apply((rows, ctx) => indent(rows, ctx, ids))
+}
+
+export function cmdDedent() {
+  const ids = targets()
+  if (ids.length) apply((rows, ctx) => dedent(rows, ctx, ids))
+}
+
+export function cmdMove(dir: 'up' | 'down') {
+  const ids = targets()
+  if (ids.length) apply((rows, ctx) => moveSibling(rows, ctx, ids, dir))
+}
+
+export function cmdToggleDone() {
+  const ids = targets()
+  if (ids.length) apply((rows, ctx) => toggleDone(rows, ctx, ids))
+}
+
+export function cmdToggleCollapsed() {
+  const ids = targets()
+  if (ids.length === 0) return
+  apply((rows, ctx) => {
+    let out = rows
+    for (const id of ids) out = toggleCollapsed(out, ctx, id)
+    return out
+  })
+}
+
+// Delete the selection and land on the row that takes its place.
+export function cmdDeleteSelection() {
+  const { selection } = usePad.getState()
+  if (selection.length === 0) return
+  const vis = visibleIds()
+  const after = vis[vis.indexOf(selection.at(-1)!) + 1] ?? vis[vis.indexOf(selection[0]!) - 1] ?? null
+  apply((rows, ctx) => {
+    const out = remove(rows, ctx, selection)
+    // Never leave the pad with nothing to type into.
+    const anyLive = Object.values(out).some((r) => r.deletedAt === null)
+    return anyLive ? out : insertAt(out, ctx, { parentId: null, afterId: null }, '').rows
+  })
+  const landing = after ?? visibleIds()[0]
+  if (landing) select([landing], landing)
+}
+
+export function cmdCopySelection(): string {
+  const { rows, selection } = usePad.getState()
+  const text = toOutline(rows, selection, { bullet: '', indent: '\t', done: '' })
+  void copyText(text)
+  return text
+}
+
+export function cmdCutSelection() {
+  cmdCopySelection()
+  cmdDeleteSelection()
+}
+
+// Paste into a textarea: single-line text goes through the browser; multi-line becomes
+// nodes after the current one (replacing it when it was empty).
+export function cmdPasteInto(id: string, text: string): boolean {
+  if (!text.includes('\n')) return false
+  const empty = usePad.getState().rows[id]?.text === ''
+  const ids = importOutline(text, { afterId: id })
+  if (ids.length === 0) return false
+  if (empty) apply((rows, ctx) => remove(rows, ctx, [id]))
+  edit(ids.at(-1)!, 'end')
+  return true
+}
+
+export function cmdPasteAfterSelection(text: string) {
+  const { selection } = usePad.getState()
+  const last = selection.at(-1)
+  const ids = last ? importOutline(text, { afterId: last }) : importOutline(text, 'bottom')
+  if (ids.length) select(ids, ids[0]!, ids.at(-1)!)
+}
+
+export function cmdToggleNumbered() {
+  const ids = targets()
+  if (ids.length) apply((rows, ctx) => toggleNumbered(rows, ctx, ids))
+}
+
+// Delete every crossed-out line. Returns how many lines went (subtrees included), so the
+// caller can say so and point at undo.
+export function cmdDeleteDone(): number {
+  stopEditing()
+  const before = Object.values(usePad.getState().rows).filter((r) => r.deletedAt === null).length
+  apply((rows, ctx) => {
+    const out = removeDone(rows, ctx)
+    const anyLive = Object.values(out).some((r) => r.deletedAt === null)
+    return anyLive ? out : insertAt(out, ctx, { parentId: null, afterId: null }, '').rows
+  })
+  const after = Object.values(usePad.getState().rows).filter((r) => r.deletedAt === null).length
+  usePad.setState({ selection: [], anchorId: null, focusId: null })
+  return Math.max(0, before - after)
+}
+
+// Click below the last row: reuse an empty last line or add one.
+export function cmdAppendAtEnd() {
+  const vis = visibleIds()
+  const last = vis.at(-1)
+  const rows = usePad.getState().rows
+  if (last && rows[last]!.text === '' && rows[last]!.parentId === null) return edit(last, 'end')
+  let newId = ''
+  apply((rows, ctx) => {
+    const index = buildIndex(rows)
+    const res = insertAt(rows, ctx, { parentId: null, afterId: childrenOf(index, null).at(-1)?.id ?? null }, '')
+    newId = res.newId
+    return res.rows
+  })
+  edit(newId, 0)
+}
+
+export function cmdEditNeighbor(id: string, dir: -1 | 1) {
+  const n = neighbor(id, dir)
+  if (n) edit(n, dir < 0 ? 'end' : 0)
+}

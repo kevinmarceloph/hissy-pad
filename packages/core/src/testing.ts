@@ -1,7 +1,7 @@
 // Deterministic ctx + outline-based pad builder for tests. Exported from the package so
 // apps/web and apps/mobile tests can build pads the same way.
 import type { OpCtx, Rows } from './types'
-import { buildIndex, flatten } from './tree'
+import { buildIndex, flatten, listNumbers } from './tree'
 import { insertOutline, parseOutline } from './paste'
 
 export function testCtx(): OpCtx & { reset(): void } {
@@ -24,10 +24,13 @@ export function pad(outline: string, ctx: OpCtx = testCtx()): Rows {
 // Render a pad back to an indented outline of texts (all nodes, ignoring collapse),
 // so a test can assert the whole shape in one string.
 export function shape(rows: Rows, visibleOnly = false): string {
-  return flatten(buildIndex(rows), visibleOnly)
+  const index = buildIndex(rows)
+  const numbers = listNumbers(index)
+  return flatten(index, visibleOnly)
     .map((r) => {
       const row = rows[r.id]!
-      return '  '.repeat(r.depth) + (row.done ? '~' : '') + row.text
+      const num = numbers.has(r.id) ? `${numbers.get(r.id)}.` : ''
+      return '  '.repeat(r.depth) + num + (row.done ? '~' : '') + row.text
     })
     .join('\n')
 }

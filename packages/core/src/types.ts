@@ -8,6 +8,7 @@ export interface NodeRow {
   text: string              // plain text, may contain newlines
   done: boolean
   collapsed: boolean        // synced across devices on purpose
+  numbered: boolean         // shown as "1." within its run of consecutive numbered siblings
   updatedAt: string         // ISO timestamp from the client that made the change (clock.ts)
   deletedAt: string | null  // tombstone; clients never hard-delete
 }

@@ -30,7 +30,7 @@ function patch(rows: Rows, ctx: OpCtx, id: string, changes: Partial<NodeRow>): R
   return { ...rows, [id]: { ...cur, ...changes, updatedAt: ctx.now() } }
 }
 
-function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: string): NodeRow {
+function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: string, numbered = false): NodeRow {
   return {
     id: ctx.newId(),
     parentId,
@@ -38,6 +38,7 @@ function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: strin
     text,
     done: false,
     collapsed: false,
+    numbered,
     updatedAt: ctx.now(),
     deletedAt: null,
   }
@@ -61,15 +62,17 @@ export function placementAfter(index: TreeIndex, id: string): Placement {
   return { parentId: index.parentOf.get(id) ?? null, afterId: id }
 }
 
-export function insertAt(rows: Rows, ctx: OpCtx, p: Placement, text = ''): { rows: Rows; newId: string } {
+export function insertAt(rows: Rows, ctx: OpCtx, p: Placement, text = '', numbered = false): { rows: Rows; newId: string } {
   const index = buildIndex(rows)
   const [rank] = gapRanks(index, p, 1)
-  const node = makeNode(ctx, p.parentId, rank!, text)
+  const node = makeNode(ctx, p.parentId, rank!, text, numbered)
   return { rows: { ...rows, [node.id]: node }, newId: node.id }
 }
 
+// A new sibling continues a numbered list; a new first child starts plain.
 export function insertAfter(rows: Rows, ctx: OpCtx, id: string, text = ''): { rows: Rows; newId: string } {
-  return insertAt(rows, ctx, placementAfter(buildIndex(rows), id), text)
+  const p = placementAfter(buildIndex(rows), id)
+  return insertAt(rows, ctx, p, text, p.afterId === id && live(rows, id).numbered)
 }
 
 export function insertBefore(rows: Rows, ctx: OpCtx, id: string, text = ''): { rows: Rows; newId: string } {
@@ -77,7 +80,7 @@ export function insertBefore(rows: Rows, ctx: OpCtx, id: string, text = ''): { r
   const parentId = index.parentOf.get(id) ?? null
   const sibs = childrenOf(index, parentId)
   const i = sibs.findIndex((s) => s.id === id)
-  return insertAt(rows, ctx, { parentId, afterId: i > 0 ? sibs[i - 1]!.id : null }, text)
+  return insertAt(rows, ctx, { parentId, afterId: i > 0 ? sibs[i - 1]!.id : null }, text, live(rows, id).numbered)
 }
 
 // Capture: a new top-level node at the very top of the pad.
@@ -110,6 +113,19 @@ export function toggleDone(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows 
   const list = [...ids].filter((id) => isLive(rows[id]))
   const allDone = list.length > 0 && list.every((id) => rows[id]!.done)
   return setDone(rows, ctx, list, !allDone)
+}
+
+export function setNumbered(rows: Rows, ctx: OpCtx, ids: Iterable<string>, numbered: boolean): Rows {
+  let out = rows
+  for (const id of ids) if (isLive(out[id]) && out[id]!.numbered !== numbered) out = patch(out, ctx, id, { numbered })
+  return out
+}
+
+// Mixed selection: if every line is numbered, un-number them all; otherwise number them all.
+export function toggleNumbered(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
+  const list = [...ids].filter((id) => isLive(rows[id]))
+  const all = list.length > 0 && list.every((id) => rows[id]!.numbered)
+  return setNumbered(rows, ctx, list, !all)
 }
 
 export function setCollapsed(rows: Rows, ctx: OpCtx, id: string, collapsed: boolean): Rows {
@@ -256,6 +272,12 @@ export function mergeIntoPrev(
   let out = patch(rows, ctx, prevId, { text: prev.text + me.text })
   out = remove(out, ctx, [id])
   return { rows: out, prevId, caret: prev.text.length }
+}
+
+// Delete every crossed-out line, with its subtree. Undo is the safety net.
+export function removeDone(rows: Rows, ctx: OpCtx): Rows {
+  const done = Object.values(rows).filter((r) => isLive(r) && r.done).map((r) => r.id)
+  return done.length ? remove(rows, ctx, done) : rows
 }
 
 // Sweep: every done top-level node moves under a "Done" node at the bottom of the pad,

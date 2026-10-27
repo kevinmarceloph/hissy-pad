@@ -1,0 +1,291 @@
+/* HissyPad: a page, not an app. Paper ground, serif ink, one pencil-red accent used only
+   where the hand is (selection, the editing bullet, focus). Dials: ENERGY 1 / RHYTHM 1 /
+   MOTION 1. The serif stack is local (Charter ships on Apple devices, Georgia elsewhere)
+   so the PWA renders offline with no font flash. */
+:root {
+  --paper: #f7f4ec;
+  --paper-raised: #fffdf8;
+  --ink: #1f1c17;
+  --ink-soft: #4d4842;
+  --ink-mute: #8a847a;
+  --rule: #d9d3c6;
+  --accent: #b5452b;
+  --accent-soft: color-mix(in oklab, var(--accent) 12%, var(--paper));
+  --link: #2a5a8a;
+  --font: Charter, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  --size: 17px;
+  --lh: 1.5;
+  --indent: 1.6rem;
+  --gutter: 2.4rem;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #1b1a17;
+    --paper-raised: #24221e;
+    --ink: #ebe6db;
+    --ink-soft: #c9c3b6;
+    --ink-mute: #857f74;
+    --rule: #3a3731;
+    --accent: #e0755a;
+    --link: #8fb4d8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --paper: #1b1a17;
+  --paper-raised: #24221e;
+  --ink: #ebe6db;
+  --ink-soft: #c9c3b6;
+  --ink-mute: #857f74;
+  --rule: #3a3731;
+  --accent: #e0755a;
+  --link: #8fb4d8;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: var(--size) / var(--lh) var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; cursor: pointer; }
+a { color: var(--link); text-underline-offset: 0.15em; }
+kbd {
+  font: 0.85em / 1 var(--font);
+  border: 1px solid var(--rule);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+  background: var(--paper-raised);
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.app {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1.25rem 16px 6rem;
+}
+
+/* Top */
+.top { position: relative; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 1.25rem; margin-bottom: 1.5rem; }
+.top h1 {
+  font-size: 1.15rem;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.01em;
+  margin: 0;
+  color: var(--ink-soft);
+}
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; font-size: 0.9rem; color: var(--ink-soft); }
+.bar button, .bar .check, .bar select {
+  min-height: 32px;
+  padding: 0 0.55rem;
+  border-radius: 4px;
+  display: inline-flex; align-items: center; gap: 0.35em;
+}
+.bar button:hover:not(:disabled), .bar .check:hover, .bar select:hover { background: var(--paper-raised); color: var(--ink); }
+.bar button:disabled { color: var(--ink-mute); cursor: default; }
+.bar select { border: 0; background: transparent; appearance: auto; cursor: pointer; }
+.check input { accent-color: var(--accent); width: 1rem; height: 1rem; margin: 0; }
+
+.banner {
+  display: flex; gap: 1rem; align-items: center; justify-content: space-between;
+  border: 1px solid var(--accent);
+  border-left-width: 4px; /* the one place a stripe appears: it is the alert's severity marker */
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 1rem;
+  font-size: 0.92rem;
+  background: var(--paper-raised);
+}
+.banner button { font-size: 1.2rem; line-height: 1; padding: 0 0.3rem; min-width: 32px; min-height: 32px; }
+
+/* Rows */
+.rows { position: relative; }
+.row {
+  display: grid;
+  grid-template-columns: var(--gutter) 1fr;
+  align-items: start;
+  padding-left: calc(var(--depth) * var(--indent));
+  border-radius: 4px;
+  position: relative;
+}
+.row.is-selected { background: var(--accent-soft); }
+.row .toggle, .row .bullet {
+  grid-column: 1;
+  grid-row: 1;
+  height: calc(var(--size) * var(--lh));
+  width: 100%;
+  position: relative;
+}
+/* Extend the tap target to about 44px without changing the row's height. */
+.row .bullet { padding: 10px 0; margin: -10px 0; box-sizing: content-box; }
+.row .toggle {
+  justify-self: start;
+  width: 1rem;
+  margin-left: -1.1rem;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.row .toggle::before {
+  content: '';
+  position: absolute; left: 50%; top: 50%;
+  translate: -50% -50%;
+  border: 0.32rem solid transparent;
+  border-top: 0.42rem solid var(--ink-mute);
+  border-bottom: 0;
+}
+.row.is-collapsed .toggle::before { rotate: -90deg; translate: -40% -50%; }
+.row:hover .toggle, .row:focus-within .toggle, .row.is-collapsed .toggle, .row .toggle:focus-visible { opacity: 1; }
+.row .bullet::before {
+  content: '';
+  position: absolute; left: 50%; top: 50%;
+  translate: -50% -50%;
+  width: 0.38rem; height: 0.38rem;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  box-shadow: 0 0 0 0 transparent;
+  transition: box-shadow 120ms, background 120ms;
+}
+.row.is-collapsed .bullet::before { box-shadow: 0 0 0 0.3rem var(--rule); }
+.row.is-editing .bullet::before { background: var(--accent); }
+/* A blank line is a spacer: no bullet until something is typed. Hovering still reveals
+   the halo so it can be selected or deleted. */
+.row.is-empty .bullet::before { background: transparent; }
+/* Done: a bullet-journal cross in place of the dot. */
+.row.is-done .bullet::before {
+  content: '×';
+  width: auto; height: auto;
+  background: transparent;
+  border-radius: 0;
+  color: var(--ink-mute);
+  font-size: 1.15em;
+  line-height: 1;
+  translate: -50% -52%;
+}
+/* Numbered: the position in the run replaces the dot, right-aligned to the text. */
+.row.is-numbered .bullet::before {
+  content: attr(data-num);
+  width: auto; height: auto;
+  left: auto; right: 0.55rem;
+  top: 50%;
+  translate: 0 -50%;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.row.is-numbered.is-editing .bullet::before { color: var(--accent); }
+.row.is-numbered.is-done .bullet::before { color: var(--ink-mute); text-decoration: line-through; text-decoration-color: var(--accent); }
+.row.is-numbered.is-collapsed .bullet::before { box-shadow: none; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 0.2em; }
+.row.is-numbered .bullet:hover::before { box-shadow: none; background: var(--accent-soft); border-radius: 3px; padding: 0 0.2rem; margin-right: -0.2rem; }
+.row .bullet:hover::before { box-shadow: 0 0 0 0.3rem var(--accent-soft); }
+.row .text {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: calc(var(--size) * var(--lh));
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: block;
+  color: inherit;
+  cursor: text;
+  outline: none; /* the row's bullet turns accent while editing, and the caret is visible */
+}
+.row.is-done .text {
+  color: var(--ink-mute);
+  text-decoration: line-through;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1px;
+}
+.row.is-done .text a { color: inherit; }
+.placeholder { display: inline-block; min-width: 1px; }
+
+.tail {
+  display: block;
+  width: 100%;
+  height: 3rem;
+  cursor: text;
+  border-radius: 4px;
+}
+.tail:hover { background: var(--paper-raised); }
+
+.hint { color: var(--ink-mute); font-style: italic; margin: 0.75rem 0 0 var(--gutter); font-size: 0.95rem; }
+.foot { color: var(--ink-mute); font-size: 0.82rem; margin-top: 3rem; }
+
+/* Selection toolbar */
+.selbar {
+  position: fixed;
+  left: 50%; bottom: max(1rem, env(safe-area-inset-bottom));
+  translate: -50% 0;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.3rem 0.4rem;
+  box-shadow: 0 6px 24px -12px rgb(0 0 0 / 0.35); /* the one elevated surface: it floats over the text */
+  max-width: calc(100vw - 32px);
+  gap: 0.15rem;
+  color: var(--ink);
+}
+.selbar .count { color: var(--ink-mute); padding: 0 0.5rem; }
+.selbar button { min-width: 36px; min-height: 36px; justify-content: center; }
+.selbar .danger:hover { color: var(--accent); }
+
+.toast {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.15rem;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+/* Import dialog */
+dialog.import {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 1.25rem;
+  width: min(40rem, calc(100vw - 32px));
+}
+dialog.import::backdrop { background: rgb(0 0 0 / 0.35); }
+dialog.import h2 { margin: 0 0 0.5rem; font-weight: 400; font-size: 1.2rem; }
+dialog.import p { margin: 0 0 0.75rem; color: var(--ink-soft); font-size: 0.92rem; }
+dialog.import textarea {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  font-size: 0.95rem;
+  tab-size: 4;
+}
+dialog.import .actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+dialog.import .actions button { min-height: 36px; padding: 0 0.8rem; border-radius: 4px; border: 1px solid var(--rule); }
+dialog.import .actions .primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+dialog.import .actions button:disabled { opacity: 0.5; cursor: default; }
+
+@media (max-width: 480px) {
+  :root { --size: 16px; --indent: 1.2rem; --gutter: 2rem; }
+  .top { gap: 0.5rem 0.75rem; }
+  .bar { font-size: 0.85rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

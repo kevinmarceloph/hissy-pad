@@ -1,0 +1,19 @@
+# Render blueprint: the web app is a static site (no server, no free-tier sleep).
+# Build runs from the repo root so the workspace package @hissypad/core resolves.
+services:
+  - type: web
+    name: hissypad
+    runtime: static
+    buildCommand: corepack enable && corepack prepare pnpm@12.15.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @hissypad/web build
+    staticPublishPath: apps/web/dist
+    headers:
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /manifest.webmanifest
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

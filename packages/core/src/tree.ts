@@ -118,6 +118,21 @@ export function depthOf(index: TreeIndex, id: string): number {
   return d
 }
 
+// 1-based position within a run of consecutive numbered siblings, or null for a plain
+// line. A plain sibling breaks the run, so one parent can hold several numbered lists,
+// each restarting at 1 (the way Docs numbers paragraphs).
+export function listNumbers(index: TreeIndex): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const kids of index.children.values()) {
+    let n = 0
+    for (const k of kids) {
+      if (k.numbered) out.set(k.id, ++n)
+      else n = 0
+    }
+  }
+  return out
+}
+
 // Given a set of ids, keep only those with no selected ancestor. Bulk ops (move, indent,
 // delete) act on these and carry the rest along as descendants.
 export function topmost(index: TreeIndex, ids: Iterable<string>): string[] {
