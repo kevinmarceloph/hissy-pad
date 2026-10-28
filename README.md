@@ -33,7 +33,7 @@ npx expo start --dev-client                            # then the phone loads co
 npx eas-cli update --channel development --environment development --message "..."   # JS-only OTA update
 ```
 
-EAS project `@kevinmarceloph/hissy-pad`. The Supabase URL and publishable key live as EAS environment variables (development, preview, production), not in the repo. Profiles: `development` (phone), `development-simulator`, `preview`, `production`, each on its own EAS Update channel.
+`npx eas-cli env:pull --environment development` writes the hosted Supabase values into `apps/mobile/.env.local` for Metro (the phone cannot reach a local stack); `.env.local.localstack` keeps the local-stack copy. EAS project `@kevinmarceloph/hissy-pad`. The Supabase URL and publishable key live as EAS environment variables (development, preview, production), not in the repo. Profiles: `development` (phone), `development-simulator`, `preview`, `production`, each on its own EAS Update channel.
 
 Sign-in on the phone returns through the `hissypad://auth` deep link, which must be in Supabase's redirect URL list. Press and hold a bullet to drag; Return splits the line; the toolbar sits above the keyboard.
 
