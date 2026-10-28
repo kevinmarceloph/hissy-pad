@@ -2,9 +2,10 @@
 // undo stack. Every edit goes through `apply`, which runs a core op, pushes undo history,
 // and writes the changed rows to the LocalStore as dirty.
 import { create } from 'zustand'
+import type { Session } from '@supabase/supabase-js'
 import {
   buildIndex, changedRows, childrenOf, createClock, createMemoryStore, flatten,
-  insertAt, insertOutline, newUuid, parseOutline, type LocalStore, type NodeRow, type OpCtx, type Rows,
+  insertAt, insertOutline, newUuid, normalizeRow, parseOutline, type LocalStore, type NodeRow, type OpCtx, type Rows, type SyncStatus,
 } from '@hissypad/core'
 
 export type Caret = number | 'end'
@@ -27,14 +28,25 @@ export interface PadState {
   focusId: string | null // the end of a shift-extended range
   past: Rows[]
   future: Rows[]
+  session: Session | null   // Supabase auth; null = local only
+  sync: SyncStatus | null   // null until the engine runs
 }
 
-const clock = createClock()
+export const clock = createClock()
 export const ctx: OpCtx = { now: () => clock.tick(), newId: newUuid }
 
 let local: LocalStore = createMemoryStore()
 export function configureLocalStore(store: LocalStore) {
   local = store
+}
+export function getLocalStore(): LocalStore {
+  return local
+}
+
+// The sync layer registers itself here so the store never imports it.
+let onLocalChange: (() => void) | null = null
+export function setOnLocalChange(fn: (() => void) | null) {
+  onLocalChange = fn
 }
 
 const UNDO_LIMIT = 200
@@ -49,6 +61,8 @@ export const usePad = create<PadState>(() => ({
   focusId: null,
   past: [],
   future: [],
+  session: null,
+  sync: null,
 }))
 
 const get = usePad.getState
@@ -66,9 +80,10 @@ function persist(prev: Rows, next: Rows) {
   }
   if (changed.length === 0) return
   for (const r of changed) clock.observe(r.updatedAt)
-  local.upsertMany(changed, { dirty: true }).catch((e: unknown) => {
-    set({ storageError: `Could not save: ${(e as Error).message}` })
-  })
+  local.upsertMany(changed, { dirty: true }).then(
+    () => onLocalChange?.(),
+    (e: unknown) => set({ storageError: `Could not save: ${(e as Error).message}` }),
+  )
 }
 
 // Run an op. `coalesce` lets a run of keystrokes on one node share a single undo entry.
@@ -107,10 +122,15 @@ export async function loadPad() {
   try {
     const list = await local.getAll()
     const rows: Record<string, NodeRow> = {}
-    for (const r of list) {
+    const upgraded: NodeRow[] = []
+    for (const raw of list) {
+      const r = normalizeRow(raw)
+      if (r.numbered !== raw.numbered || r.collapsed !== raw.collapsed || r.done !== raw.done) upgraded.push(r)
       rows[r.id] = r
       clock.observe(r.updatedAt)
     }
+    // Rows from an older build get their missing columns written back (and pushed).
+    if (upgraded.length) await local.upsertMany(upgraded, { dirty: true })
     let state: Rows = rows
     const live = Object.values(rows).some((r) => r.deletedAt === null)
     if (!live) {

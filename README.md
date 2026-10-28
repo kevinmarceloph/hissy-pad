@@ -3,8 +3,9 @@
 One freeform outline, always open. The top of the page is what needs attention next. Drag things around in a hierarchy, multi-select, cross things out. Nothing else. Design and roadmap in [PLAN.md](PLAN.md).
 
 ```
-packages/core   pure TS: node rows, tree, ops, ranks, outline paste/copy, LocalStore interface
-apps/web        Vite + React 19 + Zustand, IndexedDB, PWA
+packages/core   pure TS: node rows, tree, ops, ranks, outline paste/copy, LocalStore, sync engine
+apps/web        Vite + React 19 + Zustand, IndexedDB, PWA, Supabase auth + sync
+supabase/       migration (nodes table, RLS, last-write-wins trigger), pgTAP tests
 ```
 
 ## Run
@@ -17,6 +18,18 @@ pnpm test                # every package
 pnpm typecheck
 pnpm --filter @hissypad/web build   # apps/web/dist
 ```
+
+### Sync (optional)
+
+Without `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` the app is local-only. For local sync:
+
+```bash
+supabase start                      # local stack on ports 54421-54429 (beside Doorstep's 543xx)
+supabase test db                    # pgTAP: RLS + last-write-wins
+cp apps/web/.env.example apps/web/.env.local   # paste the anon key `supabase status` prints
+```
+
+Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, or Google once the provider is configured). Every device keeps a full copy; rows sync one by one, newest `updated_at` wins, deletes are tombstones. See PLAN.md, "Sync".
 
 ## Keys
 
@@ -46,8 +59,8 @@ Cmd+Z / Shift+Cmd+Z undo and redo anywhere. Tap a bullet to select it; once some
 
 ## Deploy
 
-`render.yaml` describes a Render static site built from the repo root. The app icon is a placeholder (the letter H in the body serif).
+`render.yaml` describes a Render static site built from the repo root; set the two `VITE_SUPABASE_*` env vars on the service. The hosted Supabase project needs `supabase db push` for the migration, the site URL `https://hissypad.marcelo.ph` in Auth settings, and the Google provider enabled. The app icon is a placeholder (the letter H in the body serif).
 
 ## Status
 
-Phase 2: local only. Rows live in this browser's IndexedDB. Sync (Supabase) is phase 3.
+Phase 3 built: local-first sync against a local Supabase stack. Not yet deployed; no hosted project yet.

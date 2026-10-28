@@ -4,9 +4,11 @@ import { registerSW } from 'virtual:pwa-register'
 import { App } from './App'
 import { configureLocalStore } from './store'
 import { createIdbStore } from './local/idb'
+import { bindAuth } from './sync'
 import './styles.css'
 
 configureLocalStore(createIdbStore())
+bindAuth()
 registerSW({ immediate: true })
 
 createRoot(document.getElementById('root')!).render(

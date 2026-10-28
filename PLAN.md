@@ -2,7 +2,7 @@
 
 A scratchpad that sits between Google Docs and Hissycal. One freeform outline, always open, where the top of the page is whatever needs attention next. Drag things around in a hierarchy, multi-select, cross things out. Nothing else.
 
-Status (2026-10-28): phases 1 and 2 built. `packages/core` (51 tests) and `apps/web` (18 tests) typecheck and pass; the web app was clicked through in a browser (typing, Enter/Tab, selection keys, paste import, hide/sweep done, reload persistence, dark, phone width). Not deployed yet: `render.yaml` is ready for a Render static site once the GitHub repo exists.
+Status (2026-10-28): phases 1, 2 and 3 built; phase 3 is verified against the local Supabase stack only (no hosted project yet). Earlier note: phases 1 and 2 built. `packages/core` (51 tests) and `apps/web` (18 tests) typecheck and pass; the web app was clicked through in a browser (typing, Enter/Tab, selection keys, paste import, hide/sweep done, reload persistence, dark, phone width). Not deployed yet: `render.yaml` is ready for a Render static site once the GitHub repo exists.
 
 Decisions (2026-10-28): public repo from day one; login by magic link and Google; domain `hissypad.marcelo.ph`; `collapsed` syncs across devices.
 
@@ -49,8 +49,8 @@ The learning item here is "offline-first / local-first sync" from tech-to-learn.
 
 - Every client keeps a full local copy of its nodes (IndexedDB on web, SQLite on mobile) and renders only from that. The app works with no network at all.
 - Every local edit stamps `updated_at` with the client's clock plus a small device offset guard (a hybrid logical clock in one line: never emit a timestamp lower than the last one you saw).
-- Push: dirty rows are upserted in batches. The server-side upsert is `on conflict (id) do update ... where excluded.updated_at > nodes.updated_at`. Replaying a batch is harmless, so retries are free.
-- Pull: `select * from nodes where updated_at > :cursor order by updated_at`, cursor stored locally. Tombstones come through the same query.
+- Push: dirty rows are upserted in batches. A `before insert or update` trigger drops any write whose `updated_at` is not newer than the stored row, so last-write-wins is decided on the server and every device converges whatever the arrival order. Replaying a batch is harmless, so retries are free. A row edited while its push is in flight stays dirty.
+- Pull: `select * from nodes where synced_at > :cursor order by synced_at`, cursor stored locally. `synced_at` is stamped by the server on every accepted write, so the cursor is not fooled by client clocks; the client also backs the cursor up ten seconds on each pull so a row that committed slightly out of order is still seen (duplicates are harmless, the merge compares `updated_at`). Tombstones come through the same query.
 - Live: a Supabase Realtime subscription on `nodes` filtered by `user_id` nudges a pull, so the laptop sees the phone's capture within a second. Realtime is a hint only; correctness comes from the pull cursor.
 - Conflicts: the row with the later `updated_at` wins the whole row. Two devices editing the same node's text within the same offline window is the only real loss, and that is rare on a personal pad. Structural conflicts (one device moves a node, the other edits its text) merge cleanly because rank and text are on the same row only when the same device touched both. Orphans (parent deleted on another device) are re-parented to the root on read, never dropped.
 
@@ -120,7 +120,7 @@ Each phase ends with something usable. Phase 2 is the point where the Docs inbox
 
 1. **Core** (done 2026-10-28). Types, tree index, ops, rank helpers, paste importer, clock. Vitest, including a property test that any sequence of ops keeps ranks unique and the tree acyclic. No UI. See `packages/core/README.md`.
 2. **Web, local only** (built 2026-10-28, deploy pending). Editor with the keyboard model, done, collapse, IndexedDB store, PWA manifest, undo/redo, Paste-in dialog, Copy all. Deploy to Render static, then paste the Google Docs inbox in and start using it. Sync is a stub (`LocalStore` already tracks dirty rows for phase 3).
-3. **Supabase + sync** (2-3 evenings). Migration, RLS, pgTAP tests, magic-link login, sync engine push/pull/realtime. Test the engine in Vitest against an in-memory `LocalStore` with two simulated devices going offline and back. Two browsers, one pad.
+3. **Supabase + sync** (built 2026-10-28). Migration with a last-write-wins trigger and a server-stamped `synced_at` pull cursor, RLS with pgTAP tests (13), magic link + Google sign-in, sync engine push/pull/realtime with ten two-device tests (`packages/core/src/sync/engine.test.ts`). Pending: a hosted Supabase project, `supabase db push`, env vars on Render.
 4. **Drag and multi-select** (2 evenings). `resolveDrop` in core with tests, pointer drag on web, selection bar actions. Playwright E2E with real drag coordinates, the item tech-to-learn.md calls a cheap win.
 5. **Mobile** (3-4 evenings). Expo app on the same core, expo-sqlite adapter, Reanimated drag, share-sheet capture. EAS Build to the phone, EAS Update for JS-only fixes. iOS first, since the share sheet is the point.
 6. **Polish**. Search (`Cmd+K` jumps to a node). Dark mode, undo, Delete done and numbered lists already landed in phase 2.

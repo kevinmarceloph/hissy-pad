@@ -13,6 +13,22 @@ export interface NodeRow {
   deletedAt: string | null  // tombstone; clients never hard-delete
 }
 
+// Fill in fields a row written by an older build may lack (a column added later). Any
+// row read from local storage goes through this before it is used or pushed.
+export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
+  return {
+    id: r.id,
+    parentId: r.parentId ?? null,
+    rank: r.rank ?? 'a0',
+    text: r.text ?? '',
+    done: r.done === true,
+    collapsed: r.collapsed === true,
+    numbered: r.numbered === true,
+    updatedAt: r.updatedAt ?? new Date(0).toISOString(),
+    deletedAt: r.deletedAt ?? null,
+  }
+}
+
 // The client's whole local copy, keyed by id. Ops take one and return a new one with
 // structural sharing: only the changed rows are new objects.
 export type Rows = Readonly<Record<string, NodeRow>>

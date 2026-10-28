@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hissypad/core": "workspace:*",
+    "@supabase/supabase-js": "^2.118.0",
     "idb": "^8",
     "react": "^19.2",
     "react-dom": "^19.2",

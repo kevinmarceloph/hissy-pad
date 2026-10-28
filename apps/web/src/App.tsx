@@ -3,6 +3,7 @@ import { dismissStorageError, loadPad, usePad } from './store'
 import { Pad } from './Pad'
 import { SelectionBar } from './SelectionBar'
 import { TopBar } from './TopBar'
+import { Account } from './Account'
 
 export function App() {
   const load = usePad((s) => s.load)
@@ -23,7 +24,7 @@ export function App() {
       )}
       {load === 'loading' ? <p className="hint" aria-busy="true">Opening your pad…</p> : <Pad />}
       <SelectionBar />
-      <footer className="foot">Saved in this browser only. Sync between devices comes in phase 3.</footer>
+      <footer className="foot"><Account /></footer>
     </main>
   )
 }

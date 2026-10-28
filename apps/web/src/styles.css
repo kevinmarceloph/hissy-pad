@@ -289,3 +289,19 @@ dialog.import .actions button:disabled { opacity: 0.5; cursor: default; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* Footer account line */
+.foot { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; align-items: baseline; }
+.account { display: inline-flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; align-items: baseline; }
+.account .who { color: var(--ink-soft); }
+button.link { color: var(--link); text-decoration: underline; text-underline-offset: 0.15em; min-height: 32px; font-size: inherit; }
+button.link:hover { color: var(--ink); }
+dialog.import .field { display: grid; gap: 0.3rem; margin: 0.75rem 0; }
+dialog.import .field span { color: var(--ink-soft); font-size: 0.9rem; }
+dialog.import input[type='email'] {
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper-raised);
+}
