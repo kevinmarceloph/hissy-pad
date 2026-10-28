@@ -124,9 +124,11 @@ kbd {
   width: 100%;
   position: relative;
 }
-/* Extend the tap target to about 44px without changing the row's height. The bullet is
-   also the drag handle, so the browser must not turn a touch on it into a scroll. */
-.row .bullet { padding: 10px 0; margin: -10px 0; box-sizing: content-box; touch-action: none; cursor: grab; }
+/* The tap target grows sideways into the page margin, never up or down: a vertical
+   extension overlapped the neighbouring rows' bullets and the row below won the tap. The
+   bullet is also the drag handle, so the browser must not turn a touch on it into a scroll. */
+.row .bullet { padding: 1px 0 1px 12px; margin: -1px 0 -1px -12px; box-sizing: content-box; touch-action: none; cursor: grab; }
+.row .bullet::before { margin-left: 6px; }
 .row.is-dragging { opacity: 0.35; }
 body.is-dragging-rows { cursor: grabbing; user-select: none; -webkit-user-select: none; }
 body.is-dragging-rows .row .bullet { cursor: grabbing; }

@@ -77,7 +77,7 @@ export const Row = memo(function Row({ row, depth, hasChildren, editing, selecte
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={selected ? 'Deselect line' : 'Select line'}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+      hitSlop={{ top: 0, bottom: 0, left: 12, right: 4 }}
       onPress={() => clickSelect(row.id, { shift: false, meta: false })}
       onLongPress={(e) => onBulletLongPress(row.id, e.nativeEvent.pageX, e.nativeEvent.pageY)}
       delayLongPress={280}

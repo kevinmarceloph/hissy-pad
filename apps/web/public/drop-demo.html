@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Drop indicators</title>
+<meta name="color-scheme" content="light dark" />
+<style>
+  :root {
+    --paper: #f7f4ec; --paper-raised: #fffdf8; --ink: #1f1c17; --ink-soft: #4d4842; --ink-mute: #8a847a;
+    --rule: #d9d3c6; --accent: #b5452b; --accent-soft: color-mix(in oklab, var(--accent) 12%, var(--paper));
+    --indent: 24px; --gutter: 36px; --line: 26px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #1b1a17; --paper-raised: #24221e; --ink: #ebe6db; --ink-soft: #c9c3b6; --ink-mute: #857f74; --rule: #3a3731; --accent: #e0755a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.5 Charter, 'Iowan Old Style', Georgia, serif; padding: 24px 16px 64px; }
+  h1 { font-weight: 400; font-style: italic; font-size: 1.3rem; margin: 0 0 4px; }
+  p.lede { color: var(--ink-soft); margin: 0 0 24px; max-width: 60rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px 28px; }
+  .panel h2 { font-weight: 400; font-size: 1rem; margin: 0 0 2px; }
+  .panel p { color: var(--ink-mute); font-size: 0.85rem; margin: 0 0 8px; min-height: 2.6em; }
+  .list { position: relative; border: 1px solid var(--rule); border-radius: 6px; padding: 8px 8px 8px 0; background: var(--paper-raised); user-select: none; }
+  .row { display: grid; grid-template-columns: var(--gutter) 1fr; min-height: var(--line); align-items: center; padding-left: calc(var(--depth) * var(--indent)); border-radius: 4px; position: relative; }
+  .row .b { width: var(--gutter); height: var(--line); display: grid; place-items: center; cursor: grab; touch-action: none; }
+  .row .b::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-soft); }
+  .row.moving { opacity: 0.35; }
+  .row.ghostrow { opacity: 0.55; background: var(--accent-soft); }
+  .row.parent-hi { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  .row.parent-hi .b::before { background: var(--accent); }
+  .ind { position: absolute; height: 2px; background: var(--accent); pointer-events: none; z-index: 2; right: 8px; }
+  .ind::before { content: ''; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .ind.elbow::after { content: ''; position: absolute; left: 0; width: 2px; background: var(--accent); bottom: 0; }
+  .ind.nodot::before { display: none; }
+  .ind.nested-bar { height: 3px; border-radius: 2px; }
+  .ind.nested-bar::before { display: none; }
+  .ind.flag::after { content: attr(data-label); position: absolute; right: 0; top: -1.3em; font-size: 0.72rem; color: var(--accent); background: var(--paper-raised); padding: 0 4px; border: 1px solid var(--accent); border-radius: 3px; line-height: 1.3; }
+  .slot { height: var(--line); margin-left: calc(var(--gutter) + var(--depth) * var(--indent) - 6px); margin-right: 8px; border: 1.5px dashed var(--accent); border-radius: 4px; background: var(--accent-soft); }
+  .ghost { position: fixed; z-index: 10; pointer-events: none; padding: 2px 8px; border-radius: 4px; background: var(--paper-raised); border: 1px solid var(--rule); box-shadow: 0 6px 24px -12px rgb(0 0 0 / .35); font-size: 0.95rem; }
+  .note { margin-top: 28px; color: var(--ink-soft); max-width: 60rem; font-size: 0.92rem; }
+  .row, .slot { transition: transform 140ms ease; }
+  .row.t { transition: none; }
+</style>
+</head>
+<body>
+<h1>Drop indicators</h1>
+<p class="lede">The same outline five times. Drag a bullet in each and watch how the drop target is shown: move up and down to pick the gap, right to nest under the row above, left to climb out. The rules are identical in every panel; only the feedback differs.</p>
+<div class="grid" id="grid"></div>
+<p class="note" id="note">Pick one by name. The app currently ships option 1.</p>
+<script>
+const SEED = [
+  ['Today:', 0], ['IGS Meal Planning', 1], ['Job Hunt (before 9pm)', 1], ['Personal Website', 1],
+  ['Fix current copy', 2], ['Writeup about Astro', 2], ['Make eggnog', 1], ['Lyrics: Review EN', 0], ['Government req', 0],
+]
+const STYLES = [
+  { key: 'line-text', title: '1. Line from the text column (current)', blurb: 'A line at the gap, starting where the text of the dropped row will start. The depth shows as the line\'s left offset.' },
+  { key: 'line-bullet', title: '2. Line from the bullet column', blurb: 'Same line, but the dot sits where the dropped row\'s bullet will be, under the bullet of the row it nests beneath; an elbow connects it to the parent when nesting.' },
+  { key: 'parent', title: '3. Parent highlight', blurb: 'The line stays, and the row that would become the parent gets a tint and a bracket. Nesting and sibling drops look unmistakably different.' },
+  { key: 'slot', title: '4. Placeholder slot', blurb: 'A dashed empty slot opens at the target, indented to the target depth, and the rows below shift down. The dragged rows stay dimmed where they were.' },
+  { key: 'live', title: '5. Live reorder (Things-style)', blurb: 'The dragged rows are shown in their new place as you move, dimmed, and the list reflows around them. Nothing to decode: what you see is what you get.' },
+]
+const INDENT = 24, GUTTER = 36
+function makePanel(st) {
+  const panel = document.createElement('section'); panel.className = 'panel'
+  panel.innerHTML = `<h2>${st.title}</h2><p>${st.blurb}</p><div class="list"></div>`
+  const list = panel.querySelector('.list')
+  let rows = SEED.map(([text, depth], i) => ({ id: `${st.key}-${i}`, text, depth }))
+  let drag = null // { ids, moving:Set, target, x, y }
+  function subtreeIds(idx) { const d = rows[idx].depth; const out = [rows[idx].id]; for (let i = idx + 1; i < rows.length && rows[i].depth > d; i++) out.push(rows[i].id); return out }
+  function resolve(y, x) {
+    const anchors = [...list.querySelectorAll('.row')].filter(el => !drag.moving.has(el.dataset.id)).map(el => { const r = el.getBoundingClientRect(); const lr = list.getBoundingClientRect(); return { id: el.dataset.id, depth: +el.style.getPropertyValue('--depth'), top: r.top - lr.top, height: r.height } })
+    let gap = 0; while (gap < anchors.length && anchors[gap].top + anchors[gap].height / 2 < y) gap++
+    const prev = anchors[gap - 1] || null, next = anchors[gap] || null
+    const maxD = prev ? prev.depth + 1 : 0, minD = next ? next.depth : 0
+    const depth = Math.max(minD, Math.min(maxD, Math.round(x)))
+    let parentId = null
+    if (prev) { if (depth === prev.depth + 1) parentId = prev.id; else { for (let i = gap - 1; i >= 0; i--) { if (anchors[i].depth === depth - 1) { parentId = anchors[i].id; break } if (anchors[i].depth < depth - 1) break } } }
+    const y0 = prev ? prev.top + prev.height : next ? next.top : 8
+    return { gap, depth, prev, next, parentId, y: y0, anchors }
+  }
+  function render() {
+    // FLIP: remember current positions
+    const before = new Map([...list.querySelectorAll('.row')].map(el => [el.dataset.id, el.getBoundingClientRect().top]))
+    list.innerHTML = ''
+    const t = drag?.target
+    let order = rows
+    if (t && (st.key === 'live' || st.key === 'slot')) {
+      const anchors = rows.filter(r => !drag.moving.has(r.id))
+      const moving = rows.filter(r => drag.moving.has(r.id))
+      const base = moving[0].depth
+      const placed = st.key === 'live' ? moving.map(r => ({ ...r, depth: r.depth - base + t.depth, ghost: true })) : [{ slot: true, depth: t.depth }]
+      order = [...anchors.slice(0, t.gap), ...placed, ...anchors.slice(t.gap), ...(st.key === 'slot' ? moving : [])]
+      if (st.key === 'slot') order = [...anchors.slice(0, t.gap), ...placed, ...anchors.slice(t.gap)]
+    }
+    for (const r of order) {
+      if (r.slot) { const s = document.createElement('div'); s.className = 'slot'; s.style.setProperty('--depth', r.depth); list.appendChild(s); continue }
+      const el = document.createElement('div'); el.className = 'row'; el.dataset.id = r.id; el.style.setProperty('--depth', r.depth)
+      if (drag && drag.moving.has(r.id) && !r.ghost) el.classList.add('moving')
+      if (r.ghost) el.classList.add('ghostrow')
+      if (t && st.key === 'parent' && t.parentId === r.id) el.classList.add('parent-hi')
+      el.innerHTML = `<span class="b"></span><span>${r.text}</span>`
+      list.appendChild(el)
+    }
+    if (st.key === 'slot' && t) {
+      // keep the moving rows visible (dimmed) where they were, after the slot is placed
+      for (const r of rows.filter(r => drag.moving.has(r.id))) {
+        const el = document.createElement('div'); el.className = 'row moving'; el.dataset.id = r.id; el.style.setProperty('--depth', r.depth)
+        el.innerHTML = `<span class="b"></span><span>${r.text}</span>`
+        const i = rows.indexOf(r); const anchorBefore = [...list.querySelectorAll('.row')].find(x => rows.findIndex(rr => rr.id === x.dataset.id) > i)
+        list.insertBefore(el, anchorBefore || null)
+      }
+    }
+    // FLIP: animate from old to new positions
+    for (const el of list.querySelectorAll('.row')) {
+      const b = before.get(el.dataset.id); if (b === undefined) continue
+      const d = b - el.getBoundingClientRect().top; if (!d) continue
+      el.classList.add('t'); el.style.transform = `translateY(${d}px)`
+      requestAnimationFrame(() => { el.classList.remove('t'); el.style.transform = '' })
+    }
+    // line indicators
+    if (t && (st.key === 'line-text' || st.key === 'line-bullet' || st.key === 'parent')) {
+      const ind = document.createElement('div'); ind.className = 'ind'
+      ind.style.top = `${t.y - 1}px`
+      if (st.key === 'line-bullet') {
+        ind.style.left = `${t.depth * INDENT + GUTTER / 2 - 3}px`
+        if (t.prev && t.depth === t.prev.depth + 1) { ind.classList.add('elbow'); const parentEl = list.querySelector(`.row[data-id="${t.prev.id}"]`); const ph = parentEl.getBoundingClientRect().height; ind.style.setProperty('--eh', `${ph / 2}px`); ind.querySelector; ind.style.setProperty('height', '2px'); const elbow = document.createElement('div'); elbow.style.cssText = `position:absolute;left:0;bottom:0;width:2px;height:${ph / 2 + 2}px;background:var(--accent);`; ind.appendChild(elbow) }
+      } else {
+        ind.style.left = `${GUTTER + t.depth * INDENT}px`
+      }
+      list.appendChild(ind)
+    }
+  }
+  render()
+  list.addEventListener('pointerdown', e => {
+    const b = e.target.closest('.b'); if (!b) return
+    const id = b.parentElement.dataset.id; const idx = rows.findIndex(r => r.id === id)
+    const ids = subtreeIds(idx)
+    drag = { ids, moving: new Set(ids), target: null, label: rows[idx].text }
+    list.setPointerCapture(e.pointerId); e.preventDefault()
+    const g = document.createElement('div'); g.className = 'ghost'; g.textContent = ids.length > 1 ? `${ids.length} lines` : rows[idx].text; document.body.appendChild(g); drag.ghost = g
+  })
+  list.addEventListener('pointermove', e => {
+    if (!drag) return
+    const lr = list.getBoundingClientRect()
+    drag.target = resolve(e.clientY - lr.top, (e.clientX - lr.left - GUTTER) / INDENT)
+    drag.ghost.style.left = `${e.clientX + 12}px`; drag.ghost.style.top = `${e.clientY - 10}px`
+    render()
+  })
+  function end(commit) {
+    if (!drag) return
+    const t = drag.target; drag.ghost.remove()
+    if (commit && t) {
+      const moving = rows.filter(r => drag.moving.has(r.id)); const base = moving[0].depth
+      const anchors = rows.filter(r => !drag.moving.has(r.id))
+      rows = [...anchors.slice(0, t.gap), ...moving.map(r => ({ ...r, depth: r.depth - base + t.depth })), ...anchors.slice(t.gap)]
+    }
+    drag = null; render()
+  }
+  list.addEventListener('pointerup', () => end(true))
+  list.addEventListener('pointercancel', () => end(false))
+  window.addEventListener('keydown', e => { if (e.key === 'Escape') end(false) })
+  return panel
+}
+const grid = document.getElementById('grid')
+for (const st of STYLES) grid.appendChild(makePanel(st))
+</script>
+</body>
+</html>
