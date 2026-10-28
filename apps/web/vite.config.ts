@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/apple-touch-icon.png'],
+      includeAssets: ['icons/apple-touch-icon.png', 'favicon.svg', 'icons/favicon-64.png'],
       manifest: {
         name: 'HissyPad',
         short_name: 'HissyPad',
