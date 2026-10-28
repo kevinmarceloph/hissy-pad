@@ -59,3 +59,4 @@ export {
   type SyncEngineOptions,
 } from './sync/engine'
 export { createFakeRemote, type FakeRemote } from './sync/fakeRemote'
+export { resolveDrop, type LayoutRow, type DropTarget, type DropInput } from './drop'

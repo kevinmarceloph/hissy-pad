@@ -124,8 +124,43 @@ kbd {
   width: 100%;
   position: relative;
 }
-/* Extend the tap target to about 44px without changing the row's height. */
-.row .bullet { padding: 10px 0; margin: -10px 0; box-sizing: content-box; }
+/* Extend the tap target to about 44px without changing the row's height. The bullet is
+   also the drag handle, so the browser must not turn a touch on it into a scroll. */
+.row .bullet { padding: 10px 0; margin: -10px 0; box-sizing: content-box; touch-action: none; cursor: grab; }
+.row.is-dragging { opacity: 0.35; }
+body.is-dragging-rows { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+body.is-dragging-rows .row .bullet { cursor: grabbing; }
+.drop-line {
+  position: absolute;
+  right: 0;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 2;
+}
+.drop-line::before {
+  content: '';
+  position: absolute; left: -4px; top: -3px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.drag-ghost {
+  position: fixed;
+  z-index: 10;
+  pointer-events: none;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  box-shadow: 0 6px 24px -12px rgb(0 0 0 / 0.35);
+  font-size: 0.95rem;
+}
 .row .toggle {
   justify-self: start;
   width: 1rem;

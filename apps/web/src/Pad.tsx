@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { buildIndex, childrenOf, listNumbers } from '@hissypad/core'
 import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from './store'
 import {
@@ -6,8 +6,21 @@ import {
   cmdPasteAfterSelection, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from './commands'
 import { Row } from './Row'
+import { useDrag } from './drag/useDrag'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+
+function childrenDeep(index: ReturnType<typeof buildIndex>, id: string): string[] {
+  const out: string[] = []
+  const walk = (p: string) => {
+    for (const c of childrenOf(index, p)) {
+      out.push(c.id)
+      walk(c.id)
+    }
+  }
+  walk(id)
+  return out
+}
 
 export function Pad() {
   const rows = usePad((s) => s.rows)
@@ -29,6 +42,14 @@ export function Pad() {
   }, [rows])
 
   const selectedSet = useMemo(() => new Set(selection), [selection])
+  const rowsRef = useRef<HTMLDivElement>(null)
+  const { drag, onBulletPointerDown, onBulletClickCapture } = useDrag(rowsRef)
+  const draggingSet = useMemo(() => {
+    if (!drag) return new Set<string>()
+    const set = new Set(drag.ids)
+    for (const id of drag.ids) for (const d of childrenDeep(index, id)) set.add(d)
+    return set
+  }, [drag, index])
 
   // Selection-mode keys live on the window; they bail whenever a text field has focus.
   useEffect(() => {
@@ -129,7 +150,10 @@ export function Pad() {
 
   return (
     <section className="pad" aria-label="Pad">
-      <div className="rows" role="tree" aria-multiselectable="true">
+      <div className="rows" role="tree" aria-multiselectable="true" ref={rowsRef}>
+        {drag?.target && (
+          <div className="drop-line" style={{ top: drag.target.indicatorY, left: drag.indicatorLeft }} aria-hidden="true" />
+        )}
         {visible.map(({ id, depth }) => (
           <Row
             key={id}
@@ -139,9 +163,17 @@ export function Pad() {
             editing={editing}
             selected={selectedSet.has(id)}
             number={numbers.get(id) ?? null}
+            dragging={draggingSet.has(id)}
+            onBulletPointerDown={onBulletPointerDown}
+            onBulletClickCapture={onBulletClickCapture}
           />
         ))}
       </div>
+      {drag && (
+        <div className="drag-ghost" style={{ left: drag.x + 12, top: drag.y - 10 }} aria-hidden="true">
+          {drag.count > 1 ? `${drag.count} lines` : drag.label}
+        </div>
+      )}
       {lone && (
         <p className="hint">
           Type anything. <kbd>Enter</kbd> for a new line, <kbd>Tab</kbd> to nest, <kbd>Esc</kbd> to select a line,

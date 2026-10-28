@@ -17,6 +17,7 @@ pnpm --filter @hissypad/web dev     # http://localhost:5180
 pnpm test                # every package
 pnpm typecheck
 pnpm --filter @hissypad/web build   # apps/web/dist
+pnpm --filter @hissypad/web e2e     # Playwright drag tests (desktop + phone profiles)
 ```
 
 ### Sync (optional)
@@ -55,7 +56,7 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 | Cmd+A | select all |
 | Esc | clear |
 
-Cmd+Z / Shift+Cmd+Z undo and redo anywhere. Tap a bullet to select it; once something is selected, tapping other bullets toggles them (no modifier, so it works on a phone). Shift+click selects a range. Blank lines show no bullet, done lines show a × like a bullet journal, and "Delete done" removes every crossed-out line (undo brings them back).
+Drag a bullet to move a line (press and hold on a phone); move right to nest under the line above, left to climb out. If the dragged line is part of a selection, the whole selection moves. Cmd+Z / Shift+Cmd+Z undo and redo anywhere. Tap a bullet to select it; once something is selected, tapping other bullets toggles them (no modifier, so it works on a phone). Shift+click selects a range. Blank lines show no bullet, done lines show a × like a bullet journal, and "Delete done" removes every crossed-out line (undo brings them back).
 
 ## Deploy
 

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react'
 import type { NodeRow } from '@hissypad/core'
 import { clickSelect, edit, select, usePad, type Editing } from './store'
 import {
@@ -16,6 +16,9 @@ interface Props {
   editing: Editing | null
   selected: boolean
   number: number | null // position in a numbered run, or null for a plain bullet
+  dragging: boolean     // part of the set being dragged
+  onBulletPointerDown: (id: string, e: PointerEvent) => void
+  onBulletClickCapture: (e: MouseEvent) => void
 }
 
 // Either modifier works everywhere: Cmd is the Mac habit, Ctrl is what external keyboards
@@ -67,7 +70,7 @@ function caretFromPoint(el: HTMLElement, x: number, y: number): number | 'end' {
   return range.toString().length
 }
 
-export function Row({ row, depth, hasChildren, editing, selected, number }: Props) {
+export function Row({ row, depth, hasChildren, editing, selected, number, dragging, onBulletPointerDown, onBulletClickCapture }: Props) {
   const isEditing = editing?.id === row.id
   const ref = useRef<HTMLTextAreaElement>(null)
 
@@ -143,7 +146,7 @@ export function Row({ row, depth, hasChildren, editing, selected, number }: Prop
     edit(row.id, caretFromPoint(e.currentTarget, e.clientX, e.clientY))
   }
 
-  const cls = ['row', row.done && 'is-done', row.text === '' && 'is-empty', number !== null && 'is-numbered', selected && 'is-selected', isEditing && 'is-editing', row.collapsed && hasChildren && 'is-collapsed']
+  const cls = ['row', row.done && 'is-done', row.text === '' && 'is-empty', number !== null && 'is-numbered', dragging && 'is-dragging', selected && 'is-selected', isEditing && 'is-editing', row.collapsed && hasChildren && 'is-collapsed']
     .filter(Boolean)
     .join(' ')
 
@@ -163,6 +166,8 @@ export function Row({ row, depth, hasChildren, editing, selected, number }: Prop
         data-num={number !== null ? `${number}.` : undefined}
         aria-label={selected ? 'Deselect line' : 'Select line'}
         onClick={onBulletClick}
+        onClickCapture={onBulletClickCapture}
+        onPointerDown={(e) => onBulletPointerDown(row.id, e)}
       />
       {isEditing ? (
         <textarea

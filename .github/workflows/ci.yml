@@ -18,6 +18,13 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm --filter @hissypad/web build
+      - run: pnpm --filter @hissypad/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @hissypad/web e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: apps/web/test-results
 
   database:
     runs-on: ubuntu-latest

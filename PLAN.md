@@ -2,7 +2,7 @@
 
 A scratchpad that sits between Google Docs and Hissycal. One freeform outline, always open, where the top of the page is whatever needs attention next. Drag things around in a hierarchy, multi-select, cross things out. Nothing else.
 
-Status (2026-10-28): phases 1, 2 and 3 built; phase 3 is verified against the local Supabase stack only (no hosted project yet). Earlier note: phases 1 and 2 built. `packages/core` (51 tests) and `apps/web` (18 tests) typecheck and pass; the web app was clicked through in a browser (typing, Enter/Tab, selection keys, paste import, hide/sweep done, reload persistence, dark, phone width). Not deployed yet: `render.yaml` is ready for a Render static site once the GitHub repo exists.
+Status (2026-10-28): phases 1-4 built; phase 3 is verified against the local Supabase stack only (no hosted project yet). Earlier note: phases 1 and 2 built. `packages/core` (51 tests) and `apps/web` (18 tests) typecheck and pass; the web app was clicked through in a browser (typing, Enter/Tab, selection keys, paste import, hide/sweep done, reload persistence, dark, phone width). Not deployed yet: `render.yaml` is ready for a Render static site once the GitHub repo exists.
 
 Decisions (2026-10-28): public repo from day one; login by magic link and Google; domain `hissypad.marcelo.ph`; `collapsed` syncs across devices.
 
@@ -121,7 +121,7 @@ Each phase ends with something usable. Phase 2 is the point where the Docs inbox
 1. **Core** (done 2026-10-28). Types, tree index, ops, rank helpers, paste importer, clock. Vitest, including a property test that any sequence of ops keeps ranks unique and the tree acyclic. No UI. See `packages/core/README.md`.
 2. **Web, local only** (built 2026-10-28, deploy pending). Editor with the keyboard model, done, collapse, IndexedDB store, PWA manifest, undo/redo, Paste-in dialog, Copy all. Deploy to Render static, then paste the Google Docs inbox in and start using it. Sync is a stub (`LocalStore` already tracks dirty rows for phase 3).
 3. **Supabase + sync** (built 2026-10-28). Migration with a last-write-wins trigger and a server-stamped `synced_at` pull cursor, RLS with pgTAP tests (13), magic link + Google sign-in, sync engine push/pull/realtime with ten two-device tests (`packages/core/src/sync/engine.test.ts`). Pending: a hosted Supabase project, `supabase db push`, env vars on Render.
-4. **Drag and multi-select** (2 evenings). `resolveDrop` in core with tests, pointer drag on web, selection bar actions. Playwright E2E with real drag coordinates, the item tech-to-learn.md calls a cheap win.
+4. **Drag and multi-select** (built 2026-10-28). `resolveDrop` in core (gap by row midpoints, depth by x, clamped to what the gap allows) with tests; pointer drag on web with long-press on touch, drop indicator, ghost, autoscroll, Escape to cancel; a selection drags as a block. Playwright E2E with real mouse and CDP touch coordinates on desktop and Pixel profiles, run in CI.
 5. **Mobile** (3-4 evenings). Expo app on the same core, expo-sqlite adapter, Reanimated drag, share-sheet capture. EAS Build to the phone, EAS Update for JS-only fixes. iOS first, since the share sheet is the point.
 6. **Polish**. Search (`Cmd+K` jumps to a node). Dark mode, undo, Delete done and numbered lists already landed in phase 2.
 
