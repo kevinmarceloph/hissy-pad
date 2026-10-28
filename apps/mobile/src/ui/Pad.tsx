@@ -2,7 +2,7 @@
 // via a long press on a bullet. Drop resolution is core's resolveDrop over the rows'
 // measured layouts; this file only measures and draws.
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react'
-import { Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { Keyboard, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Clipboard from 'expo-clipboard'
@@ -68,6 +68,17 @@ export function Pad() {
   }, [rows])
   const selectedSet = useMemo(() => new Set(selection), [selection])
 
+  // Live reorder: with a drop target, the dragged rows are shown where they would land.
+  const displayed = useMemo(() => {
+    const t = drag?.target
+    if (!t) return visible.map((v) => ({ ...v, preview: false }))
+    const anchors = visible.filter((v) => !drag!.moving.has(v.id))
+    const moving = visible.filter((v) => drag!.moving.has(v.id))
+    const base = moving[0]?.depth ?? 0
+    const placed = moving.map((v) => ({ id: v.id, depth: v.depth - base + t.depth, preview: true }))
+    return [...anchors.slice(0, t.gapIndex).map((v) => ({ ...v, preview: false })), ...placed, ...anchors.slice(t.gapIndex).map((v) => ({ ...v, preview: false }))]
+  }, [visible, drag])
+
   const onRowLayout = useCallback((id: string, e: LayoutChangeEvent) => {
     layouts.current.set(id, { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height })
   }, [])
@@ -91,7 +102,11 @@ export function Pad() {
       pointerY: y - origin.current.y + scrollY.current,
       pointerDepth: (x - origin.current.x - GUTTER) / INDENT,
     })
+    const prev = d.target
+    const changed = (prev?.gapIndex ?? -1) !== (target?.gapIndex ?? -1) || prev?.depth !== target?.depth
     dragRef.current = { ...d, x, y, target }
+    // Live reorder: slide the rows when the target changes (position updates alone are cheap).
+    if (changed) LayoutAnimation.configureNext(LayoutAnimation.create(140, 'easeInEaseOut', 'opacity'))
     setDrag(dragRef.current)
   }, [])
 
@@ -177,8 +192,6 @@ export function Pad() {
 
   const doneCount = Object.values(rows).filter((r) => r.deletedAt === null && r.done).length
   const lone = visible.length === 1 && rows[visible[0]!.id]!.text === ''
-  const indicator = drag?.target
-  const indicatorLeft = indicator ? GUTTER + indicator.depth * INDENT : 0
 
   return (
     <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: kb > 0 ? kb : insets.bottom }]}>
@@ -219,12 +232,7 @@ export function Pad() {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
           >
-            {indicator && (
-              <View pointerEvents="none" style={[s.dropLine, { top: indicator.indicatorY - 1, left: indicatorLeft, backgroundColor: theme.accent }]}>
-                <View style={[s.dropDot, { backgroundColor: theme.accent }]} />
-              </View>
-            )}
-            {visible.map(({ id, depth }) => (
+            {displayed.map(({ id, depth, preview }) => (
               <Row
                 key={id}
                 row={rows[id]!}
@@ -233,7 +241,8 @@ export function Pad() {
                 editing={editing}
                 selected={selectedSet.has(id)}
                 number={numbers.get(id) ?? null}
-                dragging={drag?.moving.has(id) ?? false}
+                dragging={preview ? false : (drag?.moving.has(id) ?? false)}
+                preview={preview}
                 theme={theme}
                 onLayout={onRowLayout}
                 onBulletLongPress={() => {}}
@@ -269,8 +278,6 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 8, paddingBottom: 24 },
   hint: { fontFamily: serif, fontStyle: 'italic', fontSize: 15, lineHeight: 22, paddingHorizontal: GUTTER + 8, paddingVertical: 8 },
   tail: { height: 56 },
-  dropLine: { position: 'absolute', right: 8, height: 2, zIndex: 2 },
-  dropDot: { position: 'absolute', left: -4, top: -3, width: 8, height: 8, borderRadius: 4 },
   ghost: { position: 'absolute', zIndex: 10, maxWidth: 260, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth },
   ghostText: { fontFamily: serif, fontSize: 15 },
 })

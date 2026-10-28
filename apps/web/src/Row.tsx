@@ -16,7 +16,8 @@ interface Props {
   editing: Editing | null
   selected: boolean
   number: number | null // position in a numbered run, or null for a plain bullet
-  dragging: boolean     // part of the set being dragged
+  dragging: boolean     // part of the set being dragged, shown where it was (no target yet)
+  preview: boolean      // part of the set being dragged, shown where it would land
   onBulletPointerDown: (id: string, e: PointerEvent) => void
   onBulletClickCapture: (e: MouseEvent) => void
 }
@@ -70,7 +71,7 @@ function caretFromPoint(el: HTMLElement, x: number, y: number): number | 'end' {
   return range.toString().length
 }
 
-export function Row({ row, depth, hasChildren, editing, selected, number, dragging, onBulletPointerDown, onBulletClickCapture }: Props) {
+export function Row({ row, depth, hasChildren, editing, selected, number, dragging, preview, onBulletPointerDown, onBulletClickCapture }: Props) {
   const isEditing = editing?.id === row.id
   const ref = useRef<HTMLTextAreaElement>(null)
 
@@ -146,7 +147,7 @@ export function Row({ row, depth, hasChildren, editing, selected, number, draggi
     edit(row.id, caretFromPoint(e.currentTarget, e.clientX, e.clientY))
   }
 
-  const cls = ['row', row.done && 'is-done', row.text === '' && 'is-empty', number !== null && 'is-numbered', dragging && 'is-dragging', selected && 'is-selected', isEditing && 'is-editing', row.collapsed && hasChildren && 'is-collapsed']
+  const cls = ['row', row.done && 'is-done', row.text === '' && 'is-empty', number !== null && 'is-numbered', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', isEditing && 'is-editing', row.collapsed && hasChildren && 'is-collapsed']
     .filter(Boolean)
     .join(' ')
 

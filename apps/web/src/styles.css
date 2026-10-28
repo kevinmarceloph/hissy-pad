@@ -130,6 +130,9 @@ kbd {
 .row .bullet { padding: 1px 0 1px 12px; margin: -1px 0 -1px -12px; box-sizing: content-box; touch-action: none; cursor: grab; }
 .row .bullet::before { margin-left: 6px; }
 .row.is-dragging { opacity: 0.35; }
+/* Live reorder: the dragged rows drawn where they would land. */
+.row.is-preview { background: var(--accent-soft); opacity: 0.75; }
+.row.is-preview .bullet::before { background: var(--accent); }
 body.is-dragging-rows { cursor: grabbing; user-select: none; -webkit-user-select: none; }
 body.is-dragging-rows .row .bullet { cursor: grabbing; }
 .drop-line {

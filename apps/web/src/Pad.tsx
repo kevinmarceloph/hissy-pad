@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { buildIndex, childrenOf, listNumbers } from '@hissypad/core'
 import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
@@ -51,6 +51,42 @@ export function Pad() {
     for (const id of drag.ids) for (const d of childrenDeep(index, id)) set.add(d)
     return set
   }, [drag, index])
+
+  // Live reorder: while a drop target exists, the dragged rows are shown where they would
+  // land, at the target depth, and everything else reflows around them. What you see is
+  // what a release gives you.
+  const displayed = useMemo(() => {
+    const t = drag?.target
+    if (!t || draggingSet.size === 0) return visible.map((v) => ({ ...v, preview: false }))
+    const anchors = visible.filter((v) => !draggingSet.has(v.id))
+    const moving = visible.filter((v) => draggingSet.has(v.id))
+    const base = moving[0]?.depth ?? 0
+    const placed = moving.map((v) => ({ id: v.id, depth: v.depth - base + t.depth, preview: true }))
+    return [...anchors.slice(0, t.gapIndex).map((v) => ({ ...v, preview: false })), ...placed, ...anchors.slice(t.gapIndex).map((v) => ({ ...v, preview: false }))]
+  }, [visible, drag?.target, draggingSet])
+
+  // FLIP: rows that moved since the last layout slide from their old spot (drag only).
+  const prevTops = useRef(new Map<string, number>())
+  useLayoutEffect(() => {
+    const root = rowsRef.current
+    if (!root) return
+    const els = root.querySelectorAll<HTMLElement>('.row[data-id]')
+    const next = new Map<string, number>()
+    for (const el of els) {
+      const top = el.offsetTop
+      next.set(el.dataset.id!, top)
+      const prev = prevTops.current.get(el.dataset.id!)
+      if (drag && prev !== undefined && prev !== top) {
+        el.style.transition = 'none'
+        el.style.transform = `translateY(${prev - top}px)`
+        requestAnimationFrame(() => {
+          el.style.transition = 'transform 140ms ease'
+          el.style.transform = ''
+        })
+      }
+    }
+    prevTops.current = next
+  })
 
   // Selection-mode keys live on the window; they bail whenever a text field has focus.
   useEffect(() => {
@@ -158,10 +194,7 @@ export function Pad() {
   return (
     <section className="pad" aria-label="Pad">
       <div className="rows" role="tree" aria-multiselectable="true" ref={rowsRef}>
-        {drag?.target && (
-          <div className="drop-line" style={{ top: drag.target.indicatorY, left: drag.indicatorLeft }} aria-hidden="true" />
-        )}
-        {visible.map(({ id, depth }) => (
+        {displayed.map(({ id, depth, preview }) => (
           <Row
             key={id}
             row={rows[id]!}
@@ -170,7 +203,8 @@ export function Pad() {
             editing={editing}
             selected={selectedSet.has(id)}
             number={numbers.get(id) ?? null}
-            dragging={draggingSet.has(id)}
+            dragging={preview ? false : draggingSet.has(id)}
+            preview={preview}
             onBulletPointerDown={onBulletPointerDown}
             onBulletClickCapture={onBulletClickCapture}
           />

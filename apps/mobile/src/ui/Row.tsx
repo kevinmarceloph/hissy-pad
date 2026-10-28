@@ -12,12 +12,13 @@ interface Props {
   selected: boolean
   number: number | null
   dragging: boolean
+  preview: boolean
   theme: Theme
   onLayout: (id: string, e: LayoutChangeEvent) => void
   onBulletLongPress: (id: string, x: number, y: number) => void
 }
 
-export const Row = memo(function Row({ row, depth, hasChildren, editing, selected, number, dragging, theme, onLayout, onBulletLongPress }: Props) {
+export const Row = memo(function Row({ row, depth, hasChildren, editing, selected, number, dragging, preview, theme, onLayout, onBulletLongPress }: Props) {
   const isEditing = editing?.id === row.id
   const sel = useRef({ start: 0, end: 0 })
   // Local mirror of the text while editing, so each keystroke renders before the store.
@@ -103,7 +104,7 @@ export const Row = memo(function Row({ row, depth, hasChildren, editing, selecte
   return (
     <View
       onLayout={(e) => onLayout(row.id, e)}
-      style={[s.row, { paddingLeft: depth * INDENT }, selected && { backgroundColor: theme.accentSoft }, dragging && { opacity: 0.35 }]}
+      style={[s.row, { paddingLeft: depth * INDENT }, selected && { backgroundColor: theme.accentSoft }, dragging && { opacity: 0.35 }, preview && { backgroundColor: theme.accentSoft, opacity: 0.75 }]}
     >
       {bullet}
       {isEditing ? (
