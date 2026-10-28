@@ -29,6 +29,12 @@
       "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#f7f4ec"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "be5fcc66-3f5c-4331-8ba9-ffd9aa663355"
+      }
+    },
+    "owner": "kevinmarceloph"
   }
 }
