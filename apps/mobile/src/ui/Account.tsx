@@ -12,14 +12,33 @@ function timeOf(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
-// Session from a hissypad://auth#access_token=… link (magic link, or Google via the browser).
-export async function completeAuthFromUrl(url: string) {
-  if (!supabase || !url.startsWith(AUTH_REDIRECT)) return
-  const hash = url.split('#')[1] ?? ''
-  const p = new URLSearchParams(hash)
-  const access_token = p.get('access_token')
-  const refresh_token = p.get('refresh_token')
-  if (access_token && refresh_token) await supabase.auth.setSession({ access_token, refresh_token })
+// Session from the return link, in either shape Supabase sends:
+//   hissypad://auth#access_token=…&refresh_token=…   (implicit flow)
+//   hissypad://auth?code=…                            (PKCE flow)
+// Returns a short status for the UI; errors are shown, not swallowed.
+export async function completeAuthFromUrl(url: string): Promise<string | null> {
+  if (!supabase) return null
+  if (!url.startsWith(AUTH_REDIRECT) && !url.startsWith('hissypad://')) return null
+  try {
+    const u = new URL(url.replace('hissypad://', 'https://hissypad.local/'))
+    const code = u.searchParams.get('code')
+    const err = u.searchParams.get('error_description') ?? u.searchParams.get('error')
+    if (err) return `Sign-in failed: ${err}`
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      return error ? `Sign-in failed: ${error.message}` : 'Signed in.'
+    }
+    const p = new URLSearchParams(u.hash.replace(/^#/, ''))
+    const access_token = p.get('access_token')
+    const refresh_token = p.get('refresh_token')
+    if (access_token && refresh_token) {
+      const { error } = await supabase.auth.setSession({ access_token, refresh_token })
+      return error ? `Sign-in failed: ${error.message}` : 'Signed in.'
+    }
+    return `Sign-in link had no session (${url.slice(0, 40)}…). Is hissypad://** in Supabase's redirect URLs?`
+  } catch (e) {
+    return `Sign-in failed: ${(e as Error).message}`
+  }
 }
 
 export function Account({ theme }: { theme: Theme }) {
@@ -41,8 +60,11 @@ export function Account({ theme }: { theme: Theme }) {
     if (error || !data.url) return setNote(error?.message ?? 'Could not start Google sign-in')
     const res = await WebBrowser.openAuthSessionAsync(data.url, AUTH_REDIRECT)
     if (res.type === 'success') {
-      await completeAuthFromUrl(res.url)
-      setOpen(false)
+      const msg = await completeAuthFromUrl(res.url)
+      setNote(msg)
+      if (msg === 'Signed in.') setOpen(false)
+    } else {
+      setNote(`Google sign-in ${res.type}. If the browser showed the web app instead of returning here, hissypad://** is missing from Supabase's redirect URLs.`)
     }
   }
 
