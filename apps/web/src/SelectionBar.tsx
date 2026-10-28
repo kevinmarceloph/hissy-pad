@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { buildIndex, childrenOf, topmost } from '@hissypad/core'
 import { clearSelection, stopEditing, usePad } from './store'
 import {
@@ -33,7 +33,30 @@ export function SelectionBar() {
   const rows = usePad((s) => s.rows)
   const ids = selection.length > 0 ? selection : editing ? [editing.id] : []
   const can = useMemo(() => abilities(rows, ids), [rows, ids])
-  if (ids.length === 0) return null
+  const ref = useRef<HTMLDivElement>(null)
+  const visible = ids.length > 0
+
+  // A fixed element sits at the bottom of the layout viewport, which the on-screen keyboard
+  // covers rather than shrinks (iOS Safari). Measure the visual viewport and lift the bar by
+  // whatever the keyboard hides, so it stays in view while typing.
+  useEffect(() => {
+    const vv = window.visualViewport
+    const el = ref.current
+    if (!vv || !el || !visible) return
+    const place = () => {
+      const hidden = window.innerHeight - (vv.height + vv.offsetTop)
+      el.style.setProperty('--kb', `${Math.max(0, Math.round(hidden))}px`)
+    }
+    place()
+    vv.addEventListener('resize', place)
+    vv.addEventListener('scroll', place)
+    return () => {
+      vv.removeEventListener('resize', place)
+      vv.removeEventListener('scroll', place)
+    }
+  }, [visible])
+
+  if (!visible) return null
   const n = selection.length
   const label = n === 0 ? 'Editing' : n === 1 ? '1 line' : `${n} lines`
   const close = () => {
@@ -44,7 +67,7 @@ export function SelectionBar() {
     }
   }
   return (
-    <div className="bar selbar" role="toolbar" aria-label={n > 0 ? 'Selected lines' : 'Current line'} onMouseDown={(e) => e.preventDefault()}>
+    <div ref={ref} className="bar selbar" role="toolbar" aria-label={n > 0 ? 'Selected lines' : 'Current line'} onMouseDown={(e) => e.preventDefault()}>
       <span className="count">{label}</span>
       <button type="button" onClick={cmdToggleDone} title="Cross out (⌘Enter)">Done</button>
       <button type="button" onClick={cmdToggleNumbered} title="Numbered list on or off (⌘⇧7)" aria-label="Numbered list">1.</button>

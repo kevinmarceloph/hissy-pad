@@ -230,7 +230,7 @@ kbd {
 /* Action toolbar: one row, never wraps; on a narrow screen it scrolls sideways instead. */
 .selbar {
   position: fixed;
-  left: 50%; bottom: max(1rem, env(safe-area-inset-bottom));
+  left: 50%; bottom: calc(max(1rem, env(safe-area-inset-bottom)) + var(--kb, 0px));
   translate: -50% 0;
   background: var(--paper-raised);
   border: 1px solid var(--rule);
