@@ -8,7 +8,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "ph.marcelo.hissypad",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "ph.marcelo.hissypad",
@@ -35,6 +38,12 @@
         "projectId": "be5fcc66-3f5c-4331-8ba9-ffd9aa663355"
       }
     },
-    "owner": "kevinmarceloph"
+    "owner": "kevinmarceloph",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/be5fcc66-3f5c-4331-8ba9-ffd9aa663355"
+    }
   }
 }
