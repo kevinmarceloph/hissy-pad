@@ -28,8 +28,12 @@ pnpm --filter @hissypad/web e2e     # Playwright drag tests (desktop + phone pro
 cp apps/mobile/.env.example apps/mobile/.env.local    # EXPO_PUBLIC_SUPABASE_URL / _ANON_KEY
 cd apps/mobile && npx expo start                       # Expo Go, or a dev client
 npx expo run:ios                                       # native build into the simulator
-eas build --profile development --platform ios         # dev client on a device (needs `eas login`)
+npx eas-cli build --profile development --platform ios # dev client for a registered iPhone
+npx expo start --dev-client                            # then the phone loads code from this Mac
+npx eas-cli update --channel development --environment development --message "..."   # JS-only OTA update
 ```
+
+EAS project `@kevinmarceloph/hissy-pad`. The Supabase URL and publishable key live as EAS environment variables (development, preview, production), not in the repo. Profiles: `development` (phone), `development-simulator`, `preview`, `production`, each on its own EAS Update channel.
 
 Sign-in on the phone returns through the `hissypad://auth` deep link, which must be in Supabase's redirect URL list. Press and hold a bullet to drag; Return splits the line; the toolbar sits above the keyboard.
 
