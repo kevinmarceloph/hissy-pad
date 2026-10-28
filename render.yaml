@@ -4,7 +4,9 @@ services:
   - type: web
     name: hissypad
     runtime: static
-    buildCommand: corepack enable && corepack prepare pnpm@12.15.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @hissypad/web build
+    # Render provisions pnpm itself from the root package.json's packageManager field;
+    # corepack enable fails there (/usr/bin is read-only).
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @hissypad/web build
     staticPublishPath: apps/web/dist
     headers:
       - path: /sw.js
