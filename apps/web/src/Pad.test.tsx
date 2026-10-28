@@ -3,7 +3,7 @@ import { render, screen, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryStore, pad, shape } from '@hissypad/core'
 import { App } from './App'
-import { configureLocalStore, usePad } from './store'
+import { configureLocalStore, usePad } from '@hissypad/state'
 
 async function mount(outline?: string) {
   const rows = outline ? pad(outline) : {}

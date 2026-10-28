@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { buildIndex, childrenOf, topmost } from '@hissypad/core'
-import { clearSelection, stopEditing, usePad } from './store'
+import { clearSelection, stopEditing, usePad } from '@hissypad/state'
 import {
   cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
   cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
-} from './commands'
+} from '@hissypad/state'
 
 // What each action can do for the current targets, so impossible ones read as disabled
 // instead of silently doing nothing.

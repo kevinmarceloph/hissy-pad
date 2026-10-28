@@ -18,7 +18,8 @@
     "react": "^19.2",
     "react-dom": "^19.2",
     "workbox-window": "^7.4.1",
-    "zustand": "^5"
+    "zustand": "^5",
+    "@hissypad/state": "workspace:*"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6",

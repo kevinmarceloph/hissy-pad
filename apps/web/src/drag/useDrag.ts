@@ -4,8 +4,8 @@
 // the rows' live boxes; this hook only measures, draws state and commits the move.
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { buildIndex, descendantIds, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, select, usePad, visibleIds } from '../store'
-import { log } from '../log'
+import { apply, select, usePad, visibleIds } from '@hissypad/state'
+import { log } from '@hissypad/state'
 
 export interface DragState {
   ids: string[]          // topmost moved rows

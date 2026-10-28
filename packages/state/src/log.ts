@@ -12,12 +12,21 @@ const LIMIT = 1000
 const entries: LogEntry[] = []
 let enabled = false
 
-export function initLog() {
+export interface LogPersist {
+  get(): string | null
+  set(v: string | null): void
+}
+
+let persist: LogPersist = { get: () => null, set: () => {} }
+
+// `flag` is the platform's one-shot request ('1' / '0', e.g. from ?debug=), `store` keeps
+// the choice across launches (localStorage on web, AsyncStorage on mobile).
+export function initLog(store: LogPersist, flag: string | null = null) {
+  persist = store
   try {
-    const q = new URLSearchParams(location.search).get('debug')
-    if (q === '1') localStorage.setItem('hissypad.debug', '1')
-    if (q === '0') localStorage.removeItem('hissypad.debug')
-    enabled = localStorage.getItem('hissypad.debug') === '1'
+    if (flag === '1') store.set('1')
+    if (flag === '0') store.set(null)
+    enabled = store.get() === '1'
   } catch {
     enabled = false
   }
@@ -32,8 +41,7 @@ export function logEnabled() {
 export function setLogEnabled(v: boolean) {
   enabled = v
   try {
-    if (v) localStorage.setItem('hissypad.debug', '1')
-    else localStorage.removeItem('hissypad.debug')
+    persist.set(v ? '1' : null)
   } catch { /* per-device */ }
 }
 
@@ -42,7 +50,7 @@ export function log(kind: string, data?: unknown) {
   const e: LogEntry = { t: new Date().toISOString(), kind, data }
   entries.push(e)
   if (entries.length > LIMIT) entries.splice(0, entries.length - LIMIT)
-  console.debug(`[pad] ${kind}`, data ?? '')
+  console.log(`[pad] ${kind}`, data === undefined ? '' : safe(data))
 }
 
 export function dumpLog(): string {

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { usePad } from './store'
+import { usePad } from '@hissypad/state'
 import { supabase } from './supabase'
-import { requestSync, syncEnabled } from './sync'
+import { requestSync } from '@hissypad/state'
+
+const syncEnabled = supabase !== null
 
 function timeOf(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })

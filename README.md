@@ -3,8 +3,10 @@
 One freeform outline, always open. The top of the page is what needs attention next. Drag things around in a hierarchy, multi-select, cross things out. Nothing else. Design and roadmap in [PLAN.md](PLAN.md).
 
 ```
-packages/core   pure TS: node rows, tree, ops, ranks, outline paste/copy, LocalStore, sync engine
-apps/web        Vite + React 19 + Zustand, IndexedDB, PWA, Supabase auth + sync
+packages/core   pure TS: node rows, tree, ops, ranks, drop resolver, outline paste/copy, LocalStore, sync engine
+packages/state  the app: Zustand store, commands, per-op undo, debug log, Supabase remote + sync binding
+apps/web        Vite + React 19, IndexedDB, PWA, drag, Playwright
+apps/mobile     Expo (SDK 58), expo-sqlite, same state package, EAS profiles
 supabase/       migration (nodes table, RLS, last-write-wins trigger), pgTAP tests
 ```
 
@@ -19,6 +21,17 @@ pnpm typecheck
 pnpm --filter @hissypad/web build   # apps/web/dist
 pnpm --filter @hissypad/web e2e     # Playwright drag tests (desktop + phone profiles)
 ```
+
+### Mobile
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env.local    # EXPO_PUBLIC_SUPABASE_URL / _ANON_KEY
+cd apps/mobile && npx expo start                       # Expo Go, or a dev client
+npx expo run:ios                                       # native build into the simulator
+eas build --profile development --platform ios         # dev client on a device (needs `eas login`)
+```
+
+Sign-in on the phone returns through the `hissypad://auth` deep link, which must be in Supabase's redirect URL list. Press and hold a bullet to drag; Return splits the line; the toolbar sits above the keyboard.
 
 ### Sync (optional)
 

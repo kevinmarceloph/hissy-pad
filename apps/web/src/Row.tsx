@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react'
 import type { NodeRow } from '@hissypad/core'
-import { clickSelect, edit, select, usePad, type Editing } from './store'
+import { clickSelect, edit, select, usePad, type Editing } from '@hissypad/state'
 import {
   cmdBackspaceAtStart, cmdDedent, cmdEditNeighbor, cmdEnter, cmdIndent, cmdMove, cmdPasteInto, cmdSetText,
   cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
-} from './commands'
-import { redo, undo } from './store'
-import { apply } from './store'
+} from '@hissypad/state'
+import { redo, undo } from '@hissypad/state'
+import { apply } from '@hissypad/state'
 import { toggleCollapsed } from '@hissypad/core'
 
 interface Props {

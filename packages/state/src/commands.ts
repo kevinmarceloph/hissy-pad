@@ -5,7 +5,12 @@ import {
   buildIndex, childrenOf, dedent, indent, insertAfter, insertAt, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone,
   setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline,
 } from '@hissypad/core'
-import { copyText } from './clipboard'
+// The platform registers how text reaches the clipboard (web: navigator.clipboard with a
+// dialog fallback; mobile: expo-clipboard).
+let copyText: (text: string) => Promise<boolean> = async () => false
+export function setClipboard(fn: (text: string) => Promise<boolean>) {
+  copyText = fn
+}
 import { apply, edit, importOutline, neighbor, select, stopEditing, targets, usePad, visibleIds } from './store'
 
 export function cmdSplit(id: string, caret: number) {

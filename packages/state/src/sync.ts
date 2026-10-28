@@ -1,9 +1,8 @@
 // Wires the core sync engine to the Zustand store and Supabase auth. Local-only until a
 // session exists; then every local change, realtime event, reconnect or tab focus asks the
 // engine to sync.
-import type { Session } from '@supabase/supabase-js'
+import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { createSyncEngine, type NodeRow, type Remote, type SyncEngine, type SyncStatus } from '@hissypad/core'
-import { supabase } from './supabase'
 import { createSupabaseRemote } from './remote'
 import { clock, getLocalStore, setOnLocalChange, usePad } from './store'
 import { log, rowBrief } from './log'
@@ -11,7 +10,13 @@ import { log, rowBrief } from './log'
 let engine: SyncEngine | null = null
 let detachWindow: (() => void) | null = null
 
-export const syncEnabled = supabase !== null
+// Platform hook: given `kick` (sync now), attach whatever wakes the app (online, focus,
+// visibility on web; AppState on mobile) and return the detach function.
+export type SyncTriggers = (kick: () => void) => () => void
+let triggers: SyncTriggers = () => () => {}
+export function setSyncTriggers(t: SyncTriggers) {
+  triggers = t
+}
 
 function mergeRemote(incoming: readonly NodeRow[]) {
   log('sync:merge', { n: incoming.length, rows: incoming.slice(0, 8).map(rowBrief) })
@@ -49,18 +54,7 @@ export function startSync(remote: Remote) {
     },
   })
   setOnLocalChange(() => engine?.requestSync())
-  const kick = () => void engine?.sync()
-  window.addEventListener('online', kick)
-  window.addEventListener('focus', kick)
-  const onVis = () => {
-    if (document.visibilityState === 'visible') kick()
-  }
-  document.addEventListener('visibilitychange', onVis)
-  detachWindow = () => {
-    window.removeEventListener('online', kick)
-    window.removeEventListener('focus', kick)
-    document.removeEventListener('visibilitychange', onVis)
-  }
+  detachWindow = triggers(() => void engine?.sync())
   engine.start()
 }
 
@@ -84,9 +78,8 @@ export function forceSync() {
 }
 
 // Follow auth: a session starts the engine for that user, sign-out stops it.
-export function bindAuth() {
-  if (!supabase) return
-  const client = supabase
+export function bindAuth(client: SupabaseClient | null) {
+  if (!client) return
   const apply = (session: Session | null) => {
     usePad.setState({ session })
     if (session) startSync(createSupabaseRemote(client, session.user.id))

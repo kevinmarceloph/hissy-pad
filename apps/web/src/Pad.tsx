@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { buildIndex, childrenOf, listNumbers } from '@hissypad/core'
-import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from './store'
+import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
   cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
   cmdPasteAfterSelection, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
-} from './commands'
+} from '@hissypad/state'
 import { Row } from './Row'
 import { useDrag } from './drag/useDrag'
-import { forceSync } from './sync'
+import { forceSync } from '@hissypad/state'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 

@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "HissyPad",
+    "slug": "hissy-pad",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "ph.marcelo.hissypad",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "ph.marcelo.hissypad",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#f7f4ec"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-web-browser"
+    ],
+    "scheme": "hissypad",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f7f4ec"
+    }
+  }
+}

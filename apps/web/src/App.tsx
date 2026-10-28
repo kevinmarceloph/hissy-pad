@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { dismissStorageError, loadPad, usePad } from './store'
+import { dismissStorageError, loadPad, usePad } from '@hissypad/state'
 import { Pad } from './Pad'
 import { SelectionBar } from './SelectionBar'
 import { TopBar } from './TopBar'

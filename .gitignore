@@ -6,3 +6,13 @@ dist/
 .env.*
 !.env.example
 coverage/
+
+# Expo
+.expo/
+apps/mobile/ios/
+apps/mobile/android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision

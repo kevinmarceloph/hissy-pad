@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { toOutline } from '@hissypad/core'
-import { importOutline, usePad } from './store'
-import { cmdDeleteDone } from './commands'
+import { importOutline, usePad } from '@hissypad/state'
+import { cmdDeleteDone } from '@hissypad/state'
 import { copyText } from './clipboard'
-import { clearLog, dumpLog, logEnabled } from './log'
+import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
 
 type Theme = 'system' | 'light' | 'dark'
 
