@@ -4,7 +4,11 @@ import { expect, test, type Page } from '@playwright/test'
 // through the real editor, then dragged by their bullets with real pointer coordinates.
 async function typeOutline(page: Page, lines: string[]) {
   await page.goto('/')
+  // A first visit is seeded with the welcome pad: clear it down to one blank line.
   await page.getByRole('button', { name: 'Select line' }).first().click()
+  await page.keyboard.press('Control+a')
+  await page.keyboard.press('Delete')
+  // Delete leaves the remaining blank line selected; Enter edits it.
   await page.keyboard.press('Enter')
   let depth = 0
   for (const [i, line] of lines.entries()) {

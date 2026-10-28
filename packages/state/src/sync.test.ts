@@ -54,6 +54,26 @@ describe('sync wiring', () => {
     stopSync()
   })
 
+  it('drops the untouched welcome sample when a real pad arrives, keeps edited lines', async () => {
+    const remote = createFakeRemote()
+    configureLocalStore(createMemoryStore())
+    await loadPad() // seeds the sample
+    const before = usePad.getState().rows
+    const edited = idOf(before, 'Oat milk')
+    cmdSetText(edited, 'Oat milk, the barista one')
+    // The account already has a pad on the server.
+    const theirs = insertAt({}, { now: () => new Date(Date.now() + 5000).toISOString(), newId: () => 'theirs-1' }, { parentId: null, afterId: null }, 'My real pad')
+    await remote.push(Object.values(theirs.rows))
+    startSync(remote)
+    await new Promise((r) => setTimeout(r, 80))
+    const s = shape(usePad.getState().rows)
+    expect(s).toContain('My real pad')
+    expect(s).toContain('Oat milk, the barista one')
+    expect(s).not.toContain('Welcome to HissyPad')
+    expect(s).not.toContain('Kitchen towels')
+    stopSync()
+  })
+
   it('apply still works with no engine attached', () => {
     configureLocalStore(createMemoryStore())
     expect(() => apply((rows, ctx) => insertAt(rows, ctx, { parentId: null, afterId: null }, 'x').rows)).not.toThrow()

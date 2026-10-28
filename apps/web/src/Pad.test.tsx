@@ -30,8 +30,12 @@ describe('Pad', () => {
     Element.prototype.scrollIntoView = () => {}
   })
 
-  it('shows the hint on a fresh pad and lets you type', async () => {
+  it('seeds a welcome pad on first visit; clearing it leaves one line and the hint', async () => {
+    const user = userEvent.setup()
     await mount()
+    expect(rowByText('Welcome to HissyPad')).toBeTruthy()
+    await user.click(within(rowByText('Today')).getByRole('button', { name: /Select line/ }))
+    await user.keyboard('{Meta>}a{/Meta}{Delete}')
     expect(screen.getByText(/Type anything/)).toBeInTheDocument()
     const ta = await startEditing('')
     await userEvent.type(ta, 'hello')

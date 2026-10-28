@@ -15,14 +15,17 @@ function reset(initialOutline?: string) {
 describe('loadPad', () => {
   beforeEach(() => reset())
 
-  it('creates one empty line on an empty store and persists it', async () => {
+  it('seeds the welcome sample on an empty store and persists it, remembering the seed', async () => {
     const mem = reset()
     await loadPad()
-    const live = Object.values(usePad.getState().rows).filter((r) => r.deletedAt === null)
-    expect(live).toHaveLength(1)
-    expect(live[0]!.text).toBe('')
-    expect(mem.rows.size).toBe(1)
-    expect(await mem.dirtyIds()).toHaveLength(1)
+    const text = shape(usePad.getState().rows)
+    expect(text.startsWith('Welcome to HissyPad\n  This is one page.')).toBe(true)
+    expect(text).toContain('  1.One small thing')
+    expect(text).toContain('~Cross a line out')
+    expect(mem.rows.size).toBeGreaterThan(10)
+    expect(await mem.dirtyIds()).toHaveLength(mem.rows.size)
+    const seed = JSON.parse((await mem.getMeta('seed.rows'))!)
+    expect(Object.keys(seed)).toHaveLength(mem.rows.size)
   })
 
   it('loads existing rows as they are', async () => {

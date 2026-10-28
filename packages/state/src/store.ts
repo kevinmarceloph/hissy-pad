@@ -8,6 +8,7 @@ import {
   insertAt, insertOutline, newUuid, normalizeRow, parseOutline, type LocalStore, type NodeRow, type OpCtx, type Rows, type SyncStatus,
 } from '@hissypad/core'
 import { log, rowBrief } from './log'
+import { seedSample } from './sample'
 
 export type Caret = number | 'end'
 
@@ -42,6 +43,8 @@ export interface PadState {
   session: Session | null   // Supabase auth; null = local only
   sync: SyncStatus | null   // null until the engine runs
 }
+
+export const SEED_KEY = 'seed.rows'
 
 export const clock = createClock()
 export const ctx: OpCtx = { now: () => clock.tick(), newId: newUuid }
@@ -220,10 +223,13 @@ async function loadPadOnce() {
     let state: Rows = rows
     const live = Object.values(rows).some((r) => r.deletedAt === null)
     if (!live) {
-      // A pad always has at least one line to type into.
-      const res = insertAt(rows, ctx, { parentId: null, afterId: null }, '')
+      // First visit on this device: a welcome pad. Its rows are remembered with their
+      // stamps so sync can drop the untouched ones if a real pad arrives from the account.
+      const res = seedSample(rows, ctx)
       state = res.rows
       await local.upsertMany(changedRows(rows, state), { dirty: true })
+      await local.setMeta(SEED_KEY, JSON.stringify(Object.fromEntries(res.ids.map((id) => [id, state[id]!.updatedAt]))))
+      log('seed', { n: res.ids.length })
     }
     set({ rows: state, load: 'ready' })
   } catch (e) {

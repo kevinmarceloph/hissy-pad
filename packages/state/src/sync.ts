@@ -4,7 +4,8 @@
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { createSyncEngine, type NodeRow, type Remote, type SyncEngine, type SyncStatus } from '@hissypad/core'
 import { createSupabaseRemote } from './remote'
-import { clock, getLocalStore, setOnLocalChange, usePad } from './store'
+import { apply, clock, getLocalStore, SEED_KEY, setOnLocalChange, usePad } from './store'
+import { remove } from '@hissypad/core'
 import { log, rowBrief } from './log'
 
 let engine: SyncEngine | null = null
@@ -18,8 +19,39 @@ export function setSyncTriggers(t: SyncTriggers) {
   triggers = t
 }
 
+// A device that started with the welcome sample and then signs in to an account that
+// already has a pad: the sample rows nobody touched are removed so they do not pile onto
+// the real pad. Lines the person edited stay.
+async function dropUntouchedSeed(incoming: readonly NodeRow[]) {
+  const local = getLocalStore()
+  const raw = await local.getMeta(SEED_KEY)
+  if (!raw) return
+  const seed = JSON.parse(raw) as Record<string, string>
+  const foreign = incoming.some((r) => !(r.id in seed))
+  if (!foreign) return
+  const rows = usePad.getState().rows
+  // An edited line keeps its ancestors too, since removing a parent removes its subtree.
+  const keep = new Set<string>()
+  for (const [id, at] of Object.entries(seed)) {
+    const r = rows[id]
+    if (!r || r.deletedAt !== null || r.updatedAt === at) continue
+    let cur: string | null = id
+    while (cur && !keep.has(cur)) {
+      keep.add(cur)
+      cur = rows[cur]?.parentId ?? null
+    }
+  }
+  const untouched = Object.keys(seed).filter((id) => rows[id]?.deletedAt === null && !keep.has(id))
+  await local.setMeta(SEED_KEY, '')
+  if (untouched.length) {
+    apply((r, ctx) => remove(r, ctx, untouched), { label: 'dropSeed' })
+    log('seed:dropped', { n: untouched.length })
+  }
+}
+
 function mergeRemote(incoming: readonly NodeRow[]) {
   log('sync:merge', { n: incoming.length, rows: incoming.slice(0, 8).map(rowBrief) })
+  void dropUntouchedSeed(incoming)
   usePad.setState((s) => {
     const rows: Record<string, NodeRow> = { ...s.rows }
     for (const r of incoming) {

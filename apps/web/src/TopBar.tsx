@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { toOutline } from '@hissypad/core'
-import { importOutline, usePad } from '@hissypad/state'
+import { importOutline, SAMPLE_OUTLINE, usePad } from '@hissypad/state'
 import { cmdDeleteDone } from '@hissypad/state'
 import { copyText } from './clipboard'
 import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
@@ -101,7 +101,7 @@ export function TopBar() {
         <form method="dialog" onSubmit={(e) => { e.preventDefault(); doImport('top') }}>
           <h2 id="import-title">Paste an outline</h2>
           <p>Plain text from Google Docs, Workflowy or anywhere. Indentation becomes nesting, bullets and numbers are dropped, blank lines stay as spacers.</p>
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={12} aria-label="Outline text" placeholder={'1. IGS Meal Planning\n2. Job Hunt (before 9pm)\n\t• Fix current copy'} />
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={12} aria-label="Outline text" placeholder={SAMPLE_OUTLINE.split('\n').slice(6, 14).join('\n')} />
           <div className="actions">
             <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>
             <button type="button" onClick={() => doImport('bottom')} disabled={!draft.trim()}>Add at bottom</button>

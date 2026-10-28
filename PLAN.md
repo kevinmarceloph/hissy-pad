@@ -13,6 +13,7 @@ Decisions (2026-10-28): public repo from day one; login by magic link and Google
 - Done is a strikethrough that stays in place (item 3 in the screenshot stays crossed out where it was), with a × bullet like a bullet journal. "Delete done" removes every crossed-out line in one go; undo is the safety net. (An earlier "sweep under a Done node" idea was dropped 2026-10-28 in favour of deleting.)
 - Collapse and expand per node. Links are auto-linked. Plain text otherwise. No formatting, except that any line can be numbered: a run of consecutive numbered siblings counts 1, 2, 3 and a plain line restarts the count, like a Docs list. Pasting "1." lines keeps them numbered.
 - Blank lines are spacers and show no bullet until typed into.
+- A first visit on a device opens a short welcome pad (heading with children, a numbered list, a crossed-out line, a spacer) instead of one blank line; the same text is the Paste-in placeholder. If that device then signs in to an account that already has a pad, the untouched sample lines are removed on the first sync and edited ones are kept.
 - Paste from Google Docs imports indentation as hierarchy, so the current inbox moves over in one paste. Hissycal's `indentWidth` + `createItemsAfter` already do this for a single day; the same logic ported to the flat model.
 - Capture from the phone: share sheet appends to the top of the pad.
 
