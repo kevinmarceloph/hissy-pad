@@ -16,7 +16,23 @@ function timeOf(iso: string) {
 //   hissypad://auth#access_token=…&refresh_token=…   (implicit flow)
 //   hissypad://auth?code=…                            (PKCE flow)
 // Returns a short status for the UI; errors are shown, not swallowed.
-export async function completeAuthFromUrl(url: string): Promise<string | null> {
+// The same link can arrive twice (getInitialURL at launch and the 'url' event), and two
+// concurrent exchanges cancel each other ("fetch failed: cancelled"), so links are
+// de-duplicated and handled one at a time.
+let lastUrl = ''
+let lastAt = 0
+let chain: Promise<unknown> = Promise.resolve()
+export function completeAuthFromUrl(url: string): Promise<string | null> {
+  const now = Date.now()
+  if (url === lastUrl && now - lastAt < 30_000) return Promise.resolve(null)
+  lastUrl = url
+  lastAt = now
+  const run = chain.then(() => completeAuthFromUrlOnce(url))
+  chain = run.catch(() => undefined)
+  return run
+}
+
+async function completeAuthFromUrlOnce(url: string): Promise<string | null> {
   if (!supabase) return null
   if (!url.startsWith(AUTH_REDIRECT) && !url.startsWith('hissypad://')) return null
   try {
