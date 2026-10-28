@@ -65,6 +65,7 @@ describe('Pad', () => {
     const user = userEvent.setup()
     await mount('one\ntwo')
     await startEditing('one')
+    expect(screen.getByRole('toolbar', { name: 'Current line' })).toBeInTheDocument()
     await user.keyboard('{Escape}')
     expect(usePad.getState().selection).toHaveLength(1)
     expect(screen.getByRole('toolbar', { name: 'Selected lines' })).toBeInTheDocument()
@@ -157,5 +158,73 @@ describe('Pad', () => {
     await screen.findByRole('tree')
     expect(screen.getByRole('alert')).toHaveTextContent(/Local storage is unavailable/)
     await act(async () => {})
+  })
+})
+
+describe('toolbar iteration', () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = () => {}
+  })
+
+  it('Enter at the start of a line adds a blank line above and keeps the caret', async () => {
+    const user = userEvent.setup()
+    await mount('first\nsecond')
+    const ta = await startEditing('second')
+    ta.setSelectionRange(0, 0)
+    await user.keyboard('{Enter}')
+    expect(texts()).toBe('first\n\nsecond')
+    expect(usePad.getState().rows[usePad.getState().editing!.id]!.text).toBe('second')
+    await user.keyboard('x')
+    expect(texts()).toBe('first\n\nxsecond')
+  })
+
+  it('Enter mid-line splits and Enter at the end adds below', async () => {
+    const user = userEvent.setup()
+    await mount('abcd')
+    const ta = await startEditing('abcd')
+    ta.setSelectionRange(2, 2)
+    await user.keyboard('{Enter}')
+    expect(texts()).toBe('ab\ncd')
+    await user.keyboard('{End}{Enter}z')
+    expect(texts()).toBe('ab\ncd\nz')
+  })
+
+  it('shows the toolbar while editing, with impossible actions disabled', async () => {
+    await mount('top\n  child\nlast')
+    await startEditing('top')
+    const bar = screen.getByRole('toolbar', { name: 'Current line' })
+    expect(within(bar).getByRole('button', { name: 'Indent' })).toBeDisabled()   // first sibling
+    expect(within(bar).getByRole('button', { name: 'Outdent' })).toBeDisabled()  // root
+    expect(within(bar).getByRole('button', { name: 'Move up' })).toBeDisabled()  // already first
+    expect(within(bar).getByRole('button', { name: 'Move down' })).toBeEnabled()
+    expect(within(bar).getByRole('button', { name: 'Fold' })).toBeEnabled()      // has a child
+    await startEditing('child')
+    expect(within(bar).getByRole('button', { name: 'Fold' })).toBeDisabled()     // leaf
+    expect(within(bar).getByRole('button', { name: 'Outdent' })).toBeEnabled()
+    expect(within(bar).getByRole('button', { name: 'Indent' })).toBeDisabled()   // only child
+    expect(within(bar).getByRole('button', { name: 'Move up' })).toBeDisabled()
+    expect(within(bar).getByRole('button', { name: 'Move down' })).toBeDisabled()
+  })
+
+  it('+ above and + below insert blank lines next to the current one and edit them', async () => {
+    const user = userEvent.setup()
+    await mount('a\nb')
+    await startEditing('a')
+    await user.click(screen.getByRole('button', { name: 'Add a line below' }))
+    await user.keyboard('a2')
+    expect(texts()).toBe('a\na2\nb')
+    await user.click(screen.getByRole('button', { name: 'Add a line above' }))
+    await user.keyboard('a1')
+    expect(texts()).toBe('a\na1\na2\nb')
+  })
+
+  it('toolbar Done and Delete act on the line being edited', async () => {
+    const user = userEvent.setup()
+    await mount('x\ny')
+    await startEditing('x')
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+    expect(texts()).toBe('~x\ny')
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(texts()).toBe('y')
   })
 })

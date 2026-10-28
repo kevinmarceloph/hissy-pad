@@ -4,6 +4,8 @@ import {
   remove, removeDone, setCollapsed, setDone, setNumbered, setText, splitNode, sweepDone, toggleDone, toggleNumbered,
 } from './ops'
 import { idOf, pad, shape, testCtx } from './testing'
+import type { Rows } from './types'
+import { insertOutline, parseOutline } from './paste'
 
 const OUTLINE = `
 A
@@ -245,5 +247,35 @@ describe('numbered lists', () => {
     expect(shape(removeDone(rows, ctx))).toBe('b\nc')
     const clean = pad('x', ctx)
     expect(removeDone(clean, ctx)).toBe(clean)
+  })
+})
+
+describe('colliding ranks', () => {
+  // Two devices created "the first line" offline: both picked rank a0. Inserting between
+  // them must re-rank instead of throwing, and keep their id order.
+  function twins(): Rows {
+    const base = { parentId: null, text: '', done: false, collapsed: false, numbered: false, updatedAt: '2026-10-28T00:00:00.000Z', deletedAt: null }
+    return {
+      a: { ...base, id: 'a', rank: 'a0', text: 'A' },
+      b: { ...base, id: 'b', rank: 'a0', text: 'B' },
+      c: { ...base, id: 'c', rank: 'a0', text: 'C' },
+    }
+  }
+
+  it('insertAfter the first of three equal ranks re-ranks the followers', () => {
+    const ctx = testCtx()
+    const { rows } = insertAfter(twins(), ctx, 'a', 'new')
+    expect(shape(rows)).toBe('A\nnew\nB\nC')
+    const ranks = Object.values(rows).map((r) => r.rank)
+    expect(new Set(ranks).size).toBe(4)
+  })
+
+  it('insertBefore, split, move and paste all survive equal ranks', () => {
+    const ctx = testCtx()
+    expect(shape(insertBefore(twins(), ctx, 'b', 'x').rows)).toBe('A\nx\nB\nC')
+    expect(shape(splitNode(twins(), ctx, 'b', 1).rows)).toBe('A\nB\n\nC')
+    expect(shape(moveNodes(twins(), ctx, ['c'], { parentId: null, afterId: 'a' }))).toBe('A\nC\nB')
+    expect(shape(moveSibling(twins(), ctx, ['c'], 'up'))).toBe('A\nC\nB')
+    expect(shape(insertOutline(twins(), ctx, parseOutline('p\n  q'), { parentId: null, afterId: 'a' }).rows)).toBe('A\np\n  q\nB\nC')
   })
 })

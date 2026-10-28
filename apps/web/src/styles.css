@@ -227,7 +227,7 @@ kbd {
 .hint { color: var(--ink-mute); font-style: italic; margin: 0.75rem 0 0 var(--gutter); font-size: 0.95rem; }
 .foot { color: var(--ink-mute); font-size: 0.82rem; margin-top: 3rem; }
 
-/* Selection toolbar */
+/* Action toolbar: one row, never wraps; on a narrow screen it scrolls sideways instead. */
 .selbar {
   position: fixed;
   left: 50%; bottom: max(1rem, env(safe-area-inset-bottom));
@@ -238,12 +238,28 @@ kbd {
   padding: 0.3rem 0.4rem;
   box-shadow: 0 6px 24px -12px rgb(0 0 0 / 0.35); /* the one elevated surface: it floats over the text */
   max-width: calc(100vw - 32px);
-  gap: 0.15rem;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  gap: 0.1rem;
   color: var(--ink);
 }
-.selbar .count { color: var(--ink-mute); padding: 0 0.5rem; }
-.selbar button { min-width: 36px; min-height: 36px; justify-content: center; }
-.selbar .danger:hover { color: var(--accent); }
+.selbar .count { color: var(--ink-mute); padding: 0 0.5rem; flex: none; }
+.selbar .sep { flex: none; width: 1px; height: 1.4rem; background: var(--rule); margin: 0 0.25rem; }
+.selbar button { flex: none; min-width: 36px; min-height: 36px; justify-content: center; padding: 0 0.5rem; }
+.selbar button:disabled { color: var(--ink-mute); opacity: 0.45; cursor: default; }
+.selbar .danger:hover:not(:disabled) { color: var(--accent); }
+@media (max-width: 640px) {
+  .selbar {
+    left: 16px; right: 16px; translate: 0 0; max-width: none; justify-content: flex-start;
+    padding-right: 1.5rem;
+    /* Fade the right edge as a hint that the row scrolls. */
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+  }
+  .selbar .count { display: none; }
+  .selbar button { padding: 0 0.4rem; }
+}
 
 .toast {
   position: absolute;

@@ -14,6 +14,7 @@ export {
   depthOf,
   topmost,
   listNumbers,
+  allocateRanks,
   isLive,
   compareSiblings,
   type TreeIndex,

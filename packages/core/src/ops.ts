@@ -2,8 +2,9 @@
 // rows replaced. Nothing here knows about React, the DOM, or sync; the sync engine just sees
 // rows whose updatedAt advanced.
 import type { NodeRow, OpCtx, Rows } from './types'
-import { between, ranksBetween } from './rank'
+import { between } from './rank'
 import {
+  allocateRanks,
   buildIndex,
   childrenOf,
   descendantIds,
@@ -45,13 +46,21 @@ function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: strin
 }
 
 // n ranks that fit after `afterId` among `parentId`'s children, ignoring rows in `exclude`
-// (the rows being moved, which may currently sit in that very gap).
-function gapRanks(index: TreeIndex, p: Placement, n: number, exclude: ReadonlySet<string> = new Set()): string[] {
+// (the rows being moved, which may currently sit in that very gap). Siblings that collide
+// with the gap are re-ranked in `rows` (see allocateRanks).
+function gapRanks(
+  rows: Rows,
+  ctx: OpCtx,
+  p: Placement,
+  n: number,
+  exclude: ReadonlySet<string> = new Set(),
+): { rows: Rows; ranks: string[] } {
+  const index = buildIndex(rows)
   const sibs = childrenOf(index, p.parentId).filter((s) => !exclude.has(s.id))
-  if (p.afterId === null) return ranksBetween(null, sibs[0]?.rank ?? null, n)
-  const i = sibs.findIndex((s) => s.id === p.afterId)
-  if (i < 0) throw new Error(`ops: afterId ${p.afterId} is not a child of ${p.parentId}`)
-  return ranksBetween(sibs[i]!.rank, sibs[i + 1]?.rank ?? null, n)
+  const { ranks, fixes } = allocateRanks(sibs, p.afterId, n)
+  let out = rows
+  for (const f of fixes) out = patch(out, ctx, f.id, { rank: f.rank })
+  return { rows: out, ranks }
 }
 
 // Where Enter puts a new node: first child when the node shows children, else next sibling.
@@ -63,10 +72,9 @@ export function placementAfter(index: TreeIndex, id: string): Placement {
 }
 
 export function insertAt(rows: Rows, ctx: OpCtx, p: Placement, text = '', numbered = false): { rows: Rows; newId: string } {
-  const index = buildIndex(rows)
-  const [rank] = gapRanks(index, p, 1)
-  const node = makeNode(ctx, p.parentId, rank!, text, numbered)
-  return { rows: { ...rows, [node.id]: node }, newId: node.id }
+  const g = gapRanks(rows, ctx, p, 1)
+  const node = makeNode(ctx, p.parentId, g.ranks[0]!, text, numbered)
+  return { rows: { ...g.rows, [node.id]: node }, newId: node.id }
 }
 
 // A new sibling continues a numbered list; a new first child starts plain.
@@ -167,8 +175,9 @@ export function moveNodes(rows: Rows, ctx: OpCtx, ids: Iterable<string>, p: Plac
     for (const m of moving) if (isAncestor(index, m, p.parentId)) return rows
   }
   if (p.afterId !== null && movingSet.has(p.afterId)) return rows
-  const ranks = gapRanks(index, p, moving.length, movingSet)
-  let out = rows
+  const g = gapRanks(rows, ctx, p, moving.length, movingSet)
+  const ranks = g.ranks
+  let out = g.rows
   moving.forEach((id, i) => {
     out = patch(out, ctx, id, { parentId: p.parentId, rank: ranks[i]! })
   })

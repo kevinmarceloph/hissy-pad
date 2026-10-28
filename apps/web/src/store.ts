@@ -118,7 +118,16 @@ export function redo() {
   persist(rows, next)
 }
 
-export async function loadPad() {
+// Idempotent: StrictMode runs effects twice in dev, and two early callers must never both
+// decide the pad is empty and each create "the first line".
+let loading: Promise<void> | null = null
+export function loadPad(): Promise<void> {
+  return (loading ??= loadPadOnce().finally(() => {
+    loading = null
+  }))
+}
+
+async function loadPadOnce() {
   try {
     const list = await local.getAll()
     const rows: Record<string, NodeRow> = {}

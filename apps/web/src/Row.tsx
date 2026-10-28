@@ -2,8 +2,8 @@ import { useEffect, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent
 import type { NodeRow } from '@hissypad/core'
 import { clickSelect, edit, select, usePad, type Editing } from './store'
 import {
-  cmdBackspaceAtStart, cmdDedent, cmdEditNeighbor, cmdIndent, cmdMove, cmdPasteInto, cmdSetText,
-  cmdSplit, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
+  cmdBackspaceAtStart, cmdDedent, cmdEditNeighbor, cmdEnter, cmdIndent, cmdMove, cmdPasteInto, cmdSetText,
+  cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from './commands'
 import { redo, undo } from './store'
 import { apply } from './store'
@@ -95,7 +95,7 @@ export function Row({ row, depth, hasChildren, editing, selected, number }: Prop
     if (e.key === 'Enter' && !e.shiftKey && !mod(e)) {
       e.preventDefault()
       if (selectionStart !== selectionEnd) cmdSetText(row.id, value.slice(0, selectionStart) + value.slice(selectionEnd))
-      cmdSplit(row.id, selectionStart)
+      cmdEnter(row.id, selectionStart)
     } else if (e.key === 'Enter' && mod(e)) {
       e.preventDefault()
       cmdToggleDone()

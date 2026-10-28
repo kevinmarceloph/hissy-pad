@@ -2,7 +2,7 @@
 // handler (Pad). Each one picks its targets from the store and decides where the caret or
 // selection goes afterwards.
 import {
-  buildIndex, childrenOf, dedent, indent, insertAt, mergeIntoPrev, moveSibling, remove, removeDone,
+  buildIndex, childrenOf, dedent, indent, insertAfter, insertAt, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone,
   setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline,
 } from '@hissypad/core'
 import { copyText } from './clipboard'
@@ -12,6 +12,46 @@ export function cmdSplit(id: string, caret: number) {
   let newId = ''
   apply((rows, ctx) => {
     const res = splitNode(rows, ctx, id, caret)
+    newId = res.newId
+    return res.rows
+  })
+  edit(newId, 0)
+}
+
+// Enter at the very start of a non-empty line: a blank line appears above and the caret
+// stays where it was (Workflowy). Anywhere else, the line splits at the caret.
+export function cmdEnter(id: string, caret: number) {
+  const row = usePad.getState().rows[id]
+  if (row && caret === 0 && row.text.length > 0) {
+    apply((rows, ctx) => insertBefore(rows, ctx, id, '').rows)
+    edit(id, 0)
+    return
+  }
+  cmdSplit(id, caret)
+}
+
+// Toolbar "+ above" / "+ below": a new blank line next to the current one (the first or
+// last of a selection), ready to type into.
+export function cmdAddAbove() {
+  const ids = targets()
+  const id = ids[0]
+  if (!id) return
+  let newId = ''
+  apply((rows, ctx) => {
+    const res = insertBefore(rows, ctx, id, '')
+    newId = res.newId
+    return res.rows
+  })
+  edit(newId, 0)
+}
+
+export function cmdAddBelow() {
+  const ids = targets()
+  const id = ids.at(-1)
+  if (!id) return
+  let newId = ''
+  apply((rows, ctx) => {
+    const res = insertAfter(rows, ctx, id, '')
     newId = res.newId
     return res.rows
   })
@@ -77,7 +117,7 @@ export function cmdToggleCollapsed() {
 
 // Delete the selection and land on the row that takes its place.
 export function cmdDeleteSelection() {
-  const { selection } = usePad.getState()
+  const selection = targets()
   if (selection.length === 0) return
   const vis = visibleIds()
   const after = vis[vis.indexOf(selection.at(-1)!) + 1] ?? vis[vis.indexOf(selection[0]!) - 1] ?? null
@@ -92,8 +132,8 @@ export function cmdDeleteSelection() {
 }
 
 export function cmdCopySelection(): string {
-  const { rows, selection } = usePad.getState()
-  const text = toOutline(rows, selection, { bullet: '', indent: '\t', done: '' })
+  const { rows } = usePad.getState()
+  const text = toOutline(rows, targets(), { bullet: '', indent: '\t', done: '' })
   void copyText(text)
   return text
 }

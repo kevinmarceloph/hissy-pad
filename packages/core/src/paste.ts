@@ -3,7 +3,7 @@
 // (•, ○, ■, -, *, 1.). The export side is for copying a subtree back out as plain text.
 import type { OpCtx, Rows } from './types'
 import { ranksBetween } from './rank'
-import { buildIndex, childrenOf, flatten, listNumbers, topmost } from './tree'
+import { allocateRanks, buildIndex, childrenOf, flatten, listNumbers, topmost } from './tree'
 import type { Placement } from './ops'
 
 export interface OutlineLine {
@@ -82,19 +82,19 @@ export function insertOutline(
   const counts = new Map<number, number>()
   for (const pl of parentLine) counts.set(pl, (counts.get(pl) ?? 0) + 1)
   const ranks = new Map<number, string[]>()
+  const out: Record<string, Rows[string]> = { ...rows }
   for (const [pl, n] of counts) {
     if (pl === -1) {
       const sibs = childrenOf(index, p.parentId)
-      const i = p.afterId === null ? -1 : sibs.findIndex((s) => s.id === p.afterId)
-      if (p.afterId !== null && i < 0) throw new Error(`paste: afterId ${p.afterId} is not a child of ${p.parentId}`)
-      ranks.set(pl, ranksBetween(i < 0 ? null : sibs[i]!.rank, sibs[i + 1]?.rank ?? null, n))
+      const alloc = allocateRanks(sibs, p.afterId, n)
+      ranks.set(pl, alloc.ranks)
+      for (const f of alloc.fixes) out[f.id] = { ...out[f.id]!, rank: f.rank, updatedAt: ctx.now() }
     } else {
       ranks.set(pl, ranksBetween(null, null, n))
     }
   }
 
   const ids: string[] = []
-  const out: Record<string, Rows[string]> = { ...rows }
   const used = new Map<number, number>()
   lines.forEach((l, i) => {
     const pl = parentLine[i]!

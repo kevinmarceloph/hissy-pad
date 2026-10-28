@@ -1,5 +1,5 @@
 import type { NodeRow, Rows } from './types'
-import { compareRank } from './rank'
+import { compareRank, ranksBetween } from './rank'
 
 // Sibling order: rank, then id. The id tiebreak matters when two devices insert at the same
 // gap while offline and both pick the same midpoint; the result is deterministic on every
@@ -116,6 +116,30 @@ export function depthOf(index: TreeIndex, id: string): number {
     cur = index.parentOf.get(cur) ?? null
   }
   return d
+}
+
+// n ranks that fit after `afterId` (null = at the start) among `siblings`, which are in
+// sibling order and already exclude any rows being moved. Siblings can share a rank: two
+// devices inserting into the same gap offline both pick the same midpoint, and the id
+// tiebreak keeps them ordered. Such a run leaves no room to insert into, so the colliding
+// followers are re-ranked along with the new rows (`fixes`), preserving their order.
+export function allocateRanks(
+  siblings: readonly NodeRow[],
+  afterId: string | null,
+  n: number,
+): { ranks: string[]; fixes: { id: string; rank: string }[] } {
+  const i = afterId === null ? -1 : siblings.findIndex((s) => s.id === afterId)
+  if (afterId !== null && i < 0) throw new Error(`allocateRanks: ${afterId} is not a sibling`)
+  const prev = i < 0 ? null : siblings[i]!.rank
+  const following = siblings.slice(i + 1)
+  let k = 0
+  while (prev !== null && k < following.length && following[k]!.rank <= prev) k++
+  const next = following[k]?.rank ?? null
+  const all = ranksBetween(prev, next, n + k)
+  return {
+    ranks: all.slice(0, n),
+    fixes: following.slice(0, k).map((s, j) => ({ id: s.id, rank: all[n + j]! })),
+  }
 }
 
 // 1-based position within a run of consecutive numbered siblings, or null for a plain
