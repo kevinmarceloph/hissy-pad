@@ -123,7 +123,7 @@ Each phase ends with something usable. Phase 2 is the point where the Docs inbox
 3. **Supabase + sync** (built 2026-10-28). Migration with a last-write-wins trigger and a server-stamped `synced_at` pull cursor, RLS with pgTAP tests (13), magic link + Google sign-in, sync engine push/pull/realtime with ten two-device tests (`packages/core/src/sync/engine.test.ts`). Pending: a hosted Supabase project, `supabase db push`, env vars on Render.
 4. **Drag and multi-select** (built 2026-10-28). `resolveDrop` in core (gap by row midpoints, depth by x, clamped to what the gap allows) with tests; pointer drag on web with long-press on touch, drop indicator, ghost, autoscroll, Escape to cancel; a selection drags as a block. Playwright E2E with real mouse and CDP touch coordinates on desktop and Pixel profiles, run in CI.
 5. **Mobile** (3-4 evenings). Expo app on the same core, expo-sqlite adapter, Reanimated drag, share-sheet capture. EAS Build to the phone, EAS Update for JS-only fixes. iOS first, since the share sheet is the point.
-6. **Polish**. Search (`Cmd+K` jumps to a node). Dark mode, undo, Delete done and numbered lists already landed in phase 2.
+6. **Polish**. Search (`Cmd+K` jumps to a node). Dark mode, Delete done and numbered lists landed in phase 2; undo became per-op (only the touched rows, stamped fresh so it syncs) with a debug log (`?debug=1`) on 2026-10-28.
 
 Later, not planned: multiple pads as top-level tabs, a Hissycal rewrite that adds `date`, `start_time`, `end_time` and `division` columns to `nodes` and renders days as filtered views over the same table.
 

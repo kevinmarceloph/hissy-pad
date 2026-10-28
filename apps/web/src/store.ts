@@ -7,6 +7,7 @@ import {
   buildIndex, changedRows, childrenOf, createClock, createMemoryStore, flatten,
   insertAt, insertOutline, newUuid, normalizeRow, parseOutline, type LocalStore, type NodeRow, type OpCtx, type Rows, type SyncStatus,
 } from '@hissypad/core'
+import { log, rowBrief } from './log'
 
 export type Caret = number | 'end'
 
@@ -18,6 +19,16 @@ export interface Editing {
 
 export type LoadState = 'loading' | 'ready' | 'error'
 
+// One undoable step: only the rows the op touched, as they were and as they became. Undo
+// puts the `before` values back (a row that did not exist becomes a tombstone) with a
+// fresh updatedAt, so the undo itself syncs and never reverts another device's rows.
+export interface HistoryEntry {
+  label: string
+  at: number
+  before: Record<string, NodeRow | undefined>
+  after: Record<string, NodeRow>
+}
+
 export interface PadState {
   rows: Rows
   load: LoadState
@@ -26,8 +37,8 @@ export interface PadState {
   selection: string[] // in visible order
   anchorId: string | null
   focusId: string | null // the end of a shift-extended range
-  past: Rows[]
-  future: Rows[]
+  past: HistoryEntry[]
+  future: HistoryEntry[]
   session: Session | null   // Supabase auth; null = local only
   sync: SyncStatus | null   // null until the engine runs
 }
@@ -86,36 +97,102 @@ function persist(prev: Rows, next: Rows) {
   )
 }
 
-// Run an op. `coalesce` lets a run of keystrokes on one node share a single undo entry.
+// Run an op. `label` names it in the log and the undo history; `coalesce` lets a run of
+// keystrokes on one node share a single undo entry.
 let lastCoalesce: { key: string; at: number } | null = null
-export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { coalesce?: string } = {}): Rows {
+export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { label?: string; coalesce?: string } = {}): Rows {
   const { rows, past } = get()
   const next = fn(rows, ctx)
-  if (next === rows) return rows
+  const label = opts.label ?? 'op'
+  if (next === rows) {
+    log(`op:${label}`, { changed: 0 })
+    return rows
+  }
   const now = Date.now()
-  const merge = opts.coalesce !== undefined && lastCoalesce?.key === opts.coalesce && now - lastCoalesce.at < 1500
+  const changed = changedRows(rows, next)
+  for (const id in rows) if (!(id in next)) changed.push({ ...rows[id]!, deletedAt: rows[id]!.deletedAt ?? 'removed' })
+  const merge = opts.coalesce !== undefined && lastCoalesce?.key === opts.coalesce && now - lastCoalesce.at < 1500 && past.length > 0
   lastCoalesce = opts.coalesce !== undefined ? { key: opts.coalesce, at: now } : null
-  set({ rows: next, past: merge ? past : [...past.slice(-UNDO_LIMIT + 1), rows], future: [] })
+  let entry: HistoryEntry
+  if (merge) {
+    const last = past.at(-1)!
+    entry = { ...last, at: now, after: { ...last.after } }
+    for (const r of changed) {
+      if (!(r.id in entry.before)) entry.before[r.id] = rows[r.id]
+      entry.after[r.id] = next[r.id] ?? { ...r }
+    }
+  } else {
+    entry = { label, at: now, before: {}, after: {} }
+    for (const r of changed) {
+      entry.before[r.id] = rows[r.id]
+      entry.after[r.id] = next[r.id] ?? { ...r }
+    }
+  }
+  const newPast = merge ? [...past.slice(0, -1), entry] : [...past.slice(-UNDO_LIMIT + 1), entry]
+  set({ rows: next, past: newPast, future: [] })
+  log(`op:${label}`, {
+    changed: changed.map((r) => ({ before: rowBrief(rows[r.id]), after: rowBrief(next[r.id]) })),
+    merged: merge,
+    undoDepth: newPast.length,
+  })
   persist(rows, next)
   return next
 }
 
+// Restore one side of an entry onto the current rows. Rows that did not exist on that
+// side become tombstones (an undone insert). Everything restored gets a fresh updatedAt.
+function restore(side: Record<string, NodeRow | undefined>, ids: string[]): { rows: Rows; touched: string[] } {
+  const cur = get().rows
+  const out: Record<string, NodeRow> = { ...cur }
+  const touched: string[] = []
+  for (const id of ids) {
+    const want = side[id]
+    const now = ctx.now()
+    if (want) out[id] = { ...want, updatedAt: now }
+    else if (cur[id]) out[id] = { ...cur[id]!, deletedAt: now, updatedAt: now }
+    else continue
+    touched.push(id)
+  }
+  return { rows: out, touched }
+}
+
+function afterHistoryMove(rows: Rows, touched: string[]) {
+  // Land on what changed: select the restored rows that are live and visible.
+  const vis = new Set(flatten(buildIndex(rows), true).map((r) => r.id))
+  const sel = touched.filter((id) => vis.has(id))
+  set({ rows, editing: null, selection: sel, anchorId: sel[0] ?? null, focusId: sel.at(-1) ?? null })
+}
+
 export function undo() {
   const { rows, past, future } = get()
-  const prev = past.at(-1)
-  if (!prev) return
+  const entry = past.at(-1)
+  if (!entry) {
+    log('undo', { nothing: true })
+    return
+  }
   lastCoalesce = null
-  set({ rows: prev, past: past.slice(0, -1), future: [rows, ...future], editing: null, selection: [] })
-  persist(rows, prev)
+  const ids = Object.keys(entry.before)
+  const r = restore(entry.before, ids)
+  afterHistoryMove(r.rows, r.touched)
+  set({ past: past.slice(0, -1), future: [entry, ...future] })
+  log('undo', { label: entry.label, rows: r.touched.map((id) => rowBrief(r.rows[id])), undoDepth: past.length - 1 })
+  persist(rows, r.rows)
 }
 
 export function redo() {
   const { rows, past, future } = get()
-  const next = future[0]
-  if (!next) return
+  const entry = future[0]
+  if (!entry) {
+    log('redo', { nothing: true })
+    return
+  }
   lastCoalesce = null
-  set({ rows: next, past: [...past, rows], future: future.slice(1), editing: null, selection: [] })
-  persist(rows, next)
+  const ids = Object.keys(entry.after)
+  const r = restore(entry.after, ids)
+  afterHistoryMove(r.rows, r.touched)
+  set({ past: [...past, entry], future: future.slice(1) })
+  log('redo', { label: entry.label, rows: r.touched.map((id) => rowBrief(r.rows[id])) })
+  persist(rows, r.rows)
 }
 
 // Idempotent: StrictMode runs effects twice in dev, and two early callers must never both
@@ -161,10 +238,12 @@ async function loadPadOnce() {
 
 export function edit(id: string, caret: Caret = 'end') {
   const cur = get().editing
+  log('edit', { id: id.slice(0, 8), caret })
   set({ editing: { id, caret, rev: (cur?.rev ?? 0) + 1 }, selection: [], anchorId: null, focusId: null })
 }
 
 export function stopEditing() {
+  if (get().editing) log('edit:stop')
   set({ editing: null })
 }
 
@@ -175,6 +254,7 @@ export function visibleIds(state: PadState = get()): string[] {
 export function select(ids: string[], anchorId: string | null, focusId: string | null = anchorId) {
   const order = new Map(visibleIds().map((id, i) => [id, i]))
   const sorted = [...new Set(ids)].filter((id) => order.has(id)).sort((a, b) => order.get(a)! - order.get(b)!)
+  log('select', { n: sorted.length, ids: sorted.slice(0, 6).map((i) => i.slice(0, 8)) })
   set({ selection: sorted, anchorId, focusId, editing: null })
 }
 
@@ -250,7 +330,7 @@ export function importOutline(text: string, where: { afterId: string } | 'top' |
     const res = insertOutline(rows, ctx, lines, placement)
     ids = res.ids
     return res.rows
-  })
+  }, { label: 'importOutline' })
   return ids
 }
 

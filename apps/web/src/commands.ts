@@ -14,7 +14,7 @@ export function cmdSplit(id: string, caret: number) {
     const res = splitNode(rows, ctx, id, caret)
     newId = res.newId
     return res.rows
-  })
+  }, { label: 'cmdSplit' })
   edit(newId, 0)
 }
 
@@ -23,7 +23,7 @@ export function cmdSplit(id: string, caret: number) {
 export function cmdEnter(id: string, caret: number) {
   const row = usePad.getState().rows[id]
   if (row && caret === 0 && row.text.length > 0) {
-    apply((rows, ctx) => insertBefore(rows, ctx, id, '').rows)
+    apply((rows, ctx) => insertBefore(rows, ctx, id, '').rows, { label: 'cmdEnter' })
     edit(id, 0)
     return
   }
@@ -41,7 +41,7 @@ export function cmdAddAbove() {
     const res = insertBefore(rows, ctx, id, '')
     newId = res.newId
     return res.rows
-  })
+  }, { label: 'cmdAddAbove' })
   edit(newId, 0)
 }
 
@@ -54,12 +54,12 @@ export function cmdAddBelow() {
     const res = insertAfter(rows, ctx, id, '')
     newId = res.newId
     return res.rows
-  })
+  }, { label: 'cmdAddBelow' })
   edit(newId, 0)
 }
 
 export function cmdSetText(id: string, text: string) {
-  apply((rows, ctx) => setTextOp(rows, ctx, id, text), { coalesce: `text:${id}` })
+  apply((rows, ctx) => setTextOp(rows, ctx, id, text), { label: 'cmdSetText', coalesce: `text:${id}` })
 }
 
 // Backspace at the start of a node.
@@ -70,7 +70,7 @@ export function cmdBackspaceAtStart(id: string) {
   if (row.text === '') {
     const hasKids = childrenOf(buildIndex(usePad.getState().rows), id).length > 0
     if (hasKids || !prev) return
-    apply((rows, ctx) => remove(rows, ctx, [id]))
+    apply((rows, ctx) => remove(rows, ctx, [id]), { label: 'cmdBackspaceAtStart' })
     edit(prev, 'end')
     return
   }
@@ -80,29 +80,29 @@ export function cmdBackspaceAtStart(id: string) {
     if (!res) return rows
     landing.push({ prevId: res.prevId, caret: res.caret })
     return res.rows
-  })
+  }, { label: 'cmdBackspaceAtStart:merge' })
   const l = landing[0]
   if (l) edit(l.prevId, l.caret)
 }
 
 export function cmdIndent() {
   const ids = targets()
-  if (ids.length) apply((rows, ctx) => indent(rows, ctx, ids))
+  if (ids.length) apply((rows, ctx) => indent(rows, ctx, ids), { label: 'cmdIndent' })
 }
 
 export function cmdDedent() {
   const ids = targets()
-  if (ids.length) apply((rows, ctx) => dedent(rows, ctx, ids))
+  if (ids.length) apply((rows, ctx) => dedent(rows, ctx, ids), { label: 'cmdDedent' })
 }
 
 export function cmdMove(dir: 'up' | 'down') {
   const ids = targets()
-  if (ids.length) apply((rows, ctx) => moveSibling(rows, ctx, ids, dir))
+  if (ids.length) apply((rows, ctx) => moveSibling(rows, ctx, ids, dir), { label: 'cmdMove' })
 }
 
 export function cmdToggleDone() {
   const ids = targets()
-  if (ids.length) apply((rows, ctx) => toggleDone(rows, ctx, ids))
+  if (ids.length) apply((rows, ctx) => toggleDone(rows, ctx, ids), { label: 'cmdToggleDone' })
 }
 
 export function cmdToggleCollapsed() {
@@ -112,7 +112,7 @@ export function cmdToggleCollapsed() {
     let out = rows
     for (const id of ids) out = toggleCollapsed(out, ctx, id)
     return out
-  })
+  }, { label: 'cmdToggleCollapsed' })
 }
 
 // Delete the selection and land on the row that takes its place.
@@ -126,7 +126,7 @@ export function cmdDeleteSelection() {
     // Never leave the pad with nothing to type into.
     const anyLive = Object.values(out).some((r) => r.deletedAt === null)
     return anyLive ? out : insertAt(out, ctx, { parentId: null, afterId: null }, '').rows
-  })
+  }, { label: 'cmdDeleteSelection' })
   const landing = after ?? visibleIds()[0]
   if (landing) select([landing], landing)
 }
@@ -150,7 +150,7 @@ export function cmdPasteInto(id: string, text: string): boolean {
   const empty = usePad.getState().rows[id]?.text === ''
   const ids = importOutline(text, { afterId: id })
   if (ids.length === 0) return false
-  if (empty) apply((rows, ctx) => remove(rows, ctx, [id]))
+  if (empty) apply((rows, ctx) => remove(rows, ctx, [id]), { label: 'cmdPasteInto' })
   edit(ids.at(-1)!, 'end')
   return true
 }
@@ -164,7 +164,7 @@ export function cmdPasteAfterSelection(text: string) {
 
 export function cmdToggleNumbered() {
   const ids = targets()
-  if (ids.length) apply((rows, ctx) => toggleNumbered(rows, ctx, ids))
+  if (ids.length) apply((rows, ctx) => toggleNumbered(rows, ctx, ids), { label: 'cmdToggleNumbered' })
 }
 
 // Delete every crossed-out line. Returns how many lines went (subtrees included), so the
@@ -176,7 +176,7 @@ export function cmdDeleteDone(): number {
     const out = removeDone(rows, ctx)
     const anyLive = Object.values(out).some((r) => r.deletedAt === null)
     return anyLive ? out : insertAt(out, ctx, { parentId: null, afterId: null }, '').rows
-  })
+  }, { label: 'cmdDeleteDone' })
   const after = Object.values(usePad.getState().rows).filter((r) => r.deletedAt === null).length
   usePad.setState({ selection: [], anchorId: null, focusId: null })
   return Math.max(0, before - after)
@@ -194,7 +194,7 @@ export function cmdAppendAtEnd() {
     const res = insertAt(rows, ctx, { parentId: null, afterId: childrenOf(index, null).at(-1)?.id ?? null }, '')
     newId = res.newId
     return res.rows
-  })
+  }, { label: 'cmdAppendAtEnd' })
   edit(newId, 0)
 }
 

@@ -3,6 +3,7 @@ import { toOutline } from '@hissypad/core'
 import { importOutline, usePad } from './store'
 import { cmdDeleteDone } from './commands'
 import { copyText } from './clipboard'
+import { clearLog, dumpLog, logEnabled } from './log'
 
 type Theme = 'system' | 'light' | 'dark'
 
@@ -26,7 +27,9 @@ export function TopBar() {
   const [theme, setTheme] = useState<Theme>(readTheme)
   const [toast, setToast] = useState<string | null>(null)
   const dialog = useRef<HTMLDialogElement>(null)
+  const logDialog = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState('')
+  const [logText, setLogText] = useState('')
 
   useEffect(() => {
     applyTheme(theme)
@@ -69,6 +72,9 @@ export function TopBar() {
         </button>
         <button type="button" onClick={() => dialog.current?.showModal()}>Paste in…</button>
         <button type="button" onClick={exportAll} disabled={liveCount === 0}>Copy all</button>
+        {logEnabled() && (
+          <button type="button" onClick={() => { setLogText(dumpLog()); logDialog.current?.showModal() }} title="Debug log (?debug=1 turned this on)">Log</button>
+        )}
         <label className="select">
           <span className="sr-only">Theme</span>
           <select value={theme} onChange={(e) => setTheme(e.target.value as Theme)} aria-label="Theme">
@@ -79,6 +85,18 @@ export function TopBar() {
         </label>
       </nav>
       {toast && <output className="toast" aria-live="polite">{toast}</output>}
+      <dialog ref={logDialog} className="import" aria-labelledby="log-title">
+        <form method="dialog">
+          <h2 id="log-title">Debug log</h2>
+          <p>Every op with the rows it touched, undo and redo, selection, drag and sync events. Newest at the bottom. Turn off with <code>?debug=0</code>.</p>
+          <textarea readOnly value={logText} rows={16} aria-label="Debug log text" />
+          <div className="actions">
+            <button type="button" onClick={() => { clearLog(); setLogText('') }}>Clear</button>
+            <button type="button" onClick={() => void copyText(logText)}>Copy</button>
+            <button type="submit" className="primary">Close</button>
+          </div>
+        </form>
+      </dialog>
       <dialog ref={dialog} className="import" aria-labelledby="import-title" onClose={() => setDraft('')}>
         <form method="dialog" onSubmit={(e) => { e.preventDefault(); doImport('top') }}>
           <h2 id="import-title">Paste an outline</h2>

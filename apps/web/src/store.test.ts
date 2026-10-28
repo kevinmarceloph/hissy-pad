@@ -132,3 +132,44 @@ describe('selection and visibility', () => {
     expect(usePad.getState().editing).toMatchObject({ id: a, caret: 0, rev: 1 })
   })
 })
+
+describe('per-op undo', () => {
+  it('undo reverts only the rows the op touched, not rows that arrived meanwhile', async () => {
+    reset('A\nB')
+    await loadPad()
+    const a = idOf(usePad.getState().rows, 'A')
+    const b = idOf(usePad.getState().rows, 'B')
+    cmdSetText(a, 'A edited')
+    // Another device changes B after our edit; it lands through the remote path.
+    const remoteB = { ...usePad.getState().rows[b]!, text: 'B from phone', updatedAt: new Date(Date.parse(usePad.getState().rows[b]!.updatedAt) + 60_000).toISOString() }
+    usePad.setState((s) => ({ rows: { ...s.rows, [b]: remoteB } }))
+    undo()
+    expect(usePad.getState().rows[a]!.text).toBe('A')
+    expect(usePad.getState().rows[b]!.text).toBe('B from phone')
+    // The undo is stamped fresh so it syncs as a new write.
+    expect(usePad.getState().rows[a]!.updatedAt > remoteB.updatedAt).toBe(true)
+    redo()
+    expect(usePad.getState().rows[a]!.text).toBe('A edited')
+    expect(usePad.getState().rows[b]!.text).toBe('B from phone')
+  })
+
+  it('undoing an insert tombstones it; undoing a delete brings the subtree back; selection lands on it', async () => {
+    reset('A\n  A1\nB')
+    await loadPad()
+    const a = idOf(usePad.getState().rows, 'A')
+    select([a], a)
+    cmdDeleteSelection()
+    expect(shape(usePad.getState().rows)).toBe('B')
+    undo()
+    expect(shape(usePad.getState().rows)).toBe('A\n  A1\nB')
+    expect(usePad.getState().selection).toEqual(expect.arrayContaining([a]))
+    redo()
+    expect(shape(usePad.getState().rows)).toBe('B')
+    cmdSplit(idOf(usePad.getState().rows, 'B'), 1)
+    expect(shape(usePad.getState().rows)).toBe('B\n')
+    undo()
+    expect(shape(usePad.getState().rows)).toBe('B')
+    const tomb = Object.values(usePad.getState().rows).filter((r) => r.deletedAt !== null)
+    expect(tomb.length).toBeGreaterThan(0)
+  })
+})

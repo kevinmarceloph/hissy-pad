@@ -193,6 +193,8 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
 /* A blank line is a spacer: no bullet until something is typed. Hovering still reveals
    the halo so it can be selected or deleted. */
 .row.is-empty .bullet::before { background: transparent; }
+/* ...except while it is being typed into: a faint dot marks where the line is. */
+.row.is-empty.is-editing .bullet::before { background: var(--rule); }
 /* Done: a bullet-journal cross in place of the dot. */
 .row.is-done .bullet::before {
   content: '×';

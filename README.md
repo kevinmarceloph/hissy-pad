@@ -56,7 +56,11 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 | Cmd+A | select all |
 | Esc | clear |
 
-Drag a bullet to move a line (press and hold on a phone); move right to nest under the line above, left to climb out. If the dragged line is part of a selection, the whole selection moves. Cmd+Z / Shift+Cmd+Z undo and redo anywhere. Tap a bullet to select it; once something is selected, tapping other bullets toggles them (no modifier, so it works on a phone). Shift+click selects a range. Blank lines show no bullet, done lines show a × like a bullet journal, and "Delete done" removes every crossed-out line (undo brings them back).
+Cmd+S syncs right now (and never opens the browser's save dialog). Drag a bullet to move a line (press and hold on a phone); move right to nest under the line above, left to climb out. If the dragged line is part of a selection, the whole selection moves. Cmd+Z / Shift+Cmd+Z undo and redo anywhere. Tap a bullet to select it; once something is selected, tapping other bullets toggles them (no modifier, so it works on a phone). Shift+click selects a range. Blank lines show no bullet, done lines show a × like a bullet journal, and "Delete done" removes every crossed-out line (undo brings them back).
+
+## Debugging
+
+Open the app with `?debug=1` (sticks until `?debug=0`). A Log button appears in the top bar with every op (label, before/after of each touched row, undo depth), undo and redo, selection and editing changes, drag begin/target/drop, and sync status. `window.hissypad.log()` returns the same text. Undo is per op: it restores only the rows that op touched, stamped fresh so the undo syncs, and never reverts rows that arrived from another device in between.
 
 ## Deploy
 

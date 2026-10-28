@@ -5,8 +5,10 @@ import { App } from './App'
 import { configureLocalStore } from './store'
 import { createIdbStore } from './local/idb'
 import { bindAuth } from './sync'
+import { initLog } from './log'
 import './styles.css'
 
+initLog()
 configureLocalStore(createIdbStore())
 bindAuth()
 registerSW({ immediate: true })

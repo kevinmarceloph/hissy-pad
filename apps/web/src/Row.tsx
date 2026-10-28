@@ -158,7 +158,7 @@ export function Row({ row, depth, hasChildren, editing, selected, number, draggi
         tabIndex={-1}
         aria-label={row.collapsed ? 'Expand' : 'Collapse'}
         hidden={!hasChildren}
-        onClick={() => apply((rows, ctx) => toggleCollapsed(rows, ctx, row.id))}
+        onClick={() => apply((rows, ctx) => toggleCollapsed(rows, ctx, row.id), { label: 'toggleFold' })}
       />
       <button
         type="button"

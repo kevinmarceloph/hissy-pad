@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { buildIndex, descendantIds, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
 import { apply, select, usePad, visibleIds } from '../store'
+import { log } from '../log'
 
 export interface DragState {
   ids: string[]          // topmost moved rows
@@ -59,6 +60,7 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     if (state.editing) usePad.setState({ editing: null })
     ;(document.activeElement as HTMLElement | null)?.blur?.()
     const first = rows[ids[0]!]!
+    log('drag:begin', { ids: ids.map((i) => i.slice(0, 8)), moving: moving.size })
     setDrag({ ids, count: moving.size, label: first.text || '(blank)', x, y, target: null, indicatorLeft: 0 })
     document.body.classList.add('is-dragging-rows')
   }, [rowsEl, setDrag])
@@ -78,6 +80,10 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
       pointerY: y - rootTop,
       pointerDepth: (x - l.basePx) / l.indentPx,
     })
+    const prevT = dragRef.current?.target
+    if ((prevT?.placement.parentId ?? null) !== (target?.placement.parentId ?? null) || (prevT?.placement.afterId ?? null) !== (target?.placement.afterId ?? null) || prevT?.depth !== target?.depth) {
+      log('drag:target', target ? { parent: target.placement.parentId?.slice(0, 8) ?? null, after: target.placement.afterId?.slice(0, 8) ?? null, depth: target.depth, gap: target.gapIndex } : null)
+    }
     setDrag((d) => (d ? { ...d, x, y, target, indicatorLeft: target ? l.gutterPx + target.depth * l.indentPx : 0 } : d))
     // Autoscroll near the viewport edges.
     const vh = window.innerHeight
@@ -98,8 +104,9 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     // Commit from the ref, never inside a state updater: updaters run during render.
     const target = dragRef.current?.target ?? null
     setDrag(null)
+    log('drag:end', { commit, target: target ? { parent: target.placement.parentId?.slice(0, 8) ?? null, after: target.placement.afterId?.slice(0, 8) ?? null, depth: target.depth } : null })
     if (commit && target) {
-      apply((rows, ctx) => moveNodes(rows, ctx, l.ids, target.placement))
+      apply((rows, ctx) => moveNodes(rows, ctx, l.ids, target.placement), { label: 'drag' })
       const vis = new Set(visibleIds())
       const kept = l.ids.filter((id) => vis.has(id))
       if (kept.length) select(kept, kept[0]!, kept.at(-1)!)

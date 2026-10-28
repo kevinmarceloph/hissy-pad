@@ -6,6 +6,7 @@ import { createSyncEngine, type NodeRow, type Remote, type SyncEngine, type Sync
 import { supabase } from './supabase'
 import { createSupabaseRemote } from './remote'
 import { clock, getLocalStore, setOnLocalChange, usePad } from './store'
+import { log, rowBrief } from './log'
 
 let engine: SyncEngine | null = null
 let detachWindow: (() => void) | null = null
@@ -13,6 +14,7 @@ let detachWindow: (() => void) | null = null
 export const syncEnabled = supabase !== null
 
 function mergeRemote(incoming: readonly NodeRow[]) {
+  log('sync:merge', { n: incoming.length, rows: incoming.slice(0, 8).map(rowBrief) })
   usePad.setState((s) => {
     const rows: Record<string, NodeRow> = { ...s.rows }
     for (const r of incoming) {
@@ -40,7 +42,11 @@ export function startSync(remote: Remote) {
     clock,
     getRows: () => usePad.getState().rows,
     applyRemote: mergeRemote,
-    onStatus: (status: SyncStatus) => usePad.setState({ sync: status }),
+    onStatus: (status: SyncStatus) => {
+      const prev = usePad.getState().sync
+      if (!prev || prev.state !== status.state || prev.pending !== status.pending || prev.error !== status.error) log('sync:status', status)
+      usePad.setState({ sync: status })
+    },
   })
   setOnLocalChange(() => engine?.requestSync())
   const kick = () => void engine?.sync()
@@ -69,6 +75,12 @@ export function stopSync() {
 
 export function requestSync() {
   engine?.requestSync()
+}
+
+// Cmd+S: nothing to "save" (every edit is already on disk), but sync right now.
+export function forceSync() {
+  log('sync:force')
+  void engine?.sync()
 }
 
 // Follow auth: a session starts the engine for that user, sign-out stops it.

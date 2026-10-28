@@ -7,6 +7,7 @@ import {
 } from './commands'
 import { Row } from './Row'
 import { useDrag } from './drag/useDrag'
+import { forceSync } from './sync'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 
@@ -57,6 +58,12 @@ export function Pad() {
       const t = e.target as HTMLElement
       const inField = t.closest?.('textarea, input, [contenteditable="true"], dialog')
       const mod = e.metaKey || e.ctrlKey
+      // Cmd+S: swallow the browser's save dialog and sync now instead.
+      if (mod && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        forceSync()
+        return
+      }
       if (!inField && mod && e.key.toLowerCase() === 'z') {
         e.preventDefault()
         if (e.shiftKey) redo()
