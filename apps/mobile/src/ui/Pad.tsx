@@ -2,13 +2,13 @@
 // via a long press on a bullet. Drop resolution is core's resolveDrop over the rows'
 // measured layouts; this file only measures and draws.
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react'
-import { Keyboard, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { Keyboard, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Clipboard from 'expo-clipboard'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, descendantIds, flatten, listNumbers, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdAppendAtEnd, cmdCopySelection, cmdDeleteDone, clearLog, dumpLog, importOutline, logEnabled, select, usePad, visibleIds } from '@hissypad/state'
+import { apply, cmdAppendAtEnd, cmdCopySelection, cmdDeleteDone, clearLog, dumpLog, importOutline, logEnabled, refresh, select, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -49,6 +49,8 @@ export function Pad() {
   const editing = usePad((s) => s.editing)
   const selection = usePad((s) => s.selection)
   const load = usePad((s) => s.load)
+  const session = usePad((s) => s.session)
+  const [refreshing, setRefreshing] = useState(false)
   const [drag, setDrag] = useState<Drag | null>(null)
   const dragRef = useRef<Drag | null>(null)
   const layouts = useRef(new Map<string, { y: number; height: number }>())
@@ -168,6 +170,14 @@ export function Pad() {
     scrollY.current = e.nativeEvent.contentOffset.y
   }
 
+  // Pull down at the top to sync now. The spinner stays up until the push and pull are
+  // done, and at least half a second so a fast sync is still seen to happen.
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await Promise.all([refresh(), new Promise((r) => setTimeout(r, 500))])
+    setRefreshing(false)
+  }, [])
+
   async function pasteIn() {
     const text = await Clipboard.getStringAsync()
     const ids = importOutline(text, 'top')
@@ -231,6 +241,7 @@ export function Pad() {
             scrollEnabled={!drag}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
+            refreshControl={session ? <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={theme.inkMute} colors={[theme.accent]} progressBackgroundColor={theme.paperRaised} /> : undefined}
           >
             {displayed.map(({ id, depth, preview }) => (
               <Row

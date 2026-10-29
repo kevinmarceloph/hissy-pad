@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createFakeRemote, createMemoryStore, pad, shape, idOf, insertAt } from '@hissypad/core'
 import { apply, configureLocalStore, loadPad, usePad } from './store'
-import { startSync, stopSync } from './sync'
+import { refresh, startSync, stopSync } from './sync'
 import { cmdSetText } from './commands'
 
 async function flush(n = 30) {
@@ -71,6 +71,24 @@ describe('sync wiring', () => {
     expect(s).toContain('Oat milk, the barista one')
     expect(s).not.toContain('Welcome to HissyPad')
     expect(s).not.toContain('Kitchen towels')
+    stopSync()
+  })
+
+  it('refresh resolves at once with no engine, and after a full sync with one', async () => {
+    configureLocalStore(createMemoryStore())
+    await expect(refresh()).resolves.toBeUndefined()
+    const remote = createFakeRemote()
+    configureLocalStore(createMemoryStore(Object.values(pad('mine'))))
+    await loadPad()
+    startSync(remote)
+    await flush()
+    const mine = idOf(usePad.getState().rows, 'mine')
+    cmdSetText(mine, 'pulled down')
+    await flush()
+    // No waiting on the 800ms debounce: refresh pushes right away.
+    await refresh()
+    expect(remote.rows.get(mine)!.row.text).toBe('pulled down')
+    expect(usePad.getState().sync).toMatchObject({ state: 'idle', pending: 0 })
     stopSync()
   })
 

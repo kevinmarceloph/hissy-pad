@@ -109,6 +109,14 @@ export function forceSync() {
   void engine?.sync()
 }
 
+// Pull-to-refresh: sync now and resolve once the push and pull are done (so a spinner
+// knows when to stop). Resolves at once when the pad is local-only; the engine never
+// rejects, a failed sync lands in `sync.state` instead.
+export function refresh(): Promise<void> {
+  log('sync:refresh', { engine: engine !== null })
+  return engine?.sync() ?? Promise.resolve()
+}
+
 // Follow auth: a session starts the engine for that user, sign-out stops it.
 export function bindAuth(client: SupabaseClient | null) {
   if (!client) return

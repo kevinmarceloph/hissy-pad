@@ -4,6 +4,7 @@ import { Pad } from './Pad'
 import { SelectionBar } from './SelectionBar'
 import { TopBar } from './TopBar'
 import { Account } from './Account'
+import { PullToRefresh } from './PullToRefresh'
 
 export function App() {
   const load = usePad((s) => s.load)
@@ -15,6 +16,7 @@ export function App() {
 
   return (
     <main className="app">
+      <PullToRefresh />
       <TopBar />
       {storageError && (
         <div className="banner" role="alert">
