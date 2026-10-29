@@ -25,7 +25,7 @@ Platform logic goes in `packages/state` or `packages/core`, never in an app. If 
 
 ```bash
 pnpm install
-pnpm --filter @hissypad/web dev     # http://localhost:5180 (desktop app: launch config "hissypad-web")
+pnpm --filter @hissypad/web dev     # http://localhost:5180 (desktop app: launch config "hissypad-web" in .claude/launch.json)
 pnpm test                           # every package (Vitest)
 pnpm typecheck
 pnpm --filter @hissypad/web e2e     # Playwright drag tests, desktop + phone profiles

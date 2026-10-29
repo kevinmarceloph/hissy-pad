@@ -1,13 +1,14 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
-import { clickSelect, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
+import { apply, clickSelect, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
+import { toggleCollapsed } from '@hissypad/core'
 import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, serif, type Theme } from '../theme'
 
 interface Props {
   row: NodeRow
   depth: number
-  hasChildren: boolean
+  childCount: number // direct children, shown as a chip while folded
   editing: Editing | null
   selected: boolean
   number: number | null
@@ -18,8 +19,10 @@ interface Props {
   onBulletLongPress: (id: string, x: number, y: number) => void
 }
 
-export const Row = memo(function Row({ row, depth, hasChildren, editing, selected, number, dragging, preview, theme, onLayout, onBulletLongPress }: Props) {
+export const Row = memo(function Row({ row, depth, childCount, editing, selected, number, dragging, preview, theme, onLayout, onBulletLongPress }: Props) {
   const isEditing = editing?.id === row.id
+  const hasChildren = childCount > 0
+  const folded = row.collapsed && hasChildren
   const sel = useRef({ start: 0, end: 0 })
   // Local mirror of the text while editing, so each keystroke renders before the store.
   const [draft, setDraft] = useState(row.text)
@@ -80,7 +83,7 @@ export const Row = memo(function Row({ row, depth, hasChildren, editing, selecte
             s.dot,
             { backgroundColor: isEditing ? theme.accent : theme.inkSoft },
             row.text === '' && { backgroundColor: isEditing ? theme.rule : 'transparent' },
-            row.collapsed && hasChildren && { borderWidth: 5, borderColor: theme.rule, width: 16, height: 16, borderRadius: 8 },
+            folded && { borderWidth: 5, borderColor: theme.rule, width: 16, height: 16, borderRadius: 8 },
           ]}
         />
       )}
@@ -114,6 +117,18 @@ export const Row = memo(function Row({ row, depth, hasChildren, editing, selecte
         <Pressable style={s.textWrap} onPress={() => edit(row.id, 'end')}>
           <Text style={[s.text, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
             {row.text === '' ? ' ' : row.text}
+            {folded && (
+              // Nested so it sits right after the last word, wrapping with it. A nested Text
+              // takes a background but no padding or radius on iOS, hence the spaces.
+              <Text
+                accessibilityRole="button"
+                accessibilityLabel={`Expand ${childCount} ${childCount === 1 ? 'line' : 'lines'}`}
+                onPress={() => apply((rows, ctx) => toggleCollapsed(rows, ctx, row.id), { label: 'toggleFold' })}
+                style={[s.chip, { backgroundColor: theme.accentSoft, color: row.done ? theme.inkMute : theme.inkSoft }]}
+              >
+                {'\u2002+'}{childCount}{'\u2002'}
+              </Text>
+            )}
           </Text>
         </Pressable>
       )}
@@ -132,4 +147,5 @@ const s = StyleSheet.create({
   textWrap: { flex: 1, minHeight: LINE },
   text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, padding: 0, margin: 0, textAlignVertical: 'top' },
   input: { transform: [{ translateY: -INPUT_SHIFT }] },
+  chip: { fontSize: SIZE - 5, fontWeight: '400', textDecorationLine: 'none', fontVariant: ['tabular-nums'] },
 })

@@ -237,7 +237,7 @@ export function Pad() {
                 key={id}
                 row={rows[id]!}
                 depth={depth}
-                hasChildren={childrenOf(index, id).length > 0}
+                childCount={childrenOf(index, id).length}
                 editing={editing}
                 selected={selectedSet.has(id)}
                 number={numbers.get(id) ?? null}

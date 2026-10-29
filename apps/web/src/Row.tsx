@@ -12,7 +12,7 @@ import { toggleCollapsed } from '@hissypad/core'
 interface Props {
   row: NodeRow
   depth: number
-  hasChildren: boolean
+  childCount: number    // direct children, shown as a chip while folded
   editing: Editing | null
   selected: boolean
   number: number | null // position in a numbered run, or null for a plain bullet
@@ -71,7 +71,7 @@ function caretFromPoint(el: HTMLElement, x: number, y: number): number | 'end' {
   return range.toString().length
 }
 
-export function Row({ row, depth, hasChildren, editing, selected, number, dragging, preview, onBulletPointerDown, onBulletClickCapture }: Props) {
+export function Row({ row, depth, childCount, editing, selected, number, dragging, preview, onBulletPointerDown, onBulletClickCapture }: Props) {
   const isEditing = editing?.id === row.id
   const ref = useRef<HTMLTextAreaElement>(null)
 
@@ -150,7 +150,9 @@ export function Row({ row, depth, hasChildren, editing, selected, number, draggi
     edit(row.id, caretFromPoint(e.currentTarget, e.clientX, e.clientY))
   }
 
-  const cls = ['row', row.done && 'is-done', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', isEditing && 'is-editing', row.collapsed && hasChildren && 'is-collapsed']
+  const hasChildren = childCount > 0
+  const folded = row.collapsed && hasChildren
+  const cls = ['row', row.done && 'is-done', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', isEditing && 'is-editing', folded && 'is-collapsed']
     .filter(Boolean)
     .join(' ')
 
@@ -195,6 +197,18 @@ export function Row({ row, depth, hasChildren, editing, selected, number, draggi
       ) : (
         <div className="text" onMouseDown={onTextMouseDown}>
           {row.text === '' ? <span className="placeholder" aria-hidden="true">{'​'}</span> : <Linkified text={row.text} />}
+          {folded && (
+            <button
+              type="button"
+              className="chip"
+              tabIndex={-1}
+              aria-label={`Expand ${childCount} ${childCount === 1 ? 'line' : 'lines'}`}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => apply((rows, ctx) => toggleCollapsed(rows, ctx, row.id), { label: 'toggleFold' })}
+            >
+              +{childCount}
+            </button>
+          )}
         </div>
       )}
     </div>

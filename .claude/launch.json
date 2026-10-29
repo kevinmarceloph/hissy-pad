@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hissypad-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@hissypad/web", "dev"],
+      "port": 5180
+    }
+  ]
+}

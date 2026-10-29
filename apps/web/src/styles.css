@@ -273,6 +273,28 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
 }
 .row.is-done .text a { color: inherit; }
 .placeholder { display: inline-block; min-width: 1px; }
+/* Folded: a count of the hidden children, inline right after the text. Tapping it unfolds. */
+.row .chip {
+  display: inline-block;
+  vertical-align: 0.1em;
+  margin-left: 0.45rem;
+  height: 1.15rem;
+  min-width: 1.6rem;
+  padding: 0 0.4rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: var(--accent-soft);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  line-height: 1.15rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.row .chip:hover { color: var(--accent); }
+.row.is-done .chip { color: var(--ink-mute); }
 
 .tail {
   display: block;
