@@ -160,6 +160,28 @@ export function cmdPasteInto(id: string, text: string): boolean {
   return true
 }
 
+// A native text input reporting its whole value after a change (the mobile app has no
+// paste event): several newlines at once is a paste, one newline is Enter, otherwise the
+// text is typed. Returns what the input should show for `id` now. The head (text before
+// the first newline) is written before the rest becomes lines, because cmdPasteInto drops
+// the row when the store still says it is empty.
+export function cmdTextChanged(id: string, text: string): string {
+  const first = text.indexOf('\n')
+  if (first < 0) {
+    cmdSetText(id, text)
+    return text
+  }
+  const head = text.slice(0, first)
+  if (text.indexOf('\n', first + 1) >= 0) {
+    cmdSetText(id, head)
+    if (cmdPasteInto(id, text.slice(first + 1))) return head
+  }
+  const flat = head + text.slice(first + 1)
+  cmdSetText(id, flat)
+  cmdEnter(id, first)
+  return flat
+}
+
 export function cmdPasteAfterSelection(text: string) {
   const { selection } = usePad.getState()
   const last = selection.at(-1)

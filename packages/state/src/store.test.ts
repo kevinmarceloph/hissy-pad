@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryStore, pad, shape, idOf } from '@hissypad/core'
 import { apply, clickSelect, configureLocalStore, edit, importOutline, loadPad, redo, select, undo, usePad } from './store'
-import { cmdDeleteDone, cmdDeleteSelection, cmdSetText, cmdSplit, cmdToggleDone } from './commands'
+import { cmdDeleteDone, cmdDeleteSelection, cmdSetText, cmdSplit, cmdTextChanged, cmdToggleDone } from './commands'
 import { setText } from '@hissypad/core'
 
 function reset(initialOutline?: string) {
@@ -174,5 +174,37 @@ describe('per-op undo', () => {
     expect(shape(usePad.getState().rows)).toBe('B')
     const tomb = Object.values(usePad.getState().rows).filter((r) => r.deletedAt !== null)
     expect(tomb.length).toBeGreaterThan(0)
+  })
+})
+
+// The mobile input reports its whole value on every change; this is how a paste arrives.
+describe('cmdTextChanged', () => {
+  it('a multi-line paste into an empty line keeps the first line and adds the rest after it', async () => {
+    reset('top\n\nlast')
+    await loadPad()
+    const id = idOf(usePad.getState().rows, '')
+    edit(id)
+    expect(cmdTextChanged(id, 'Groceries\n- milk\n- eggs\n\n- bread')).toBe('Groceries')
+    expect(shape(usePad.getState().rows)).toBe('top\nGroceries\nmilk\neggs\n\nbread\nlast')
+    expect(usePad.getState().editing?.id).toBe(idOf(usePad.getState().rows, 'bread'))
+  })
+
+  it('a multi-line paste mid-line keeps the typed head on the row', async () => {
+    reset('top\nlast')
+    await loadPad()
+    const id = idOf(usePad.getState().rows, 'top')
+    edit(id)
+    expect(cmdTextChanged(id, 'top milk\neggs\nbread')).toBe('top milk')
+    expect(shape(usePad.getState().rows)).toBe('top milk\neggs\nbread\nlast')
+  })
+
+  it('one newline is Enter, no newline is typing', async () => {
+    reset('top\nlast')
+    await loadPad()
+    const id = idOf(usePad.getState().rows, 'top')
+    edit(id)
+    expect(cmdTextChanged(id, 'tops')).toBe('tops')
+    expect(cmdTextChanged(id, 'to\nps')).toBe('tops')
+    expect(shape(usePad.getState().rows)).toBe('to\nps\nlast')
   })
 })

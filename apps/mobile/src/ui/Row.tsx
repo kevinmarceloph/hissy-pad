@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
-import { clickSelect, edit, usePad, type Editing, cmdBackspaceAtStart, cmdEnter, cmdSetText, cmdPasteInto } from '@hissypad/state'
+import { clickSelect, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, SIZE, serif, type Theme } from '../theme'
 
 interface Props {
@@ -44,23 +44,7 @@ export const Row = memo(function Row({ row, depth, hasChildren, editing, selecte
   }, [isEditing, editing?.rev])
 
   function onChange(text: string) {
-    // Several newlines at once is a paste: it becomes lines. One newline is Enter.
-    const first = text.indexOf('\n')
-    if (first >= 0 && text.indexOf('\n', first + 1) >= 0 && cmdPasteInto(row.id, text.slice(first + 1))) {
-      const head = text.slice(0, first)
-      cmdSetText(row.id, head)
-      setDraft(head)
-      return
-    }
-    if (first >= 0) {
-      const flat = text.slice(0, first) + text.slice(first + 1)
-      cmdSetText(row.id, flat)
-      setDraft(flat)
-      cmdEnter(row.id, first)
-      return
-    }
-    setDraft(text)
-    cmdSetText(row.id, text)
+    setDraft(cmdTextChanged(row.id, text))
   }
 
   function onKeyPress(e: TextInputKeyPressEvent) {
