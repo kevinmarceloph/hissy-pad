@@ -123,7 +123,7 @@ export const Row = memo(function Row({ row, depth, hasChildren, editing, selecte
           onBlur={() => {
             if (usePad.getState().editing?.id === row.id) usePad.setState({ editing: null })
           }}
-          style={[s.text, { color: theme.ink }, row.header && s.bold]}
+          style={[s.text, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}
           accessibilityLabel="Line text"
         />
       ) : (
