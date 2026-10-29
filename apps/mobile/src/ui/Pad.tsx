@@ -69,6 +69,12 @@ export function Pad() {
     return { index, visible: ids.map((id) => ({ id, depth: depth.get(id) ?? 0 })), numbers: listNumbers(index) }
   }, [rows])
   const selectedSet = useMemo(() => new Set(selection), [selection])
+  // Descendants of a selected line come along with it, so they get a fainter wash.
+  const selectedChildSet = useMemo(() => {
+    const set = new Set<string>()
+    for (const id of selection) for (const d of descendantIds(index, id)) if (!selectedSet.has(d)) set.add(d)
+    return set
+  }, [selection, selectedSet, index])
 
   // Live reorder: with a drop target, the dragged rows are shown where they would land.
   const displayed = useMemo(() => {
@@ -251,6 +257,7 @@ export function Pad() {
                 childCount={childrenOf(index, id).length}
                 editing={editing}
                 selected={selectedSet.has(id)}
+                selectedChild={selectedChildSet.has(id)}
                 number={numbers.get(id) ?? null}
                 dragging={preview ? false : (drag?.moving.has(id) ?? false)}
                 preview={preview}

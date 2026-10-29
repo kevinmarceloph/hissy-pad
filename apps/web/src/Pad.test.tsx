@@ -247,4 +247,18 @@ describe('toolbar iteration', () => {
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     expect(texts()).toBe('y')
   })
+
+  it('selecting a parent washes its descendants fainter; a selected child keeps the full wash', async () => {
+    const user = userEvent.setup()
+    await mount('p\n  c\n    g\nq')
+    await user.click(within(rowByText('p')).getByRole('button', { name: /Select line/ }))
+    expect(rowByText('p')).toHaveClass('is-selected')
+    expect(rowByText('c')).toHaveClass('is-selected-child')
+    expect(rowByText('g')).toHaveClass('is-selected-child')
+    expect(rowByText('q')).not.toHaveClass('is-selected-child')
+    await user.click(within(rowByText('c')).getByRole('button', { name: /Select line/ }), { shiftKey: true })
+    expect(rowByText('c')).toHaveClass('is-selected')
+    expect(rowByText('c')).not.toHaveClass('is-selected-child')
+    expect(rowByText('g')).toHaveClass('is-selected-child')
+  })
 })

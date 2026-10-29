@@ -11,6 +11,7 @@
   --rule: #d9d3c6;
   --accent: #b5452b;
   --accent-soft: color-mix(in oklab, var(--accent) 12%, var(--paper));
+  --accent-faint: color-mix(in oklab, var(--accent) 5%, var(--paper));
   --link: #2a5a8a;
   --font: Charter, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
   --size: 17px;
@@ -138,6 +139,7 @@ kbd {
   position: relative;
 }
 .row.is-selected { background: var(--accent-soft); }
+.row.is-selected-child { background: var(--accent-faint); }
 .row .toggle, .row .bullet {
   grid-column: 1;
   grid-row: 1;

@@ -13,6 +13,7 @@ const light = {
   rule: '#d9d3c6',
   accent: '#b5452b',
   accentSoft: '#f0dfd9',
+  accentFaint: '#f4eae4',
   link: '#2a5a8a',
 }
 const dark: typeof light = {
@@ -24,6 +25,7 @@ const dark: typeof light = {
   rule: '#3a3731',
   accent: '#e0755a',
   accentSoft: '#3a2a26',
+  accentFaint: '#2a221e',
   link: '#8fb4d8',
 }
 export type Theme = typeof light

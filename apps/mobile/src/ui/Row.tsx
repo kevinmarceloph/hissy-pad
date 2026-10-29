@@ -11,6 +11,7 @@ interface Props {
   childCount: number // direct children, shown as a chip while folded
   editing: Editing | null
   selected: boolean
+  selectedChild: boolean // under a selected line, so it moves with it; fainter wash
   number: number | null
   dragging: boolean
   preview: boolean
@@ -19,7 +20,7 @@ interface Props {
   onBulletLongPress: (id: string, x: number, y: number) => void
 }
 
-export const Row = memo(function Row({ row, depth, childCount, editing, selected, number, dragging, preview, theme, onLayout, onBulletLongPress }: Props) {
+export const Row = memo(function Row({ row, depth, childCount, editing, selected, selectedChild, number, dragging, preview, theme, onLayout, onBulletLongPress }: Props) {
   const isEditing = editing?.id === row.id
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
@@ -93,7 +94,7 @@ export const Row = memo(function Row({ row, depth, childCount, editing, selected
   return (
     <View
       onLayout={(e) => onLayout(row.id, e)}
-      style={[s.row, { paddingLeft: depth * INDENT }, selected && { backgroundColor: theme.accentSoft }, dragging && { opacity: 0.35 }, preview && { backgroundColor: theme.accentSoft, opacity: 0.75 }]}
+      style={[s.row, { paddingLeft: depth * INDENT }, selected && { backgroundColor: theme.accentSoft }, selectedChild && { backgroundColor: theme.accentFaint }, dragging && { opacity: 0.35 }, preview && { backgroundColor: theme.accentSoft, opacity: 0.75 }]}
     >
       {bullet}
       {isEditing ? (
