@@ -10,9 +10,10 @@ export interface OutlineLine {
   text: string
   depth: number
   numbered?: boolean // the line carried a "1." style marker
+  header?: boolean   // the line carried a "# " marker (Markdown heading)
 }
 
-const BULLET = /^(?:[-*+•◦○●■▪►]|(\d{1,3})[.)]|[a-z][.)])(?:\s+|$)/u
+const BULLET = /^(?:[-*+•◦○●■▪►]|(\d{1,3})[.)]|[a-z][.)]|(#{1,6}))(?:\s+|$)/u
 const TAB_WIDTH = 4
 
 function indentWidth(line: string): number {
@@ -48,6 +49,7 @@ export function parseOutline(text: string): OutlineLine[] {
     const body = m ? stripped.slice(m[0].length) : stripped
     const line: OutlineLine = { text: body, depth }
     if (m?.[1] !== undefined) line.numbered = true
+    else if (m?.[2] !== undefined) line.header = true
     out.push(line)
   }
   while (out.length > 0 && out.at(-1)!.text === '') out.pop()
@@ -110,6 +112,7 @@ export function insertOutline(
       done: false,
       collapsed: false,
       numbered: l.numbered === true,
+      header: l.header === true && l.numbered !== true,
       updatedAt: ctx.now(),
       deletedAt: null,
     }
@@ -124,15 +127,15 @@ export interface OutlineFormat {
 }
 
 // Plain-text outline of the given nodes (topmost only, with their subtrees), relative to
-// the shallowest one. Numbered lines keep their "1. " marker so the list survives a round
-// trip. Collapsed state is ignored: copy gives you everything.
+// the shallowest one. Numbered lines keep their "1. " marker and headers their "# " so
+// both survive a round trip. Collapsed state is ignored: copy gives you everything.
 export function toOutline(rows: Rows, ids: Iterable<string>, fmt: OutlineFormat = {}): string {
   const bullet = fmt.bullet ?? '- '
   const indent = fmt.indent ?? '  '
   const doneMark = fmt.done ?? ' (done)'
   const index = buildIndex(rows)
   const numbers = listNumbers(index)
-  const mark = (id: string) => (numbers.has(id) ? `${numbers.get(id)}. ` : bullet)
+  const mark = (id: string) => (numbers.has(id) ? `${numbers.get(id)}. ` : rows[id]!.header ? '# ' : bullet)
   const lines: string[] = []
   for (const top of topmost(index, ids)) {
     const self = rows[top]!

@@ -228,5 +228,7 @@ describe('normalizeRow / toWire', () => {
     const old = { id: 'x', parentId: null, rank: 'a0', text: 't', done: false, collapsed: false, updatedAt: '2026-10-28T00:00:00.000Z', deletedAt: null } as unknown as NodeRow
     expect(normalizeRow(old).numbered).toBe(false)
     expect(toWire(old).numbered).toBe(false)
+    expect(normalizeRow(old).header).toBe(false)
+    expect(toWire(old).header).toBe(false)
   })
 })

@@ -9,6 +9,7 @@ export interface NodeRow {
   done: boolean
   collapsed: boolean        // synced across devices on purpose
   numbered: boolean         // shown as "1." within its run of consecutive numbered siblings
+  header: boolean           // bold, with a "#" for a bullet; never numbered at the same time
   updatedAt: string         // ISO timestamp from the client that made the change (clock.ts)
   deletedAt: string | null  // tombstone; clients never hard-delete
 }
@@ -24,9 +25,18 @@ export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
     done: r.done === true,
     collapsed: r.collapsed === true,
     numbered: r.numbered === true,
+    header: r.header === true && r.numbered !== true,
     updatedAt: r.updatedAt ?? new Date(0).toISOString(),
     deletedAt: r.deletedAt ?? null,
   }
+}
+
+// The three ways a line can look. Stored as two booleans (numbered, header) so the column
+// set only ever grows; kindOf/setKind keep them exclusive.
+export type NodeKind = 'plain' | 'numbered' | 'header'
+
+export function kindOf(r: Pick<NodeRow, 'numbered' | 'header'>): NodeKind {
+  return r.numbered ? 'numbered' : r.header ? 'header' : 'plain'
 }
 
 // The client's whole local copy, keyed by id. Ops take one and return a new one with

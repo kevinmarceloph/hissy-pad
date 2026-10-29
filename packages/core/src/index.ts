@@ -1,4 +1,4 @@
-export { normalizeRow, type NodeRow, type Rows, type OpCtx } from './types'
+export { normalizeRow, kindOf, type NodeKind, type NodeRow, type Rows, type OpCtx } from './types'
 export { createClock, newUuid, type Clock } from './clock'
 export { between, ranksBetween, compareRank, isValidRank, DIGITS } from './rank'
 export {
@@ -33,6 +33,7 @@ export {
   toggleDone,
   setNumbered,
   toggleNumbered,
+  setKind,
   setCollapsed,
   toggleCollapsed,
   remove,

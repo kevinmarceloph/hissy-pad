@@ -1,7 +1,7 @@
 // Editing operations. Every op is pure: (rows, ctx, ...) => new rows, with only the touched
 // rows replaced. Nothing here knows about React, the DOM, or sync; the sync engine just sees
 // rows whose updatedAt advanced.
-import type { NodeRow, OpCtx, Rows } from './types'
+import { kindOf, type NodeKind, type NodeRow, type OpCtx, type Rows } from './types'
 import { between } from './rank'
 import {
   allocateRanks,
@@ -40,6 +40,7 @@ function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: strin
     done: false,
     collapsed: false,
     numbered,
+    header: false,
     updatedAt: ctx.now(),
     deletedAt: null,
   }
@@ -125,7 +126,17 @@ export function toggleDone(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows 
 
 export function setNumbered(rows: Rows, ctx: OpCtx, ids: Iterable<string>, numbered: boolean): Rows {
   let out = rows
-  for (const id of ids) if (isLive(out[id]) && out[id]!.numbered !== numbered) out = patch(out, ctx, id, { numbered })
+  for (const id of ids) if (isLive(out[id]) && out[id]!.numbered !== numbered) out = patch(out, ctx, id, { numbered, header: false })
+  return out
+}
+
+// Switch lines between plain, numbered and header. The two flags never overlap.
+export function setKind(rows: Rows, ctx: OpCtx, ids: Iterable<string>, kind: NodeKind): Rows {
+  let out = rows
+  for (const id of ids) {
+    if (!isLive(out[id]) || kindOf(out[id]!) === kind) continue
+    out = patch(out, ctx, id, { numbered: kind === 'numbered', header: kind === 'header' })
+  }
   return out
 }
 

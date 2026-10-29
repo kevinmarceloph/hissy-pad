@@ -29,7 +29,7 @@ export function shape(rows: Rows, visibleOnly = false): string {
   return flatten(index, visibleOnly)
     .map((r) => {
       const row = rows[r.id]!
-      const num = numbers.has(r.id) ? `${numbers.get(r.id)}.` : ''
+      const num = numbers.has(r.id) ? `${numbers.get(r.id)}.` : row.header ? '#' : ''
       return '  '.repeat(r.depth) + num + (row.done ? '~' : '') + row.text
     })
     .join('\n')

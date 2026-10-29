@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   dedent, indent, insertAfter, insertAtTop, insertBefore, mergeIntoPrev, moveNodes, moveSibling,
-  remove, removeDone, setCollapsed, setDone, setNumbered, setText, splitNode, sweepDone, toggleDone, toggleNumbered,
+  remove, removeDone, setCollapsed, setDone, setKind, setNumbered, setText, splitNode, sweepDone, toggleDone, toggleNumbered,
 } from './ops'
 import { idOf, pad, shape, testCtx } from './testing'
 import type { Rows } from './types'
@@ -240,6 +240,30 @@ describe('numbered lists', () => {
     expect(shape(rows)).toBe('1.z\n2.a\n  a0\n  a1\n3.b\n4.c')
   })
 
+  it('setKind switches between plain, header and numbered, never both flags', () => {
+    const ctx = testCtx()
+    let rows = pad('a\nb\nc', ctx)
+    rows = setKind(rows, ctx, [idOf(rows, 'a'), idOf(rows, 'b')], 'header')
+    expect(shape(rows)).toBe('#a\n#b\nc')
+    rows = setKind(rows, ctx, [idOf(rows, 'b'), idOf(rows, 'c')], 'numbered')
+    expect(shape(rows)).toBe('#a\n1.b\n2.c')
+    expect(rows[idOf(rows, 'b')]!.header).toBe(false)
+    rows = setKind(rows, ctx, [idOf(rows, 'c')], 'header')
+    expect(shape(rows)).toBe('#a\n1.b\n#c')
+    const same = setKind(rows, ctx, [idOf(rows, 'a')], 'header')
+    expect(same).toBe(rows)
+    rows = setKind(rows, ctx, [idOf(rows, 'a'), idOf(rows, 'b'), idOf(rows, 'c')], 'plain')
+    expect(shape(rows)).toBe('a\nb\nc')
+  })
+
+  it('Enter after a header starts a plain line', () => {
+    const ctx = testCtx()
+    let rows = pad('h\nx', ctx)
+    rows = setKind(rows, ctx, [idOf(rows, 'h')], 'header')
+    rows = insertAfter(rows, ctx, idOf(rows, 'h'), 'next').rows
+    expect(shape(rows)).toBe('#h\nnext\nx')
+  })
+
   it('removeDone deletes every crossed-out line with its subtree', () => {
     const ctx = testCtx()
     let rows = pad('a\n  a1\nb\n  b1\nc', ctx)
@@ -254,7 +278,7 @@ describe('colliding ranks', () => {
   // Two devices created "the first line" offline: both picked rank a0. Inserting between
   // them must re-rank instead of throwing, and keep their id order.
   function twins(): Rows {
-    const base = { parentId: null, text: '', done: false, collapsed: false, numbered: false, updatedAt: '2026-10-28T00:00:00.000Z', deletedAt: null }
+    const base = { parentId: null, text: '', done: false, collapsed: false, numbered: false, header: false, updatedAt: '2026-10-28T00:00:00.000Z', deletedAt: null }
     return {
       a: { ...base, id: 'a', rank: 'a0', text: 'A' },
       b: { ...base, id: 'b', rank: 'a0', text: 'B' },

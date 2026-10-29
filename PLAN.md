@@ -9,9 +9,9 @@ Decisions (2026-10-28): public repo from day one; login by magic link and Google
 ## What it is
 
 - One document ("the pad"), a tree of nodes. No days, divisions, inboxes, blocks or time fields. Urgency is position: what matters is near the top, like the Docs inbox today.
-- A node is a line of text with optional children. Blank nodes are allowed and act as spacers, the way blank lines do in Docs. Headings are just nodes with children ("WL:", "Housey:"). No node types.
+- A node is a line of text with optional children. Blank nodes are allowed and act as spacers, the way blank lines do in Docs. Headings are nodes with children ("WL:", "Housey:"); a line can be marked as a header (bold, same size, "#" for a bullet), which is a look, not a structure.
 - Done is a strikethrough that stays in place (item 3 in the screenshot stays crossed out where it was), with a × bullet like a bullet journal. "Delete done" removes every crossed-out line in one go; undo is the safety net. (An earlier "sweep under a Done node" idea was dropped 2026-10-28 in favour of deleting.)
-- Collapse and expand per node. Links are auto-linked. Plain text otherwise. No formatting, except that any line can be numbered: a run of consecutive numbered siblings counts 1, 2, 3 and a plain line restarts the count, like a Docs list. Pasting "1." lines keeps them numbered.
+- Collapse and expand per node. Links are auto-linked. Plain text otherwise. No formatting, except that any line can be numbered: a run of consecutive numbered siblings counts 1, 2, 3 and a plain line restarts the count, like a Docs list. Pasting "1." lines keeps them numbered. Any line can also be a header: bold at the same size, "#" in place of the bullet; pasting "# " lines keeps them headers and copying writes the marker back. The toolbar's type switcher (· / # / 1.) sets plain, header or numbered; a line is never both. Enter after a header starts a plain line.
 - Blank lines are spacers and show no bullet until typed into.
 - A first visit on a device opens a short welcome pad (heading with children, a numbered list, a crossed-out line, a spacer) instead of one blank line; the same text is the Paste-in placeholder. If that device then signs in to an account that already has a pad, the untouched sample lines are removed on the first sync and edited ones are kept.
 - Paste from Google Docs imports indentation as hierarchy, so the current inbox moves over in one paste. Hissycal's `indentWidth` + `createItemsAfter` already do this for a single day; the same logic ported to the flat model.
@@ -37,6 +37,7 @@ One table, `nodes`. Flat, not nested.
 | done | boolean | |
 | collapsed | boolean | synced on purpose: if I fold "Project Ideas" on the laptop I want it folded on the phone too |
 | numbered | boolean | shown as "1." within its run of consecutive numbered siblings |
+| header | boolean | bold with a "#" bullet; the client never sets it together with numbered (added 2026-10-29, `20261029000000_nodes_header.sql`; the mobile SQLite store adds the column on open) |
 | updated_at | timestamptz | set by the client that made the change, see sync |
 | deleted_at | timestamptz or null | tombstone; rows are never hard-deleted by clients |
 

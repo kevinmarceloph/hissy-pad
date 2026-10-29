@@ -86,6 +86,8 @@ export const Row = memo(function Row({ row, depth, hasChildren, editing, selecte
     >
       {number !== null ? (
         <Text style={[s.num, { color: isEditing ? theme.accent : theme.inkSoft }, row.done && { color: theme.inkMute, textDecorationLine: 'line-through' }]}>{number}.</Text>
+      ) : row.header ? (
+        <Text style={[s.hash, { color: isEditing ? theme.accent : row.done ? theme.inkMute : theme.inkSoft }, row.done && { textDecorationLine: 'line-through' }]}>#</Text>
       ) : row.done ? (
         <Text style={[s.cross, { color: theme.inkMute }]}>×</Text>
       ) : (
@@ -121,12 +123,12 @@ export const Row = memo(function Row({ row, depth, hasChildren, editing, selecte
           onBlur={() => {
             if (usePad.getState().editing?.id === row.id) usePad.setState({ editing: null })
           }}
-          style={[s.text, { color: theme.ink }]}
+          style={[s.text, { color: theme.ink }, row.header && s.bold]}
           accessibilityLabel="Line text"
         />
       ) : (
         <Pressable style={s.textWrap} onPress={() => edit(row.id, 'end')}>
-          <Text style={[s.text, { color: row.done ? theme.inkMute : theme.ink }, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
+          <Text style={[s.text, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
             {row.text === '' ? ' ' : row.text}
           </Text>
         </Pressable>
@@ -140,6 +142,8 @@ const s = StyleSheet.create({
   bullet: { width: GUTTER, minHeight: LINE, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 6, height: 6, borderRadius: 3 },
   cross: { fontFamily: serif, fontSize: SIZE + 2, lineHeight: LINE },
+  hash: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE, fontWeight: '700' },
+  bold: { fontWeight: '700' },
   num: { fontFamily: serif, fontSize: SIZE - 1, lineHeight: LINE, fontVariant: ['tabular-nums'] },
   textWrap: { flex: 1, minHeight: LINE },
   text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, padding: 0, margin: 0, textAlignVertical: 'top' },

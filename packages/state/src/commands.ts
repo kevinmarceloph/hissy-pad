@@ -3,7 +3,7 @@
 // selection goes afterwards.
 import {
   buildIndex, childrenOf, dedent, indent, insertAfter, insertAt, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone,
-  setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline,
+  setKind, setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline, type NodeKind,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
 // dialog fallback; mobile: expo-clipboard).
@@ -170,6 +170,12 @@ export function cmdPasteAfterSelection(text: string) {
 export function cmdToggleNumbered() {
   const ids = targets()
   if (ids.length) apply((rows, ctx) => toggleNumbered(rows, ctx, ids), { label: 'cmdToggleNumbered' })
+}
+
+// The toolbar's type switcher: every target becomes plain, numbered or a header.
+export function cmdSetKind(kind: NodeKind) {
+  const ids = targets()
+  if (ids.length) apply((rows, ctx) => setKind(rows, ctx, ids, kind), { label: `cmdSetKind:${kind}` })
 }
 
 // Delete every crossed-out line. Returns how many lines went (subtrees included), so the

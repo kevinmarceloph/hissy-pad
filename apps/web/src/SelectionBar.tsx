@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { buildIndex, childrenOf, topmost } from '@hissypad/core'
+import { buildIndex, childrenOf, kindOf, topmost, type NodeKind } from '@hissypad/core'
 import { clearSelection, stopEditing, usePad } from '@hissypad/state'
 import {
   cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
-  cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
+  cmdSetKind, cmdToggleCollapsed, cmdToggleDone,
 } from '@hissypad/state'
 
 // What each action can do for the current targets, so impossible ones read as disabled
@@ -24,6 +24,12 @@ function abilities(rows: ReturnType<typeof usePad.getState>['rows'], ids: string
   }
   return { indent, dedent, up, down, fold }
 }
+
+const KINDS: { kind: NodeKind; glyph: string; name: string; hint: string }[] = [
+  { kind: 'plain', glyph: '·', name: 'Bullet', hint: 'Plain bullet' },
+  { kind: 'header', glyph: '#', name: 'Header', hint: 'Header: bold, with a # bullet' },
+  { kind: 'numbered', glyph: '1.', name: 'Numbered list', hint: 'Numbered list (⌘⇧7)' },
+]
 
 // Shows while a line is being edited or lines are selected. Same actions as the keyboard,
 // for the mouse and the phone. Mousedown is swallowed so a tap never blurs the textarea.
@@ -58,6 +64,9 @@ export function SelectionBar() {
 
   if (!visible) return null
   const n = selection.length
+  // Mixed selections show the first line's type; a tap sets them all.
+  const first = rows[ids[0]!]
+  const current = first ? kindOf(first) : 'plain'
   const label = n === 0 ? 'Editing' : n === 1 ? '1 line' : `${n} lines`
   const close = () => {
     if (n > 0) clearSelection()
@@ -70,7 +79,11 @@ export function SelectionBar() {
     <div ref={ref} className="bar selbar" role="toolbar" aria-label={n > 0 ? 'Selected lines' : 'Current line'} onMouseDown={(e) => e.preventDefault()}>
       <span className="count">{label}</span>
       <button type="button" onClick={cmdToggleDone} title="Cross out (⌘Enter)">Done</button>
-      <button type="button" onClick={cmdToggleNumbered} title="Numbered list on or off (⌘⇧7)" aria-label="Numbered list">1.</button>
+      <span className="kind" role="group" aria-label="Line type">
+        {KINDS.map((k) => (
+          <button key={k.kind} type="button" onClick={() => cmdSetKind(k.kind)} aria-pressed={current === k.kind} aria-label={k.name} title={k.hint}>{k.glyph}</button>
+        ))}
+      </span>
       <span className="sep" aria-hidden="true" />
       <button type="button" onClick={cmdAddAbove} title="New line above" aria-label="Add a line above">+ above</button>
       <button type="button" onClick={cmdAddBelow} title="New line below" aria-label="Add a line below">+ below</button>

@@ -147,7 +147,7 @@ export function Row({ row, depth, hasChildren, editing, selected, number, draggi
     edit(row.id, caretFromPoint(e.currentTarget, e.clientX, e.clientY))
   }
 
-  const cls = ['row', row.done && 'is-done', row.text === '' && 'is-empty', number !== null && 'is-numbered', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', isEditing && 'is-editing', row.collapsed && hasChildren && 'is-collapsed']
+  const cls = ['row', row.done && 'is-done', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', isEditing && 'is-editing', row.collapsed && hasChildren && 'is-collapsed']
     .filter(Boolean)
     .join(' ')
 

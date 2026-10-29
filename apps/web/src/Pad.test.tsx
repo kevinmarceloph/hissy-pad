@@ -140,6 +140,22 @@ describe('Pad', () => {
     expect(texts()).toBe('1.a\n2.b\n3.b2\n4.c')
   })
 
+  it('the type switcher turns a line into a header and back to a bullet', async () => {
+    const user = userEvent.setup()
+    await mount('a\nb')
+    await user.click(within(rowByText('a')).getByRole('button', { name: /Select line/ }))
+    expect(screen.getByRole('button', { name: 'Bullet' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'Header' }))
+    expect(texts()).toBe('#a\nb')
+    expect(rowByText('a').className).toContain('is-header')
+    expect(screen.getByRole('button', { name: 'Header' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'Numbered list' }))
+    expect(texts()).toBe('1.a\nb')
+    expect(rowByText('a').className).not.toContain('is-header')
+    await user.click(screen.getByRole('button', { name: 'Bullet' }))
+    expect(texts()).toBe('a\nb')
+  })
+
   it('empty lines have no visible bullet until text is typed', async () => {
     const user = userEvent.setup()
     await mount('x')

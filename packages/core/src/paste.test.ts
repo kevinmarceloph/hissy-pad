@@ -111,6 +111,21 @@ describe('toOutline', () => {
   })
 })
 
+describe('header lines', () => {
+  it('keeps "# " markers as headers and round-trips them', () => {
+    const lines = parseOutline('# Title\n\t## Sub\n\t- plain\n#hashtag stays text')
+    expect(lines.map((l) => [l.text, l.header === true])).toEqual([
+      ['Title', true], ['Sub', true], ['plain', false], ['#hashtag stays text', false],
+    ])
+    const ctx = testCtx()
+    const rows = pad('# Title\n\t1. one\n\t2. two\n# Next', ctx)
+    expect(shape(rows)).toBe('#Title\n  1.one\n  2.two\n#Next')
+    const text = toOutline(rows, Object.keys(rows), { bullet: '', indent: '\t' })
+    expect(text).toBe('# Title\n\t1. one\n\t2. two\n# Next')
+    expect(shape(pad(text, testCtx()))).toBe(shape(rows))
+  })
+})
+
 describe('numbered lines', () => {
   it('keeps "1." markers as numbered lines and round-trips them', () => {
     const lines = parseOutline('1. one\n2. two\n• plain\n1) again\n\t3. nested')

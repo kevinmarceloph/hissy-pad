@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { buildIndex, childrenOf, topmost } from '@hissypad/core'
+import { buildIndex, childrenOf, kindOf, topmost, type NodeKind } from '@hissypad/core'
 import {
   clearSelection, stopEditing, usePad,
-  cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
+  cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdSetKind, cmdToggleCollapsed, cmdToggleDone,
 } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 
@@ -24,13 +24,19 @@ function abilities(rows: ReturnType<typeof usePad.getState>['rows'], ids: string
   return { indent, dedent, up, down, fold }
 }
 
-function Btn({ label, onPress, disabled, a11y, theme }: { label: string; onPress: () => void; disabled?: boolean; a11y?: string; theme: Theme }) {
+function Btn({ label, onPress, disabled, a11y, theme, on, style }: { label: string; onPress: () => void; disabled?: boolean; a11y?: string; theme: Theme; on?: boolean; style?: object }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={a11y ?? label} disabled={disabled} onPress={onPress} style={({ pressed }) => [s.btn, pressed && { backgroundColor: theme.accentSoft }]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={a11y ?? label} accessibilityState={on === undefined ? undefined : { selected: on }} disabled={disabled} onPress={onPress} style={({ pressed }) => [s.btn, style, (pressed || on) && { backgroundColor: theme.accentSoft }]}>
       <Text style={[s.btnText, { color: disabled ? theme.inkMute : theme.ink, opacity: disabled ? 0.5 : 1 }]}>{label}</Text>
     </Pressable>
   )
 }
+
+const KINDS: { kind: NodeKind; glyph: string; name: string }[] = [
+  { kind: 'plain', glyph: '·', name: 'Bullet' },
+  { kind: 'header', glyph: '#', name: 'Header' },
+  { kind: 'numbered', glyph: '1.', name: 'Numbered list' },
+]
 
 export function Toolbar({ theme }: { theme: Theme }) {
   const selection = usePad((s) => s.selection)
@@ -40,13 +46,20 @@ export function Toolbar({ theme }: { theme: Theme }) {
   const can = useMemo(() => abilities(rows, ids), [rows, ids])
   if (ids.length === 0) return null
   const n = selection.length
+  // Mixed selections show the first line's type; a tap sets them all.
+  const first = rows[ids[0]!]
+  const current = first ? kindOf(first) : 'plain'
   const sep = <View style={[s.sep, { backgroundColor: theme.rule }]} />
   return (
     <View style={[s.bar, { backgroundColor: theme.paperRaised, borderColor: theme.rule }]} accessibilityRole="toolbar">
       <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={s.inner}>
         {n > 1 && <Text style={[s.count, { color: theme.inkMute }]}>{n} lines</Text>}
         <Btn theme={theme} label="Done" onPress={cmdToggleDone} />
-        <Btn theme={theme} label="1." a11y="Numbered list" onPress={cmdToggleNumbered} />
+        <View style={[s.kind, { borderColor: theme.rule }]} accessibilityRole="radiogroup" accessibilityLabel="Line type">
+          {KINDS.map((k, i) => (
+            <Btn key={k.kind} theme={theme} label={k.glyph} a11y={k.name} on={current === k.kind} onPress={() => cmdSetKind(k.kind)} style={[s.kindBtn, i > 0 && { borderLeftWidth: StyleSheet.hairlineWidth, borderColor: theme.rule }]} />
+          ))}
+        </View>
         {sep}
         <Btn theme={theme} label="+ above" a11y="Add a line above" onPress={cmdAddAbove} />
         <Btn theme={theme} label="+ below" a11y="Add a line below" onPress={cmdAddBelow} />
@@ -69,6 +82,8 @@ const s = StyleSheet.create({
   bar: { borderTopWidth: StyleSheet.hairlineWidth },
   inner: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 4, gap: 2 },
   btn: { minWidth: 40, minHeight: 40, paddingHorizontal: 8, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
+  kind: { flexDirection: 'row', borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, overflow: 'hidden', marginHorizontal: 2 },
+  kindBtn: { minWidth: 36, borderRadius: 0 },
   btnText: { fontFamily: serif, fontSize: 16 },
   count: { fontFamily: serif, fontSize: 15, paddingHorizontal: 8 },
   sep: { width: StyleSheet.hairlineWidth, height: 22, marginHorizontal: 4 },

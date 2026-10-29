@@ -60,6 +60,7 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 | Cmd+Enter (or Ctrl) | cross out |
 | Cmd+. | fold / unfold |
 | Cmd+Shift+7 | numbered list on / off (a run of numbered siblings counts 1, 2, 3) |
+| toolbar · / # / 1. | line type: bullet, header (bold, # bullet) or numbered |
 | Backspace at the start | join with the line above |
 | Esc | select the line |
 | paste multi-line text | becomes nested lines (indentation kept) |

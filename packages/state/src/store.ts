@@ -214,7 +214,7 @@ async function loadPadOnce() {
     const upgraded: NodeRow[] = []
     for (const raw of list) {
       const r = normalizeRow(raw)
-      if (r.numbered !== raw.numbered || r.collapsed !== raw.collapsed || r.done !== raw.done) upgraded.push(r)
+      if (r.numbered !== raw.numbered || r.header !== raw.header || r.collapsed !== raw.collapsed || r.done !== raw.done) upgraded.push(r)
       rows[r.id] = r
       clock.observe(r.updatedAt)
     }

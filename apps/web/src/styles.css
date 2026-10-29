@@ -211,6 +211,23 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
   line-height: 1;
   translate: -50% -52%;
 }
+/* Header: bold text, same size, a "#" where the dot was. */
+.row.is-header .text { font-weight: 700; }
+.row.is-header .bullet::before {
+  content: '#';
+  width: auto; height: auto;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--ink-soft);
+  font-weight: 700;
+  line-height: 1;
+  translate: -50% -52%;
+}
+.row.is-header.is-editing .bullet::before { color: var(--accent); }
+.row.is-header.is-done .bullet::before { color: var(--ink-mute); text-decoration: line-through; text-decoration-color: var(--accent); }
+.row.is-header.is-collapsed .bullet::before { text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 0.2em; }
+.row.is-header .bullet:hover::before { box-shadow: none; background: var(--accent-soft); border-radius: 3px; padding: 0 0.2rem; }
 /* Numbered: the position in the run replaces the dot, right-aligned to the text. */
 .row.is-numbered .bullet::before {
   content: attr(data-num);
@@ -292,6 +309,11 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
 .selbar button { flex: none; min-width: 36px; min-height: 36px; justify-content: center; padding: 0 0.5rem; }
 .selbar button:disabled { color: var(--ink-mute); opacity: 0.45; cursor: default; }
 .selbar .danger:hover:not(:disabled) { color: var(--accent); }
+/* Line type switcher: three glyphs in one pill, the current one filled. */
+.selbar .kind { display: inline-flex; flex: none; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+.selbar .kind button { min-width: 32px; border-radius: 0; }
+.selbar .kind button + button { border-left: 1px solid var(--rule); }
+.selbar .kind button[aria-pressed='true'] { background: var(--accent-soft); color: var(--ink); }
 @media (max-width: 640px) {
   .selbar {
     left: 16px; right: 16px; translate: 0 0; max-width: none; justify-content: flex-start;
