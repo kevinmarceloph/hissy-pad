@@ -85,12 +85,15 @@ export function Row({ row, depth, hasChildren, editing, selected, number, draggi
     ta.scrollIntoView({ block: 'nearest' })
   }, [isEditing, editing?.rev])
 
-  // Auto-grow.
+  // Auto-grow. scrollHeight is a whole number, but a line is 25.5px (17px * 1.5), so copying
+  // it as-is made the editing row half a pixel taller than its neighbours and nudged every row
+  // below it. Snap to whole lines instead.
   useEffect(() => {
     const ta = ref.current
     if (!ta) return
+    const lh = parseFloat(getComputedStyle(ta).lineHeight) || 24
     ta.style.height = '0px'
-    ta.style.height = `${ta.scrollHeight}px`
+    ta.style.height = `${Math.round(ta.scrollHeight / lh) * lh}px`
   })
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
