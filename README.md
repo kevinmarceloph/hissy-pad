@@ -83,8 +83,8 @@ Open the app with `?debug=1` (sticks until `?debug=0`). A Log button appears in 
 
 ## Deploy
 
-`render.yaml` describes a Render static site built from the repo root; set the two `VITE_SUPABASE_*` env vars on the service. The hosted Supabase project needs `supabase db push` for the migration, the site URL `https://hissypad.marcelo.ph` in Auth settings, and the Google provider enabled. The app icon is a placeholder (the letter H in the body serif).
+Live at https://hissypad.marcelo.ph (Render static site `hissypad`, auto-deploys from `main`; `render.yaml` is the blueprint, built from the repo root). The two `VITE_SUPABASE_*` env vars on the service point at the hosted Supabase project. A new migration needs `supabase db push` against that project; Auth settings carry the site URL and the Google provider. The app icon is a placeholder (the letter H in the body serif).
 
 ## Status
 
-Phase 3 built: local-first sync against a local Supabase stack. Not yet deployed; no hosted project yet.
+Phases 1-5 built. Web is deployed and syncing against the hosted Supabase project; the Expo app runs on Kevin's iPhone from EAS builds. See [PLAN.md](PLAN.md) for what is pending.

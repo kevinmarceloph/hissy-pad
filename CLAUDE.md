@@ -4,7 +4,7 @@ Guidance for Claude Code in this repo. The shared rules (who Kevin is, writing v
 
 ## What this is
 
-HissyPad: one freeform outline, always open, between Google Docs and Hissycal. A flat `nodes` table, offline-first, each row synced on its own with last-write-wins on the server. Web (Vite + React 19, PWA) and mobile (Expo) share the same core and state packages. Public repo `kevinmarceloph/hissy-pad`, Kevin's first public one: nothing under NDA, no pad content, no keys.
+HissyPad: one freeform outline, always open, between Google Docs and Hissycal. A flat `nodes` table, offline-first, each row synced on its own with last-write-wins on the server. Web (Vite + React 19, PWA) and mobile (Expo) share the same core and state packages. Live at https://hissypad.marcelo.ph (Render static site, auto-deploys from `main`, hosted Supabase behind it). Public repo `kevinmarceloph/hissy-pad`, Kevin's first public one: nothing under NDA, no pad content, no keys.
 
 - `README.md`: layout, run commands, keys. Read it first.
 - `PLAN.md`: the design (data model, sync, editing model), phases and what is pending. Keep its status line and phase notes current when a phase moves; dates are absolute (`2026-10-29`), Manila time.
