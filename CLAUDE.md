@@ -37,8 +37,12 @@ Mobile commands (Expo, EAS, env pull, update channels) are in `README.md`. The p
 
 ## Rules
 
-- Commits: Kevin says when. Never push.
 - A change counts as done when `pnpm test` and `pnpm typecheck` pass and, for anything visible, it was checked in the browser (or the simulator for mobile).
+- Ship every done change without asking, in this order:
+  1. Commit on `main` with a one-line message that says what changed, and push. Render rebuilds the web app from `main` on its own.
+  2. If anything under `apps/mobile`, `packages/core` or `packages/state` changed, publish an OTA update so the phone picks it up: `cd apps/mobile && npx eas-cli update --channel preview --environment preview --message "<commit subject>" --non-interactive` (the standalone build on Kevin's iPhone is on `preview`). Publish the same to `development` when the dev client is in use.
+  3. A native change (a new dependency with native code, `app.json`, `eas.json`, a config plugin, an Expo SDK bump) cannot ship as an update: run `npx eas-cli build --profile preview --platform ios --non-interactive` instead and say that the phone needs the new build installed.
+  Say in the reply what was pushed, updated or built, and skip a step only when its check failed, saying so.
 - Schema changes are a new file in `supabase/migrations/` with a pgTAP test, plus the matching column add in the mobile SQLite store (it migrates on open). Rows are never hard-deleted; `deleted_at` is the tombstone.
 - Every edit stamps `updated_at` through the clock in core. Undo re-stamps the touched rows so the change syncs.
 - `_repro.test.*` files are scratch reproductions, not part of the suite. Delete them when the bug is fixed.
