@@ -182,7 +182,10 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
   border-bottom: 0;
 }
 .row.is-collapsed .toggle::before { rotate: -90deg; translate: -40% -50%; }
-.row:hover .toggle, .row:focus-within .toggle, .row.is-collapsed .toggle, .row .toggle:focus-visible { opacity: 1; }
+/* The bullet's sideways tap target reaches under the chevron and, being later in the DOM,
+   won the click on most of it. While the chevron is shown it sits on top; while hidden the
+   bullet keeps the whole strip, so a phone tap next to a bullet still selects. */
+.row:hover .toggle, .row:focus-within .toggle, .row.is-collapsed .toggle, .row .toggle:focus-visible { opacity: 1; z-index: 1; }
 .row .bullet::before {
   content: '';
   position: absolute; left: 50%; top: 50%;
