@@ -36,3 +36,7 @@ export const SIZE = 17
 export const LINE = 26
 export const INDENT = 22
 export const GUTTER = 36
+// A multiline TextInput on iOS (UITextView) puts all of the extra line height above the
+// glyphs, while Text splits it around them, so the same style sits lower while editing.
+// Measured at 8px on a 3x screen with Charter 17 in a 26pt line; shift the input back up.
+export const INPUT_SHIFT = Platform.OS === 'ios' ? 8 / 3 : 0

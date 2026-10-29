@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
 import { clickSelect, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
-import { GUTTER, INDENT, LINE, SIZE, serif, type Theme } from '../theme'
+import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, serif, type Theme } from '../theme'
 
 interface Props {
   row: NodeRow
@@ -107,7 +107,7 @@ export const Row = memo(function Row({ row, depth, hasChildren, editing, selecte
           onBlur={() => {
             if (usePad.getState().editing?.id === row.id) usePad.setState({ editing: null })
           }}
-          style={[s.text, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}
+          style={[s.text, s.input, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}
           accessibilityLabel="Line text"
         />
       ) : (
@@ -131,4 +131,5 @@ const s = StyleSheet.create({
   num: { fontFamily: serif, fontSize: SIZE - 1, lineHeight: LINE, fontVariant: ['tabular-nums'] },
   textWrap: { flex: 1, minHeight: LINE },
   text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, padding: 0, margin: 0, textAlignVertical: 'top' },
+  input: { transform: [{ translateY: -INPUT_SHIFT }] },
 })
