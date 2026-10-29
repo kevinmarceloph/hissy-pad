@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { insertOutline, parseOutline, toOutline } from './paste'
+import { insertOutline, parseOutline, toOutline, toOutlineHtml } from './paste'
 import { idOf, pad, shape, testCtx } from './testing'
 
 // What Google Docs gives you when you copy the inbox as plain text: tabs per level,
@@ -108,6 +108,18 @@ describe('toOutline', () => {
     const done = { ...rows, [a1]: { ...rows[a1]!, done: true } }
     expect(toOutline(done, [idOf(rows, 'A'), a1])).toBe('- A\n  - A1 (done)\n    - A1a\n  - A2')
     expect(toOutline(done, [a1], { bullet: '', indent: '\t', done: ' x' })).toBe('A1 x\n\tA1a')
+  })
+})
+
+describe('toOutlineHtml', () => {
+  it('nests <ul>/<ol>, bolds headers, strikes done lines and escapes text', () => {
+    const ctx = testCtx()
+    const rows = pad('# Title\n  a <b>\n    1. one\n    2. two\n    plain\n  b\nC', ctx)
+    const b = idOf(rows, 'b')
+    const done = { ...rows, [b]: { ...rows[b]!, done: true } }
+    expect(toOutlineHtml(done, [idOf(rows, 'Title'), b, idOf(rows, 'C')])).toBe(
+      '<ul><li><b>Title</b><ul><li>a &lt;b&gt;<ol><li>one</li><li>two</li></ol><ul><li>plain</li></ul></li><li><s>b</s></li></ul></li><li>C</li></ul>',
+    )
   })
 })
 

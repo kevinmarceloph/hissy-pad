@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { toOutline } from '@hissypad/core'
+import { copyPayload } from '@hissypad/state'
 import { importOutline, SAMPLE_OUTLINE, usePad } from '@hissypad/state'
 import { cmdDeleteDone } from '@hissypad/state'
 import { copyText } from './clipboard'
@@ -52,8 +52,8 @@ export function TopBar() {
 
   function exportAll() {
     const live = Object.values(rows).filter((r) => r.deletedAt === null && r.parentId === null).map((r) => r.id)
-    const text = toOutline(rows, live, { bullet: '', indent: '\t', done: '' })
-    void copyText(text).then((ok) => setToast(ok ? 'Copied the whole pad as text' : null))
+    const { text, html } = copyPayload(rows, live)
+    void copyText(text, html).then((ok) => setToast(ok ? 'Copied the whole pad as text' : null))
   }
 
   function doImport(where: 'top' | 'bottom') {

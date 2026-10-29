@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryStore, pad, shape, idOf } from '@hissypad/core'
 import { apply, clickSelect, configureLocalStore, edit, importOutline, loadPad, redo, select, undo, usePad } from './store'
-import { cmdDeleteDone, cmdDeleteSelection, cmdSetText, cmdSplit, cmdTextChanged, cmdToggleDone } from './commands'
+import { cmdCopySelection, cmdDeleteDone, cmdDeleteSelection, cmdSetText, cmdSplit, cmdTextChanged, cmdToggleDone, setClipboard } from './commands'
 import { setText } from '@hissypad/core'
 
 function reset(initialOutline?: string) {
@@ -133,6 +133,27 @@ describe('selection and visibility', () => {
     edit(a, 0)
     expect(usePad.getState().selection).toEqual([])
     expect(usePad.getState().editing).toMatchObject({ id: a, caret: 0, rev: 1 })
+  })
+})
+
+describe('cmdCopySelection', () => {
+  it('hands the clipboard dashed text plus an HTML list, or bare text for one line', async () => {
+    reset('A\n  A1\n  A2\nB')
+    await loadPad()
+    const got: [string, string | undefined][] = []
+    setClipboard(async (text, html) => {
+      got.push([text, html])
+      return true
+    })
+    const { rows } = usePad.getState()
+    select([idOf(rows, 'A')], idOf(rows, 'A'))
+    expect(cmdCopySelection()).toBe('- A\n  - A1\n  - A2')
+    select([idOf(rows, 'B')], idOf(rows, 'B'))
+    expect(cmdCopySelection()).toBe('B')
+    expect(got).toEqual([
+      ['- A\n  - A1\n  - A2', '<ul><li>A<ul><li>A1</li><li>A2</li></ul></li></ul>'],
+      ['B', undefined],
+    ])
   })
 })
 

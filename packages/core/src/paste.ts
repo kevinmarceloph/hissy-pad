@@ -4,6 +4,7 @@
 import type { OpCtx, Rows } from './types'
 import { ranksBetween } from './rank'
 import { allocateRanks, buildIndex, childrenOf, flatten, listNumbers, topmost } from './tree'
+import type { NodeRow } from './types'
 import type { Placement } from './ops'
 
 export interface OutlineLine {
@@ -146,4 +147,36 @@ export function toOutline(rows: Rows, ids: Iterable<string>, fmt: OutlineFormat 
     }
   }
   return lines.join('\n')
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// The same nodes as nested HTML lists, for the rich-text half of the clipboard: a word
+// processor or chat box pastes it as real bullets. Runs of numbered siblings become <ol>,
+// everything else <ul>; headers are bold, done lines struck through. Single-line, no
+// styling, so it pastes the same everywhere.
+export function toOutlineHtml(rows: Rows, ids: Iterable<string>): string {
+  const index = buildIndex(rows)
+  const tops = topmost(index, ids).map((id) => rows[id]!)
+  const item = (row: NodeRow): string => {
+    const text = escapeHtml(row.text)
+    const body = row.header ? `<b>${text}</b>` : row.done ? `<s>${text}</s>` : text
+    return `<li>${body}${lists(childrenOf(index, row.id))}</li>`
+  }
+  const lists = (siblings: readonly NodeRow[]): string => {
+    let out = ''
+    let i = 0
+    while (i < siblings.length) {
+      const numbered = siblings[i]!.numbered
+      let j = i
+      while (j < siblings.length && siblings[j]!.numbered === numbered) j++
+      const tag = numbered ? 'ol' : 'ul'
+      out += `<${tag}>${siblings.slice(i, j).map(item).join('')}</${tag}>`
+      i = j
+    }
+    return out
+  }
+  return lists(tops)
 }

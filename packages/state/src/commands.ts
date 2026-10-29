@@ -3,12 +3,14 @@
 // selection goes afterwards.
 import {
   buildIndex, childrenOf, dedent, indent, insertAfter, insertAt, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone,
-  setKind, setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline, type NodeKind,
+  setKind, setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline, toOutlineHtml, type NodeKind, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
-// dialog fallback; mobile: expo-clipboard).
-let copyText: (text: string) => Promise<boolean> = async () => false
-export function setClipboard(fn: (text: string) => Promise<boolean>) {
+// dialog fallback; mobile: expo-clipboard). `html` is the same outline as nested lists,
+// for apps that paste rich text; it is absent when the copy is a single line.
+export type ClipboardWriter = (text: string, html?: string) => Promise<boolean>
+let copyText: ClipboardWriter = async () => false
+export function setClipboard(fn: ClipboardWriter) {
   copyText = fn
 }
 import { apply, edit, importOutline, neighbor, select, stopEditing, targets, usePad, visibleIds } from './store'
@@ -136,10 +138,19 @@ export function cmdDeleteSelection() {
   if (landing) select([landing], landing)
 }
 
+// Copy as outline: "- " bullets and two-space indents in the plain-text half (so a text
+// box shows dashes), nested <ul>/<ol> in the HTML half (so a rich-text box shows real
+// bullets). A lone line copies as bare text, like copying from a text field.
+export function copyPayload(rows: Rows, ids: readonly string[]): { text: string; html?: string } {
+  const text = toOutline(rows, ids, { done: '' })
+  if (!text.includes('\n')) return { text: toOutline(rows, ids, { bullet: '', done: '' }) }
+  return { text, html: toOutlineHtml(rows, ids) }
+}
+
 export function cmdCopySelection(): string {
   const { rows } = usePad.getState()
-  const text = toOutline(rows, targets(), { bullet: '', indent: '\t', done: '' })
-  void copyText(text)
+  const { text, html } = copyPayload(rows, targets())
+  void copyText(text, html)
   return text
 }
 
