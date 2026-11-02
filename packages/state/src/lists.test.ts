@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createMemoryStore, idOf, pad, remove, shape } from '@hissypad/core'
-import { apply, clock, configureLocalStore, loadPad, select, undo, usePad } from './store'
+import { createMemoryStore, createPad, idOf, moveToPad, pad, remove, shape } from '@hissypad/core'
+import { apply, applyAll, clock, configureLocalStore, loadPad, select, setAll, undo, usePad } from './store'
 import { cmdDeleteSelection, cmdToggleDone } from './commands'
 import { cmdRestore, cmdUndone, dayLabel, doneEntries, groupByDay, trashEntries } from './lists'
 
@@ -8,12 +8,13 @@ async function reset(outline: string) {
   const rows = pad(outline)
   const mem = createMemoryStore(Object.values(rows))
   configureLocalStore(mem)
-  usePad.setState({ rows: {}, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [] })
+  usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [] })
   await loadPad()
   return mem
 }
 
-const rows = () => usePad.getState().rows
+// The whole table, tombstones included; the pad being shown is usePad.getState().rows.
+const rows = () => usePad.getState().all
 // By text, deleted rows included (core's idOf only sees live ones).
 const id = (t: string) => Object.values(rows()).find((r) => r.text === t)?.id ?? idOf(rows(), t)
 // Move the shared clock on, so the next delete is its own batch.
@@ -51,7 +52,7 @@ describe('trashEntries', () => {
   it('drops batches older than 30 days and blank spacers', () => {
     del('A')
     const stale = new Date(Date.now() - 31 * 86_400_000).toISOString()
-    usePad.setState((s) => ({ rows: { ...s.rows, [id('A')]: { ...s.rows[id('A')]!, deletedAt: stale } } }))
+    setAll({ ...rows(), [id('A')]: { ...rows()[id('A')]!, deletedAt: stale } })
     expect(trashEntries()).toEqual([])
     // A blank line on its own is not listed; a blank line with children is.
     const d = id('D')
@@ -106,6 +107,27 @@ describe('cmdRestore', () => {
     expect(rows()[id('B')]!.deletedAt).not.toBeNull()
   })
 
+  it('a line deleted in another pad comes back there, and that pad opens', () => {
+    applyAll((all, ctx) => {
+      const res = createPad(all, ctx, 'Work')
+      return moveToPad(res.rows, ctx, [id('C')], res.padId)
+    })
+    const work = id('Work')
+    expect(shape(usePad.getState().rows)).toBe('A\nB\n  B1\n  B2\n    B2a')
+    del('A')
+    skip(5000)
+    applyAll((all, ctx) => remove(all, ctx, [id('C')]))
+    expect(trashEntries().map((b) => b.entries.map((e) => e.text))).toEqual([['C'], ['A']])
+    cmdRestore([id('C')])
+    expect(usePad.getState().padId).toBe(work)
+    expect(shape(usePad.getState().rows)).toBe('C')
+    expect(usePad.getState().selection).toEqual([id('C')])
+    // Back in the main pad, a restore there switches back.
+    cmdRestore([id('A')])
+    expect(usePad.getState().padId).toBeNull()
+    expect(shape(usePad.getState().rows)).toBe('A\nB\n  B1\n  B2\n    B2a')
+  })
+
   it('unfolds a collapsed parent so the restored line is on screen', () => {
     del('B1')
     apply((r, ctx) => ({ ...r, [id('B')]: { ...r[id('B')]!, collapsed: true, updatedAt: ctx.now() } }))
@@ -129,7 +151,7 @@ describe('doneEntries / cmdUndone', () => {
     expect(doneEntries()[0]!.childCount).toBe(1)
     // An older row done before the column existed sorts by updatedAt.
     const legacy = new Date(Date.now() + 60_000).toISOString()
-    usePad.setState((s) => ({ rows: { ...s.rows, [id('C')]: { ...s.rows[id('C')]!, done: true, doneAt: null, updatedAt: legacy } } }))
+    setAll({ ...rows(), [id('C')]: { ...rows()[id('C')]!, done: true, doneAt: null, updatedAt: legacy } })
     expect(doneEntries().map((e) => e.text)).toEqual(['C', 'B', 'A'])
     expect(doneEntries()[0]!.doneAt).toBe(legacy)
     // Deleted rows are not "done".

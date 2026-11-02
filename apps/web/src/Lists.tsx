@@ -15,7 +15,7 @@ function Children({ n }: { n: number }) {
 }
 
 export function TrashPanel({ dialog }: { dialog: RefObject<HTMLDialogElement | null> }) {
-  const rows = usePad((s) => s.rows)
+  const rows = usePad((s) => s.all)
   const batches = trashEntries(rows)
   const groups = groupByDay(batches, (b) => b.deletedAt)
 
@@ -70,7 +70,7 @@ export function TrashPanel({ dialog }: { dialog: RefObject<HTMLDialogElement | n
 }
 
 export function DonePanel({ dialog }: { dialog: RefObject<HTMLDialogElement | null> }) {
-  const rows = usePad((s) => s.rows)
+  const rows = usePad((s) => s.all)
   const entries = doneEntries(rows)
   const groups = groupByDay(entries, (e) => e.doneAt)
 

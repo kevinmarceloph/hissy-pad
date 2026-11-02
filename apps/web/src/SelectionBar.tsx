@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { buildIndex, childrenOf, kindOf, topmost, type NodeKind } from '@hissypad/core'
-import { clearSelection, stopEditing, usePad } from '@hissypad/state'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { buildIndex, childrenOf, kindOf, topmost, type NodeKind, type PadId } from '@hissypad/core'
+import { clearSelection, cmdMoveToPad, padList, padName, stopEditing, usePad } from '@hissypad/state'
+import { showToast } from './toast'
 import {
   cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
   cmdSetKind, cmdToggleCollapsed, cmdToggleDone,
@@ -37,6 +38,10 @@ export function SelectionBar() {
   const selection = usePad((s) => s.selection)
   const editing = usePad((s) => s.editing)
   const rows = usePad((s) => s.rows)
+  const all = usePad((s) => s.all)
+  const padId = usePad((s) => s.padId)
+  const pads = useMemo(() => padList(all).filter((p) => p.id !== padId), [all, padId])
+  const [menu, setMenu] = useState(false)
   const ids = selection.length > 0 ? selection : editing ? [editing.id] : []
   const can = useMemo(() => abilities(rows, ids), [rows, ids])
   const ref = useRef<HTMLDivElement>(null)
@@ -62,8 +67,29 @@ export function SelectionBar() {
     }
   }, [visible])
 
+  useEffect(() => {
+    if (!menu) return
+    const close = (e: Event) => {
+      if (!(e.target as HTMLElement).closest?.('.moveto')) setMenu(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenu(false)
+    }
+    document.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('pointerdown', close)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [menu])
+
   if (!visible) return null
   const n = selection.length
+  function moveTo(id: PadId) {
+    setMenu(false)
+    const moved = cmdMoveToPad(id)
+    if (moved) showToast(`Moved ${moved} ${moved === 1 ? 'line' : 'lines'} to “${padName(all, id)}”.`)
+  }
   // Mixed selections show the first line's type; a tap sets them all.
   const first = rows[ids[0]!]
   const current = first ? kindOf(first) : 'plain'
@@ -95,6 +121,18 @@ export function SelectionBar() {
       <span className="sep" aria-hidden="true" />
       <button type="button" onClick={cmdToggleCollapsed} disabled={!can.fold} title="Fold or unfold (⌘.)">Fold</button>
       <button type="button" onClick={cmdCopySelection} title="Copy as outline (⌘C)">Copy</button>
+      {pads.length > 0 && (
+        <span className="moveto">
+          <button type="button" onClick={() => setMenu((m) => !m)} aria-haspopup="menu" aria-expanded={menu} title="Move to another pad">Move to…</button>
+          {menu && (
+            <div className="menu" role="menu" aria-label="Move to pad">
+              {pads.map((p) => (
+                <button key={p.id ?? 'main'} type="button" role="menuitem" onClick={() => moveTo(p.id)}>{p.name}</button>
+              ))}
+            </div>
+          )}
+        </span>
+      )}
       <button type="button" className="danger" onClick={cmdDeleteSelection} title="Delete (Backspace)">Delete</button>
       <button type="button" onClick={close} aria-label={n > 0 ? 'Clear selection (Esc)' : 'Stop editing (Esc)'}>×</button>
     </div>

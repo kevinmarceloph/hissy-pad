@@ -16,7 +16,7 @@ Make eggnog
 
 function row(partial: Partial<NodeRow> & { id: string }): NodeRow {
   return {
-    parentId: null, rank: 'V', text: partial.id, done: false, doneAt: null, collapsed: false, numbered: false, header: false,
+    parentId: null, rank: 'V', text: partial.id, done: false, doneAt: null, collapsed: false, numbered: false, header: false, pad: false,
     updatedAt: '2026-10-28T00:00:00.000Z', deletedAt: null, ...partial,
   }
 }

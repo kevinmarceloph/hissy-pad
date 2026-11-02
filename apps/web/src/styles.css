@@ -465,3 +465,94 @@ dialog.import input[type='email'] {
   border-radius: 4px;
   background: var(--paper-raised);
 }
+
+/* Pads: a row of tabs under the title. The open one is underlined in the accent, the
+   way a pen marks the current page; the rest sit in soft ink. */
+.pads { flex-basis: 100%; display: flex; align-items: baseline; gap: 0.25rem; margin-top: -0.25rem; font-size: 0.95rem; overflow-x: auto; scrollbar-width: none; }
+.pads [role='tablist'] { display: flex; gap: 0.15rem; }
+.pads [role='tab'] {
+  min-height: 32px;
+  padding: 0 0.55rem;
+  border-radius: 4px 4px 0 0;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+.pads [role='tab']:hover { color: var(--ink); background: var(--paper-raised); }
+.pads [role='tab'][aria-selected='true'] { color: var(--ink); border-bottom-color: var(--accent); }
+.pads .add { min-width: 32px; min-height: 32px; border-radius: 4px; color: var(--ink-mute); font-size: 1.1rem; line-height: 1; }
+.pads .add:hover { color: var(--ink); background: var(--paper-raised); }
+dialog.pad-sheet { width: min(26rem, calc(100vw - 32px)); }
+dialog.import .field input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  font-size: 1rem;
+}
+dialog.import .actions .grow { flex: 1; }
+dialog.import .actions .danger { border-color: transparent; color: var(--accent); }
+dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-faint); }
+
+/* Move to another pad: a small list that opens above the toolbar button. */
+.selbar .moveto { position: relative; flex: none; }
+.selbar .menu {
+  position: absolute;
+  bottom: calc(100% + 0.45rem);
+  left: 50%;
+  translate: -50% 0;
+  display: grid;
+  min-width: 10rem;
+  max-width: 16rem;
+  padding: 0.25rem;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px -12px rgb(0 0 0 / 0.35);
+  white-space: normal;
+}
+.selbar .menu button { justify-content: flex-start; text-align: left; min-height: 32px; padding: 0 0.6rem; border-radius: 4px; width: 100%; }
+.selbar .menu button:hover { background: var(--accent-soft); }
+
+/* Fresh start: two panes, what leaves on the left and what stays on the right, with the
+   arrows between them. Rows reuse the pad's own look but do not edit. */
+.app.is-wide { max-width: 72rem; }
+.fresh-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem 2rem; margin-bottom: 1rem; }
+.fresh-head h2 { margin: 0 0 0.25rem; font-weight: 400; font-size: 1.2rem; }
+.fresh-head p { margin: 0; color: var(--ink-soft); font-size: 0.92rem; max-width: 40rem; }
+.fresh .actions { display: flex; gap: 0.5rem; flex: none; }
+.fresh .actions button, .fresh .arrows button { min-height: 36px; padding: 0 0.8rem; border-radius: 4px; border: 1px solid var(--rule); background: var(--paper-raised); }
+.fresh .actions .primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.fresh .actions button:disabled, .fresh .arrows button:disabled { opacity: 0.45; cursor: default; }
+.panes { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 0.75rem; align-items: stretch; }
+.pane { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper-raised); }
+.pane h3 {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.5rem;
+  margin: 0; padding: 0.6rem 0.8rem;
+  font-weight: 400; font-size: 0.92rem; color: var(--ink-soft);
+  border-bottom: 1px solid var(--rule);
+}
+.pane h3 strong { color: var(--ink); font-weight: 400; }
+.pane h3 .count { margin-left: auto; color: var(--ink-mute); }
+.pane h3 input {
+  flex: 1 1 10rem; min-width: 0;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid var(--rule); border-radius: 4px;
+  background: var(--paper); font-size: 0.95rem;
+}
+.pane-rows { flex: 1; min-height: 12rem; max-height: min(60vh, 40rem); overflow-y: auto; padding: 0.5rem 0.5rem 0.5rem 0; }
+.pane-rows .hint { margin: 0.75rem 0.8rem; }
+.row.is-static { cursor: default; user-select: none; -webkit-user-select: none; }
+.row.is-static .bullet { cursor: default; display: block; }
+.row.is-static .text { cursor: default; }
+.arrows { display: flex; flex-direction: column; justify-content: center; gap: 0.4rem; padding-top: 3rem; }
+.arrows button { min-width: 44px; font-size: 1.1rem; }
+.arrows .all { font-size: 0.85rem; padding: 0 0.5rem; }
+@media (max-width: 760px) {
+  .panes { grid-template-columns: minmax(0, 1fr); }
+  .arrows { flex-direction: row; flex-wrap: wrap; justify-content: center; padding-top: 0; }
+  .arrows button:first-child { order: 1; }
+  .arrows button:first-child::after { content: ' keep'; font-size: 0.85rem; }
+  .arrows button:nth-child(2)::after { content: ' back'; font-size: 0.85rem; }
+  .pane-rows { min-height: 8rem; max-height: 40vh; }
+}

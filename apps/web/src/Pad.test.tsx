@@ -8,7 +8,7 @@ import { configureLocalStore, usePad } from '@hissypad/state'
 async function mount(outline?: string) {
   const rows = outline ? pad(outline) : {}
   configureLocalStore(createMemoryStore(Object.values(rows)))
-  usePad.setState({ rows: {}, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [] })
+  usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [] })
   const utils = render(<App />)
   await screen.findByRole('tree')
   return utils
@@ -184,7 +184,7 @@ describe('Pad', () => {
       upsertMany: async () => {}, dirtyIds: async () => [], markClean: async () => {},
       getMeta: async () => null, setMeta: async () => {},
     })
-    usePad.setState({ rows: {}, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [] })
+    usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [] })
     render(<App />)
     await screen.findByRole('tree')
     expect(screen.getByRole('alert')).toHaveTextContent(/Local storage is unavailable/)

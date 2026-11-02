@@ -54,7 +54,7 @@ function Line({ text, sub, done, action, onPress, theme }: { text: string; sub: 
 const under = (n: number) => (n > 0 ? `+${n} ${n === 1 ? 'line' : 'lines'} under it` : null)
 
 export function TrashSheet({ visible, onClose, theme }: { visible: boolean; onClose: () => void; theme: Theme }) {
-  const rows = usePad((s) => s.rows)
+  const rows = usePad((s) => s.all)
   const batches = visible ? trashEntries(rows) : []
   const groups = groupByDay(batches, (b) => b.deletedAt)
   const restore = (ids: string[]) => {
@@ -89,7 +89,7 @@ export function TrashSheet({ visible, onClose, theme }: { visible: boolean; onCl
 }
 
 export function DoneSheet({ visible, onClose, theme }: { visible: boolean; onClose: () => void; theme: Theme }) {
-  const rows = usePad((s) => s.rows)
+  const rows = usePad((s) => s.all)
   const entries = visible ? doneEntries(rows) : []
   const groups = groupByDay(entries, (e) => e.doneAt)
   return (

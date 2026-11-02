@@ -1,6 +1,6 @@
 -- pgTAP: RLS and last-write-wins on public.nodes. Run with `supabase test db`.
 begin;
-select plan(16);
+select plan(19);
 
 -- Two users, created directly (no GoTrue in a db test).
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
@@ -66,6 +66,18 @@ select throws_ok(
   '42501', null, 'DELETE is revoked for authenticated');
 update public.nodes set deleted_at = '2026-10-28T00:00:04Z', updated_at = '2026-10-28T00:00:04Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
 select isnt((select deleted_at from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), null, 'tombstone applies');
+
+-- Pads: a root row with the flag; the column defaults to false and survives a write
+-- from a client that does not send it (an older build editing the pad's name).
+insert into public.nodes (id, parent_id, rank, text, pad, updated_at)
+values ('aaaaaaaa-0000-0000-0000-000000000002', null, 'a1', 'Work', true, '2026-11-02T00:00:00Z');
+select is((select pad from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000002'), true, 'a pad row keeps its flag');
+select is((select pad from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), false, 'pad defaults to false');
+insert into public.nodes (id, parent_id, rank, text, updated_at)
+values ('aaaaaaaa-0000-0000-0000-000000000002', null, 'a1', 'Work, renamed', '2026-11-02T00:00:01Z')
+on conflict (id) do update set text = excluded.text, updated_at = excluded.updated_at, rank = excluded.rank, parent_id = excluded.parent_id;
+select is((select text || ':' || pad::text from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000002'), 'Work, renamed:true',
+  'an upsert without the pad column leaves the flag alone');
 
 -- done_at: nullable timestamptz, written and cleared by the client like any other column.
 select has_column('public', 'nodes', 'done_at', 'nodes has done_at');

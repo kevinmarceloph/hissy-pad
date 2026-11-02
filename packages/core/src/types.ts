@@ -11,6 +11,7 @@ export interface NodeRow {
   collapsed: boolean        // synced across devices on purpose
   numbered: boolean         // shown as "1." within its run of consecutive numbered siblings
   header: boolean           // bold, with a "#" for a bullet; never numbered at the same time
+  pad: boolean              // a root-level node that is a pad of its own (pads.ts); its subtree is that pad
   updatedAt: string         // ISO timestamp from the client that made the change (clock.ts)
   deletedAt: string | null  // tombstone; clients never hard-delete
 }
@@ -28,6 +29,7 @@ export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
     collapsed: r.collapsed === true,
     numbered: r.numbered === true,
     header: r.header === true && r.numbered !== true,
+    pad: r.pad === true,
     updatedAt: r.updatedAt ?? new Date(0).toISOString(),
     deletedAt: r.deletedAt ?? null,
   }

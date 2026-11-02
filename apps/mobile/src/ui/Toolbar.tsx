@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { buildIndex, childrenOf, kindOf, topmost, type NodeKind } from '@hissypad/core'
 import {
-  clearSelection, stopEditing, usePad,
+  clearSelection, stopEditing, usePad, padList, cmdMoveToPad,
   cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdSetKind, cmdToggleCollapsed, cmdToggleDone,
 } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
@@ -42,9 +42,19 @@ export function Toolbar({ theme }: { theme: Theme }) {
   const selection = usePad((s) => s.selection)
   const editing = usePad((s) => s.editing)
   const rows = usePad((s) => s.rows)
+  const all = usePad((s) => s.all)
+  const padId = usePad((s) => s.padId)
   const ids = selection.length > 0 ? selection : editing ? [editing.id] : []
   const can = useMemo(() => abilities(rows, ids), [rows, ids])
+  const others = useMemo(() => padList(all).filter((p) => p.id !== padId), [all, padId])
   if (ids.length === 0) return null
+  // Move to another pad: the pads as a list of buttons (iOS stacks them).
+  function moveTo() {
+    Alert.alert('Move to', undefined, [
+      ...others.map((p) => ({ text: p.name, onPress: () => void cmdMoveToPad(p.id) })),
+      { text: 'Cancel', style: 'cancel' as const },
+    ])
+  }
   const n = selection.length
   // Mixed selections show the first line's type; a tap sets them all.
   const first = rows[ids[0]!]
@@ -71,6 +81,7 @@ export function Toolbar({ theme }: { theme: Theme }) {
         {sep}
         <Btn theme={theme} label="Fold" onPress={cmdToggleCollapsed} disabled={!can.fold} />
         <Btn theme={theme} label="Copy" onPress={() => void cmdCopySelection()} />
+        {others.length > 0 && <Btn theme={theme} label="Move to…" a11y="Move to another pad" onPress={moveTo} />}
         <Btn theme={theme} label="Delete" onPress={cmdDeleteSelection} />
         <Btn theme={theme} label="×" a11y={n > 0 ? 'Clear selection' : 'Stop editing'} onPress={() => (n > 0 ? clearSelection() : stopEditing())} />
       </ScrollView>
