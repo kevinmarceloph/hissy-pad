@@ -45,6 +45,21 @@ export {
   removeDone,
   sweepDone,
 } from './ops'
+export {
+  type PadId,
+  type Side,
+  type Sides,
+  isPadNode,
+  listPads,
+  scopePad,
+  unscopeRow,
+  createPad,
+  moveToPad,
+  resolveSides,
+  sendTo,
+  sideRows,
+  freshStart,
+} from './pads'
 export { parseOutline, insertOutline, toOutline, toOutlineHtml, type OutlineLine, type OutlineFormat } from './paste'
 export { testCtx, pad, shape, idOf } from './testing'
 export { type LocalStore, createMemoryStore, changedRows } from './sync/store'

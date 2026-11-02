@@ -2,7 +2,7 @@
 
 A scratchpad that sits between Google Docs and Hissycal. One freeform outline, always open, where the top of the page is whatever needs attention next. Drag things around in a hierarchy, multi-select, cross things out. Nothing else.
 
-Status (2026-10-29): phases 1-5 built. The web app is live at https://hissypad.marcelo.ph (Render static site, auto-deploys from `main`) against a hosted Supabase project; the Expo app runs on Kevin's iPhone from an EAS development build with EAS Update wired up. Earlier note: phases 1 and 2 built. `packages/core` (51 tests) and `apps/web` (18 tests) typecheck and pass; the web app was clicked through in a browser (typing, Enter/Tab, selection keys, paste import, hide/sweep done, reload persistence, dark, phone width).
+Status (2026-11-02): phases 1-5 and 7 built (several pads, Fresh start). Earlier status (2026-10-29): phases 1-5 built. The web app is live at https://hissypad.marcelo.ph (Render static site, auto-deploys from `main`) against a hosted Supabase project; the Expo app runs on Kevin's iPhone from an EAS development build with EAS Update wired up. Earlier note: phases 1 and 2 built. `packages/core` (51 tests) and `apps/web` (18 tests) typecheck and pass; the web app was clicked through in a browser (typing, Enter/Tab, selection keys, paste import, hide/sweep done, reload persistence, dark, phone width).
 
 Decisions (2026-10-28): public repo from day one; login by magic link and Google; domain `hissypad.marcelo.ph`; `collapsed` syncs across devices.
 
@@ -17,7 +17,9 @@ Decisions (2026-10-28): public repo from day one; login by magic link and Google
 - Paste from Google Docs imports indentation as hierarchy, so the current inbox moves over in one paste. Hissycal's `indentWidth` + `createItemsAfter` already do this for a single day; the same logic ported to the flat model.
 - Capture from the phone: share sheet appends to the top of the pad.
 
-What it is not: not a calendar, not a notes app with many documents, not collaborative. One user, several devices.
+- Several pads (added 2026-11-02): "Main" plus any number of named pads, switched from a row of tabs under the title (chips on the phone). A pad is a root-level node with `pad` set; its lines hang under it, so a pad is just a subtree and nothing new syncs. The main pad is the root level itself, as before. Lines move between pads from the toolbar ("Move to…", also on the phone). **Fresh start** (web only): a two-pane view, the pad as it is on the left and what stays on the right; send lines across, name the leftover pad (default "Before 2 Nov 2026"), and one undoable op moves everything left behind into it, order and nesting kept. A line sent across on its own comes up to the top level of its side; a line left behind under a kept parent goes down with the rest.
+
+What it is not: not a calendar, not collaborative. One user, several devices. Pads are a handful of lists, not a notebook of documents.
 
 ## Why not just extend Hissycal
 
@@ -38,6 +40,7 @@ One table, `nodes`. Flat, not nested.
 | collapsed | boolean | synced on purpose: if I fold "Project Ideas" on the laptop I want it folded on the phone too |
 | numbered | boolean | shown as "1." within its run of consecutive numbered siblings |
 | header | boolean | bold with a "#" bullet; the client never sets it together with numbered (added 2026-10-29, `20261029000000_nodes_header.sql`; the mobile SQLite store adds the column on open) |
+| pad | boolean | a root-level row that is a pad of its own; its subtree is that pad's content and the root level stays the main pad (added 2026-11-02, `20261102000000_nodes_pad.sql`). The app edits one pad at a time through a scoped view (`core/pads.ts`: the pad's children lifted to `parent_id = null`), so every op works unchanged inside a pad; the store puts the pad id back on the changed rows before saving |
 | updated_at | timestamptz | set by the client that made the change, see sync |
 | deleted_at | timestamptz or null | tombstone; rows are never hard-deleted by clients |
 
@@ -93,6 +96,7 @@ hissy-pad/
   turbo.json
   packages/core/
     src/types.ts            Node, NodeRow, TreeIndex
+    src/pads.ts             scopePad, listPads, moveToPad, fresh-start split
     src/tree.ts             index from rows, children, visible rows, depth
     src/ops.ts              insertAfter, split, indent, dedent, moveSibling, moveTo, setDone, remove
     src/rank.ts             fractional index helpers, tiebreak
@@ -103,7 +107,7 @@ hissy-pad/
   apps/web/
     src/store.ts            Zustand: rows, selection, derived tree
     src/local/idb.ts        LocalStore on IndexedDB
-    src/Pad.tsx, Row.tsx, SelectionBar.tsx
+    src/Pad.tsx, Row.tsx, SelectionBar.tsx, PadTabs.tsx, FreshStart.tsx
     e2e/                    Playwright
   apps/mobile/
     src/local/sqlite.ts     LocalStore on expo-sqlite
@@ -126,8 +130,9 @@ Each phase ends with something usable. Phase 2 is the point where the Docs inbox
 4. **Drag and multi-select** (built 2026-10-28). `resolveDrop` in core (gap by row midpoints, depth by x, clamped to what the gap allows) with tests; pointer drag on web with long-press on touch, live reorder (the dragged rows render where they would land and the list reflows, chosen 2026-10-29 from a five-option demo at /drop-demo.html), ghost, autoscroll, Escape to cancel; a selection drags as a block. Playwright E2E with real mouse and CDP touch coordinates on desktop and Pixel profiles, run in CI.
 5. **Mobile** (started 2026-10-28). The platform-neutral app logic moved out of `apps/web` into `packages/state` (store, commands, per-op undo, log, Supabase remote, sync binding), so `apps/mobile` is a thin Expo shell: an expo-sqlite `LocalStore`, AsyncStorage-backed auth with the `hissypad://auth` deep link for magic links and Google, a ScrollView of rows with a multiline TextInput for the edited line, the same toolbar above the keyboard, and long-press drag through core's `resolveDrop`. Verified in the iOS Simulator through Expo Go, then built with EAS (development profile, ad hoc) and installed on Kevin's iPhone on 2026-10-29; first EAS Update published to the development channel the same day. A standalone `preview` build (no Metro needed) followed on 2026-10-29, with its own update channel. Pull-to-refresh syncs now on both the phone web app (a touch gesture, `apps/web/src/PullToRefresh.tsx`) and the Expo app (`RefreshControl`), through one `refresh()` in the state package (2026-10-29). Pending: the share-sheet capture (needs a config plugin), an Android build.
 6. **Polish**. Search (`Cmd+K` jumps to a node). Dark mode, Delete done and numbered lists landed in phase 2; undo became per-op (only the touched rows, stamped fresh so it syncs) with a debug log (`?debug=1`) on 2026-10-28.
+7. **Pads and Fresh start** (built 2026-11-02). The `pad` flag and the scoped view in core (12 tests), `all` vs `rows` in the state store with pad commands (new, rename, delete, move to, fresh start; 6 tests), pad tabs plus the Move to… menu plus the two-pane Fresh start on web (5 tests, clicked through at desktop and phone width), pad chips and Move to… on the phone (names through `Alert.prompt`, iOS only; Android gets "New pad" and renames from the web). Pending: reordering pads, a Fresh start on the phone.
 
-Later, not planned: multiple pads as top-level tabs, a Hissycal rewrite that adds `date`, `start_time`, `end_time` and `division` columns to `nodes` and renders days as filtered views over the same table.
+Later, not planned: a Hissycal rewrite that adds `date`, `start_time`, `end_time` and `division` columns to `nodes` and renders days as filtered views over the same table.
 
 ## tech-to-learn.md items this ticks
 

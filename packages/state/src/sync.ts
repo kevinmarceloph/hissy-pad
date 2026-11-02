@@ -4,7 +4,7 @@
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { createSyncEngine, type NodeRow, type Remote, type SyncEngine, type SyncStatus } from '@hissypad/core'
 import { createSupabaseRemote } from './remote'
-import { apply, clock, getLocalStore, SEED_KEY, setOnLocalChange, usePad } from './store'
+import { applyAll, clock, getLocalStore, SEED_KEY, setAll, setOnLocalChange, usePad } from './store'
 import { remove } from '@hissypad/core'
 import { log, rowBrief } from './log'
 
@@ -29,7 +29,7 @@ async function dropUntouchedSeed(incoming: readonly NodeRow[]) {
   const seed = JSON.parse(raw) as Record<string, string>
   const foreign = incoming.some((r) => !(r.id in seed))
   if (!foreign) return
-  const rows = usePad.getState().rows
+  const rows = usePad.getState().all
   // An edited line keeps its ancestors too, since removing a parent removes its subtree.
   const keep = new Set<string>()
   for (const [id, at] of Object.entries(seed)) {
@@ -44,7 +44,7 @@ async function dropUntouchedSeed(incoming: readonly NodeRow[]) {
   const untouched = Object.keys(seed).filter((id) => rows[id]?.deletedAt === null && !keep.has(id))
   await local.setMeta(SEED_KEY, '')
   if (untouched.length) {
-    apply((r, ctx) => remove(r, ctx, untouched), { label: 'dropSeed' })
+    applyAll((r, ctx) => remove(r, ctx, untouched), { label: 'dropSeed' })
     log('seed:dropped', { n: untouched.length })
   }
 }
@@ -52,22 +52,22 @@ async function dropUntouchedSeed(incoming: readonly NodeRow[]) {
 function mergeRemote(incoming: readonly NodeRow[]) {
   log('sync:merge', { n: incoming.length, rows: incoming.slice(0, 8).map(rowBrief) })
   void dropUntouchedSeed(incoming)
-  usePad.setState((s) => {
-    const rows: Record<string, NodeRow> = { ...s.rows }
-    for (const r of incoming) {
-      const cur = rows[r.id]
-      if (!cur || r.updatedAt > cur.updatedAt) rows[r.id] = r
-    }
-    // Keep the selection and the editing line only if they still exist.
-    const live = (id: string) => rows[id]?.deletedAt === null
-    const selection = s.selection.filter(live)
-    return {
-      rows,
-      selection,
-      editing: s.editing && live(s.editing.id) ? s.editing : null,
-      anchorId: s.anchorId && live(s.anchorId) ? s.anchorId : null,
-      focusId: s.focusId && live(s.focusId) ? s.focusId : null,
-    }
+  const s = usePad.getState()
+  const all: Record<string, NodeRow> = { ...s.all }
+  for (const r of incoming) {
+    const cur = all[r.id]
+    if (!cur || r.updatedAt > cur.updatedAt) all[r.id] = r
+  }
+  setAll(all)
+  // Keep the selection and the editing line only if they are still in the pad shown
+  // (a remote tombstone, or a move to another pad, takes them out).
+  const rows = usePad.getState().rows
+  const live = (id: string) => id in rows
+  usePad.setState({
+    selection: s.selection.filter(live),
+    editing: s.editing && live(s.editing.id) ? s.editing : null,
+    anchorId: s.anchorId && live(s.anchorId) ? s.anchorId : null,
+    focusId: s.focusId && live(s.focusId) ? s.focusId : null,
   })
 }
 
@@ -77,7 +77,7 @@ export function startSync(remote: Remote) {
     local: getLocalStore(),
     remote,
     clock,
-    getRows: () => usePad.getState().rows,
+    getRows: () => usePad.getState().all,
     applyRemote: mergeRemote,
     onStatus: (status: SyncStatus) => {
       const prev = usePad.getState().sync

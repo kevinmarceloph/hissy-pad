@@ -4,7 +4,7 @@ Guidance for Claude Code in this repo. The shared rules (who Kevin is, writing v
 
 ## What this is
 
-HissyPad: one freeform outline, always open, between Google Docs and Hissycal. A flat `nodes` table, offline-first, each row synced on its own with last-write-wins on the server. Web (Vite + React 19, PWA) and mobile (Expo) share the same core and state packages. Live at https://hissypad.marcelo.ph (Render static site, auto-deploys from `main`, hosted Supabase behind it). Public repo `kevinmarceloph/hissy-pad`, Kevin's first public one: nothing under NDA, no pad content, no keys.
+HissyPad: a freeform outline, always open, between Google Docs and Hissycal; since 2026-11-02 a few of them ("pads", tabs under the title, with a two-pane Fresh start that moves the leftovers of a pad into a new one). A flat `nodes` table, offline-first, each row synced on its own with last-write-wins on the server. A pad is a root-level row with `pad` set and the main pad is the root level itself; the store shows one pad at a time as a scoped view (`rows`) over the whole table (`all`), see `packages/core/src/pads.ts`. Web (Vite + React 19, PWA) and mobile (Expo) share the same core and state packages. Live at https://hissypad.marcelo.ph (Render static site, auto-deploys from `main`, hosted Supabase behind it). Public repo `kevinmarceloph/hissy-pad`, Kevin's first public one: nothing under NDA, no pad content, no keys.
 
 - `README.md`: layout, run commands, keys. Read it first.
 - `PLAN.md`: the design (data model, sync, editing model), phases and what is pending. Keep its status line and phase notes current when a phase moves; dates are absolute (`2026-10-29`), Manila time.
@@ -12,8 +12,8 @@ HissyPad: one freeform outline, always open, between Google Docs and Hissycal. A
 ## Layout
 
 ```
-packages/core    pure TS, no React: types, tree, ops, rank, drop resolver, paste, clock, sync engine, LocalStore
-packages/state   Zustand store, commands, per-op undo, debug log, Supabase remote, sync binding
+packages/core    pure TS, no React: types, tree, ops, rank, drop resolver, paste, pads (scoped view, fresh start), clock, sync engine, LocalStore
+packages/state   Zustand store (all rows + the scoped pad), commands, pad commands, per-op undo, debug log, Supabase remote, sync binding
 apps/web         Vite SPA on :5180, IndexedDB store, pointer drag, Playwright e2e
 apps/mobile      Expo SDK 58 shell: expo-sqlite store, same toolbar, EAS build/update profiles
 supabase/        migrations (nodes, RLS, LWW trigger), pgTAP tests, local stack on ports 54421-54429

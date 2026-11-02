@@ -22,14 +22,15 @@ export function pad(outline: string, ctx: OpCtx = testCtx()): Rows {
 }
 
 // Render a pad back to an indented outline of texts (all nodes, ignoring collapse),
-// so a test can assert the whole shape in one string.
+// so a test can assert the whole shape in one string. Markers: "1." numbered, "#" header,
+// "@" a pad node, "~" done.
 export function shape(rows: Rows, visibleOnly = false): string {
   const index = buildIndex(rows)
   const numbers = listNumbers(index)
   return flatten(index, visibleOnly)
     .map((r) => {
       const row = rows[r.id]!
-      const num = numbers.has(r.id) ? `${numbers.get(r.id)}.` : row.header ? '#' : ''
+      const num = numbers.has(r.id) ? `${numbers.get(r.id)}.` : row.header ? '#' : row.pad ? '@' : ''
       return '  '.repeat(r.depth) + num + (row.done ? '~' : '') + row.text
     })
     .join('\n')

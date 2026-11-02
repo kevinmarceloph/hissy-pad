@@ -1,11 +1,13 @@
-// The web app's state: the rows (from core), what is selected or being edited, and the
-// undo stack. Every edit goes through `apply`, which runs a core op, pushes undo history,
-// and writes the changed rows to the LocalStore as dirty.
+// The app's state: every row of the table (`all`), the pad being shown as a pad of its own
+// (`rows`, see scopePad in core), what is selected or being edited, and the undo stack.
+// Every edit goes through `apply`, which runs a core op on the shown pad, pushes undo
+// history, and writes the changed rows to the LocalStore as dirty.
 import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import {
-  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, flatten,
-  insertAt, insertOutline, newUuid, normalizeRow, parseOutline, type LocalStore, type NodeRow, type OpCtx, type Rows, type SyncStatus,
+  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, flatten, isPadNode,
+  insertAt, insertOutline, newUuid, normalizeRow, parseOutline, scopePad, unscopeRow,
+  type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus,
 } from '@hissypad/core'
 import { log, rowBrief } from './log'
 import { seedSample } from './sample'
@@ -31,7 +33,9 @@ export interface HistoryEntry {
 }
 
 export interface PadState {
-  rows: Rows
+  all: Rows                 // the whole table, every pad, tombstones included
+  rows: Rows                // the current pad, live rows only, scoped (scopePad)
+  padId: PadId              // null = the main pad
   load: LoadState
   storageError: string | null
   editing: Editing | null
@@ -45,6 +49,7 @@ export interface PadState {
 }
 
 export const SEED_KEY = 'seed.rows'
+export const PAD_KEY = 'pad.current' // which pad this device had open
 
 export const clock = createClock()
 export const ctx: OpCtx = { now: () => clock.tick(), newId: newUuid }
@@ -66,7 +71,9 @@ export function setOnLocalChange(fn: (() => void) | null) {
 const UNDO_LIMIT = 200
 
 export const usePad = create<PadState>(() => ({
+  all: {},
   rows: {},
+  padId: null,
   load: 'loading',
   storageError: null,
   editing: null,
@@ -100,52 +107,83 @@ function persist(prev: Rows, next: Rows) {
   )
 }
 
-// Run an op. `label` names it in the log and the undo history; `coalesce` lets a run of
-// keystrokes on one node share a single undo entry.
+// Run an op on the pad being shown. `label` names it in the log and the undo history;
+// `coalesce` lets a run of keystrokes on one node share a single undo entry. The op sees
+// the scoped pad; its changed rows are put back in table terms before they are saved.
 let lastCoalesce: { key: string; at: number } | null = null
 export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { label?: string; coalesce?: string } = {}): Rows {
-  const { rows, past } = get()
+  const { rows, all, padId } = get()
   const next = fn(rows, ctx)
   const label = opts.label ?? 'op'
   if (next === rows) {
     log(`op:${label}`, { changed: 0 })
     return rows
   }
+  const changed = changedRows(rows, next).map((r) => unscopeRow(r, padId))
+  for (const id in rows) if (!(id in next)) changed.push(tombstone(all[id]!))
+  const nextAll: Record<string, NodeRow> = { ...all }
+  for (const r of changed) nextAll[r.id] = r
+  commit(all, nextAll, label, opts.coalesce)
+  return get().rows
+}
+
+// The same for an op that spans pads (move to another pad, a new pad, a fresh start): it
+// sees and returns the whole table.
+export function applyAll(fn: (all: Rows, ctx: OpCtx) => Rows, opts: { label?: string } = {}): Rows {
+  const { all } = get()
+  const next = fn(all, ctx)
+  const label = opts.label ?? 'op'
+  if (next === all) {
+    log(`op:${label}`, { changed: 0 })
+    return all
+  }
+  const nextAll: Record<string, NodeRow> = { ...next }
+  for (const id in all) if (!(id in next)) nextAll[id] = tombstone(all[id]!)
+  commit(all, nextAll, label)
+  return get().all
+}
+
+// An op never drops a row, but if one did, storage still has it: write a tombstone.
+function tombstone(r: NodeRow): NodeRow {
+  const now = clock.tick()
+  return { ...r, deletedAt: now, updatedAt: now }
+}
+
+function commit(all: Rows, nextAll: Rows, label: string, coalesce?: string) {
+  const { past, padId } = get()
   const now = Date.now()
-  const changed = changedRows(rows, next)
-  for (const id in rows) if (!(id in next)) changed.push({ ...rows[id]!, deletedAt: rows[id]!.deletedAt ?? 'removed' })
-  const merge = opts.coalesce !== undefined && lastCoalesce?.key === opts.coalesce && now - lastCoalesce.at < 1500 && past.length > 0
-  lastCoalesce = opts.coalesce !== undefined ? { key: opts.coalesce, at: now } : null
+  const changed = changedRows(all, nextAll)
+  const merge = coalesce !== undefined && lastCoalesce?.key === coalesce && now - lastCoalesce.at < 1500 && past.length > 0
+  lastCoalesce = coalesce !== undefined ? { key: coalesce, at: now } : null
   let entry: HistoryEntry
   if (merge) {
     const last = past.at(-1)!
     entry = { ...last, at: now, after: { ...last.after } }
     for (const r of changed) {
-      if (!(r.id in entry.before)) entry.before[r.id] = rows[r.id]
-      entry.after[r.id] = next[r.id] ?? { ...r }
+      if (!(r.id in entry.before)) entry.before[r.id] = all[r.id]
+      entry.after[r.id] = r
     }
   } else {
     entry = { label, at: now, before: {}, after: {} }
     for (const r of changed) {
-      entry.before[r.id] = rows[r.id]
-      entry.after[r.id] = next[r.id] ?? { ...r }
+      entry.before[r.id] = all[r.id]
+      entry.after[r.id] = r
     }
   }
   const newPast = merge ? [...past.slice(0, -1), entry] : [...past.slice(-UNDO_LIMIT + 1), entry]
-  set({ rows: next, past: newPast, future: [] })
+  set({ all: nextAll, rows: scopePad(nextAll, padId), past: newPast, future: [] })
   log(`op:${label}`, {
-    changed: changed.map((r) => ({ before: rowBrief(rows[r.id]), after: rowBrief(next[r.id]) })),
+    changed: changed.map((r) => ({ before: rowBrief(all[r.id]), after: rowBrief(nextAll[r.id]) })),
     merged: merge,
     undoDepth: newPast.length,
   })
-  persist(rows, next)
-  return next
+  persist(all, nextAll)
 }
 
-// Restore one side of an entry onto the current rows. Rows that did not exist on that
-// side become tombstones (an undone insert). Everything restored gets a fresh updatedAt.
+// Restore one side of an entry onto the table. Rows that did not exist on that side
+// become tombstones (an undone insert). Everything restored gets a fresh updatedAt.
 function restore(side: Record<string, NodeRow | undefined>, ids: string[]): { rows: Rows; touched: string[] } {
-  const cur = get().rows
+  const cur = get().all
   const out: Record<string, NodeRow> = { ...cur }
   const touched: string[] = []
   for (const id of ids) {
@@ -159,15 +197,19 @@ function restore(side: Record<string, NodeRow | undefined>, ids: string[]): { ro
   return { rows: out, touched }
 }
 
-function afterHistoryMove(rows: Rows, touched: string[]) {
-  // Land on what changed: select the restored rows that are live and visible.
+function afterHistoryMove(all: Rows, touched: string[]) {
+  // Land on what changed: select the restored rows that are live and visible in the pad
+  // being shown (an undo of a move to another pad lands on nothing, and that is fine).
+  // Redoing a pad's deletion while it is open falls back to the main pad (setAll).
+  setAll(all, { editing: null })
+  const { rows } = get()
   const vis = new Set(flatten(buildIndex(rows), true).map((r) => r.id))
   const sel = touched.filter((id) => vis.has(id))
-  set({ rows, editing: null, selection: sel, anchorId: sel[0] ?? null, focusId: sel.at(-1) ?? null })
+  set({ selection: sel, anchorId: sel[0] ?? null, focusId: sel.at(-1) ?? null })
 }
 
 export function undo() {
-  const { rows, past, future } = get()
+  const { all: rows, past, future } = get()
   const entry = past.at(-1)
   if (!entry) {
     log('undo', { nothing: true })
@@ -183,7 +225,7 @@ export function undo() {
 }
 
 export function redo() {
-  const { rows, past, future } = get()
+  const { all: rows, past, future } = get()
   const entry = future[0]
   if (!entry) {
     log('redo', { nothing: true })
@@ -214,7 +256,7 @@ async function loadPadOnce() {
     const upgraded: NodeRow[] = []
     for (const raw of list) {
       const r = normalizeRow(raw)
-      if (r.numbered !== raw.numbered || r.header !== raw.header || r.collapsed !== raw.collapsed || r.done !== raw.done) upgraded.push(r)
+      if (r.numbered !== raw.numbered || r.header !== raw.header || r.pad !== raw.pad || r.collapsed !== raw.collapsed || r.done !== raw.done) upgraded.push(r)
       rows[r.id] = r
       clock.observe(r.updatedAt)
     }
@@ -231,13 +273,37 @@ async function loadPadOnce() {
       await local.setMeta(SEED_KEY, JSON.stringify(Object.fromEntries(res.ids.map((id) => [id, state[id]!.updatedAt]))))
       log('seed', { n: res.ids.length })
     }
-    set({ rows: state, load: 'ready' })
+    // Reopen the pad this device had open, if it still exists; else the main pad.
+    const remembered = await local.getMeta(PAD_KEY)
+    const padId = remembered && isPadNode(state[remembered]) ? remembered : null
+    set({ all: state, rows: scopePad(state, padId), padId, load: 'ready' })
   } catch (e) {
     // Keep working in memory so the pad is still usable; the banner says edits won't stick.
     local = createMemoryStore()
     const res = insertAt({}, ctx, { parentId: null, afterId: null }, '')
-    set({ rows: res.rows, load: 'ready', storageError: `Local storage is unavailable (${(e as Error).message}). Edits will be lost when you close this tab.` })
+    set({ all: res.rows, rows: scopePad(res.rows, null), padId: null, load: 'ready', storageError: `Local storage is unavailable (${(e as Error).message}). Edits will be lost when you close this tab.` })
   }
+}
+
+// Show another pad. Selection and editing belong to the pad they were in, so they clear.
+// The choice is remembered per device. Returns false when the pad does not exist.
+export function openPad(padId: PadId): boolean {
+  const { all } = get()
+  if (padId !== null && !isPadNode(all[padId])) return false
+  log('pad:open', { padId: padId?.slice(0, 8) ?? 'main' })
+  set({ padId, rows: scopePad(all, padId), editing: null, selection: [], anchorId: null, focusId: null })
+  void local.setMeta(PAD_KEY, padId ?? '').catch(() => {})
+  return true
+}
+
+// Rows shown as `rows` again after `all` changed from outside an op (a sync merge).
+export function setAll(all: Rows, extra: Partial<PadState> = {}) {
+  const { padId } = get()
+  // The open pad may have been deleted on another device: fall back to the main pad.
+  const stillThere = padId === null || isPadNode(all[padId])
+  const nextPad = stillThere ? padId : null
+  set({ all, padId: nextPad, rows: scopePad(all, nextPad), ...extra })
+  if (!stillThere) void local.setMeta(PAD_KEY, '').catch(() => {})
 }
 
 // ---- selection / editing ----------------------------------------------------------

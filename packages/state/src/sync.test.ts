@@ -11,7 +11,7 @@ async function flush(n = 30) {
 describe('sync wiring', () => {
   beforeEach(() => {
     stopSync()
-    usePad.setState({ rows: {}, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [], session: null, sync: null })
+    usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [], session: null, sync: null })
   })
 
   it('pushes local edits and merges remote rows into the store', async () => {

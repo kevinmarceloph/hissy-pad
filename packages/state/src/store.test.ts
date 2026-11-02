@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryStore, pad, shape, idOf } from '@hissypad/core'
-import { apply, clickSelect, configureLocalStore, edit, importOutline, loadPad, redo, select, undo, usePad } from './store'
+import { apply, clickSelect, configureLocalStore, edit, importOutline, loadPad, redo, select, setAll, undo, usePad } from './store'
 import { cmdCopySelection, cmdDeleteDone, cmdDeleteSelection, cmdSetText, cmdSplit, cmdTextChanged, cmdToggleDone, setClipboard } from './commands'
 import { setText } from '@hissypad/core'
 
@@ -8,7 +8,7 @@ function reset(initialOutline?: string) {
   const rows = initialOutline ? pad(initialOutline) : {}
   const mem = createMemoryStore(Object.values(rows))
   configureLocalStore(mem)
-  usePad.setState({ rows: {}, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [] })
+  usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [] })
   return mem
 }
 
@@ -166,7 +166,7 @@ describe('per-op undo', () => {
     cmdSetText(a, 'A edited')
     // Another device changes B after our edit; it lands through the remote path.
     const remoteB = { ...usePad.getState().rows[b]!, text: 'B from phone', updatedAt: new Date(Date.parse(usePad.getState().rows[b]!.updatedAt) + 60_000).toISOString() }
-    usePad.setState((s) => ({ rows: { ...s.rows, [b]: remoteB } }))
+    setAll({ ...usePad.getState().all, [b]: remoteB })
     undo()
     expect(usePad.getState().rows[a]!.text).toBe('A')
     expect(usePad.getState().rows[b]!.text).toBe('B from phone')
@@ -193,7 +193,7 @@ describe('per-op undo', () => {
     expect(shape(usePad.getState().rows)).toBe('B\n')
     undo()
     expect(shape(usePad.getState().rows)).toBe('B')
-    const tomb = Object.values(usePad.getState().rows).filter((r) => r.deletedAt !== null)
+    const tomb = Object.values(usePad.getState().all).filter((r) => r.deletedAt !== null)
     expect(tomb.length).toBeGreaterThan(0)
   })
 })

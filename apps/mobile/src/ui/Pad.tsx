@@ -13,6 +13,7 @@ import { GUTTER, INDENT, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
 import { Account } from './Account'
+import { PadChips } from './PadChips'
 
 interface Drag {
   ids: string[]
@@ -220,6 +221,7 @@ export function Pad() {
           <Pressable onPress={() => setLogText(dumpLog())} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Log</Text></Pressable>
         )}
       </View>
+      <PadChips theme={theme} />
       <Modal visible={logText !== null} animationType="slide" onRequestClose={() => setLogText(null)}>
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 48 }}>
           <View style={[s.top, { gap: 16 }]}>

@@ -114,6 +114,7 @@ export function insertOutline(
       collapsed: false,
       numbered: l.numbered === true,
       header: l.header === true && l.numbered !== true,
+      pad: false,
       updatedAt: ctx.now(),
       deletedAt: null,
     }

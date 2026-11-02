@@ -4,6 +4,8 @@ import { importOutline, SAMPLE_OUTLINE, usePad } from '@hissypad/state'
 import { cmdDeleteDone } from '@hissypad/state'
 import { copyText } from './clipboard'
 import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
+import { PadTabs } from './PadTabs'
+import { showToast, useToast } from './toast'
 
 type Theme = 'system' | 'light' | 'dark'
 
@@ -22,10 +24,12 @@ export function applyTheme(t: Theme) {
   document.documentElement.dataset.theme = t === 'system' ? '' : t
 }
 
-export function TopBar() {
+export function TopBar({ onFreshStart, view }: { onFreshStart: () => void; view: 'pad' | 'fresh' }) {
   const rows = usePad((s) => s.rows)
   const [theme, setTheme] = useState<Theme>(readTheme)
-  const [toast, setToast] = useState<string | null>(null)
+  const toast = useToast((s) => s.text)
+  const toastAt = useToast((s) => s.at)
+  const setToast = showToast
   const dialog = useRef<HTMLDialogElement>(null)
   const logDialog = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState('')
@@ -38,9 +42,9 @@ export function TopBar() {
 
   useEffect(() => {
     if (!toast) return
-    const t = setTimeout(() => setToast(null), 4000)
+    const t = setTimeout(() => setToast(null), 5000)
     return () => clearTimeout(t)
-  }, [toast])
+  }, [toast, toastAt])
 
   const liveCount = Object.values(rows).filter((r) => r.deletedAt === null).length
   const doneCount = Object.values(rows).filter((r) => r.deletedAt === null && r.done).length
@@ -67,11 +71,12 @@ export function TopBar() {
     <header className="top">
       <h1>HissyPad</h1>
       <nav className="bar" aria-label="Pad actions">
-        <button type="button" onClick={deleteDone} disabled={doneCount === 0} title="Delete every crossed-out line (undo brings them back)">
+        <button type="button" onClick={deleteDone} disabled={doneCount === 0 || view !== 'pad'} title="Delete every crossed-out line (undo brings them back)">
           Delete done
         </button>
-        <button type="button" onClick={() => dialog.current?.showModal()}>Paste in…</button>
+        <button type="button" onClick={() => dialog.current?.showModal()} disabled={view !== 'pad'}>Paste in…</button>
         <button type="button" onClick={exportAll} disabled={liveCount === 0}>Copy all</button>
+        <button type="button" onClick={onFreshStart} disabled={liveCount === 0 || view !== 'pad'} title="Pick what stays; the rest moves to a new pad">Fresh start…</button>
         {logEnabled() && (
           <button type="button" onClick={() => { setLogText(dumpLog()); logDialog.current?.showModal() }} title="Debug log (?debug=1 turned this on)">Log</button>
         )}
@@ -84,6 +89,7 @@ export function TopBar() {
           </select>
         </label>
       </nav>
+      <PadTabs />
       {toast && <output className="toast" aria-live="polite">{toast}</output>}
       <dialog ref={logDialog} className="import" aria-labelledby="log-title">
         <form method="dialog">
