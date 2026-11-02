@@ -38,6 +38,7 @@ function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: strin
     rank,
     text,
     done: false,
+    doneAt: null,
     collapsed: false,
     numbered,
     header: false,
@@ -111,9 +112,14 @@ export function setText(rows: Rows, ctx: OpCtx, id: string, text: string): Rows 
   return patch(rows, ctx, id, { text })
 }
 
+// Crossing out stamps doneAt (what "Recently done" sorts by); un-doing clears it.
 export function setDone(rows: Rows, ctx: OpCtx, ids: Iterable<string>, done: boolean): Rows {
   let out = rows
-  for (const id of ids) if (isLive(out[id]) && out[id]!.done !== done) out = patch(out, ctx, id, { done })
+  for (const id of ids) {
+    if (!isLive(out[id]) || out[id]!.done === done) continue
+    const now = ctx.now()
+    out = { ...out, [id]: { ...out[id]!, done, doneAt: done ? now : null, updatedAt: now } }
+  }
   return out
 }
 
@@ -158,7 +164,8 @@ export function toggleCollapsed(rows: Rows, ctx: OpCtx, id: string): Rows {
 
 // Tombstone the nodes and everything under them. Descendants get their own tombstone
 // so another device that has moved one of them out in the meantime still sees it deleted
-// only if it was still inside at our timestamp (LWW per row decides).
+// only if it was still inside at our timestamp (LWW per row decides). One stamp for the
+// whole call: that shared deletedAt is what groups the rows as one entry in the trash.
 export function remove(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
   const index = buildIndex(rows)
   const victims = new Set<string>()
@@ -166,10 +173,23 @@ export function remove(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
     victims.add(id)
     for (const d of descendantIds(index, id)) victims.add(d)
   }
+  if (victims.size === 0) return rows
+  const now = ctx.now()
   let out = rows
-  for (const id of victims) {
-    const now = ctx.now()
-    out = { ...out, [id]: { ...out[id]!, deletedAt: now, updatedAt: now } }
+  for (const id of victims) out = { ...out, [id]: { ...out[id]!, deletedAt: now, updatedAt: now } }
+  return out
+}
+
+// Lift the tombstone from exactly these rows (the caller decides which of a deleted
+// subtree come back), stamped fresh so the restore syncs. A row whose parent stays
+// deleted shows at the root, the way the tree already treats orphans.
+export function restore(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
+  let out = rows
+  const now = ctx.now()
+  for (const id of ids) {
+    const r = out[id]
+    if (!r || r.deletedAt === null) continue
+    out = { ...out, [id]: { ...r, deletedAt: null, updatedAt: now } }
   }
   return out
 }

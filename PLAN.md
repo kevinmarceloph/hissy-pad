@@ -2,7 +2,7 @@
 
 A scratchpad that sits between Google Docs and Hissycal. One freeform outline, always open, where the top of the page is whatever needs attention next. Drag things around in a hierarchy, multi-select, cross things out. Nothing else.
 
-Status (2026-10-29): phases 1-5 built. The web app is live at https://hissypad.marcelo.ph (Render static site, auto-deploys from `main`) against a hosted Supabase project; the Expo app runs on Kevin's iPhone from an EAS development build with EAS Update wired up. Earlier note: phases 1 and 2 built. `packages/core` (51 tests) and `apps/web` (18 tests) typecheck and pass; the web app was clicked through in a browser (typing, Enter/Tab, selection keys, paste import, hide/sweep done, reload persistence, dark, phone width).
+Status (2026-11-02): phases 1-5 built, plus the Trash and Recently done panels (`done_at` column, `20261102000000_nodes_done_at.sql`; `supabase db push` needed on the hosted project). Earlier status (2026-10-29): phases 1-5 built. The web app is live at https://hissypad.marcelo.ph (Render static site, auto-deploys from `main`) against a hosted Supabase project; the Expo app runs on Kevin's iPhone from an EAS development build with EAS Update wired up. Earlier note: phases 1 and 2 built. `packages/core` (51 tests) and `apps/web` (18 tests) typecheck and pass; the web app was clicked through in a browser (typing, Enter/Tab, selection keys, paste import, hide/sweep done, reload persistence, dark, phone width).
 
 Decisions (2026-10-28): public repo from day one; login by magic link and Google; domain `hissypad.marcelo.ph`; `collapsed` syncs across devices.
 
@@ -35,11 +35,12 @@ One table, `nodes`. Flat, not nested.
 | rank | text | fractional index between siblings, own implementation in `core/rank.ts` with the same integer-plus-fraction shape as the `fractional-indexing` package, so capture at the top stays two or three characters. A move is one row update, never a renumber |
 | text | text | plain text, may contain newlines |
 | done | boolean | |
+| done_at | timestamptz or null | when `done` last flipped on, cleared when it flips off; what "Recently done" sorts by (added 2026-11-02, `20261102000000_nodes_done_at.sql`; the mobile SQLite store adds the column on open). Rows done before the column fall back to `updated_at` |
 | collapsed | boolean | synced on purpose: if I fold "Project Ideas" on the laptop I want it folded on the phone too |
 | numbered | boolean | shown as "1." within its run of consecutive numbered siblings |
 | header | boolean | bold with a "#" bullet; the client never sets it together with numbered (added 2026-10-29, `20261029000000_nodes_header.sql`; the mobile SQLite store adds the column on open) |
 | updated_at | timestamptz | set by the client that made the change, see sync |
-| deleted_at | timestamptz or null | tombstone; rows are never hard-deleted by clients |
+| deleted_at | timestamptz or null | tombstone; rows are never hard-deleted by clients. One `remove` call stamps every row it touches with the same value, which is how the Trash panel groups a delete into one entry (2026-11-02) |
 
 The tree is derived: group by `parent_id`, sort by `rank`, tiebreak by `id`. Every edit is a change to one or more rows. Multi-select drag of five nodes is five rank updates.
 
@@ -83,6 +84,7 @@ Simpler than Hissycal's Normal/Edit modes. Always editing, like Workflowy, with 
 - Drag: pointer-based, hand-rolled, no dnd-kit. The pad is a flat list of visible rows, so a drop resolves from pointer y (which gap) and pointer x (which depth, snapped to indent width). That resolver is a pure function in core, `resolveDrop(rows, y, x)`, and both platforms call it. Hissycal's band engine is the same idea with more cases; this one has one list and one axis of depth.
 - Mobile: long-press selects, a drag handle on the bullet moves, swipe right marks done. Keyboard shortcuts work with an external keyboard.
 - Cross-outs stay visible where they are. "Delete done" removes them all; undo brings them back. Numbered list: Cmd+Shift+7 on a line or a selection.
+- Trash and Recently done (2026-11-02): two panels from the top bar, on web and mobile. Trash lists tombstones from the last 30 days grouped by the delete that made them (same `deleted_at`), each with a Restore that lifts the tombstone from the row and the descendants that went with it, re-stamped so it syncs; a restored orphan shows at the root. Recently done lists live crossed-out lines by `done_at` with an Undone button. Decided: keep soft delete, no server purge yet (a purge needs a resync guard for devices that were offline past the window).
 - Mobile selection: tap a bullet to select, then tap more bullets to add or remove them (no modifier key). The floating toolbar carries every action.
 
 ## Repository layout

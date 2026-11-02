@@ -7,6 +7,7 @@ export interface NodeRow {
   rank: string              // fractional index among siblings (rank.ts); tiebreak by id
   text: string              // plain text, may contain newlines
   done: boolean
+  doneAt: string | null     // when `done` last flipped on; null when not done or done before the column existed
   collapsed: boolean        // synced across devices on purpose
   numbered: boolean         // shown as "1." within its run of consecutive numbered siblings
   header: boolean           // bold, with a "#" for a bullet; never numbered at the same time
@@ -23,6 +24,7 @@ export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
     rank: r.rank ?? 'a0',
     text: r.text ?? '',
     done: r.done === true,
+    doneAt: r.done === true ? (r.doneAt ?? null) : null,
     collapsed: r.collapsed === true,
     numbered: r.numbered === true,
     header: r.header === true && r.numbered !== true,

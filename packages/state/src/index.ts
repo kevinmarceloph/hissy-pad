@@ -1,5 +1,6 @@
 export * from './store'
 export * from './commands'
+export * from './lists'
 export * from './log'
 export * from './remote'
 export * from './sync'

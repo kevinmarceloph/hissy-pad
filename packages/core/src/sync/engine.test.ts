@@ -230,5 +230,7 @@ describe('normalizeRow / toWire', () => {
     expect(toWire(old).numbered).toBe(false)
     expect(normalizeRow(old).header).toBe(false)
     expect(toWire(old).header).toBe(false)
+    expect(normalizeRow(old).doneAt).toBeNull()
+    expect(toWire(old).done_at).toBeNull()
   })
 })

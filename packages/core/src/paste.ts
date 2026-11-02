@@ -111,6 +111,7 @@ export function insertOutline(
       rank: ranks.get(pl)![k]!,
       text: l.text,
       done: false,
+      doneAt: null,
       collapsed: false,
       numbered: l.numbered === true,
       header: l.header === true && l.numbered !== true,

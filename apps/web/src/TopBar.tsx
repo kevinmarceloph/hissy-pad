@@ -3,6 +3,7 @@ import { copyPayload } from '@hissypad/state'
 import { importOutline, SAMPLE_OUTLINE, usePad } from '@hissypad/state'
 import { cmdDeleteDone } from '@hissypad/state'
 import { copyText } from './clipboard'
+import { DonePanel, TrashPanel } from './Lists'
 import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
 
 type Theme = 'system' | 'light' | 'dark'
@@ -28,6 +29,8 @@ export function TopBar() {
   const [toast, setToast] = useState<string | null>(null)
   const dialog = useRef<HTMLDialogElement>(null)
   const logDialog = useRef<HTMLDialogElement>(null)
+  const trashDialog = useRef<HTMLDialogElement>(null)
+  const doneDialog = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState('')
   const [logText, setLogText] = useState('')
 
@@ -72,6 +75,8 @@ export function TopBar() {
         </button>
         <button type="button" onClick={() => dialog.current?.showModal()}>Paste in…</button>
         <button type="button" onClick={exportAll} disabled={liveCount === 0}>Copy all</button>
+        <button type="button" onClick={() => doneDialog.current?.showModal()} aria-label="Recently done" title="Crossed-out lines, newest first">Done</button>
+        <button type="button" onClick={() => trashDialog.current?.showModal()} title="Deleted lines from the last 30 days">Trash</button>
         {logEnabled() && (
           <button type="button" onClick={() => { setLogText(dumpLog()); logDialog.current?.showModal() }} title="Debug log (?debug=1 turned this on)">Log</button>
         )}
@@ -85,6 +90,8 @@ export function TopBar() {
         </label>
       </nav>
       {toast && <output className="toast" aria-live="polite">{toast}</output>}
+      <TrashPanel dialog={trashDialog} />
+      <DonePanel dialog={doneDialog} />
       <dialog ref={logDialog} className="import" aria-labelledby="log-title">
         <form method="dialog">
           <h2 id="log-title">Debug log</h2>

@@ -276,3 +276,45 @@ describe('toolbar iteration', () => {
     expect(rowByText('g')).toHaveClass('is-selected-child')
   })
 })
+
+describe('Trash and Done panels', () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = () => {}
+  })
+
+  it('a deleted line shows up in Trash and Restore puts it back, selected', async () => {
+    const user = userEvent.setup()
+    await mount('keep\ngone\n  gone child')
+    await user.click(within(rowByText('gone')).getByRole('button', { name: /Select line/ }))
+    await user.keyboard('{Delete}')
+    expect(texts()).toBe('keep')
+    await user.click(screen.getByRole('button', { name: 'Trash' }))
+    const dlg = screen.getByRole('dialog', { name: 'Trash' })
+    expect(dlg).toHaveTextContent('Today')
+    expect(dlg).toHaveTextContent('gone')
+    expect(dlg).toHaveTextContent('+1 line under it')
+    expect(dlg).toHaveTextContent('Deleted lines stay here for 30 days.')
+    await user.click(within(dlg).getByRole('button', { name: 'Restore' }))
+    expect(texts()).toBe('keep\ngone\n  gone child')
+    expect(usePad.getState().selection).toEqual([rowByText('gone').dataset.id])
+    expect((dlg as HTMLDialogElement).open).toBe(false)
+  })
+
+  it('a crossed-out line shows up under Done and Undone clears it', async () => {
+    const user = userEvent.setup()
+    await mount('a\nb')
+    await user.click(screen.getByRole('button', { name: 'Recently done' }))
+    let dlg = screen.getByRole('dialog', { name: 'Recently done' })
+    expect(dlg).toHaveTextContent('Nothing is crossed out.')
+    await user.click(within(dlg).getByRole('button', { name: 'Close' }))
+    await startEditing('a')
+    await user.keyboard('{Meta>}{Enter}{/Meta}')
+    expect(texts()).toBe('~a\nb')
+    await user.click(screen.getByRole('button', { name: 'Recently done' }))
+    dlg = screen.getByRole('dialog', { name: 'Recently done' })
+    expect(within(dlg).getByText('a')).toHaveClass('is-done')
+    await user.click(within(dlg).getByRole('button', { name: 'Undone' }))
+    expect(texts()).toBe('a\nb')
+    expect(dlg).toHaveTextContent('Nothing is crossed out.')
+  })
+})

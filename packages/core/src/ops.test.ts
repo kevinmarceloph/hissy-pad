@@ -278,7 +278,7 @@ describe('colliding ranks', () => {
   // Two devices created "the first line" offline: both picked rank a0. Inserting between
   // them must re-rank instead of throwing, and keep their id order.
   function twins(): Rows {
-    const base = { parentId: null, text: '', done: false, collapsed: false, numbered: false, header: false, updatedAt: '2026-10-28T00:00:00.000Z', deletedAt: null }
+    const base = { parentId: null, text: '', done: false, doneAt: null, collapsed: false, numbered: false, header: false, updatedAt: '2026-10-28T00:00:00.000Z', deletedAt: null }
     return {
       a: { ...base, id: 'a', rank: 'a0', text: 'A' },
       b: { ...base, id: 'b', rank: 'a0', text: 'B' },

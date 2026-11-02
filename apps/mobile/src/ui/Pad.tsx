@@ -13,6 +13,7 @@ import { GUTTER, INDENT, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
 import { Account } from './Account'
+import { DoneSheet, TrashSheet } from './Lists'
 
 interface Drag {
   ids: string[]
@@ -60,6 +61,7 @@ export function Pad() {
   const container = useRef<ComponentRef<typeof View>>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [logText, setLogText] = useState<string | null>(null)
+  const [sheet, setSheet] = useState<'trash' | 'done' | null>(null)
 
   const { index, visible, numbers } = useMemo(() => {
     const index = buildIndex(rows)
@@ -216,6 +218,8 @@ export function Pad() {
         <Pressable onPress={deleteDone} disabled={doneCount === 0} style={s.topBtn}><Text style={[s.topText, { color: doneCount ? theme.inkSoft : theme.inkMute }]}>Delete done</Text></Pressable>
         <Pressable onPress={() => void pasteIn()} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Paste in</Text></Pressable>
         <Pressable onPress={copyAll} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Copy all</Text></Pressable>
+        <Pressable onPress={() => setSheet('done')} style={s.topBtn} accessibilityLabel="Recently done"><Text style={[s.topText, { color: theme.inkSoft }]}>Done</Text></Pressable>
+        <Pressable onPress={() => setSheet('trash')} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Trash</Text></Pressable>
         {logEnabled() && (
           <Pressable onPress={() => setLogText(dumpLog())} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Log</Text></Pressable>
         )}
@@ -232,6 +236,8 @@ export function Pad() {
           </ScrollView>
         </View>
       </Modal>
+      <TrashSheet visible={sheet === 'trash'} onClose={() => setSheet(null)} theme={theme} />
+      <DoneSheet visible={sheet === 'done'} onClose={() => setSheet(null)} theme={theme} />
       {toast && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
       {load === 'loading' ? (
         <Text style={[s.hint, { color: theme.inkMute }]}>Opening your pad…</Text>

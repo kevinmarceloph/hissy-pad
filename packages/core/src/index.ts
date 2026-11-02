@@ -37,6 +37,7 @@ export {
   setCollapsed,
   toggleCollapsed,
   remove,
+  restore,
   moveNodes,
   indent,
   dedent,

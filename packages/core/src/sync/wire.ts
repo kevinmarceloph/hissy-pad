@@ -9,9 +9,10 @@ export interface WireNode {
   rank: string
   text: string
   done: boolean
+  done_at?: string | null // optional on the wire: rows written before the column existed
   collapsed: boolean
   numbered: boolean
-  header?: boolean // optional on the wire: rows written before the column existed
+  header?: boolean // same
   updated_at: string
   deleted_at: string | null
   synced_at?: string
@@ -25,6 +26,7 @@ export function toWire(raw: NodeRow): WireNode {
     rank: r.rank,
     text: r.text,
     done: r.done,
+    done_at: r.doneAt,
     collapsed: r.collapsed,
     numbered: r.numbered,
     header: r.header,
@@ -41,6 +43,7 @@ export function fromWire(w: WireNode): { row: NodeRow; syncedAt: string } {
       rank: w.rank,
       text: w.text,
       done: w.done,
+      doneAt: w.done && w.done_at ? new Date(w.done_at).toISOString() : null,
       collapsed: w.collapsed,
       numbered: w.numbered,
       header: w.header === true && !w.numbered,

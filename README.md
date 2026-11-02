@@ -76,7 +76,16 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 | Cmd+A | select all |
 | Esc | clear |
 
+| top bar | |
+|---|---|
+| Delete done | remove every crossed-out line (undo brings them back) |
+| Paste in… / Copy all | import an outline / copy the whole pad |
+| Done | "Recently done": crossed-out lines, newest first, with an Undone button each |
+| Trash | lines deleted in the last 30 days, grouped by the delete that removed them, with a Restore button each |
+
 Cmd+S syncs right now (and never opens the browser's save dialog); on a phone, pull down at the top of the page to do the same, in the web app and the Expo app alike. Drag a bullet to move a line (press and hold on a phone); move right to nest under the line above, left to climb out. If the dragged line is part of a selection, the whole selection moves. Cmd+Z / Shift+Cmd+Z undo and redo anywhere. Tap a bullet to select it; once something is selected, tapping other bullets toggles them (no modifier, so it works on a phone). Shift+click selects a range. Blank lines show no bullet, done lines show a × like a bullet journal, and "Delete done" removes every crossed-out line (undo brings them back).
+
+Deleting is soft everywhere: a deleted line is a tombstone (`deleted_at`) that keeps syncing, so the Trash panel can list it for 30 days and put it back where it was, children included, on any device. Restoring a child whose parent is still deleted lands it at the top level. Crossing a line out stamps `done_at`, which is what the Done panel sorts by (lines crossed out before that column existed sort by their last edit). Nothing is purged from the server yet.
 
 ## Debugging
 

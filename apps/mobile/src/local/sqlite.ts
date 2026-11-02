@@ -9,6 +9,7 @@ interface Row {
   rank: string
   text: string
   done: number
+  done_at: string | null
   collapsed: number
   numbered: number
   header: number
@@ -22,6 +23,7 @@ const toRow = (r: Row): NodeRow => ({
   rank: r.rank,
   text: r.text,
   done: r.done === 1,
+  doneAt: r.done === 1 ? r.done_at ?? null : null,
   collapsed: r.collapsed === 1,
   numbered: r.numbered === 1,
   header: r.header === 1,
@@ -39,7 +41,7 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore {
         create table if not exists nodes (
           id text primary key, parent_id text, rank text not null, text text not null,
           done integer not null default 0, collapsed integer not null default 0, numbered integer not null default 0,
-          header integer not null default 0,
+          header integer not null default 0, done_at text,
           updated_at text not null, deleted_at text
         );
         create table if not exists dirty (id text primary key);
@@ -48,6 +50,7 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore {
       // Columns added after the first build, for databases created before them.
       const cols = await d.getAllAsync<{ name: string }>('pragma table_info(nodes)')
       if (!cols.some((c) => c.name === 'header')) await d.execAsync('alter table nodes add column header integer not null default 0')
+      if (!cols.some((c) => c.name === 'done_at')) await d.execAsync('alter table nodes add column done_at text')
       return d
     })())
 
@@ -61,12 +64,12 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore {
       await d.withTransactionAsync(async () => {
         for (const r of rows) {
           await d.runAsync(
-            `insert into nodes (id, parent_id, rank, text, done, collapsed, numbered, header, updated_at, deleted_at)
-             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `insert into nodes (id, parent_id, rank, text, done, done_at, collapsed, numbered, header, updated_at, deleted_at)
+             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              on conflict (id) do update set parent_id = excluded.parent_id, rank = excluded.rank, text = excluded.text,
-               done = excluded.done, collapsed = excluded.collapsed, numbered = excluded.numbered, header = excluded.header,
+               done = excluded.done, done_at = excluded.done_at, collapsed = excluded.collapsed, numbered = excluded.numbered, header = excluded.header,
                updated_at = excluded.updated_at, deleted_at = excluded.deleted_at`,
-            r.id, r.parentId, r.rank, r.text, r.done ? 1 : 0, r.collapsed ? 1 : 0, r.numbered ? 1 : 0, r.header ? 1 : 0, r.updatedAt, r.deletedAt,
+            r.id, r.parentId, r.rank, r.text, r.done ? 1 : 0, r.doneAt ?? null, r.collapsed ? 1 : 0, r.numbered ? 1 : 0, r.header ? 1 : 0, r.updatedAt, r.deletedAt,
           )
           if (opts.dirty) await d.runAsync('insert or ignore into dirty (id) values (?)', r.id)
         }
