@@ -65,6 +65,17 @@ describe('Pad', () => {
     expect(editing.caret).toBe(2)
   })
 
+  it('Cmd+Shift+Backspace deletes the line being edited, caret anywhere', async () => {
+    const user = userEvent.setup()
+    await mount('one\ntwo\nthree')
+    const ta = await startEditing('two')
+    ta.setSelectionRange(2, 2)
+    await user.keyboard('{Meta>}{Shift>}{Backspace}{/Shift}{/Meta}')
+    expect(texts()).toBe('one\nthree')
+    expect(usePad.getState().editing).toBeNull()
+    expect(usePad.getState().selection).toEqual([rowByText('three').dataset.id])
+  })
+
   it('Escape selects the line; Cmd+Enter crosses it out; Delete removes it', async () => {
     const user = userEvent.setup()
     await mount('one\ntwo')

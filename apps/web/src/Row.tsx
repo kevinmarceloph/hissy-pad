@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent
 import type { NodeRow } from '@hissypad/core'
 import { clickSelect, edit, select, usePad, type Editing } from '@hissypad/state'
 import {
-  cmdBackspaceAtStart, cmdDedent, cmdEditNeighbor, cmdEnter, cmdIndent, cmdMove, cmdPasteInto, cmdSetText,
+  cmdBackspaceAtStart, cmdDedent, cmdDeleteSelection, cmdEditNeighbor, cmdEnter, cmdIndent, cmdMove, cmdPasteInto, cmdSetText,
   cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
 import { redo, undo } from '@hissypad/state'
@@ -107,6 +107,10 @@ export function Row({ row, depth, childCount, editing, selected, selectedChild, 
     } else if (e.key === 'Enter' && mod(e)) {
       e.preventDefault()
       cmdToggleDone()
+    } else if (e.key === 'Backspace' && mod(e) && e.shiftKey) {
+      // Cmd+Shift+Backspace deletes the whole line, caret anywhere, like Workflowy.
+      e.preventDefault()
+      cmdDeleteSelection()
     } else if (e.key === 'Backspace' && selectionStart === 0 && selectionEnd === 0) {
       e.preventDefault()
       cmdBackspaceAtStart(row.id)
