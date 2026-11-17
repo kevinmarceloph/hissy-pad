@@ -40,7 +40,7 @@ npx eas-cli update --channel development --environment development --message "..
 
 The iPhone app has a home-screen widget ("Inbox", medium and large, iOS 17+): one pad's top line with Later, Done and Today buttons, and a + that opens the app to add a line. Long-press the widget and choose Edit Widget to pick the pad. It lives in `apps/mobile/targets/widget` (Swift) and needs a build, not an update.
 
-Sign-in on the phone returns through the `hissypad://auth` deep link, which must be in Supabase's redirect URL list. Press and hold a bullet to drag; Return splits the line; the toolbar sits above the keyboard.
+Sign-in on the phone returns through the `hissypad://auth` deep link, which must be in Supabase's redirect URL list. Press and hold a bullet to drag; Return splits the line; the toolbar sits above the keyboard in two rows. Round buttons float at the top right: + for a new line at the top, and while editing a check (cross out) and a chevron (done editing).
 
 ### Sync (optional)
 

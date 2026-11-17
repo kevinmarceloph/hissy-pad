@@ -4,7 +4,7 @@ import { loadPad, usePad } from './store'
 import { undo } from './history'
 import { edit, select } from './selection'
 import {
-  cmdAddAbove, cmdAddBelow, cmdAppendAtEnd, cmdBackspaceAtStart, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdEditNeighbor,
+  cmdAddAbove, cmdAddAtTop, cmdAddBelow, cmdAppendAtEnd, cmdBackspaceAtStart, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdEditNeighbor,
   cmdEnter, cmdIndent, cmdMove, cmdPasteAfterSelection, cmdPasteInto, cmdSetKind, cmdTextChanged, cmdToggleCollapsed, cmdToggleNumbered,
   cmdUngroup, copyPayload, setClipboard,
 } from './commands'
@@ -177,5 +177,14 @@ describe('commands', () => {
     expect(editing()).toMatchObject({ id: id('A'), caret: 'end' })
     cmdEditNeighbor(id('A'), -1)
     expect(editing()!.id).toBe(id('A'))
+  })
+
+  it('the floating + opens a blank line at the very top and edits it, one undo step', () => {
+    const top = cmdAddAtTop()
+    expect(shown()).toBe('\nA\nB\n  B1\n  B2\nC')
+    expect(editing()).toMatchObject({ id: top, caret: 0 })
+    expect(usePad.getState().selection).toEqual([])
+    undo()
+    expect(shown()).toBe('A\nB\n  B1\n  B2\nC')
   })
 })

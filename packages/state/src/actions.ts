@@ -47,6 +47,8 @@ export interface LineAction {
   hint: string     // tooltip on the web
   keys?: string    // the keyboard shortcut, as written on a Mac
   danger?: boolean
+  // Less used: an app short on width may tuck these behind a "More" button.
+  more?: boolean
   enabled?: (can: LineAbilities) => boolean
   // Returns a line to show the user (a toast on the web), or nothing.
   run: () => string | void
@@ -64,7 +66,7 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   { id: 'ungroup', group: 'tree', label: 'Ungroup', name: 'Ungroup', hint: 'Ungroup: its sub items come out to its own level', enabled: (c) => c.children, run: cmdUngroup },
   { id: 'copy', group: 'clip', label: 'Copy', name: 'Copy', hint: 'Copy as outline', keys: '⌘C', run: () => void cmdCopySelection() },
   {
-    id: 'makePad', group: 'pad', label: 'Make pad', name: 'Make pad', hint: 'Make this line a pad: its text is the name, its sub items the lines',
+    id: 'makePad', group: 'pad', label: 'Make pad', name: 'Make pad', hint: 'Make this line a pad: its text is the name, its sub items the lines', more: true,
     enabled: (c) => c.single,
     run: () => {
       const res = cmdLineToPad()

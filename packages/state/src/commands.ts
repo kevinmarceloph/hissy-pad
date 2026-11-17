@@ -2,7 +2,7 @@
 // handler (Pad). Each one picks its targets from the store and decides where the caret or
 // selection goes afterwards.
 import {
-  buildIndex, childrenOf, dedent, indent, insertAfter, insertAt, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone, ungroup,
+  buildIndex, childrenOf, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone, ungroup,
   setKind, setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline, toOutlineHtml, type NodeKind, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
@@ -64,6 +64,19 @@ export function cmdAddBelow() {
     return res.rows
   }, { label: 'cmdAddBelow' })
   edit(newId, 0)
+}
+
+// The floating +: a new blank line at the very top of the pad, ready to type into.
+// Returns its id.
+export function cmdAddAtTop(): string {
+  let newId = ''
+  apply((rows, ctx) => {
+    const res = insertAtTop(rows, ctx, '')
+    newId = res.newId
+    return res.rows
+  }, { label: 'cmdAddAtTop' })
+  edit(newId, 0)
+  return newId
 }
 
 export function cmdSetText(id: string, text: string) {

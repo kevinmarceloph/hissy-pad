@@ -12,6 +12,7 @@ import { apply, cmdAppendAtEnd, cmdCopySelection, cmdDeleteDone, clearLog, dumpL
 import { GUTTER, INDENT, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
+import { FloatingButtons } from './FloatingButtons'
 import { Account } from './Account'
 import { DoneSheet, TrashSheet } from './Lists'
 import { SortSheet } from './Sort'
@@ -283,6 +284,7 @@ export function Pad() {
             <Pressable style={s.tail} onPress={cmdAppendAtEnd} accessibilityLabel="Add a line at the end" />
             <Account theme={theme} />
           </ScrollView>
+          <FloatingButtons theme={theme} onAdd={() => scroller.current?.scrollTo({ y: 0, animated: true })} />
           </View>
         </GestureDetector>
       )}

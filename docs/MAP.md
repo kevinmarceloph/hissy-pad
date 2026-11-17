@@ -88,7 +88,8 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 |---|---|
 | `src/ui/Pad.tsx` | the screen: top bar, pad chips, the list, long-press drag, pull to refresh |
 | `src/ui/Row.tsx` | one line |
-| `src/ui/Toolbar.tsx` | the line toolbar above the keyboard, drawn from `LINE_ACTIONS` |
+| `src/ui/Toolbar.tsx` | the line toolbar above the keyboard, drawn from `LINE_ACTIONS` as two rows (no sideways scroll); actions marked `more` and Move to… sit behind More |
+| `src/ui/FloatingButtons.tsx` | the round buttons at the top right: + (a line at the top) when nothing is targeted; a check (cross out) and a chevron (done editing) while editing or selecting |
 | `src/ui/PadChips.tsx` | the pads as chips, with rename, reorder and delete |
 | `src/ui/Lists.tsx` | Trash and Recently done sheets |
 | `src/ui/Sort.tsx` | the Sort screen (PanResponder swipe) |
@@ -115,7 +116,7 @@ A widget cannot take typing, so its + opens the app at `hissypad://add?pad=…` 
 
 ## Adding things
 
-**A toolbar action.** Write the command in `packages/state/src/commands.ts` (or `pads.ts` if it is about pads). Add one entry to `LINE_ACTIONS` in `actions.ts`: id, group, label, name, hint, `run`, and `enabled` if it can be impossible. It appears on web and the phone. If "can it run" needs a new fact about the selection, add a field to `LineAbilities`. Test it in `actions.test.ts`.
+**A toolbar action.** Write the command in `packages/state/src/commands.ts` (or `pads.ts` if it is about pads). Add one entry to `LINE_ACTIONS` in `actions.ts`: id, group, label, name, hint, `run`, `enabled` if it can be impossible, and `more: true` if it is rare enough to sit behind the phone's More button. It appears on web and the phone. If "can it run" needs a new fact about the selection, add a field to `LineAbilities`. Test it in `actions.test.ts`.
 
 **A new edit to lines.** A pure function in `packages/core/src/ops.ts` (rows in, rows out, `ctx.now()` on every row it changes), exported from `index.ts`, tested in `ops.test.ts` with `pad()` and `shape()`. Then a `cmd…` in state that calls it through `apply`. Anything that moves rows between pads goes through `applyAll` and lives in `pads.ts`.
 
