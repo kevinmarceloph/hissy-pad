@@ -317,4 +317,16 @@ describe('Trash and Done panels', () => {
     expect(texts()).toBe('a\nb')
     expect(dlg).toHaveTextContent('Nothing is crossed out.')
   })
+
+  it('Ungroup in the toolbar brings a line\'s children out to its level; off for a leaf; one undo', async () => {
+    const user = userEvent.setup()
+    await mount('top\n  child\n    grand\n  other\nlast')
+    await startEditing('last')
+    const bar = screen.getByRole('toolbar', { name: 'Current line' })
+    expect(within(bar).getByRole('button', { name: 'Ungroup' })).toBeDisabled()
+    await startEditing('top')
+    await user.click(within(bar).getByRole('button', { name: 'Ungroup' }))
+    expect(texts()).toBe('top\nchild\n  grand\nother\nlast')
+    expect(usePad.getState().past.at(-1)?.label).toBe('cmdUngroup')
+  })
 })

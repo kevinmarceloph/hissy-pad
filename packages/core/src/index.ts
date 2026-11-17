@@ -41,6 +41,7 @@ export {
   moveNodes,
   indent,
   dedent,
+  ungroup,
   moveSibling,
   mergeIntoPrev,
   removeDone,

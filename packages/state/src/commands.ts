@@ -2,7 +2,7 @@
 // handler (Pad). Each one picks its targets from the store and decides where the caret or
 // selection goes afterwards.
 import {
-  buildIndex, childrenOf, dedent, indent, insertAfter, insertAt, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone,
+  buildIndex, childrenOf, dedent, indent, insertAfter, insertAt, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone, ungroup,
   setKind, setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline, toOutlineHtml, type NodeKind, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
@@ -100,6 +100,12 @@ export function cmdIndent() {
 export function cmdDedent() {
   const ids = targets()
   if (ids.length) apply((rows, ctx) => dedent(rows, ctx, ids), { label: 'cmdDedent' })
+}
+
+// Ungroup: the children of each target come out to its own level, right after it.
+export function cmdUngroup() {
+  const ids = targets()
+  if (ids.length) apply((rows, ctx) => ungroup(rows, ctx, ids), { label: 'cmdUngroup' })
 }
 
 export function cmdMove(dir: 'up' | 'down') {

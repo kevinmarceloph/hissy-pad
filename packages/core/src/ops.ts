@@ -267,6 +267,24 @@ export function dedent(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
   return out
 }
 
+// Ungroup: each node's children come out to sit right after it, at its own level, in
+// order; the node itself stays, now with nothing under it. Grandchildren keep their
+// parents. Deeper nodes go first, so ungrouping a line and one of its children together
+// flattens both levels.
+export function ungroup(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
+  const index0 = buildIndex(rows)
+  const want = new Set(ids)
+  const order = flatten(index0, false).map((r) => r.id).filter((id) => want.has(id)).reverse()
+  let out = rows
+  for (const id of order) {
+    const index = buildIndex(out)
+    const kids = childrenOf(index, id).map((r) => r.id)
+    if (kids.length === 0) continue
+    out = moveNodes(out, ctx, kids, { parentId: index.parentOf.get(id) ?? null, afterId: id })
+  }
+  return out
+}
+
 // Alt+Up / Alt+Down: a selection moves as a block past the nearest unselected sibling.
 // Nodes under different parents move within their own parent independently.
 export function moveSibling(rows: Rows, ctx: OpCtx, ids: Iterable<string>, dir: 'up' | 'down'): Rows {

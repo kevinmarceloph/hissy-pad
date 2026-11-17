@@ -4,7 +4,7 @@ import { clearSelection, cmdMoveToPad, padList, padName, stopEditing, usePad } f
 import { showToast } from './toast'
 import {
   cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
-  cmdSetKind, cmdToggleCollapsed, cmdToggleDone,
+  cmdSetKind, cmdToggleCollapsed, cmdUngroup, cmdToggleDone,
 } from '@hissypad/state'
 
 // What each action can do for the current targets, so impossible ones read as disabled
@@ -120,6 +120,7 @@ export function SelectionBar() {
       <button type="button" onClick={() => cmdMove('down')} disabled={!can.down} title="Move down (Alt+↓)" aria-label="Move down">↓</button>
       <span className="sep" aria-hidden="true" />
       <button type="button" onClick={cmdToggleCollapsed} disabled={!can.fold} title="Fold or unfold (⌘.)">Fold</button>
+      <button type="button" onClick={cmdUngroup} disabled={!can.fold} title="Ungroup: its sub items come out to its own level">Ungroup</button>
       <button type="button" onClick={cmdCopySelection} title="Copy as outline (⌘C)">Copy</button>
       {pads.length > 0 && (
         <span className="moveto">

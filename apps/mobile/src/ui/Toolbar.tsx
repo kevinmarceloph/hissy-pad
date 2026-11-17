@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { buildIndex, childrenOf, kindOf, topmost, type NodeKind } from '@hissypad/core'
 import {
   clearSelection, stopEditing, usePad, padList, cmdMoveToPad,
-  cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdSetKind, cmdToggleCollapsed, cmdToggleDone,
+  cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdSetKind, cmdToggleCollapsed, cmdToggleDone, cmdUngroup,
 } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 
@@ -80,6 +80,7 @@ export function Toolbar({ theme }: { theme: Theme }) {
         <Btn theme={theme} label="↓" a11y="Move down" onPress={() => cmdMove('down')} disabled={!can.down} />
         {sep}
         <Btn theme={theme} label="Fold" onPress={cmdToggleCollapsed} disabled={!can.fold} />
+        <Btn theme={theme} label="Ungroup" a11y="Ungroup: sub items come out to this line's level" onPress={cmdUngroup} disabled={!can.fold} />
         <Btn theme={theme} label="Copy" onPress={() => void cmdCopySelection()} />
         {others.length > 0 && <Btn theme={theme} label="Move to…" a11y="Move to another pad" onPress={moveTo} />}
         <Btn theme={theme} label="Delete" onPress={cmdDeleteSelection} />

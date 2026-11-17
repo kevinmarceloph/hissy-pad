@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   dedent, indent, insertAfter, insertAtTop, insertBefore, mergeIntoPrev, moveNodes, moveSibling,
-  remove, removeDone, setCollapsed, setDone, setKind, setNumbered, setText, splitNode, sweepDone, toggleDone, toggleNumbered,
+  remove, removeDone, setCollapsed, setDone, setKind, setNumbered, setText, splitNode, sweepDone, toggleDone, toggleNumbered, ungroup,
 } from './ops'
 import { idOf, pad, shape, testCtx } from './testing'
 import type { Rows } from './types'
@@ -301,5 +301,20 @@ describe('colliding ranks', () => {
     expect(shape(moveNodes(twins(), ctx, ['c'], { parentId: null, afterId: 'a' }))).toBe('A\nC\nB')
     expect(shape(moveSibling(twins(), ctx, ['c'], 'up'))).toBe('A\nC\nB')
     expect(shape(insertOutline(twins(), ctx, parseOutline('p\n  q'), { parentId: null, afterId: 'a' }).rows)).toBe('A\np\n  q\nB\nC')
+  })
+})
+
+describe('ungroup', () => {
+  const rows = () => pad('A\nB\n  B1\n    B1a\n  B2\nC\n  C1')
+  it("brings a line's children out to its own level, right after it, in order", () => {
+    const r = rows()
+    const out = ungroup(r, testCtx(), [idOf(r, 'B')])
+    expect(shape(out)).toBe('A\nB\nB1\n  B1a\nB2\nC\n  C1')
+    expect(ungroup(out, testCtx(), [idOf(out, 'A'), idOf(out, 'B')])).toBe(out) // no children: nothing changes
+  })
+  it('works a level down, and a line with one of its children flattens both levels', () => {
+    const r = rows()
+    expect(shape(ungroup(r, testCtx(), [idOf(r, 'B1')]))).toBe('A\nB\n  B1\n  B1a\n  B2\nC\n  C1')
+    expect(shape(ungroup(r, testCtx(), [idOf(r, 'B'), idOf(r, 'B1'), idOf(r, 'C')]))).toBe('A\nB\nB1\nB1a\nB2\nC\nC1')
   })
 })
