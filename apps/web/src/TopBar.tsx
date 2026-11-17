@@ -25,7 +25,7 @@ export function applyTheme(t: Theme) {
   document.documentElement.dataset.theme = t === 'system' ? '' : t
 }
 
-export function TopBar({ onFreshStart, view }: { onFreshStart: () => void; view: 'pad' | 'fresh' }) {
+export function TopBar({ onFreshStart, onSort, view }: { onFreshStart: () => void; onSort: () => void; view: 'pad' | 'fresh' | 'sort' }) {
   const rows = usePad((s) => s.rows)
   const [theme, setTheme] = useState<Theme>(readTheme)
   const toast = useToast((s) => s.text)
@@ -80,6 +80,7 @@ export function TopBar({ onFreshStart, view }: { onFreshStart: () => void; view:
         <button type="button" onClick={() => dialog.current?.showModal()} disabled={view !== 'pad'}>Paste in…</button>
         <button type="button" onClick={exportAll} disabled={liveCount === 0}>Copy all</button>
         <button type="button" onClick={onFreshStart} disabled={liveCount === 0 || view !== 'pad'} title="Pick what stays; the rest moves to a new pad">Fresh start…</button>
+        <button type="button" onClick={onSort} disabled={liveCount === 0 || view !== 'pad'} title="One line at a time: swipe left for later, right for today, up for done">Sort…</button>
         <button type="button" onClick={() => doneDialog.current?.showModal()} aria-label="Recently done" title="Crossed-out lines, newest first">Done</button>
         <button type="button" onClick={() => trashDialog.current?.showModal()} title="Deleted lines from the last 30 days">Trash</button>
         {logEnabled() && (

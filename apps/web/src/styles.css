@@ -556,3 +556,84 @@ dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-f
   .arrows button:nth-child(2)::after { content: ' back'; font-size: 0.85rem; }
   .pane-rows { min-height: 8rem; max-height: 40vh; }
 }
+
+/* Sort: one line at a time on a card. Swipe left, right or up; the card's text and sub
+   items are live fields. The stamps are the one place the accent shows, under the hand. */
+.sort-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem 2rem; margin-bottom: 1rem; }
+.sort-head h2 { margin: 0 0 0.25rem; font-weight: 400; font-size: 1.2rem; }
+.sort-head p { margin: 0; color: var(--ink-soft); font-size: 0.92rem; }
+.sort button { min-height: 40px; padding: 0 0.9rem; border-radius: 4px; border: 1px solid var(--rule); background: var(--paper-raised); }
+.sort button:disabled { opacity: 0.45; cursor: default; }
+.sort button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); flex: none; }
+.sort kbd { font: inherit; color: var(--ink-mute); }
+.sort-stage { position: relative; display: grid; min-height: 15rem; margin: 0 auto; max-width: 30rem; }
+.sort-card {
+  position: relative; grid-area: 1 / 1; align-self: start;
+  padding: 1rem 1.25rem 1.1rem;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule); border-radius: 8px;
+  box-shadow: 0 10px 30px -18px rgb(0 0 0 / 0.4);
+  touch-action: none; cursor: grab;
+  transition: transform 180ms ease-out;
+  animation: sort-in 180ms ease-out;
+}
+.sort-card.is-dragging { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+.sort-card.is-dragging textarea, .sort-card.is-dragging input { pointer-events: none; }
+.sort-card.leans-left, .sort-card.leans-right, .sort-card.leans-up { border-color: var(--accent); }
+.sort-count { margin: 0 0 0.5rem; color: var(--ink-mute); font-size: 0.82rem; }
+.sort-card textarea, .sort-card input {
+  display: block; width: 100%; padding: 0; margin: 0;
+  border: 0; outline: 0; background: transparent; resize: none; overflow: hidden;
+  touch-action: none;
+}
+.sort-card textarea:focus, .sort-card input:focus { background: var(--accent-faint); box-shadow: 0 0 0 4px var(--accent-faint); border-radius: 2px; }
+.sort-card .sort-text { font-size: 1.25rem; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sort-subs { list-style: none; margin: 0.75rem 0 0; padding: 0.6rem 0 0; border-top: 1px solid var(--rule); }
+.sort-subs li { position: relative; padding-left: calc(1.1rem + var(--depth, 0) * var(--indent)); }
+.sort-subs li::before {
+  content: ''; position: absolute; top: 0.62em;
+  left: calc(0.2rem + var(--depth, 0) * var(--indent));
+  width: 5px; height: 5px; border-radius: 50%; background: var(--ink-mute);
+}
+.sort-subs li.is-done textarea { text-decoration: line-through; color: var(--ink-mute); }
+.sort-subs li.add::before { background: none; content: '+'; top: 0; left: 0.05rem; width: auto; height: auto; color: var(--ink-mute); }
+.sort-subs li.add input::placeholder, .sort-card textarea::placeholder { color: var(--ink-mute); font-style: italic; }
+.stamp {
+  position: absolute; top: 0.7rem; z-index: 1;
+  padding: 0.05rem 0.5rem;
+  border: 1.5px solid var(--accent); border-radius: 4px;
+  color: var(--accent); background: var(--paper-raised);
+  font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase;
+  opacity: 0; pointer-events: none;
+}
+.stamp-left { right: 0.8rem; rotate: 6deg; }
+.stamp-right { left: 0.8rem; rotate: -6deg; }
+.stamp-up { left: 50%; translate: -50% 0; }
+.sort-card.is-ghost { pointer-events: none; animation: sort-out 220ms ease-in forwards; }
+.sort-card.is-ghost .sort-text { margin-top: 1.75rem; }
+.sort-card.is-ghost.to-left { --tx: -130%; --ty: 0%; --rot: -14deg; }
+.sort-card.is-ghost.to-right { --tx: 130%; --ty: 0%; --rot: 14deg; }
+.sort-card.is-ghost.to-up { --tx: 0%; --ty: -140%; --rot: 0deg; }
+.sort-card.is-ghost.to-skip { --tx: 0%; --ty: 60%; --rot: 0deg; }
+@keyframes sort-out {
+  from { transform: translate(var(--dx, 0px), var(--dy, 0px)); opacity: 1; }
+  to { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)); opacity: 0; }
+}
+@keyframes sort-in {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.sort-empty { grid-area: 1 / 1; align-self: center; text-align: center; color: var(--ink-soft); }
+.sort-empty p { margin: 0; font-size: 1.2rem; }
+.sort-empty .tally { font-size: 0.95rem; color: var(--ink-mute); margin-top: 0.25rem; }
+.sort-actions, .sort-minor, .sort-targets { display: flex; justify-content: center; gap: 0.5rem; margin: 1rem auto 0; max-width: 30rem; }
+.sort-actions button { flex: 1 1 0; min-width: 0; min-height: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sort-minor button { border-color: transparent; background: none; color: var(--ink-soft); }
+.sort-minor button:hover:not(:disabled) { background: var(--paper-raised); color: var(--ink); }
+.sort-targets { flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--ink-soft); }
+.sort-target { display: inline-flex; align-items: center; gap: 0.4rem; }
+.sort-target select { max-width: 11rem; min-height: 32px; padding: 0 0.3rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper-raised); }
+@media (prefers-reduced-motion: reduce) {
+  .sort-card { animation: none; transition: none; }
+  .sort-card.is-ghost { display: none; }
+}

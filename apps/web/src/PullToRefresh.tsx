@@ -37,7 +37,7 @@ export function PullToRefresh() {
       const p = phaseRef.current
       if (p === 'syncing' || p === 'done' || p === 'failed') return
       const t = e.target as Element | null
-      if (t?.closest?.('textarea, input, select, .bullet, dialog')) return
+      if (t?.closest?.('textarea, input, select, .bullet, dialog, .sort-card')) return
       startY.current = e.touches[0]!.clientY
     }
 

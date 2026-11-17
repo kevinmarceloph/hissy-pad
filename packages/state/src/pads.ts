@@ -19,7 +19,7 @@ export function padList(all: Rows): { id: PadId; name: string }[] {
 
 // A pad shown with nothing in it gets one blank line to type into (the same rule as
 // deleting the last line). Returns that line's id, or null when the pad has lines.
-function ensureLine(): string | null {
+export function ensureLine(): string | null {
   if (Object.keys(usePad.getState().rows).length > 0) return null
   let id = ''
   apply((rows, ctx) => {
