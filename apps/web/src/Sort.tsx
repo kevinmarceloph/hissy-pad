@@ -5,22 +5,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from 'react'
 import { buildIndex, flatten, isLive, listPads } from '@hissypad/core'
 import {
-  cmdSortAddSub, cmdSortBack, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, padName, setSortTarget, sortQueue, sortTarget,
+  cmdSortAddSub, cmdSortBack, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, padName, setSortTarget, sortQueue, sortTarget, swipeDir, SWIPE_DISTANCE,
   usePad, useSort, type SortDir, type SortResult, type SortSide,
 } from '@hissypad/state'
 
-const SWIPE = 90 // px of travel that commits a swipe
+const SWIPE = SWIPE_DISTANCE // px of travel that commits a swipe
 const SLOP = 8   // px before a press becomes a drag
 
 interface Sent extends SortResult { id: string }
 interface Ghost { key: number; text: string; dir: SortDir; dx: number; dy: number }
-
-function swipeDir(dx: number, dy: number): SortDir | null {
-  if (dy < -SWIPE && -dy > Math.abs(dx)) return 'up'
-  if (dx > SWIPE) return 'right'
-  if (dx < -SWIPE) return 'left'
-  return null
-}
 
 // A textarea as tall as its text, snapped to whole lines (a line is 25.5px, see CLAUDE.md).
 function AutoText(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {

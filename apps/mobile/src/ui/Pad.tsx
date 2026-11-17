@@ -8,12 +8,13 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Clipboard from 'expo-clipboard'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, descendantIds, flatten, listNumbers, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdAppendAtEnd, cmdCopySelection, cmdDeleteDone, clearLog, dumpLog, importOutline, logEnabled, refresh, select, usePad, visibleIds } from '@hissypad/state'
+import { apply, cmdAppendAtEnd, cmdCopySelection, cmdDeleteDone, clearLog, dumpLog, importOutline, logEnabled, refresh, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
 import { Account } from './Account'
 import { DoneSheet, TrashSheet } from './Lists'
+import { SortSheet } from './Sort'
 import { PadChips } from './PadChips'
 
 interface Drag {
@@ -62,7 +63,7 @@ export function Pad() {
   const container = useRef<ComponentRef<typeof View>>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [logText, setLogText] = useState<string | null>(null)
-  const [sheet, setSheet] = useState<'trash' | 'done' | null>(null)
+  const [sheet, setSheet] = useState<'trash' | 'done' | 'sort' | null>(null)
 
   const { index, visible, numbers } = useMemo(() => {
     const index = buildIndex(rows)
@@ -219,6 +220,7 @@ export function Pad() {
         <Pressable onPress={deleteDone} disabled={doneCount === 0} style={s.topBtn}><Text style={[s.topText, { color: doneCount ? theme.inkSoft : theme.inkMute }]}>Delete done</Text></Pressable>
         <Pressable onPress={() => void pasteIn()} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Paste in</Text></Pressable>
         <Pressable onPress={copyAll} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Copy all</Text></Pressable>
+        <Pressable onPress={() => { stopEditing(); setSheet('sort') }} style={s.topBtn} accessibilityLabel="Sort this pad"><Text style={[s.topText, { color: theme.inkSoft }]}>Sort</Text></Pressable>
         <Pressable onPress={() => setSheet('done')} style={s.topBtn} accessibilityLabel="Recently done"><Text style={[s.topText, { color: theme.inkSoft }]}>Done</Text></Pressable>
         <Pressable onPress={() => setSheet('trash')} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Trash</Text></Pressable>
         {logEnabled() && (
@@ -239,6 +241,7 @@ export function Pad() {
         </View>
       </Modal>
       <TrashSheet visible={sheet === 'trash'} onClose={() => setSheet(null)} theme={theme} />
+      {sheet === 'sort' && <SortSheet onClose={() => setSheet(null)} theme={theme} />}
       <DoneSheet visible={sheet === 'done'} onClose={() => setSheet(null)} theme={theme} />
       {toast && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
       {load === 'loading' ? (

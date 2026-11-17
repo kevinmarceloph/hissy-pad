@@ -35,6 +35,16 @@ export function setSortTarget(side: SortSide, choice: SortChoice) {
   void getLocalStore().setMeta(KEY[side], choice ?? '').catch(() => {})
 }
 
+// A drag of (dx, dy) as a swipe, or null when it is too short to count. Up wins only
+// when the drag is more vertical than sideways.
+export const SWIPE_DISTANCE = 90
+export function swipeDir(dx: number, dy: number, threshold = SWIPE_DISTANCE): SortDir | null {
+  if (dy < -threshold && -dy > Math.abs(dx)) return 'up'
+  if (dx > threshold) return 'right'
+  if (dx < -threshold) return 'left'
+  return null
+}
+
 export interface SortTarget {
   padId: PadId      // null = the main pad
   name: string
