@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import {
   buildIndex, childrenOf, createPad, insertAt, isLive, isPadNode, listPads, moveNodes, remove, setDone, setText,
-  type PadId, type Rows,
+  type OpCtx, type PadId, type Rows,
 } from '@hissypad/core'
 import { apply, applyAll, getLocalStore, usePad } from './store'
 import { undo } from './history'
@@ -95,6 +95,27 @@ export interface SortResult {
   undoDepth: number // the undo stack's length before this card; cmdSortBack returns to it
 }
 
+// The move itself, on the whole table: `id` goes to the bottom of the target pad (made
+// on the spot when it is a default that does not exist yet) unless it is already in it,
+// and is crossed out when the direction is up. `here` is the pad the line is in now.
+export function sendToTarget(all: Rows, ctx: OpCtx, id: string, dir: Exclude<SortDir, 'skip'>, target: SortTarget, here: PadId): { rows: Rows; moved: boolean } {
+  let out = all
+  let padId = target.padId
+  let moved = false
+  if (!target.exists) {
+    const made = createPad(out, ctx, target.name)
+    out = made.rows
+    padId = made.padId
+  }
+  if (padId !== here) {
+    const last = childrenOf(buildIndex(out), padId).filter((r) => !r.pad).at(-1)
+    out = moveNodes(out, ctx, [id], { parentId: padId, afterId: last?.id ?? null })
+    moved = true
+  }
+  if (dir === 'up') out = setDone(out, ctx, [id], true)
+  return { rows: out, moved }
+}
+
 // Send one card on its way: one undo step, the default pad made on the spot if needed.
 // The line goes to the bottom of its new pad, so a run of cards arrives in the order it
 // was sorted.
@@ -109,21 +130,9 @@ export function cmdSortSend(id: string, dir: SortDir): SortResult | null {
   const target = sortTarget(state.all, side)
   let moved = false
   applyAll((all, ctx) => {
-    let out = all
-    let padId = target.padId
-    if (!target.exists) {
-      const made = createPad(out, ctx, target.name)
-      out = made.rows
-      padId = made.padId
-    }
-    if (padId !== here) {
-      const index = buildIndex(out)
-      const last = childrenOf(index, padId).filter((r) => !r.pad).at(-1)
-      out = moveNodes(out, ctx, [id], { parentId: padId, afterId: last?.id ?? null })
-      moved = true
-    }
-    if (dir === 'up') out = setDone(out, ctx, [id], true)
-    return out
+    const res = sendToTarget(all, ctx, id, dir, target, here)
+    moved = res.moved
+    return res.rows
   }, { label: `cmdSortSend:${dir}` })
   usePad.setState({ selection: [], anchorId: null, focusId: null })
   ensureLine() // the last line may have just left the pad

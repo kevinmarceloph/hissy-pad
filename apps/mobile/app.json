@@ -11,6 +11,12 @@
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "appleTeamId": "22M56484D3",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.ph.marcelo.hissypad"
+        ]
       }
     },
     "android": {
@@ -26,7 +32,8 @@
     "plugins": [
       "expo-sqlite",
       "expo-web-browser",
-      "./plugins/withNoShakeToEdit"
+      "./plugins/withNoShakeToEdit",
+      "@bacons/apple-targets"
     ],
     "scheme": "hissypad",
     "splash": {

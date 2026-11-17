@@ -10,6 +10,7 @@ import { Pad } from './src/ui/Pad'
 import { completeAuthFromUrl } from './src/ui/Account'
 import { useTheme } from './src/theme'
 import { useShakeToUndo } from './src/shake'
+import { handleWidgetUrl, useWidgetBridge } from './src/widget'
 
 function report(msg: string | null) {
   if (msg && msg !== 'Signed in.') Alert.alert('Sign in', msg)
@@ -19,15 +20,18 @@ export default function App() {
   const theme = useTheme()
   const [ready, setReady] = useState(false)
   useShakeToUndo()
+  useWidgetBridge(ready)
   useEffect(() => {
     void (async () => {
       await setupApp()
       await loadPad()
       setReady(true)
       const initial = await Linking.getInitialURL()
-      if (initial) report(await completeAuthFromUrl(initial))
+      if (initial && !handleWidgetUrl(initial)) report(await completeAuthFromUrl(initial))
     })()
-    const sub = Linking.addEventListener('url', (e) => void completeAuthFromUrl(e.url).then(report))
+    const sub = Linking.addEventListener('url', (e) => {
+      if (!handleWidgetUrl(e.url)) void completeAuthFromUrl(e.url).then(report)
+    })
     return () => sub.remove()
   }, [])
   return (

@@ -59,6 +59,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `lists.ts` | the Trash and Recently done panels: entries, restore, un-done, day grouping |
 | `sort.ts` | Sort: the queue, the two targets, sending a card, the session a sort screen holds, the swipe rule |
 | `shake.ts` | shake detection from accelerometer samples |
+| `widget.ts` | the home-screen widget's data: the snapshot it draws from, applying the buttons pressed on it, adding a line to a pad |
 | `sync.ts` | wires the engine to the store and to Supabase auth; `refresh`, `forceSync`, the status line (`syncLine`) |
 | `remote.ts` | the `Remote` the engine talks to, over Supabase |
 | `log.ts` | the debug log (`?debug=1`) |
@@ -95,7 +96,18 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 | `src/shake.ts` | shake to undo (needs a build with `expo-sensors`) |
 | `src/local/sqlite.ts` | LocalStore on expo-sqlite; adds new columns on open |
 | `src/theme.ts` | the paper and ink tokens |
+| `src/widget.ts` | the app's end of the widget: writes the snapshot, applies queued presses, handles the widget's links |
+| `targets/widget/` | the iOS widget itself, in Swift (WidgetKit + App Intents): `Shared.swift` (the shared storage), `Intents.swift` (the pad setting, the send button), `InboxWidget.swift` (timeline and views), `expo-target.config.js` (target settings and colors) |
 | `plugins/withNoShakeToEdit.js` | config plugin: turns off iOS's own shake prompt |
+
+### The widget and the app
+
+The widget runs in its own process and cannot run any of the JavaScript. The two share an App Group (`group.ph.marcelo.hissypad`) and pass two JSON strings through its UserDefaults:
+
+- `widget.snapshot`: every pad with its open top-level lines. The app writes it when the pads change and tells the widget to redraw. A button on the widget edits it in place, so the widget redraws at once.
+- `widget.actions`: the buttons pressed since the app was last in front. The widget appends; the app applies them (`cmdWidgetActions`) and clears the list when it comes to the front. A press therefore reaches the pad, and sync, only when the app next opens.
+
+A widget cannot take typing, so its + opens the app at `hissypad://add?pad=…` with a prompt. The shapes are defined once in `packages/state/src/widget.ts` and mirrored by the Codable structs in `Shared.swift`: change both together.
 
 ## supabase
 
@@ -118,6 +130,8 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 4. `apps/mobile/src/local/sqlite.ts`: the `Row` type, `toRow`, the `create table`, an `alter table` for databases made before it, and the upsert.
 5. `rowBrief` in `state/log.ts` if the log should show it.
 The web's IndexedDB store keeps rows as objects and needs nothing.
+
+**Something native on iOS (a widget, an extension).** A folder under `apps/mobile/targets/` with an `expo-target.config.js` (the `@bacons/apple-targets` plugin turns it into an Xcode target on prebuild). Its data rules go in `packages/state` as plain functions with tests; the Swift side only draws and records. It needs a new build, not an update, and anything the app calls from JS must tolerate a build that does not have it.
 
 **Something only one platform has.** Web: `apps/web/src/platform/`. Phone: `apps/mobile/src/`. Register it with the state package the way `main.tsx` and `setup.ts` register the clipboard and the LocalStore.
 
