@@ -498,24 +498,30 @@ dialog.import .actions .danger { border-color: transparent; color: var(--accent)
 dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-faint); }
 
 /* Move to another pad: a small list that opens above the toolbar button. */
-.selbar .moveto { position: relative; flex: none; }
-.selbar .menu {
-  position: absolute;
-  bottom: calc(100% + 0.45rem);
-  left: 50%;
+.selbar .moveto { flex: none; }
+/* The Move to… menu. It is a child of <body>, not of the bar: the bar scrolls sideways and
+   would clip it. SelectionBar.tsx places it above the button with left/bottom. */
+.moveto-menu {
+  position: fixed;
+  z-index: 30;
   translate: -50% 0;
   display: grid;
   min-width: 10rem;
-  max-width: 16rem;
+  max-width: 12rem;
+  max-height: min(60vh, 24rem);
+  overflow-y: auto;
   padding: 0.25rem;
   background: var(--paper-raised);
   border: 1px solid var(--rule);
   border-radius: 6px;
   box-shadow: 0 6px 24px -12px rgb(0 0 0 / 0.35);
   white-space: normal;
+  font-size: 0.9rem;
+  color: var(--ink);
 }
-.selbar .menu button { justify-content: flex-start; text-align: left; min-height: 32px; padding: 0 0.6rem; border-radius: 4px; width: 100%; }
-.selbar .menu button:hover { background: var(--accent-soft); }
+/* display: block, not the bar's inline-flex, so a long pad name ends in an ellipsis. */
+.moveto-menu button { display: block; text-align: left; height: 36px; line-height: 36px; padding: 0 0.6rem; border-radius: 4px; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar.moveto-menu button:hover:not(:disabled) { background: var(--accent-soft); }
 
 /* Fresh start: two panes, what leaves on the left and what stays on the right, with the
    arrows between them. Rows reuse the pad's own look but do not edit. */

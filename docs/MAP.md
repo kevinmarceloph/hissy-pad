@@ -77,7 +77,7 @@ Vite, React 19, a PWA. `src/main.tsx` wires the platform (IndexedDB, clipboard, 
 | `src/pads/` | `PadTabs.tsx` (tabs, the pad sheet) and `FreshStart.tsx` |
 | `src/panels/` | `Lists.tsx` (Trash, Recently done) and `Sort.tsx` |
 | `src/platform/` | what only a browser has: `idb.ts` (LocalStore on IndexedDB), `clipboard.ts`, `supabase.ts`, `os.ts` (Mac or not, shortcut hints) |
-| `e2e/` | Playwright with real pointers and touches: `drag.spec.ts`, `sort.spec.ts` |
+| `e2e/` | Playwright with real pointers and touches: `drag.spec.ts`, `sort.spec.ts`, `toolbar.spec.ts` (the Move to… menu is really on screen) |
 | `test/setup.ts` | jsdom gaps filled in (dialogs) |
 
 ## apps/mobile

@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { kindOf, type PadId } from '@hissypad/core'
 import {
   clearSelection, cmdMoveToPad, cmdSetKind, lineAbilities, lineCount, padList, padName, stopEditing, usePad,
@@ -22,6 +23,8 @@ export function SelectionBar() {
   const padId = usePad((s) => s.padId)
   const pads = useMemo(() => padList(all).filter((p) => p.id !== padId), [all, padId])
   const [menu, setMenu] = useState(false)
+  const moveBtn = useRef<HTMLButtonElement>(null)
+  const [menuAt, setMenuAt] = useState<{ left: number; bottom: number } | null>(null)
   const ids = selection.length > 0 ? selection : editing ? [editing.id] : []
   const can = useMemo(() => lineAbilities(rows, ids), [rows, ids])
   const ref = useRef<HTMLDivElement>(null)
@@ -47,13 +50,43 @@ export function SelectionBar() {
     }
   }, [visible])
 
+  // The menu is drawn outside the bar (a portal on <body>): the bar scrolls sideways, and
+  // a scrolling box clips anything positioned inside it. It sits above the button, kept
+  // inside the window, and follows the button if the bar scrolls or the window resizes.
+  useLayoutEffect(() => {
+    if (!menu) {
+      setMenuAt(null)
+      return
+    }
+    const place = () => {
+      const r = moveBtn.current?.getBoundingClientRect()
+      if (!r) return
+      const half = 96 // half the menu's widest (16rem is the cap; most are narrower)
+      const left = Math.min(Math.max(r.left + r.width / 2, half + 8), window.innerWidth - half - 8)
+      setMenuAt({ left, bottom: window.innerHeight - r.top + 8 })
+    }
+    place()
+    const bar = ref.current
+    bar?.addEventListener('scroll', place)
+    window.addEventListener('resize', place)
+    window.visualViewport?.addEventListener('resize', place)
+    return () => {
+      bar?.removeEventListener('scroll', place)
+      window.removeEventListener('resize', place)
+      window.visualViewport?.removeEventListener('resize', place)
+    }
+  }, [menu])
+
   useEffect(() => {
     if (!menu) return
     const close = (e: Event) => {
-      if (!(e.target as HTMLElement).closest?.('.moveto')) setMenu(false)
+      if (!(e.target as HTMLElement).closest?.('.moveto, .moveto-menu')) setMenu(false)
     }
+    // Escape closes the menu and stops there: the selection stays as it was.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenu(false)
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      setMenu(false)
     }
     document.addEventListener('pointerdown', close)
     window.addEventListener('keydown', onKey, true)
@@ -94,13 +127,14 @@ export function SelectionBar() {
   )
   const moveMenu = pads.length > 0 && (
     <span className="moveto">
-      <button type="button" onClick={() => setMenu((m) => !m)} aria-haspopup="menu" aria-expanded={menu} title="Move to another pad">Move to…</button>
-      {menu && (
-        <div className="menu" role="menu" aria-label="Move to pad">
+      <button ref={moveBtn} type="button" onClick={() => setMenu((m) => !m)} aria-haspopup="menu" aria-expanded={menu} title="Move to another pad">Move to…</button>
+      {menu && menuAt && createPortal(
+        <div className="bar moveto-menu" role="menu" aria-label="Move to pad" style={{ left: menuAt.left, bottom: menuAt.bottom }} onMouseDown={(e) => e.preventDefault()}>
           {pads.map((p) => (
             <button key={p.id ?? 'main'} type="button" role="menuitem" onClick={() => moveTo(p.id)}>{p.name}</button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </span>
   )
