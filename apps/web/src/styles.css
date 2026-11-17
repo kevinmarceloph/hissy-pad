@@ -483,6 +483,9 @@ dialog.import input[type='email'] {
 .pads .add { min-width: 32px; min-height: 32px; border-radius: 4px; color: var(--ink-mute); font-size: 1.1rem; line-height: 1; }
 .pads .add:hover { color: var(--ink); background: var(--paper-raised); }
 dialog.pad-sheet { width: min(26rem, calc(100vw - 32px)); }
+dialog.pad-sheet .order div { display: flex; gap: 0.5rem; }
+dialog.pad-sheet .order button { min-height: 36px; padding: 0 0.8rem; border-radius: 4px; border: 1px solid var(--rule); }
+dialog.pad-sheet .order button:disabled { opacity: 0.45; cursor: default; }
 dialog.import .field input {
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--rule);

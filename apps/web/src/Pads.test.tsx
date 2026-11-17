@@ -128,4 +128,22 @@ describe('pads', () => {
     expect(texts()).toBe('a\nb')
     expect(screen.getAllByRole('tab')).toHaveLength(1)
   })
+
+  it('the pad sheet moves a pad left and right among the tabs', async () => {
+    const user = userEvent.setup()
+    await mount('a')
+    for (const name of ['One', 'Two']) {
+      await user.click(screen.getByRole('button', { name: 'New pad' }))
+      await user.type(screen.getByLabelText('Pad name'), name)
+      await user.click(screen.getByRole('button', { name: 'Create' }))
+    }
+    const names = () => screen.getAllByRole('tab').map((t) => t.textContent)
+    await user.click(tab('Two'))
+    expect(screen.getByRole('button', { name: 'Move pad right' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Move pad left' }))
+    expect(names()).toEqual(['Main', 'Two', 'One'])
+    expect(screen.getByRole('button', { name: 'Move pad left' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Move pad right' }))
+    expect(names()).toEqual(['Main', 'One', 'Two'])
+  })
 })

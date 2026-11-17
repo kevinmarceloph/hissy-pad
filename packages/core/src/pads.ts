@@ -76,6 +76,20 @@ export function createPad(all: Rows, ctx: OpCtx, name: string): { rows: Rows; pa
   return { rows: { ...res.rows, [node.id]: { ...node, pad: true } }, padId: node.id }
 }
 
+// Move a pad one place left (-1) or right (1) among the pads. The main pad is always
+// first and is not in this order. Only the moved pad's rank changes.
+export function movePad(all: Rows, ctx: OpCtx, padId: string, dir: -1 | 1): Rows {
+  const root = childrenOf(buildIndex(all), null)
+  const pads = root.filter((r) => r.pad)
+  const i = pads.findIndex((r) => r.id === padId)
+  const other = pads[i + dir]
+  if (i < 0 || !other) return all
+  if (dir === 1) return moveNodes(all, ctx, [padId], { parentId: null, afterId: other.id })
+  const before = root.filter((r) => r.id !== padId)
+  const j = before.findIndex((r) => r.id === other.id)
+  return moveNodes(all, ctx, [padId], { parentId: null, afterId: before[j - 1]?.id ?? null })
+}
+
 // Move lines (with their subtrees) to the top of another pad, keeping their order.
 export function moveToPad(all: Rows, ctx: OpCtx, ids: Iterable<string>, padId: PadId): Rows {
   if (padId !== null && !isPadNode(all[padId])) return all

@@ -56,6 +56,7 @@ export {
   unscopeRow,
   createPad,
   moveToPad,
+  movePad,
   resolveSides,
   sendTo,
   sideRows,

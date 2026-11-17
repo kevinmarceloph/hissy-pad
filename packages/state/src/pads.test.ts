@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryStore, pad, shape, idOf, listPads } from '@hissypad/core'
 import { configureLocalStore, loadPad, openPad, redo, select, undo, usePad } from './store'
 import { cmdDeleteDone, cmdDeleteSelection, cmdIndent, cmdSetText, cmdSplit } from './commands'
-import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdMoveToPad, cmdNewPad, cmdRenamePad, padList } from './pads'
+import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdMovePad, cmdMoveToPad, cmdNewPad, cmdRenamePad, padList } from './pads'
 import { importOutline } from './store'
 
 function reset(initialOutline?: string) {
@@ -139,5 +139,18 @@ describe('pads in the store', () => {
     usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading' })
     await loadPad()
     expect(usePad.getState().padId).toBeNull()
+  })
+
+  it('pads reorder one place at a time, undoably, and the open pad stays open', () => {
+    const a = cmdNewPad('One')
+    const b = cmdNewPad('Two')
+    const names = () => padList(usePad.getState().all).map((p) => p.name)
+    expect(cmdMovePad(b, -1)).toBe(true)
+    expect(names()).toEqual(['Main', 'Two', 'One'])
+    expect(usePad.getState().padId).toBe(b)
+    expect(cmdMovePad(b, -1)).toBe(false)
+    expect(cmdMovePad(a, 1)).toBe(false)
+    undo()
+    expect(names()).toEqual(['Main', 'One', 'Two'])
   })
 })

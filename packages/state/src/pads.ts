@@ -1,7 +1,7 @@
 // Pad commands: switch, create, rename, delete, move lines across, and the fresh start.
 // The data side is core's pads.ts; this file picks targets from the store and lands the
 // selection afterwards.
-import { createPad, freshStart, insertAt, isPadNode, listPads, moveToPad, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
+import { createPad, freshStart, movePad, insertAt, isPadNode, listPads, moveToPad, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
 import { apply, applyAll, edit, openPad, stopEditing, targets, usePad } from './store'
 import { log } from './log'
 
@@ -48,6 +48,12 @@ export function cmdRenamePad(padId: string, name: string) {
   const text = name.trim()
   if (!text) return
   applyAll((all, ctx) => (isPadNode(all[padId]) ? setText(all, ctx, padId, text) : all), { label: 'cmdRenamePad' })
+}
+
+// Move a pad one place left or right in the switcher. Returns false at either end.
+export function cmdMovePad(padId: string, dir: -1 | 1): boolean {
+  const before = usePad.getState().all
+  return applyAll((all, ctx) => (isPadNode(all[padId]) ? movePad(all, ctx, padId, dir) : all), { label: 'cmdMovePad' }) !== before
 }
 
 // Delete a pad with everything in it (undo brings it all back). Returns how many lines

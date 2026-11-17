@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { pad, shape, idOf, testCtx } from './testing'
-import { createPad, freshStart, listPads, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
+import { createPad, freshStart, listPads, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
 import { dedent, insertAt, remove, setText } from './ops'
 import { changedRows } from './sync/store'
 
@@ -68,6 +68,30 @@ describe('pads', () => {
     expect(listPads(out)).toEqual([])
     expect(shape(scopePad(out, null))).toBe('A\nB\n  B1\n  B2\nC')
     expect(out[idOf(rows, 'W2a')]!.deletedAt).not.toBeNull()
+  })
+})
+
+describe('reordering pads', () => {
+  it('movePad swaps a pad with its neighbour, touches only that pad, and stops at the ends', () => {
+    const t = table()
+    let rows = t.rows
+    const b = createPad(rows, t.ctx, 'Ideas')
+    const c = createPad(b.rows, t.ctx, 'Trip')
+    rows = insertAt(c.rows, t.ctx, { parentId: null, afterId: null }, 'late main line').rows
+    const names = (r: typeof rows) => listPads(r).map((p) => p.text)
+    expect(names(rows)).toEqual(['Work', 'Ideas', 'Trip'])
+    const left = movePad(rows, t.ctx, c.padId, -1)
+    expect(names(left)).toEqual(['Work', 'Trip', 'Ideas'])
+    expect(changedRows(rows, left).map((r) => r.text)).toEqual(['Trip'])
+    const first = movePad(left, t.ctx, c.padId, -1)
+    expect(names(first)).toEqual(['Trip', 'Work', 'Ideas'])
+    expect(movePad(first, t.ctx, c.padId, -1)).toBe(first)
+    const right = movePad(first, t.ctx, c.padId, 1)
+    expect(names(right)).toEqual(['Work', 'Trip', 'Ideas'])
+    expect(movePad(rows, t.ctx, c.padId, 1)).toBe(rows)
+    // The pads' lines and the main pad are as they were.
+    expect(shape(scopePad(first, t.w))).toBe(shape(scopePad(rows, t.w)))
+    expect(shape(scopePad(first, null))).toBe(shape(scopePad(rows, null)))
   })
 })
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { cmdDeletePad, cmdNewPad, cmdRenamePad, openPad, padList, usePad } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdRenamePad, openPad, padList, usePad } from '@hissypad/state'
 import type { PadId } from '@hissypad/core'
 import { showToast } from './toast'
 
@@ -79,6 +79,18 @@ export function PadTabs() {
             <span>Name</span>
             <input ref={input} value={name} onChange={(e) => setName(e.target.value)} placeholder={sheet?.mode === 'new' ? 'Work, Ideas, a trip…' : ''} aria-label="Pad name" />
           </label>
+          {sheet?.mode === 'edit' && (() => {
+            const i = pads.findIndex((p) => p.id === sheet.padId)
+            return (
+              <div className="field order">
+                <span>Place among the pads</span>
+                <div>
+                  <button type="button" onClick={() => cmdMovePad(sheet.padId, -1)} disabled={i <= 1} aria-label="Move pad left">← Move left</button>
+                  <button type="button" onClick={() => cmdMovePad(sheet.padId, 1)} disabled={i < 0 || i >= pads.length - 1} aria-label="Move pad right">Move right →</button>
+                </div>
+              </div>
+            )
+          })()}
           {confirming && (
             <p role="status">Delete this pad{lines ? ` and the ${lines} ${lines === 1 ? 'line' : 'lines'} at its top level, with everything under them` : ''}? Undo brings it back.</p>
           )}
