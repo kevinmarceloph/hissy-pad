@@ -1,19 +1,14 @@
+import { resetStore } from './testing'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createMemoryStore, pad, shape, idOf, listPads } from '@hissypad/core'
-import { configureLocalStore, loadPad, openPad, usePad } from './store'
+import { shape, idOf, listPads } from '@hissypad/core'
+import { loadPad, openPad, usePad } from './store'
 import { redo, undo } from './history'
 import { select } from './selection'
 import { cmdDeleteDone, cmdDeleteSelection, cmdIndent, cmdSetText, cmdSplit } from './commands'
 import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdLineToPad, cmdMovePad, padCandidate, cmdMoveToPad, cmdNewPad, cmdRenamePad, padList } from './pads'
 import { importOutline } from './store'
 
-function reset(initialOutline?: string) {
-  const rows = initialOutline ? pad(initialOutline) : {}
-  const mem = createMemoryStore(Object.values(rows))
-  configureLocalStore(mem)
-  usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [] })
-  return mem
-}
+const reset = resetStore
 
 const shown = () => shape(usePad.getState().rows)
 const main = () => shape(usePad.getState().rows)

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b --noEmit",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "coverage": "vitest run --coverage --coverage.reporter=text-summary --coverage.reporter=text --coverage.include='src/**' --coverage.exclude='**/*.test.*'"
   },
   "dependencies": {
     "@hissypad/core": "workspace:*",

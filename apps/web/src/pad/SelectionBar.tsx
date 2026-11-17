@@ -4,8 +4,8 @@ import {
   clearSelection, cmdMoveToPad, cmdSetKind, lineAbilities, lineCount, padList, padName, stopEditing, usePad,
   LINE_ACTIONS, LINE_KINDS, type LineAction, type LineActionGroup,
 } from '@hissypad/state'
-import { showToast } from './toast'
-import { MOD, shortcut } from './platform'
+import { showToast } from '../app/toast'
+import { MOD, shortcut } from '../platform/os'
 
 // A rule is drawn before the first button of these groups.
 const RULE_BEFORE: ReadonlySet<LineActionGroup> = new Set(['add', 'move', 'tree'])

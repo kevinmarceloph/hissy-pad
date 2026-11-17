@@ -1,16 +1,14 @@
+import { resetStore } from './testing'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createMemoryStore, createPad, idOf, moveToPad, pad, remove, shape } from '@hissypad/core'
-import { apply, applyAll, clock, configureLocalStore, loadPad, setAll, usePad } from './store'
+import { createPad, idOf, moveToPad, remove, shape } from '@hissypad/core'
+import { apply, applyAll, clock, loadPad, setAll, usePad } from './store'
 import { undo } from './history'
 import { select } from './selection'
 import { cmdDeleteSelection, cmdToggleDone } from './commands'
-import { cmdRestore, cmdUndone, dayLabel, doneEntries, groupByDay, trashEntries } from './lists'
+import { cmdRestore, cmdUndone, dayLabel, doneEntries, firstLine, groupByDay, timeLabel, trashEntries, underLabel } from './lists'
 
 async function reset(outline: string) {
-  const rows = pad(outline)
-  const mem = createMemoryStore(Object.values(rows))
-  configureLocalStore(mem)
-  usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [] })
+  const mem = resetStore(outline)
   await loadPad()
   return mem
 }
@@ -182,5 +180,12 @@ describe('day grouping', () => {
     expect(dayLabel(at(2), now)).toMatch(/Oct 31/)
     const groups = groupByDay([at(0, 12), at(0, 8), at(1), at(5)], (x) => x, now)
     expect(groups.map((g) => [g.label, g.items.length])).toEqual([['Today', 2], ['Yesterday', 1], [dayLabel(at(5), now), 1]])
+  })
+
+  it('one-line labels for the panels', () => {
+    expect(firstLine('  first\nsecond')).toBe('first')
+    expect(firstLine('\nsecond')).toBe('(blank line)')
+    expect([underLabel(0), underLabel(1), underLabel(3)]).toEqual([null, '+1 line under it', '+3 lines under it'])
+    expect(timeLabel('2026-11-01T09:05:00')).toMatch(/9:05/)
   })
 })

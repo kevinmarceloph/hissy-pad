@@ -6,7 +6,8 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "coverage": "turbo run coverage"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^5.1.0",

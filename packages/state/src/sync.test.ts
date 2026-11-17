@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createFakeRemote, createMemoryStore, pad, shape, idOf, insertAt } from '@hissypad/core'
 import { apply, configureLocalStore, loadPad, usePad } from './store'
-import { refresh, startSync, stopSync } from './sync'
+import { refresh, startSync, stopSync, syncLine } from './sync'
 import { cmdSetText } from './commands'
 
 async function flush(n = 30) {
@@ -95,5 +95,24 @@ describe('sync wiring', () => {
   it('apply still works with no engine attached', () => {
     configureLocalStore(createMemoryStore())
     expect(() => apply((rows, ctx) => insertAt(rows, ctx, { parentId: null, afterId: null }, 'x').rows)).not.toThrow()
+  })
+})
+
+describe('the sync status line', () => {
+  const ok = { state: 'idle' as const, pending: 0, lastSyncAt: null, error: null }
+  it('says what is happening in one line', () => {
+    expect(syncLine(null)).toBe('Syncing…')
+    expect(syncLine({ ...ok, state: 'syncing' })).toBe('Syncing…')
+    expect(syncLine({ ...ok, state: 'error', error: 'denied' })).toBe('Sync failed: denied.')
+    expect(syncLine({ ...ok, state: 'error' })).toBe('Sync failed: unknown error.')
+    expect(syncLine({ ...ok, pending: 1 })).toBe('1 change waiting.')
+    expect(syncLine({ ...ok, pending: 3 })).toBe('3 changes waiting.')
+    expect(syncLine(ok)).toBe('Synced.')
+    expect(syncLine({ ...ok, lastSyncAt: '2026-11-01T09:05:00' })).toMatch(/^Synced .*9:05.*\.$/)
+  })
+  it('offline wins over everything else', () => {
+    expect(syncLine({ ...ok, pending: 2 }, false)).toBe('Offline. 2 changes waiting.')
+    expect(syncLine({ ...ok, state: 'error', error: 'x' }, false)).toBe('Offline. Changes will sync when you are back.')
+    expect(syncLine(null, false)).toBe('Offline. Changes will sync when you are back.')
   })
 })

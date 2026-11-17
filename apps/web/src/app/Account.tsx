@@ -1,13 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { usePad } from '@hissypad/state'
-import { supabase } from './supabase'
-import { requestSync } from '@hissypad/state'
+import { supabase } from '../platform/supabase'
+import { requestSync, syncLine } from '@hissypad/state'
 
 const syncEnabled = supabase !== null
-
-function timeOf(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-}
 
 // The footer line: where the data lives right now, and the way in or out of syncing.
 export function Account() {
@@ -76,12 +72,7 @@ export function Account() {
     )
   }
 
-  let line: string
-  if (!online) line = sync && sync.pending > 0 ? `Offline. ${sync.pending} ${sync.pending === 1 ? 'change' : 'changes'} waiting.` : 'Offline. Changes will sync when you are back.'
-  else if (!sync || sync.state === 'syncing') line = 'Syncing…'
-  else if (sync.state === 'error') line = `Sync failed: ${sync.error ?? 'unknown error'}.`
-  else if (sync.pending > 0) line = `${sync.pending} ${sync.pending === 1 ? 'change' : 'changes'} waiting.`
-  else line = sync.lastSyncAt ? `Synced ${timeOf(sync.lastSyncAt)}.` : 'Synced.'
+  const line = syncLine(sync, online)
 
   return (
     <span className="account">

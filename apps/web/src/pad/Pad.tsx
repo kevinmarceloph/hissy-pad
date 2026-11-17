@@ -6,9 +6,9 @@ import {
   cmdPasteAfterSelection, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
 import { Row } from './Row'
-import { useDrag } from './drag/useDrag'
+import { useDrag } from './useDrag'
 import { forceSync } from '@hissypad/state'
-import { MOD } from './platform'
+import { MOD } from '../platform/os'
 
 
 export function Pad() {

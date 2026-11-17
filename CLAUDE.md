@@ -7,19 +7,20 @@ Guidance for Claude Code in this repo. The shared rules (who Kevin is, writing v
 HissyPad: a freeform outline, always open, between Google Docs and Hissycal; since 2026-11-02 a few of them ("pads", tabs under the title, with a two-pane Fresh start that moves the leftovers of a pad into a new one). A flat `nodes` table, offline-first, each row synced on its own with last-write-wins on the server. A pad is a root-level row with `pad` set and the main pad is the root level itself; the store shows one pad at a time as a scoped view (`rows`) over the whole table (`all`), see `packages/core/src/pads.ts`. Web (Vite + React 19, PWA) and mobile (Expo) share the same core and state packages. Live at https://hissypad.marcelo.ph (Render static site, auto-deploys from `main`, hosted Supabase behind it). Public repo `kevinmarceloph/hissy-pad`, Kevin's first public one: nothing under NDA, no pad content, no keys.
 
 - `README.md`: layout, run commands, keys. Read it first.
+- `docs/MAP.md`: where everything is, file by file, and where each kind of change goes (a toolbar action, an op, a column, a panel). Keep it current when a file is added, moved or removed.
 - `PLAN.md`: the design (data model, sync, editing model), phases and what is pending. Keep its status line and phase notes current when a phase moves; dates are absolute (`2026-10-29`), Manila time.
 
 ## Layout
 
 ```
 packages/core    pure TS, no React: types, tree, ops, rank, drop resolver, paste, pads (scoped view, fresh start), clock, sync engine, LocalStore
-packages/state   Zustand store (all rows + the scoped pad), commands, pad commands, per-op undo, debug log, Supabase remote, sync binding
-apps/web         Vite SPA on :5180, IndexedDB store, pointer drag, Playwright e2e
-apps/mobile      Expo SDK 58 shell: expo-sqlite store, same toolbar, EAS build/update profiles
+packages/state   Zustand store (all rows + the scoped pad), history, selection, commands, the toolbar registry (actions.ts), pads, lists, sort, shake, sync binding, Supabase remote, debug log
+apps/web         Vite SPA on :5180: src/app (shell), src/pad (editor, drag), src/pads (tabs, fresh start), src/panels (trash, done, sort), src/platform (IndexedDB, clipboard); Playwright e2e
+apps/mobile      Expo SDK 58 shell: expo-sqlite store, screens in src/ui, the same toolbar registry, EAS build/update profiles
 supabase/        migrations (nodes, RLS, LWW trigger), pgTAP tests, local stack on ports 54421-54429
 ```
 
-Platform logic goes in `packages/state` or `packages/core`, never in an app. If web and mobile would both need it, it belongs in a package.
+Platform logic goes in `packages/state` or `packages/core`, never in an app. If web and mobile would both need it, it belongs in a package. A toolbar button is an entry in `LINE_ACTIONS` (`packages/state/src/actions.ts`), not markup in either app.
 
 ## Commands
 
@@ -27,6 +28,7 @@ Platform logic goes in `packages/state` or `packages/core`, never in an app. If 
 pnpm install
 pnpm --filter @hissypad/web dev     # http://localhost:5180 (desktop app: launch config "hissypad-web" in .claude/launch.json)
 pnpm test                           # every package (Vitest)
+pnpm coverage                       # the same, with a per-file coverage table
 pnpm typecheck
 pnpm --filter @hissypad/web e2e     # Playwright drag tests, desktop + phone profiles
 pnpm --filter @hissypad/web build   # apps/web/dist, what Render serves
@@ -51,5 +53,5 @@ Mobile commands (Expo, EAS, env pull, update channels) are in `README.md`. The p
 
 ## Gotchas
 
-- A line is 25.5px (17px * 1.5). Anything that copies a rounded `scrollHeight` or `offsetHeight` into a height will be half a pixel off; snap to whole line-heights (see the textarea auto-grow in `apps/web/src/Row.tsx`).
+- A line is 25.5px (17px * 1.5). Anything that copies a rounded `scrollHeight` or `offsetHeight` into a height will be half a pixel off; snap to whole line-heights (see the textarea auto-grow in `apps/web/src/pad/Row.tsx`).
 - The bullet is also the drag handle: its tap target grows sideways only, never up or down, or the row below steals the tap.

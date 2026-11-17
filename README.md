@@ -1,13 +1,14 @@
 # HissyPad
 
-One freeform outline, always open. The top of the page is what needs attention next. Drag things around in a hierarchy, multi-select, cross things out. Nothing else. Design and roadmap in [PLAN.md](PLAN.md).
+One freeform outline, always open. The top of the page is what needs attention next. Drag things around in a hierarchy, multi-select, cross things out. Nothing else. Design and roadmap in [PLAN.md](PLAN.md); a map of the code in [docs/MAP.md](docs/MAP.md).
 
 ```
-packages/core   pure TS: node rows, tree, ops, ranks, drop resolver, outline paste/copy, LocalStore, sync engine
-packages/state  the app: Zustand store, commands, per-op undo, debug log, Supabase remote + sync binding
+packages/core   pure TS: node rows, tree, ops, ranks, pads, drop resolver, outline paste/copy, LocalStore, sync engine
+packages/state  the app without a screen: Zustand store, undo, selection, commands, the toolbar registry, pads, sort, lists, sync binding
 apps/web        Vite + React 19, IndexedDB, PWA, drag, Playwright
 apps/mobile     Expo (SDK 58), expo-sqlite, same state package, EAS profiles
-supabase/       migration (nodes table, RLS, last-write-wins trigger), pgTAP tests
+supabase/       migrations (nodes table, RLS, last-write-wins trigger), pgTAP tests
+docs/MAP.md     where everything is, file by file, and where each kind of change goes
 ```
 
 ## Run
@@ -17,9 +18,10 @@ corepack enable          # pnpm ships with Node's corepack
 pnpm install
 pnpm --filter @hissypad/web dev     # http://localhost:5180
 pnpm test                # every package
+pnpm coverage            # the same, with a coverage table per file
 pnpm typecheck
 pnpm --filter @hissypad/web build   # apps/web/dist
-pnpm --filter @hissypad/web e2e     # Playwright drag tests (desktop + phone profiles)
+pnpm --filter @hissypad/web e2e     # Playwright drag and swipe tests (desktop + phone profiles)
 ```
 
 ### Mobile
@@ -82,8 +84,25 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 | Paste in… / Copy all | import an outline / copy the whole pad |
 | Done | "Recently done": crossed-out lines, newest first, with an Undone button each |
 | Trash | lines deleted in the last 30 days, grouped by the delete that removed them, with a Restore button each |
+| Fresh start… | two panes: send across what stays, and everything left behind moves to a new pad |
+| Sort… | the pad's top-level lines one card at a time: left for Later, right for Today, up for Today and crossed out, down to skip. Swipe, arrow keys or buttons. The card's text and sub items can be edited first, and each side can point at any pad, Main or a new one |
 
-Cmd+S syncs right now (and never opens the browser's save dialog); on a phone, pull down at the top of the page to do the same, in the web app and the Expo app alike. Drag a bullet to move a line (press and hold on a phone); move right to nest under the line above, left to climb out. If the dragged line is part of a selection, the whole selection moves. Cmd+Z / Shift+Cmd+Z undo and redo anywhere. Tap a bullet to select it; once something is selected, tapping other bullets toggles them (no modifier, so it works on a phone). Shift+click selects a range. Blank lines show no bullet, done lines show a × like a bullet journal, and "Delete done" removes every crossed-out line (undo brings them back).
+| toolbar (a line being edited, or lines selected) | |
+|---|---|
+| Done, · / # / 1. | cross out, line type |
+| + above / + below | a new line beside the selection |
+| ← → ↑ ↓ | outdent, indent, move among siblings |
+| Fold / Ungroup | fold the line, or bring its sub items out to its own level |
+| Copy / Move to… | copy as an outline, send to another pad |
+| Make pad | the line becomes a pad: its text is the name, its sub items the lines |
+| Delete | delete, children too |
+
+| pads (the tabs under the title) | |
+|---|---|
+| + | a new pad |
+| click the open tab | rename it, move it left or right, or delete it. Main stays first |
+
+Cmd+S syncs right now (and never opens the browser's save dialog); on a phone, pull down at the top of the page to do the same, in the web app and the Expo app alike. Drag a bullet to move a line (press and hold on a phone); move right to nest under the line above, left to climb out. If the dragged line is part of a selection, the whole selection moves. Cmd+Z / Shift+Cmd+Z undo and redo anywhere; on the phone, shake to undo. Tap a bullet to select it; once something is selected, tapping other bullets toggles them (no modifier, so it works on a phone). Shift+click selects a range. Blank lines show no bullet, done lines show a × like a bullet journal, and "Delete done" removes every crossed-out line (undo brings them back).
 
 Deleting is soft everywhere: a deleted line is a tombstone (`deleted_at`) that keeps syncing, so the Trash panel can list it for 30 days and put it back where it was, children included, on any device. Restoring a child whose parent is still deleted lands it at the top level. Crossing a line out stamps `done_at`, which is what the Done panel sorts by (lines crossed out before that column existed sort by their last edit). Nothing is purged from the server yet.
 
@@ -97,4 +116,4 @@ Live at https://hissypad.marcelo.ph (Render static site `hissypad`, auto-deploys
 
 ## Status
 
-Phases 1-5 built. Web is deployed and syncing against the hosted Supabase project; the Expo app runs on Kevin's iPhone from EAS builds. See [PLAN.md](PLAN.md) for what is pending.
+Phases 1-5 and 7 built, plus Sort, Trash, Recently done and shake to undo on the phone. Web is deployed and syncing against the hosted Supabase project; the Expo app runs on Kevin's iPhone from EAS builds. See [PLAN.md](PLAN.md) for what is pending.

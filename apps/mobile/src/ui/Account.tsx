@@ -1,16 +1,13 @@
 import { useState } from 'react'
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as WebBrowser from 'expo-web-browser'
-import { usePad, requestSync } from '@hissypad/state'
+import { usePad, requestSync, syncLine } from '@hissypad/state'
 import { supabase } from '../supabase'
 import { serif, type Theme } from '../theme'
 
 WebBrowser.maybeCompleteAuthSession()
 export const AUTH_REDIRECT = 'hissypad://auth'
 
-function timeOf(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-}
 
 // Session from the return link, in either shape Supabase sends:
 //   hissypad://auth#access_token=…&refresh_token=…   (implicit flow)
@@ -118,11 +115,7 @@ export function Account({ theme }: { theme: Theme }) {
     )
   }
 
-  let line: string
-  if (!sync || sync.state === 'syncing') line = 'Syncing…'
-  else if (sync.state === 'error') line = `Sync failed: ${sync.error ?? 'unknown error'}.`
-  else if (sync.pending > 0) line = `${sync.pending} ${sync.pending === 1 ? 'change' : 'changes'} waiting.`
-  else line = sync.lastSyncAt ? `Synced ${timeOf(sync.lastSyncAt)}.` : 'Synced.'
+  const line = syncLine(sync)
   return (
     <View style={s.footRow}>
       <Text style={[s.foot, { color: theme.inkMute }]}>{line} </Text>

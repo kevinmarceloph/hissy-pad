@@ -1,19 +1,14 @@
+import { resetStore } from './testing'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createMemoryStore, idOf, listPads, pad, shape } from '@hissypad/core'
-import { configureLocalStore, loadPad, openPad, usePad } from './store'
+import { idOf, listPads, shape } from '@hissypad/core'
+import { loadPad, openPad, usePad } from './store'
 import { undo } from './history'
 import { cmdNewPad } from './pads'
 import {
-  cmdSortAddSub, cmdSortBack, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, setSortTarget, sortQueue, sortTarget, useSort,
+  cmdSortAddSub, cmdSortBack, cmdSortNewTarget, sortSessionBack, sortSessionCard, sortSessionSend, sortSessionStart, sortSummary, swipeDir, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, setSortTarget, sortQueue, sortTarget, useSort,
 } from './sort'
 
-function reset(outline: string) {
-  const mem = createMemoryStore(Object.values(pad(outline)))
-  configureLocalStore(mem)
-  usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [] })
-  useSort.setState({ left: null, right: null })
-  return mem
-}
+const reset = resetStore
 
 const all = () => usePad.getState().all
 const whole = () => shape(all())
@@ -103,5 +98,34 @@ describe('sort', () => {
     cmdSortSend(id('A'), 'left')
     expect(all()[id('A')]!.parentId).toBe(someday)
     expect(listPads(all()).map((p) => p.text)).toEqual(['Someday'])
+  })
+
+  it('a session walks the queue, skips a card that left mid-sort, steps back, and sums up', () => {
+    let session = sortSessionStart()
+    expect(session.queue).toHaveLength(4)
+    expect(sortSessionCard(session)).toEqual({ id: id('A'), index: 0 })
+    session = sortSessionSend(session, 'left')
+    session = sortSessionSend(session, 'up')
+    expect(sortSessionCard(session)).toEqual({ id: id('C'), index: 2 })
+    cmdSortSend(id('C'), 'right') // C leaves by another route (a sync, another screen)
+    expect(sortSessionCard(session)).toEqual({ id: id('D'), index: 3 })
+    session = sortSessionSend(session, 'skip')
+    expect(sortSessionCard(session)).toEqual({ id: null, index: 4 })
+    expect(sortSessionSend(session, 'left')).toBe(session) // no card: nothing happens
+    expect(sortSummary(session, 'Later', 'Today')).toBe('1 done, 1 to Later, 1 skipped')
+    session = sortSessionBack(session)
+    expect(sortSessionCard(session).id).toBe(id('D'))
+    expect(sortSessionBack(sortSessionStart())).toEqual(sortSessionStart())
+    expect(sortSummary(sortSessionStart(), 'Later', 'Today')).toBe('')
+  })
+
+  it('a drag is a swipe only past the threshold, and up needs to be more vertical than sideways', () => {
+    expect(swipeDir(40, 0)).toBeNull()
+    expect(swipeDir(120, 30)).toBe('right')
+    expect(swipeDir(-120, -30)).toBe('left')
+    expect(swipeDir(30, -120)).toBe('up')
+    expect(swipeDir(130, -120)).toBe('right')
+    expect(swipeDir(0, 200)).toBeNull()
+    expect(swipeDir(40, 0, 30)).toBe('right')
   })
 })

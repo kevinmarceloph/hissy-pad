@@ -132,3 +132,15 @@ export function bindAuth(client: SupabaseClient | null) {
     apply(session)
   })
 }
+
+// The one-line sync status both apps print under the pad. `online` is the platform's own
+// reading of the network; without one, pass true.
+export function syncLine(sync: SyncStatus | null, online = true): string {
+  const waiting = (n: number) => `${n} ${n === 1 ? 'change' : 'changes'} waiting.`
+  if (!online) return sync && sync.pending > 0 ? `Offline. ${waiting(sync.pending)}` : 'Offline. Changes will sync when you are back.'
+  if (!sync || sync.state === 'syncing') return 'Syncing…'
+  if (sync.state === 'error') return `Sync failed: ${sync.error ?? 'unknown error'}.`
+  if (sync.pending > 0) return waiting(sync.pending)
+  if (!sync.lastSyncAt) return 'Synced.'
+  return `Synced ${new Date(sync.lastSyncAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
+}

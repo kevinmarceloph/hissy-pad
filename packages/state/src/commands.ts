@@ -129,19 +129,23 @@ export function cmdToggleCollapsed() {
   }, { label: 'cmdToggleCollapsed' })
 }
 
-// Delete the selection and land on the row that takes its place.
+// Delete the selection and land on the row that takes its place: the first line after
+// the selection that is still there (its own children go with it, so they do not count),
+// else the nearest one before it.
 export function cmdDeleteSelection() {
   const selection = targets()
   if (selection.length === 0) return
   const vis = visibleIds()
-  const after = vis[vis.indexOf(selection.at(-1)!) + 1] ?? vis[vis.indexOf(selection[0]!) - 1] ?? null
+  const from = vis.indexOf(selection.at(-1)!)
+  const to = vis.indexOf(selection[0]!)
   apply((rows, ctx) => {
     const out = remove(rows, ctx, selection)
     // Never leave the pad with nothing to type into.
     const anyLive = Object.values(out).some((r) => r.deletedAt === null)
     return anyLive ? out : insertAt(out, ctx, { parentId: null, afterId: null }, '').rows
   }, { label: 'cmdDeleteSelection' })
-  const landing = after ?? visibleIds()[0]
+  const left = new Set(visibleIds())
+  const landing = vis.slice(from + 1).find((id) => left.has(id)) ?? vis.slice(0, Math.max(0, to)).reverse().find((id) => left.has(id)) ?? visibleIds()[0]
   if (landing) select([landing], landing)
 }
 

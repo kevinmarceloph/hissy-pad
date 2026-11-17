@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { dismissStorageError, loadPad, usePad } from '@hissypad/state'
-import { Pad } from './Pad'
-import { SelectionBar } from './SelectionBar'
+import { Pad } from '../pad/Pad'
+import { SelectionBar } from '../pad/SelectionBar'
 import { TopBar } from './TopBar'
 import { Account } from './Account'
 import { PullToRefresh } from './PullToRefresh'
-import { FreshStart } from './FreshStart'
-import { Sort } from './Sort'
+import { FreshStart } from '../pads/FreshStart'
+import { Sort } from '../panels/Sort'
 
 export function App() {
   const load = usePad((s) => s.load)

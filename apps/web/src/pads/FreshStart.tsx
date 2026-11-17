@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { resolveSides, sendTo, sideRows, type Side, type Sides } from '@hissypad/core'
 import { archiveNameFor, cmdFreshStart, padName, usePad } from '@hissypad/state'
-import { showToast } from './toast'
-import { MOD } from './platform'
+import { showToast } from '../app/toast'
+import { MOD } from '../platform/os'
 
 const NONE: Sides = { right: new Set(), left: new Set() }
 

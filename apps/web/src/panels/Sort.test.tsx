@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { createMemoryStore, pad, shape } from '@hissypad/core'
-import { App } from './App'
-import { configureLocalStore, usePad, useSort } from '@hissypad/state'
+import { shape } from '@hissypad/core'
+import { App } from '../app/App'
+import { resetStore, usePad } from '@hissypad/state'
 
 async function mount(outline: string) {
-  configureLocalStore(createMemoryStore(Object.values(pad(outline))))
-  usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [] })
-  useSort.setState({ left: null, right: null })
+  resetStore(outline)
   render(<App />)
   await screen.findByRole('tree')
 }

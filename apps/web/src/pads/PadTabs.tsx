@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdRenamePad, openPad, padList, usePad } from '@hissypad/state'
 import type { PadId } from '@hissypad/core'
-import { showToast } from './toast'
-import { MOD } from './platform'
+import { showToast } from '../app/toast'
+import { MOD } from '../platform/os'
 
 
 type Sheet = { mode: 'new' } | { mode: 'edit'; padId: string }
