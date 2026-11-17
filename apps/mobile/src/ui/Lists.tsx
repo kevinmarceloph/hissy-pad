@@ -4,14 +4,9 @@ import type { ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
-  cmdRestore, cmdUndone, doneEntries, groupByDay, timeLabel, trashEntries, usePad, TRASH_DAYS,
+  cmdRestore, cmdUndone, doneEntries, firstLine, groupByDay, timeLabel, trashEntries, usePad, TRASH_DAYS, underLabel,
 } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
-
-function firstLine(text: string): string {
-  const line = text.split('\n')[0]!.trim()
-  return line === '' ? '(blank line)' : line
-}
 
 function Sheet({ visible, title, note, onClose, theme, children }: { visible: boolean; title: string; note: string; onClose: () => void; theme: Theme; children: ReactNode }) {
   const insets = useSafeAreaInsets()
@@ -51,8 +46,6 @@ function Line({ text, sub, done, action, onPress, theme }: { text: string; sub: 
   )
 }
 
-const under = (n: number) => (n > 0 ? `+${n} ${n === 1 ? 'line' : 'lines'} under it` : null)
-
 export function TrashSheet({ visible, onClose, theme }: { visible: boolean; onClose: () => void; theme: Theme }) {
   const rows = usePad((s) => s.all)
   const batches = visible ? trashEntries(rows) : []
@@ -78,7 +71,7 @@ export function TrashSheet({ visible, onClose, theme }: { visible: boolean; onCl
                 )}
               </View>
               {b.entries.map((e) => (
-                <Line key={e.id} text={firstLine(e.text)} sub={under(e.childCount)} action="Restore" onPress={() => restore([e.id])} theme={theme} />
+                <Line key={e.id} text={firstLine(e.text)} sub={underLabel(e.childCount)} action="Restore" onPress={() => restore([e.id])} theme={theme} />
               ))}
             </View>
           ))}
@@ -99,7 +92,7 @@ export function DoneSheet({ visible, onClose, theme }: { visible: boolean; onClo
         <View key={g.label}>
           <Day label={g.label} theme={theme} />
           {g.items.map((e) => (
-            <Line key={e.id} text={firstLine(e.text)} sub={under(e.childCount)} done action="Undone" onPress={() => cmdUndone(e.id)} theme={theme} />
+            <Line key={e.id} text={firstLine(e.text)} sub={underLabel(e.childCount)} done action="Undone" onPress={() => cmdUndone(e.id)} theme={theme} />
           ))}
         </View>
       ))}

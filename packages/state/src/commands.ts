@@ -13,7 +13,8 @@ let copyText: ClipboardWriter = async () => false
 export function setClipboard(fn: ClipboardWriter) {
   copyText = fn
 }
-import { apply, edit, importOutline, neighbor, select, stopEditing, targets, usePad, visibleIds } from './store'
+import { apply, importOutline, usePad } from './store'
+import { edit, neighbor, select, stopEditing, targets, visibleIds } from './selection'
 
 export function cmdSplit(id: string, caret: number) {
   let newId = ''

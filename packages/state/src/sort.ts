@@ -8,7 +8,9 @@ import {
   buildIndex, childrenOf, createPad, insertAt, isLive, isPadNode, listPads, moveNodes, remove, setDone, setText,
   type PadId, type Rows,
 } from '@hissypad/core'
-import { apply, applyAll, getLocalStore, stopEditing, undo, usePad } from './store'
+import { apply, applyAll, getLocalStore, usePad } from './store'
+import { undo } from './history'
+import { stopEditing } from './selection'
 import { MAIN_PAD_NAME, ensureLine } from './pads'
 import { log } from './log'
 
@@ -162,4 +164,63 @@ export function cmdSortAddSub(parentId: string, text: string): string {
 
 export function cmdSortRemoveSub(id: string) {
   apply((rows, ctx) => (isLive(rows[id]) ? remove(rows, ctx, [id]) : rows), { label: 'cmdSortRemoveSub' })
+}
+
+// ---- a sort session -----------------------------------------------------------------
+//
+// What a sort screen holds while it is open: the queue as it was when it opened, where
+// the user is in it and what has been sent so far. Plain values and functions, so web
+// and the phone keep one in component state and share every rule about it.
+
+export interface SortSent extends SortResult { id: string }
+
+export interface SortSession {
+  queue: readonly string[]
+  pos: number
+  sent: readonly SortSent[]
+}
+
+export function sortSessionStart(rows: Rows = usePad.getState().rows): SortSession {
+  return { queue: sortQueue(rows), pos: 0, sent: [] }
+}
+
+// The card to show: the next queued line that is still a top-level line of this pad (a
+// sync or an undo can take one away mid-sort). `index` is its place in the queue, which
+// is queue.length when nothing is left.
+export function sortSessionCard(session: SortSession, rows: Rows = usePad.getState().rows): { id: string | null; index: number } {
+  let i = session.pos
+  while (i < session.queue.length) {
+    const r = rows[session.queue[i]!]
+    if (isLive(r) && r.parentId === null) return { id: r.id, index: i }
+    i++
+  }
+  return { id: null, index: session.queue.length }
+}
+
+// Send the current card and move on. Returns the session unchanged when there is no card.
+export function sortSessionSend(session: SortSession, dir: SortDir): SortSession {
+  const { id, index } = sortSessionCard(session)
+  if (!id) return session
+  const res = cmdSortSend(id, dir)
+  if (!res) return session
+  return { ...session, pos: index + 1, sent: [...session.sent, { ...res, id }] }
+}
+
+// Take the last card back and show it again.
+export function sortSessionBack(session: SortSession): SortSession {
+  const last = session.sent.at(-1)
+  if (!last) return session
+  cmdSortBack(last)
+  return { ...session, pos: session.queue.indexOf(last.id), sent: session.sent.slice(0, -1) }
+}
+
+// "2 to Today, 1 done, 1 to Later, 1 skipped", for the end of a sort.
+export function sortSummary(session: SortSession, left: string, right: string): string {
+  const n = (dir: SortDir) => session.sent.filter((s) => s.dir === dir).length
+  return [
+    n('right') && `${n('right')} to ${right}`,
+    n('up') && `${n('up')} done`,
+    n('left') && `${n('left')} to ${left}`,
+    n('skip') && `${n('skip')} skipped`,
+  ].filter(Boolean).join(', ')
 }

@@ -4,7 +4,8 @@
 // pad is still found. Pure selectors plus the two commands the panels need; both
 // platforms render these, and nothing here knows about the DOM or React Native.
 import { isPadNode, restore, setCollapsed, setDone, type NodeRow, type PadId, type Rows } from '@hissypad/core'
-import { applyAll, openPad, select, usePad } from './store'
+import { applyAll, openPad, usePad } from './store'
+import { select } from './selection'
 
 export const TRASH_DAYS = 30
 // Rows deleted this close together count as one delete. `remove` stamps a whole call
@@ -193,4 +194,15 @@ export function groupByDay<T>(items: readonly T[], at: (t: T) => string, now: nu
 
 export function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
+
+// The first line of a row's text, for the one-line entries the panels list.
+export function firstLine(text: string): string {
+  const line = text.split('\n')[0]!.trim()
+  return line === '' ? '(blank line)' : line
+}
+
+// "+2 lines under it", or null when there are none.
+export function underLabel(n: number): string | null {
+  return n > 0 ? `+${n} ${n === 1 ? 'line' : 'lines'} under it` : null
 }

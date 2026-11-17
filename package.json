@@ -9,6 +9,7 @@
     "lint": "turbo run lint"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^5.1.0",
     "turbo": "^2"
   }
 }

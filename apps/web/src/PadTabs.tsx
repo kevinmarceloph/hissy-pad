@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdRenamePad, openPad, padList, usePad } from '@hissypad/state'
 import type { PadId } from '@hissypad/core'
 import { showToast } from './toast'
+import { MOD } from './platform'
 
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 
 type Sheet = { mode: 'new' } | { mode: 'edit'; padId: string }
 
@@ -50,7 +50,7 @@ export function PadTabs() {
     const label = all[sheet.padId]?.text || 'Untitled pad'
     const n = cmdDeletePad(sheet.padId)
     dialog.current?.close()
-    showToast(`Deleted “${label}”${n ? ` and its ${n} ${n === 1 ? 'line' : 'lines'}` : ''}. ${isMac ? '⌘' : 'Ctrl'}+Z brings it back.`)
+    showToast(`Deleted “${label}”${n ? ` and its ${n} ${n === 1 ? 'line' : 'lines'}` : ''}. ${MOD}+Z brings it back.`)
   }
 
   const lines = sheet?.mode === 'edit' ? Object.values(all).filter((r) => r.deletedAt === null && r.parentId === sheet.padId).length : 0

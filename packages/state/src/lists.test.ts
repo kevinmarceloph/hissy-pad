@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryStore, createPad, idOf, moveToPad, pad, remove, shape } from '@hissypad/core'
-import { apply, applyAll, clock, configureLocalStore, loadPad, select, setAll, undo, usePad } from './store'
+import { apply, applyAll, clock, configureLocalStore, loadPad, setAll, usePad } from './store'
+import { undo } from './history'
+import { select } from './selection'
 import { cmdDeleteSelection, cmdToggleDone } from './commands'
 import { cmdRestore, cmdUndone, dayLabel, doneEntries, groupByDay, trashEntries } from './lists'
 

@@ -2,16 +2,12 @@
 // inside one), entries grouped by day, a Restore or Undone button per line.
 import type { RefObject } from 'react'
 import {
-  cmdRestore, cmdUndone, doneEntries, groupByDay, timeLabel, trashEntries, usePad, TRASH_DAYS,
+  cmdRestore, cmdUndone, doneEntries, firstLine, groupByDay, timeLabel, trashEntries, usePad, TRASH_DAYS, underLabel,
 } from '@hissypad/state'
 
-function firstLine(text: string): string {
-  const line = text.split('\n')[0]!.trim()
-  return line === '' ? '(blank line)' : line
-}
-
 function Children({ n }: { n: number }) {
-  return n > 0 ? <span className="sub">+{n} {n === 1 ? 'line' : 'lines'} under it</span> : null
+  const label = underLabel(n)
+  return label ? <span className="sub">{label}</span> : null
 }
 
 export function TrashPanel({ dialog }: { dialog: RefObject<HTMLDialogElement | null> }) {

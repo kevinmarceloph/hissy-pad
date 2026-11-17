@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { resolveSides, sendTo, sideRows, type Side, type Sides } from '@hissypad/core'
 import { archiveNameFor, cmdFreshStart, padName, usePad } from '@hissypad/state'
 import { showToast } from './toast'
+import { MOD } from './platform'
 
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 const NONE: Sides = { right: new Set(), left: new Set() }
 
 interface Pick {
@@ -79,7 +79,7 @@ export function FreshStart({ onClose }: { onClose: () => void }) {
   function commit() {
     const res = cmdFreshStart(sides, name)
     const n = res.moved
-    showToast(n === 0 ? 'Nothing to move: every line stayed.' : `Fresh start. ${n} ${n === 1 ? 'line' : 'lines'} went to “${name.trim() || archiveNameFor(all, padId)}”. ${isMac ? '⌘' : 'Ctrl'}+Z brings them back.`)
+    showToast(n === 0 ? 'Nothing to move: every line stayed.' : `Fresh start. ${n} ${n === 1 ? 'line' : 'lines'} went to “${name.trim() || archiveNameFor(all, padId)}”. ${MOD}+Z brings them back.`)
     onClose()
   }
 

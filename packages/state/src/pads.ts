@@ -2,7 +2,8 @@
 // The data side is core's pads.ts; this file picks targets from the store and lands the
 // selection afterwards.
 import { buildIndex, createPad, freshStart, lineToPad, movePad, topmost, insertAt, isPadNode, listPads, moveToPad, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
-import { apply, applyAll, edit, openPad, stopEditing, targets, usePad } from './store'
+import { apply, applyAll, openPad, usePad } from './store'
+import { edit, stopEditing, targets } from './selection'
 import { log } from './log'
 
 export const MAIN_PAD_NAME = 'Main'

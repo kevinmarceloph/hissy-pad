@@ -1,12 +1,13 @@
 // The app's state: every row of the table (`all`), the pad being shown as a pad of its own
 // (`rows`, see scopePad in core), what is selected or being edited, and the undo stack.
 // Every edit goes through `apply`, which runs a core op on the shown pad, pushes undo
-// history, and writes the changed rows to the LocalStore as dirty.
+// history, and writes the changed rows to the LocalStore as dirty. Undo and redo are in
+// history.ts; selection and the editing caret are in selection.ts.
 import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import {
-  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, flatten, isPadNode,
-  insertAt, insertOutline, newUuid, normalizeRow, parseOutline, scopePad, unscopeRow,
+  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, isPadNode,
+  insertAt, insertOutline, newUuid, normalizeRow, parseOutline, sameRow, scopePad, unscopeRow,
   type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus,
 } from '@hissypad/core'
 import { log, rowBrief } from './log'
@@ -89,7 +90,8 @@ export const usePad = create<PadState>(() => ({
 const get = usePad.getState
 const set = usePad.setState
 
-function persist(prev: Rows, next: Rows) {
+// Write whatever differs between two versions of the table to local storage as dirty.
+export function persist(prev: Rows, next: Rows) {
   const changed = changedRows(prev, next)
   // Undoing an insert leaves the row out of `next` entirely; storage still has it, so
   // write a tombstone (a redo brings it back with a newer updatedAt).
@@ -111,6 +113,10 @@ function persist(prev: Rows, next: Rows) {
 // `coalesce` lets a run of keystrokes on one node share a single undo entry. The op sees
 // the scoped pad; its changed rows are put back in table terms before they are saved.
 let lastCoalesce: { key: string; at: number } | null = null
+// The next edit starts a new undo entry even if it would have merged (after an undo or redo).
+export function breakCoalesce() {
+  lastCoalesce = null
+}
 export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { label?: string; coalesce?: string } = {}): Rows {
   const { rows, all, padId } = get()
   const next = fn(rows, ctx)
@@ -180,66 +186,6 @@ function commit(all: Rows, nextAll: Rows, label: string, coalesce?: string) {
   persist(all, nextAll)
 }
 
-// Restore one side of an entry onto the table. Rows that did not exist on that side
-// become tombstones (an undone insert). Everything restored gets a fresh updatedAt.
-function restore(side: Record<string, NodeRow | undefined>, ids: string[]): { rows: Rows; touched: string[] } {
-  const cur = get().all
-  const out: Record<string, NodeRow> = { ...cur }
-  const touched: string[] = []
-  for (const id of ids) {
-    const want = side[id]
-    const now = ctx.now()
-    if (want) out[id] = { ...want, updatedAt: now }
-    else if (cur[id]) out[id] = { ...cur[id]!, deletedAt: now, updatedAt: now }
-    else continue
-    touched.push(id)
-  }
-  return { rows: out, touched }
-}
-
-function afterHistoryMove(all: Rows, touched: string[]) {
-  // Land on what changed: select the restored rows that are live and visible in the pad
-  // being shown (an undo of a move to another pad lands on nothing, and that is fine).
-  // Redoing a pad's deletion while it is open falls back to the main pad (setAll).
-  setAll(all, { editing: null })
-  const { rows } = get()
-  const vis = new Set(flatten(buildIndex(rows), true).map((r) => r.id))
-  const sel = touched.filter((id) => vis.has(id))
-  set({ selection: sel, anchorId: sel[0] ?? null, focusId: sel.at(-1) ?? null })
-}
-
-export function undo() {
-  const { all: rows, past, future } = get()
-  const entry = past.at(-1)
-  if (!entry) {
-    log('undo', { nothing: true })
-    return
-  }
-  lastCoalesce = null
-  const ids = Object.keys(entry.before)
-  const r = restore(entry.before, ids)
-  afterHistoryMove(r.rows, r.touched)
-  set({ past: past.slice(0, -1), future: [entry, ...future] })
-  log('undo', { label: entry.label, rows: r.touched.map((id) => rowBrief(r.rows[id])), undoDepth: past.length - 1 })
-  persist(rows, r.rows)
-}
-
-export function redo() {
-  const { all: rows, past, future } = get()
-  const entry = future[0]
-  if (!entry) {
-    log('redo', { nothing: true })
-    return
-  }
-  lastCoalesce = null
-  const ids = Object.keys(entry.after)
-  const r = restore(entry.after, ids)
-  afterHistoryMove(r.rows, r.touched)
-  set({ past: [...past, entry], future: future.slice(1) })
-  log('redo', { label: entry.label, rows: r.touched.map((id) => rowBrief(r.rows[id])) })
-  persist(rows, r.rows)
-}
-
 // Idempotent: StrictMode runs effects twice in dev, and two early callers must never both
 // decide the pad is empty and each create "the first line".
 let loading: Promise<void> | null = null
@@ -256,7 +202,7 @@ async function loadPadOnce() {
     const upgraded: NodeRow[] = []
     for (const raw of list) {
       const r = normalizeRow(raw)
-      if (r.numbered !== raw.numbered || r.header !== raw.header || r.pad !== raw.pad || r.collapsed !== raw.collapsed || r.done !== raw.done || r.doneAt !== raw.doneAt) upgraded.push(r)
+      if (!sameRow(r, raw)) upgraded.push(r)
       rows[r.id] = r
       clock.observe(r.updatedAt)
     }
@@ -304,87 +250,6 @@ export function setAll(all: Rows, extra: Partial<PadState> = {}) {
   const nextPad = stillThere ? padId : null
   set({ all, padId: nextPad, rows: scopePad(all, nextPad), ...extra })
   if (!stillThere) void local.setMeta(PAD_KEY, '').catch(() => {})
-}
-
-// ---- selection / editing ----------------------------------------------------------
-
-export function edit(id: string, caret: Caret = 'end') {
-  const cur = get().editing
-  log('edit', { id: id.slice(0, 8), caret })
-  set({ editing: { id, caret, rev: (cur?.rev ?? 0) + 1 }, selection: [], anchorId: null, focusId: null })
-}
-
-export function stopEditing() {
-  if (get().editing) log('edit:stop')
-  set({ editing: null })
-}
-
-export function visibleIds(state: PadState = get()): string[] {
-  return flatten(buildIndex(state.rows), true).map((r) => r.id)
-}
-
-export function select(ids: string[], anchorId: string | null, focusId: string | null = anchorId) {
-  const order = new Map(visibleIds().map((id, i) => [id, i]))
-  const sorted = [...new Set(ids)].filter((id) => order.has(id)).sort((a, b) => order.get(a)! - order.get(b)!)
-  log('select', { n: sorted.length, ids: sorted.slice(0, 6).map((i) => i.slice(0, 8)) })
-  set({ selection: sorted, anchorId, focusId, editing: null })
-}
-
-export function clearSelection() {
-  set({ selection: [], anchorId: null, focusId: null })
-}
-
-// Tap on a bullet. Shift ranges from the anchor. Once anything is selected, a plain tap
-// toggles the line in or out (no modifier needed, so it works on a phone); the toolbar's
-// × or Esc clears. With nothing selected a tap selects just that line.
-export function clickSelect(id: string, mods: { shift: boolean; meta: boolean }) {
-  const { selection, anchorId } = get()
-  if (mods.shift && anchorId) return selectRange(anchorId, id)
-  if (mods.meta || selection.length > 0) {
-    const has = selection.includes(id)
-    const next = has ? selection.filter((x) => x !== id) : [...selection, id]
-    return select(next, has ? (next.at(-1) ?? null) : id)
-  }
-  select([id], id)
-}
-
-export function selectRange(anchorId: string, focusId: string) {
-  const vis = visibleIds()
-  const a = vis.indexOf(anchorId)
-  const b = vis.indexOf(focusId)
-  if (a < 0 || b < 0) return select([focusId], focusId)
-  const [lo, hi] = a < b ? [a, b] : [b, a]
-  select(vis.slice(lo, hi + 1), anchorId, focusId)
-}
-
-export function selectAll() {
-  const vis = visibleIds()
-  select(vis, vis[0] ?? null, vis.at(-1) ?? null)
-}
-
-// Arrow keys in selection mode.
-export function stepSelection(dir: -1 | 1, extend: boolean) {
-  const { focusId, anchorId, selection } = get()
-  const vis = visibleIds()
-  const cur = focusId ?? selection.at(dir > 0 ? -1 : 0) ?? null
-  const i = cur ? vis.indexOf(cur) : -1
-  const next = vis[Math.min(vis.length - 1, Math.max(0, i + dir))]
-  if (!next) return
-  if (extend && anchorId) selectRange(anchorId, next)
-  else select([next], next)
-}
-
-// The ids an action applies to: the selection, else the node being edited.
-export function targets(): string[] {
-  const { selection, editing } = get()
-  if (selection.length > 0) return selection
-  return editing ? [editing.id] : []
-}
-
-export function neighbor(id: string, dir: -1 | 1): string | null {
-  const vis = visibleIds()
-  const i = vis.indexOf(id)
-  return i < 0 ? null : (vis[i + dir] ?? null)
 }
 
 // Multi-line paste or the Import dialog: lines land after `afterId` at its depth, or at the

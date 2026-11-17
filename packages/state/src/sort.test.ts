@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryStore, idOf, listPads, pad, shape } from '@hissypad/core'
-import { configureLocalStore, loadPad, openPad, undo, usePad } from './store'
+import { configureLocalStore, loadPad, openPad, usePad } from './store'
+import { undo } from './history'
 import { cmdNewPad } from './pads'
 import {
   cmdSortAddSub, cmdSortBack, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, setSortTarget, sortQueue, sortTarget, useSort,

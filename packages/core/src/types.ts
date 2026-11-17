@@ -35,6 +35,19 @@ export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
   }
 }
 
+// Every column of a row, listed once. The Record type makes the compiler insist that a
+// new NodeRow field is added here too, which is what keeps sameRow honest.
+const ROW_FIELDS: Record<keyof NodeRow, true> = {
+  id: true, parentId: true, rank: true, text: true, done: true, doneAt: true, collapsed: true,
+  numbered: true, header: true, pad: true, updatedAt: true, deletedAt: true,
+}
+export const ROW_KEYS = Object.keys(ROW_FIELDS) as (keyof NodeRow)[]
+
+// True when two rows hold the same value in every column.
+export function sameRow(a: Partial<NodeRow>, b: Partial<NodeRow>): boolean {
+  return ROW_KEYS.every((k) => a[k] === b[k])
+}
+
 // The three ways a line can look. Stored as two booleans (numbered, header) so the column
 // set only ever grows; kindOf/setKind keep them exclusive.
 export type NodeKind = 'plain' | 'numbered' | 'header'

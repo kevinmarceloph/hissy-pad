@@ -3,16 +3,15 @@
 // text and sub items edit the real rows, so a line can be fixed up before it goes. Every
 // send is one undo step; Back takes the last card back.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from 'react'
-import { buildIndex, flatten, isLive, listPads } from '@hissypad/core'
+import { buildIndex, flatten, listPads } from '@hissypad/core'
 import {
-  cmdSortAddSub, cmdSortBack, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, padName, setSortTarget, sortQueue, sortTarget, swipeDir, SWIPE_DISTANCE,
-  usePad, useSort, type SortDir, type SortResult, type SortSide,
+  cmdSortAddSub, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, setSortTarget, sortSessionBack, sortSessionCard,
+  sortSessionSend, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortDir, type SortSide,
 } from '@hissypad/state'
 
 const SWIPE = SWIPE_DISTANCE // px of travel that commits a swipe
 const SLOP = 8   // px before a press becomes a drag
 
-interface Sent extends SortResult { id: string }
 interface Ghost { key: number; text: string; dir: SortDir; dx: number; dy: number }
 
 // A textarea as tall as its text, snapped to whole lines (a line is 25.5px, see CLAUDE.md).
@@ -33,9 +32,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
   const choice = useSort()
-  const [queue] = useState(() => sortQueue())
-  const [pos, setPos] = useState(0)
-  const [sent, setSent] = useState<Sent[]>([])
+  const [session, setSession] = useState(() => sortSessionStart())
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null)
   const [ghost, setGhost] = useState<Ghost | null>(null)
   const [draft, setDraft] = useState('')
@@ -45,11 +42,8 @@ export function Sort({ onClose }: { onClose: () => void }) {
 
   useEffect(() => { void loadSortTargets() }, [])
 
-  // The card: the next queued line that is still a top-level line of this pad (a sync or
-  // an undo can take one away mid-sort).
-  let at = pos
-  while (at < queue.length && !(isLive(rows[queue[at]!]) && rows[queue[at]!]!.parentId === null)) at++
-  const id = at < queue.length ? queue[at]! : null
+  const { queue, sent } = session
+  const { id, index: at } = sortSessionCard(session, rows)
   const row = id ? rows[id]! : null
   const subs = useMemo(() => (id ? flatten(buildIndex(rows), false, id) : []), [rows, id])
   const left = sortTarget(all, 'left', choice.left)
@@ -58,21 +52,18 @@ export function Sort({ onClose }: { onClose: () => void }) {
 
   function send(dir: SortDir, from = { dx: 0, dy: 0 }) {
     if (!id || !row) return
-    const res = cmdSortSend(id, dir)
-    if (!res) return
+    const next = sortSessionSend(session, dir)
+    if (next === session) return
     setGhost({ key: Date.now(), text: row.text, dir, ...from })
-    setSent((s) => [...s, { ...res, id }])
-    setPos(at + 1)
+    setSession(next)
     setDrag(null)
     setDraft('')
   }
 
   function back() {
-    const last = sent.at(-1)
-    if (!last) return
-    cmdSortBack(last)
-    setSent((s) => s.slice(0, -1))
-    setPos(queue.indexOf(last.id))
+    const next = sortSessionBack(session)
+    if (next === session) return
+    setSession(next)
     setGhost(null)
     setDraft('')
   }
@@ -166,7 +157,6 @@ export function Sort({ onClose }: { onClose: () => void }) {
   const cardStyle: CSSProperties | undefined = drag
     ? { transform: `translate(${drag.dx}px, ${drag.dy}px) rotate(${(drag.dx * 0.04).toFixed(2)}deg)`, transition: 'none' }
     : undefined
-  const tally = (dir: SortDir) => sent.filter((s) => s.dir === dir).length
   const upLabel = `${right.name}, done`
 
   function createTarget() {
@@ -297,14 +287,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
             ) : (
               <>
                 <p>All sorted.</p>
-                <p className="tally">
-                  {[
-                    tally('right') && `${tally('right')} to ${right.name}`,
-                    tally('up') && `${tally('up')} done`,
-                    tally('left') && `${tally('left')} to ${left.name}`,
-                    tally('skip') && `${tally('skip')} skipped`,
-                  ].filter(Boolean).join(', ')}
-                </p>
+                <p className="tally">{sortSummary(session, left.name, right.name)}</p>
               </>
             )}
           </div>

@@ -8,8 +8,8 @@ import {
 import { Row } from './Row'
 import { useDrag } from './drag/useDrag'
 import { forceSync } from '@hissypad/state'
+import { MOD } from './platform'
 
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 
 export function Pad() {
   const rows = usePad((s) => s.rows)
@@ -214,7 +214,7 @@ export function Pad() {
       {lone && (
         <p className="hint">
           Type anything. <kbd>Enter</kbd> for a new line, <kbd>Tab</kbd> to nest, <kbd>Esc</kbd> to select a line,
-          {' '}<kbd>{isMac ? '⌘' : 'Ctrl'}</kbd>+<kbd>Enter</kbd> to cross it out, <kbd>{isMac ? '⌘' : 'Ctrl'}</kbd>+<kbd>Shift</kbd>+<kbd>7</kbd> to number it. Paste an outline and it keeps its shape.
+          {' '}<kbd>{MOD}</kbd>+<kbd>Enter</kbd> to cross it out, <kbd>{MOD}</kbd>+<kbd>Shift</kbd>+<kbd>7</kbd> to number it. Paste an outline and it keeps its shape.
         </p>
       )}
       <button type="button" className="tail" aria-label="Add a line at the end" onClick={cmdAppendAtEnd} />

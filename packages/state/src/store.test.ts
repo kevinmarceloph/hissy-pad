@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryStore, pad, shape, idOf } from '@hissypad/core'
-import { apply, clickSelect, configureLocalStore, edit, importOutline, loadPad, redo, select, setAll, undo, usePad } from './store'
+import { apply, configureLocalStore, importOutline, loadPad, setAll, usePad } from './store'
+import { redo, undo } from './history'
+import { clickSelect, edit, select } from './selection'
 import { cmdCopySelection, cmdDeleteDone, cmdDeleteSelection, cmdSetText, cmdSplit, cmdTextChanged, cmdToggleDone, setClipboard } from './commands'
 import { setText } from '@hissypad/core'
 

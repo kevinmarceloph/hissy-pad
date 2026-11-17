@@ -7,10 +7,10 @@ import { DonePanel, TrashPanel } from './Lists'
 import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
 import { PadTabs } from './PadTabs'
 import { showToast, useToast } from './toast'
+import { MOD } from './platform'
 
 type Theme = 'system' | 'light' | 'dark'
 
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 
 function readTheme(): Theme {
   try {
@@ -54,7 +54,7 @@ export function TopBar({ onFreshStart, onSort, view }: { onFreshStart: () => voi
 
   function deleteDone() {
     const n = cmdDeleteDone()
-    setToast(n === 0 ? 'Nothing crossed out' : `Deleted ${n} ${n === 1 ? 'line' : 'lines'}. ${isMac ? '⌘' : 'Ctrl'}+Z brings them back.`)
+    setToast(n === 0 ? 'Nothing crossed out' : `Deleted ${n} ${n === 1 ? 'line' : 'lines'}. ${MOD}+Z brings them back.`)
   }
 
   function exportAll() {

@@ -7,14 +7,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Animated, Dimensions, Keyboard, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
-import { buildIndex, flatten, isLive, listPads } from '@hissypad/core'
+import { buildIndex, flatten, listPads } from '@hissypad/core'
 import {
-  cmdSortAddSub, cmdSortBack, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, padName, setSortTarget, sortQueue, sortTarget,
-  swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortDir, type SortResult, type SortSide,
+  cmdSortAddSub, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, setSortTarget, sortSessionBack, sortSessionCard,
+  sortSessionSend, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortDir, type SortSide,
 } from '@hissypad/state'
 import { INDENT, serif, type Theme } from '../theme'
-
-interface Sent extends SortResult { id: string }
 
 const SLOP = 10 // px before a touch on the card becomes a drag
 
@@ -24,18 +22,15 @@ export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Them
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
   const choice = useSort()
-  const [queue] = useState(() => sortQueue())
-  const [pos, setPos] = useState(0)
-  const [sent, setSent] = useState<Sent[]>([])
+  const [session, setSession] = useState(() => sortSessionStart())
   const [draft, setDraft] = useState('')
   const pan = useRef(new Animated.ValueXY()).current
   const busy = useRef(false)
 
   useEffect(() => { void loadSortTargets() }, [])
 
-  let at = pos
-  while (at < queue.length && !(isLive(rows[queue[at]!]) && rows[queue[at]!]!.parentId === null)) at++
-  const id = at < queue.length ? queue[at]! : null
+  const { queue, sent } = session
+  const { id, index: at } = sortSessionCard(session, rows)
   const row = id ? rows[id]! : null
   const subs = useMemo(() => (id ? flatten(buildIndex(rows), false, id) : []), [rows, id])
   const left = sortTarget(all, 'left', choice.left)
@@ -44,10 +39,7 @@ export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Them
   function commit(dir: SortDir) {
     if (!id) return
     if (draft.trim()) cmdSortAddSub(id, draft)
-    const res = cmdSortSend(id, dir)
-    if (!res) return
-    setSent((s) => [...s, { ...res, id }])
-    setPos(at + 1)
+    setSession(sortSessionSend(session, dir))
     setDraft('')
   }
 
@@ -67,11 +59,8 @@ export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Them
   }
 
   function back() {
-    const last = sent.at(-1)
-    if (!last || busy.current) return
-    cmdSortBack(last)
-    setSent((s) => s.slice(0, -1))
-    setPos(queue.indexOf(last.id))
+    if (busy.current) return
+    setSession(sortSessionBack(session))
     setDraft('')
   }
 
@@ -128,13 +117,7 @@ export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Them
   const stampLeft = pan.x.interpolate({ inputRange: [-SWIPE_DISTANCE, 0], outputRange: [1, 0], extrapolate: 'clamp' })
   const stampRight = pan.x.interpolate({ inputRange: [0, SWIPE_DISTANCE], outputRange: [0, 1], extrapolate: 'clamp' })
   const stampUp = pan.y.interpolate({ inputRange: [-SWIPE_DISTANCE, -SWIPE_DISTANCE / 3], outputRange: [1, 0], extrapolate: 'clamp' })
-  const tally = (dir: SortDir) => sent.filter((x) => x.dir === dir).length
-  const summary = [
-    tally('right') && `${tally('right')} to ${right.name}`,
-    tally('up') && `${tally('up')} done`,
-    tally('left') && `${tally('left')} to ${left.name}`,
-    tally('skip') && `${tally('skip')} skipped`,
-  ].filter(Boolean).join(', ')
+  const summary = sortSummary(session, left.name, right.name)
 
   const stamp = (label: string, opacity: Animated.AnimatedInterpolation<number>, style: object) => (
     <Animated.View pointerEvents="none" style={[s.stamp, style, { borderColor: theme.accent, backgroundColor: theme.paperRaised, opacity }]}>
