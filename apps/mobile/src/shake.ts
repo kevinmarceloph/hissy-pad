@@ -1,10 +1,11 @@
 // Shake to undo. The accelerometer feeds the detector in state/shake.ts; a shake asks
 // before it undoes, like the system's own "Undo Typing" (which the withNoShakeToEdit
 // plugin turns off, so a shake while typing gets this prompt and not both). A build from
-// before expo-sensors was added has no accelerometer module: the require fails and
-// shaking simply does nothing there.
+// before expo-sensors was added has no accelerometer module, and shaking simply does
+// nothing there.
 import { useEffect } from 'react'
 import { Alert, AppState } from 'react-native'
+import { requireOptionalNativeModule } from 'expo'
 import * as Haptics from 'expo-haptics'
 import { createShakeDetector, log, redo, undo, usePad } from '@hissypad/state'
 
@@ -14,7 +15,11 @@ interface AccelerometerModule {
   addListener: (fn: (e: { x: number; y: number; z: number }) => void) => Sub
 }
 
+// Ask the native side first: on a build without expo-sensors, merely loading the package
+// throws from its module scope ("Cannot find native module"), and React Native reports
+// that as a fatal error before any try/catch here sees it.
 function accelerometer(): AccelerometerModule | null {
+  if (!requireOptionalNativeModule('ExponentAccelerometer')) return null
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return (require('expo-sensors') as { Accelerometer: AccelerometerModule }).Accelerometer
