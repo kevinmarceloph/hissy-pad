@@ -635,6 +635,8 @@ dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-f
 .sort-minor button:hover:not(:disabled) { background: var(--paper-raised); color: var(--ink); }
 .sort-targets { flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--ink-soft); }
 .sort-target { display: inline-flex; align-items: center; gap: 0.4rem; }
+.sort-target input { width: 10rem; min-height: 32px; padding: 0 0.45rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper-raised); }
+.sort .sort-target button { min-height: 32px; padding: 0 0.6rem; }
 .sort-target select { max-width: 11rem; min-height: 32px; padding: 0 0.3rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper-raised); }
 @media (prefers-reduced-motion: reduce) {
   .sort-card { animation: none; transition: none; }

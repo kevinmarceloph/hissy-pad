@@ -3,7 +3,7 @@ import { createMemoryStore, idOf, listPads, pad, shape } from '@hissypad/core'
 import { configureLocalStore, loadPad, openPad, undo, usePad } from './store'
 import { cmdNewPad } from './pads'
 import {
-  cmdSortAddSub, cmdSortBack, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, setSortTarget, sortQueue, sortTarget, useSort,
+  cmdSortAddSub, cmdSortBack, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, setSortTarget, sortQueue, sortTarget, useSort,
 } from './sort'
 
 function reset(outline: string) {
@@ -92,5 +92,15 @@ describe('sort', () => {
     expect(whole()).toBe('A\nBee\n  B1\n\nC\nD')
     cmdSortSend(id('Bee'), 'right')
     expect(whole()).toBe('A\n\nC\nD\n@Today\n  Bee\n    B1')
+  })
+
+  it('a new pad made from the sort screen becomes the target and the pad being sorted stays open', () => {
+    expect(cmdSortNewTarget('left', '  ')).toBe('')
+    const someday = cmdSortNewTarget('left', ' Someday ')
+    expect(usePad.getState().padId).toBeNull()
+    expect(sortTarget(all(), 'left')).toMatchObject({ padId: someday, name: 'Someday', isDefault: false })
+    cmdSortSend(id('A'), 'left')
+    expect(all()[id('A')]!.parentId).toBe(someday)
+    expect(listPads(all()).map((p) => p.text)).toEqual(['Someday'])
   })
 })

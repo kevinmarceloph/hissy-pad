@@ -5,7 +5,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from 'react'
 import { buildIndex, flatten, isLive, listPads } from '@hissypad/core'
 import {
-  cmdSortAddSub, cmdSortBack, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, padName, setSortTarget, sortQueue, sortTarget, swipeDir, SWIPE_DISTANCE,
+  cmdSortAddSub, cmdSortBack, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, padName, setSortTarget, sortQueue, sortTarget, swipeDir, SWIPE_DISTANCE,
   usePad, useSort, type SortDir, type SortResult, type SortSide,
 } from '@hissypad/state'
 
@@ -39,6 +39,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null)
   const [ghost, setGhost] = useState<Ghost | null>(null)
   const [draft, setDraft] = useState('')
+  const [naming, setNaming] = useState<{ side: SortSide; name: string } | null>(null)
   const press = useRef<{ x: number; y: number; pointer: number; inFocusedField: boolean; dragging: boolean } | null>(null)
   const addRef = useRef<HTMLInputElement>(null)
 
@@ -168,21 +169,50 @@ export function Sort({ onClose }: { onClose: () => void }) {
   const tally = (dir: SortDir) => sent.filter((s) => s.dir === dir).length
   const upLabel = `${right.name}, done`
 
+  function createTarget() {
+    if (!naming) return
+    if (cmdSortNewTarget(naming.side, naming.name)) setNaming(null)
+  }
+
   const targetSelect = (side: SortSide) => {
     const t = side === 'left' ? left : right
-    const pads = listPads(all).filter((p) => !(t.isDefault && p.id === t.padId) && p.id !== sortTarget(all, side, null).padId)
     const def = sortTarget(all, side, null)
+    const pads = listPads(all).filter((p) => p.id !== def.padId)
+    const label = side === 'left' ? '← Left goes to' : '→ Right and ↑ up go to'
+    if (naming?.side === side) {
+      return (
+        <form className="sort-target" onSubmit={(e) => { e.preventDefault(); createTarget() }}>
+          <span>{label}</span>
+          <input
+            autoFocus
+            value={naming.name}
+            onChange={(e) => setNaming({ side, name: e.target.value })}
+            onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setNaming(null) } }}
+            placeholder="Name the new pad"
+            aria-label="Name for the new pad"
+          />
+          <button type="submit" disabled={!naming.name.trim()}>Create</button>
+          <button type="button" onClick={() => setNaming(null)}>Cancel</button>
+        </form>
+      )
+    }
     return (
       <label className="sort-target">
-        <span>{side === 'left' ? '← Left goes to' : '→ Right and ↑ up go to'}</span>
+        <span>{label}</span>
         <select
           value={choice[side] === 'main' ? 'main' : t.isDefault ? '' : (t.padId ?? '')}
-          onChange={(e) => { setSortTarget(side, e.target.value === '' ? null : e.target.value); e.target.blur() }}
+          onChange={(e) => {
+            const v = e.target.value
+            if (v === '__new') setNaming({ side, name: '' })
+            else setSortTarget(side, v === '' ? null : v)
+            e.target.blur()
+          }}
           aria-label={side === 'left' ? 'Pad for a left swipe' : 'Pad for a right or up swipe'}
         >
           <option value="">{def.exists ? def.name : `${def.name} (new pad)`}</option>
           <option value="main">{padName(all, null)}</option>
           {pads.map((p) => <option key={p.id} value={p.id}>{p.text || 'Untitled pad'}</option>)}
+          <option value="__new">New pad…</option>
         </select>
       </label>
     )

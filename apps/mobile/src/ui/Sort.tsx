@@ -4,12 +4,12 @@
 // the web (state/sort.ts); only the gesture is drawn here, with PanResponder and Animated
 // so it ships as a JS-only update.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Animated, Dimensions, Keyboard, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Alert, Animated, Dimensions, Keyboard, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, flatten, isLive, listPads } from '@hissypad/core'
 import {
-  cmdSortAddSub, cmdSortBack, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, padName, setSortTarget, sortQueue, sortTarget,
+  cmdSortAddSub, cmdSortBack, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, padName, setSortTarget, sortQueue, sortTarget,
   swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortDir, type SortResult, type SortSide,
 } from '@hissypad/state'
 import { INDENT, serif, type Theme } from '../theme'
@@ -106,8 +106,22 @@ export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Them
       { text: def.exists ? def.name : `${def.name} (new pad)`, onPress: () => setSortTarget(side, null) },
       { text: padName(all, null), onPress: () => setSortTarget(side, 'main') },
       ...pads.map((p) => ({ text: p.text || 'Untitled pad', onPress: () => setSortTarget(side, p.id) })),
+      { text: 'New pad…', onPress: () => newTarget(side) },
       { text: 'Cancel', style: 'cancel' as const },
     ])
+  }
+
+  // Names come through Alert.prompt on iOS; Android has no prompt, so the pad is called
+  // "New pad" there and can be renamed later.
+  function newTarget(side: SortSide) {
+    if (Platform.OS !== 'ios') {
+      cmdSortNewTarget(side, 'New pad')
+      return
+    }
+    Alert.prompt('New pad', 'A name for it', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Create', onPress: (v?: string) => { if (v) cmdSortNewTarget(side, v) } },
+    ], 'plain-text')
   }
 
   const rotate = pan.x.interpolate({ inputRange: [-300, 300], outputRange: ['-12deg', '12deg'], extrapolate: 'clamp' })

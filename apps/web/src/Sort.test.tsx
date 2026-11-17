@@ -92,4 +92,19 @@ describe('sort', () => {
     await user.click(button('Up: Main, done'))
     expect(whole()).toBe('~B\n@Someday\n  \n  A')
   })
+
+  it('New pad… in a target select makes a pad on the spot and points that side at it', async () => {
+    const user = userEvent.setup()
+    await mount('A\nB')
+    await user.click(button('Sort…'))
+    await user.selectOptions(screen.getByLabelText('Pad for a left swipe'), 'New pad…')
+    await user.type(screen.getByLabelText('Name for the new pad'), 'Someday{Enter}')
+    expect(button('Left: Someday')).toBeInTheDocument()
+    expect(card().value).toBe('A') // still sorting the same pad
+    await user.keyboard('{ArrowLeft}')
+    expect(whole()).toBe('B\n@Someday\n  A')
+    await user.selectOptions(screen.getByLabelText('Pad for a right or up swipe'), 'New pad…')
+    await user.click(button('Cancel'))
+    expect(button('Right: Today')).toBeInTheDocument()
+  })
 })

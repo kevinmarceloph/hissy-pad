@@ -45,6 +45,21 @@ export function swipeDir(dx: number, dy: number, threshold = SWIPE_DISTANCE): So
   return null
 }
 
+// A new pad made from the sort screen and set as a side's target, without leaving the pad
+// being sorted. Returns its id ('' for a blank name).
+export function cmdSortNewTarget(side: SortSide, name: string): string {
+  const clean = name.trim()
+  if (!clean) return ''
+  let id = ''
+  applyAll((all, ctx) => {
+    const made = createPad(all, ctx, clean)
+    id = made.padId
+    return made.rows
+  }, { label: 'cmdSortNewTarget' })
+  setSortTarget(side, id)
+  return id
+}
+
 export interface SortTarget {
   padId: PadId      // null = the main pad
   name: string
