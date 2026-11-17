@@ -13,6 +13,7 @@
     "expo-dev-client": "~58.0.16",
     "expo-haptics": "~58.0.7",
     "expo-linking": "~58.0.14",
+    "expo-sensors": "~58.0.5",
     "expo-sqlite": "~58.0.14",
     "expo-status-bar": "~58.0.4",
     "expo-updates": "~58.0.19",

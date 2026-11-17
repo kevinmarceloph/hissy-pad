@@ -9,6 +9,7 @@ import { setupApp } from './src/setup'
 import { Pad } from './src/ui/Pad'
 import { completeAuthFromUrl } from './src/ui/Account'
 import { useTheme } from './src/theme'
+import { useShakeToUndo } from './src/shake'
 
 function report(msg: string | null) {
   if (msg && msg !== 'Signed in.') Alert.alert('Sign in', msg)
@@ -17,6 +18,7 @@ function report(msg: string | null) {
 export default function App() {
   const theme = useTheme()
   const [ready, setReady] = useState(false)
+  useShakeToUndo()
   useEffect(() => {
     void (async () => {
       await setupApp()
