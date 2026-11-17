@@ -146,4 +146,16 @@ describe('pads', () => {
     await user.click(screen.getByRole('button', { name: 'Move pad right' }))
     expect(names()).toEqual(['Main', 'One', 'Two'])
   })
+
+  it('Make pad in the toolbar turns a line into a tab with its sub items inside', async () => {
+    const user = userEvent.setup()
+    await mount('keep\ntrip\n  flights\n  hotel')
+    await user.click(within(rowByText('trip')).getByRole('button', { name: 'Select line' }))
+    await user.click(screen.getByRole('button', { name: 'Make pad' }))
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Main', 'trip'])
+    expect(texts()).toBe('keep')
+    expect(screen.getByText(/“trip” is a pad now/)).toBeInTheDocument()
+    await user.click(tab('trip'))
+    expect(texts()).toBe('flights\nhotel')
+  })
 })

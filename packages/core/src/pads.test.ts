@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { pad, shape, idOf, testCtx } from './testing'
-import { createPad, freshStart, listPads, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
+import { createPad, freshStart, lineToPad, listPads, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
 import { dedent, insertAt, remove, setText } from './ops'
 import { changedRows } from './sync/store'
 
@@ -92,6 +92,32 @@ describe('reordering pads', () => {
     // The pads' lines and the main pad are as they were.
     expect(shape(scopePad(first, t.w))).toBe(shape(scopePad(rows, t.w)))
     expect(shape(scopePad(first, null))).toBe(shape(scopePad(rows, null)))
+  })
+})
+
+describe('a line becomes a pad', () => {
+  it('goes to the end of the pads with its subtree as the content, line marks dropped', () => {
+    const t = table()
+    let rows = t.rows
+    const b = idOf(rows, 'B')
+    rows = { ...rows, [b]: { ...rows[b]!, done: true, doneAt: 'x', header: true, collapsed: true, text: 'B\n  two' } }
+    const res = lineToPad(rows, t.ctx, b)!
+    expect(res.name).toBe('B two')
+    expect(listPads(res.rows).map((p) => p.text)).toEqual(['Work', 'B two'])
+    expect(res.rows[b]).toMatchObject({ pad: true, parentId: null, done: false, doneAt: null, header: false, collapsed: false })
+    expect(shape(scopePad(res.rows, b))).toBe('B1\nB2')
+    expect(shape(scopePad(res.rows, null))).toBe('A\nC')
+    expect(changedRows(rows, res.rows).map((r) => r.id)).toEqual([b])
+  })
+  it('works from inside another pad and for a nested line; a pad node or a blank name is handled', () => {
+    const t = table()
+    const w2a = idOf(t.rows, 'W2a')
+    const res = lineToPad(t.rows, t.ctx, w2a)!
+    expect(listPads(res.rows).map((p) => p.text)).toEqual(['Work', 'W2a'])
+    expect(shape(scopePad(res.rows, t.w))).toBe('W1\nW2')
+    expect(lineToPad(t.rows, t.ctx, t.w)).toBeNull()
+    const blank = insertAt(t.rows, t.ctx, { parentId: null, afterId: null }, '  ')
+    expect(lineToPad(blank.rows, t.ctx, blank.newId)!.name).toBe('Untitled pad')
   })
 })
 

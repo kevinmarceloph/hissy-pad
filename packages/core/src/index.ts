@@ -58,6 +58,7 @@ export {
   createPad,
   moveToPad,
   movePad,
+  lineToPad,
   resolveSides,
   sendTo,
   sideRows,

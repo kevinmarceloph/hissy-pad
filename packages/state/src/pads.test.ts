@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryStore, pad, shape, idOf, listPads } from '@hissypad/core'
 import { configureLocalStore, loadPad, openPad, redo, select, undo, usePad } from './store'
 import { cmdDeleteDone, cmdDeleteSelection, cmdIndent, cmdSetText, cmdSplit } from './commands'
-import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdMovePad, cmdMoveToPad, cmdNewPad, cmdRenamePad, padList } from './pads'
+import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdLineToPad, cmdMovePad, padCandidate, cmdMoveToPad, cmdNewPad, cmdRenamePad, padList } from './pads'
 import { importOutline } from './store'
 
 function reset(initialOutline?: string) {
@@ -152,5 +152,24 @@ describe('pads in the store', () => {
     expect(cmdMovePad(a, 1)).toBe(false)
     undo()
     expect(names()).toEqual(['Main', 'One', 'Two'])
+  })
+
+  it('Make pad turns the one selected line into a pad, stays on the pad shown, and undoes in one step', () => {
+    const { rows } = usePad.getState()
+    select([idOf(rows, 'A'), idOf(rows, 'C')], idOf(rows, 'A'))
+    expect(padCandidate()).toBeNull()
+    expect(cmdLineToPad()).toBeNull()
+    select([idOf(rows, 'B'), idOf(rows, 'B1')], idOf(rows, 'B')) // a line and its own child: still one line
+    const res = cmdLineToPad()!
+    expect(res.name).toBe('B')
+    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Main', 'B'])
+    expect(usePad.getState().padId).toBeNull()
+    expect(main()).toBe('A\nC')
+    openPad(res.padId)
+    expect(shown()).toBe('B1')
+    openPad(null)
+    undo()
+    expect(main()).toBe('A\nB\n  B1\nC')
+    expect(padList(usePad.getState().all)).toHaveLength(1)
   })
 })

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildIndex, childrenOf, kindOf, topmost, type NodeKind, type PadId } from '@hissypad/core'
-import { clearSelection, cmdMoveToPad, padList, padName, stopEditing, usePad } from '@hissypad/state'
+import { clearSelection, cmdLineToPad, cmdMoveToPad, padCandidate, padList, padName, stopEditing, usePad } from '@hissypad/state'
 import { showToast } from './toast'
 import {
   cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
@@ -45,6 +45,12 @@ export function SelectionBar() {
   const ids = selection.length > 0 ? selection : editing ? [editing.id] : []
   const can = useMemo(() => abilities(rows, ids), [rows, ids])
   const ref = useRef<HTMLDivElement>(null)
+  const canPad = useMemo(() => padCandidate() !== null, [rows, ids])
+
+  function makePad() {
+    const res = cmdLineToPad()
+    if (res) showToast(`“${res.name}” is a pad now. ${/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'}+Z turns it back into a line.`)
+  }
   const visible = ids.length > 0
 
   // A fixed element sits at the bottom of the layout viewport, which the on-screen keyboard
@@ -134,6 +140,7 @@ export function SelectionBar() {
           )}
         </span>
       )}
+      <button type="button" onClick={makePad} disabled={!canPad} title="Make this line a pad: its text is the name, its sub items the lines">Make pad</button>
       <button type="button" className="danger" onClick={cmdDeleteSelection} title="Delete (Backspace)">Delete</button>
       <button type="button" onClick={close} aria-label={n > 0 ? 'Clear selection (Esc)' : 'Stop editing (Esc)'}>×</button>
     </div>

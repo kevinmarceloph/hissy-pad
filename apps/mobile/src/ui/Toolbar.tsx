@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { buildIndex, childrenOf, kindOf, topmost, type NodeKind } from '@hissypad/core'
 import {
-  clearSelection, stopEditing, usePad, padList, cmdMoveToPad,
+  clearSelection, stopEditing, usePad, padList, cmdMoveToPad, cmdLineToPad, padCandidate,
   cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdSetKind, cmdToggleCollapsed, cmdToggleDone, cmdUngroup,
 } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
@@ -47,6 +47,7 @@ export function Toolbar({ theme }: { theme: Theme }) {
   const ids = selection.length > 0 ? selection : editing ? [editing.id] : []
   const can = useMemo(() => abilities(rows, ids), [rows, ids])
   const others = useMemo(() => padList(all).filter((p) => p.id !== padId), [all, padId])
+  const canPad = useMemo(() => padCandidate() !== null, [rows, ids])
   if (ids.length === 0) return null
   // Move to another pad: the pads as a list of buttons (iOS stacks them).
   function moveTo() {
@@ -83,6 +84,7 @@ export function Toolbar({ theme }: { theme: Theme }) {
         <Btn theme={theme} label="Ungroup" a11y="Ungroup: sub items come out to this line's level" onPress={cmdUngroup} disabled={!can.fold} />
         <Btn theme={theme} label="Copy" onPress={() => void cmdCopySelection()} />
         {others.length > 0 && <Btn theme={theme} label="Move to…" a11y="Move to another pad" onPress={moveTo} />}
+        <Btn theme={theme} label="Make pad" a11y="Make this line a pad" onPress={() => void cmdLineToPad()} disabled={!canPad} />
         <Btn theme={theme} label="Delete" onPress={cmdDeleteSelection} />
         <Btn theme={theme} label="×" a11y={n > 0 ? 'Clear selection' : 'Stop editing'} onPress={() => (n > 0 ? clearSelection() : stopEditing())} />
       </ScrollView>

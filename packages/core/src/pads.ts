@@ -76,6 +76,21 @@ export function createPad(all: Rows, ctx: OpCtx, name: string): { rows: Rows; pa
   return { rows: { ...res.rows, [node.id]: { ...node, pad: true } }, padId: node.id }
 }
 
+// Turn a line into a pad of its own: it goes to the end of the root with the flag set,
+// its text (on one line) is the pad's name and everything under it is the pad's content.
+// Line-only marks (crossed out, numbered, header, folded) are dropped. Refused for a pad
+// node or a missing row. Returns the new rows and the pad's name.
+export function lineToPad(all: Rows, ctx: OpCtx, id: string): { rows: Rows; name: string } | null {
+  const row = all[id]
+  if (!isLive(row) || (row.pad && row.parentId === null)) return null
+  const last = childrenOf(buildIndex(all), null).filter((r) => r.id !== id).at(-1)
+  const moved = moveNodes(all, ctx, [id], { parentId: null, afterId: last?.id ?? null })
+  const name = row.text.replace(/\s*\n\s*/g, ' ').trim() || 'Untitled pad'
+  const node = moved[id]!
+  const pad: NodeRow = { ...node, parentId: null, text: name, pad: true, done: false, doneAt: null, numbered: false, header: false, collapsed: false, updatedAt: ctx.now() }
+  return { rows: { ...moved, [id]: pad }, name }
+}
+
 // Move a pad one place left (-1) or right (1) among the pads. The main pad is always
 // first and is not in this order. Only the moved pad's rank changes.
 export function movePad(all: Rows, ctx: OpCtx, padId: string, dir: -1 | 1): Rows {

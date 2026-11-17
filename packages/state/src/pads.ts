@@ -1,7 +1,7 @@
 // Pad commands: switch, create, rename, delete, move lines across, and the fresh start.
 // The data side is core's pads.ts; this file picks targets from the store and lands the
 // selection afterwards.
-import { createPad, freshStart, movePad, insertAt, isPadNode, listPads, moveToPad, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
+import { buildIndex, createPad, freshStart, lineToPad, movePad, topmost, insertAt, isPadNode, listPads, moveToPad, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
 import { apply, applyAll, edit, openPad, stopEditing, targets, usePad } from './store'
 import { log } from './log'
 
@@ -83,6 +83,33 @@ export function cmdMoveToPad(padId: PadId): number {
   ensureLine()
   log('pad:move', { n, to: padId?.slice(0, 8) ?? 'main' })
   return n
+}
+
+// The one line a "Make pad" would convert: the selection (or the line being edited) when
+// it comes down to a single line with its subtree; null otherwise.
+export function padCandidate(): string | null {
+  const tops = topmost(buildIndex(usePad.getState().rows), targets())
+  return tops.length === 1 ? tops[0]! : null
+}
+
+// Turn that line into a pad: its text names the pad and its sub items become the pad's
+// lines. The pad shown stays open. Returns the new pad's id and name, or null.
+export function cmdLineToPad(): { padId: string; name: string } | null {
+  const id = padCandidate()
+  if (!id) return null
+  stopEditing()
+  let name = ''
+  applyAll((all, ctx) => {
+    const res = lineToPad(all, ctx, id)
+    if (!res) return all
+    name = res.name
+    return res.rows
+  }, { label: 'cmdLineToPad' })
+  if (!name) return null
+  usePad.setState({ selection: [], anchorId: null, focusId: null })
+  ensureLine()
+  log('pad:fromLine', { id: id.slice(0, 8), name })
+  return { padId: id, name }
 }
 
 // "Before 2 Nov 2026", or "Work, before 2 Nov 2026" for a pad of its own.
