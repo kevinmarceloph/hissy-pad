@@ -6,6 +6,8 @@
 //   widget.actions   what happened outside the app since it was last in front: buttons
 //                    pressed on the widget, lines added through Siri (appended here; the
 //                    app applies them and clears the list)
+//   widget.open      a link for the app to follow when it next comes to the front, left
+//                    by the Add control ("add?pad=inbox"); the app clears it
 // The shapes are in targets/_shared/Models.swift. This file is compiled into the widget
 // and, through plugins/withNativeSources.js, into the app itself, where the Siri shortcut
 // and the watch bridge use it.
@@ -16,6 +18,7 @@ let appGroup = "group.ph.marcelo.hissypad"
 enum Shared {
   static let snapshotKey = "widget.snapshot"
   static let actionsKey = "widget.actions"
+  static let openKey = "widget.open"
   static let maxItems = 25
 
   static var defaults: UserDefaults? { UserDefaults(suiteName: appGroup) }

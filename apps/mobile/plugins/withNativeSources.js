@@ -5,6 +5,8 @@
 //   native/WatchBridge.swift     the phone's end of the watch app
 //   targets/widget/Shared.swift  the shared-storage code both use (the widget's own
 //                                file, so the repo has one copy)
+//   targets/widget/AddControlIntent.swift  what the Add control runs: it opens the app,
+//                                so the system runs it here
 // It also starts the watch bridge from the AppDelegate.
 const fs = require('fs')
 const path = require('path')
@@ -14,6 +16,7 @@ const FILES = [
   ['AppShortcuts.swift', 'native/AppShortcuts.swift'],
   ['WatchBridge.swift', 'native/WatchBridge.swift'],
   ['WidgetShared.swift', 'targets/widget/Shared.swift'],
+  ['AddControlIntent.swift', 'targets/widget/AddControlIntent.swift'],
 ]
 
 const LINE = '    WatchBridge.shared.start()'

@@ -5,8 +5,9 @@
 // targets/widget/Shared.swift, the shapes in packages/state/src/widget.ts):
 //   - whenever the pads change, the app writes a snapshot and asks the widget to redraw;
 //   - when the app comes to the front, it applies the buttons pressed on the widget.
-// Tapping the widget opens hissypad://pad?pad=… and its + (and the small Add widget) open
-// hissypad://add?pad=…, where pad=inbox means the pad named Inbox. A line added through
+// Tapping the widget opens hissypad://pad?pad=… and its + opens hissypad://add?pad=…,
+// where pad=inbox means the pad named Inbox. The Add control (Lock Screen, Control Center)
+// opens the app and leaves the same link, without the scheme, under widget.open. A line added through
 // Siri arrives in the same queue as the button presses.
 // On a build from before the widget, the storage module is missing and its JS falls back
 // to no-ops, so all of this quietly does nothing.
@@ -21,6 +22,7 @@ import {
 export const APP_GROUP = 'group.ph.marcelo.hissypad'
 const SNAPSHOT_KEY = 'widget.snapshot'
 const ACTIONS_KEY = 'widget.actions'
+const OPEN_KEY = 'widget.open'
 const POLL_MS = 4000
 
 const storage = new ExtensionStorage(APP_GROUP)
@@ -60,6 +62,22 @@ function drain(force = true) {
   }
 }
 
+// Follow the link the Add control left, if there is one. The control's intent runs as the
+// app comes to the front, a moment before or after the app hears about it, so this is
+// tried a few times.
+function followOpen() {
+  if (usePad.getState().load !== 'ready') return
+  let link: string | null = null
+  try {
+    link = storage.get(OPEN_KEY)
+  } catch {
+    link = null
+  }
+  if (!link) return
+  storage.remove(OPEN_KEY)
+  handleWidgetUrl(`hissypad://${link}`)
+}
+
 // hissypad://add?pad=<key> and hissypad://pad?pad=<key>. Returns true when the URL was
 // one of the widget's (so the sign-in handler leaves it alone).
 export function handleWidgetUrl(url: string): boolean {
@@ -91,20 +109,29 @@ export function useWidgetBridge(ready: boolean) {
       if (timer) clearTimeout(timer)
       timer = setTimeout(publish, 400)
     }
-    void loadSortTargets().then(() => drain())
+    const waits: ReturnType<typeof setTimeout>[] = []
+    const arrive = () => {
+      drain()
+      followOpen()
+      waits.push(setTimeout(followOpen, 300), setTimeout(followOpen, 1200))
+    }
+    void loadSortTargets().then(arrive)
     const unPad = usePad.subscribe((s, prev) => { if (s.all !== prev.all) soon() })
     const unSort = useSort.subscribe(soon)
     const app = AppState.addEventListener('change', (state) => {
-      if (state === 'active') drain()
+      if (state === 'active') arrive()
       else publish() // leaving: do not wait for the timer
     })
     // A line crossed out on the watch while the app is open arrives in the queue with
     // nothing to announce it, so look every few seconds while in front.
     const poll = setInterval(() => {
-      if (AppState.currentState === 'active') drain(false)
+      if (AppState.currentState !== 'active') return
+      drain(false)
+      followOpen()
     }, POLL_MS)
     return () => {
       clearInterval(poll)
+      waits.forEach(clearTimeout)
       if (timer) clearTimeout(timer)
       unPad()
       unSort()

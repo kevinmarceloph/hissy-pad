@@ -47,9 +47,9 @@ struct InboxProvider: AppIntentTimelineProvider {
   }
 }
 
-private let serif = Font.Design.serif
+let serif = Font.Design.serif
 
-private func appURL(_ path: String, pad: String) -> URL {
+func appURL(_ path: String, pad: String) -> URL {
   var parts = URLComponents()
   parts.scheme = "hissypad"
   parts.host = path
@@ -168,77 +168,22 @@ struct InboxWidget: Widget {
   }
 }
 
-// ---- the Add button ------------------------------------------------------------------
+// ---- the Add control ------------------------------------------------------------------
 //
-// A small widget that is one button: tap it and the app opens straight at "Add to Inbox".
-// It adds to the pad named Inbox (the app makes it the first time) unless another pad is
-// picked in Edit Widget. Also offered as a round Lock Screen widget.
+// A Control (iOS 18+): a button for the Lock Screen, Control Center or the Action button.
+// Press it and the app opens straight at "Add to Inbox". The intent is in
+// AddControlIntent.swift, which is also compiled into the app, where it runs.
 
-struct AddEntry: TimelineEntry {
-  let date: Date
-  let padKey: String
-  let padName: String
-}
-
-struct AddProvider: AppIntentTimelineProvider {
-  private func entry(for configuration: InboxConfig) -> AddEntry {
-    if let picked = configuration.pad, let pad = Shared.snapshot()?.pads.first(where: { $0.id == picked.id }) {
-      return AddEntry(date: .now, padKey: pad.id, padName: pad.name)
-    }
-    return AddEntry(date: .now, padKey: inboxKey, padName: "Inbox")
-  }
-
-  func placeholder(in context: Context) -> AddEntry {
-    AddEntry(date: .now, padKey: inboxKey, padName: "Inbox")
-  }
-
-  func snapshot(for configuration: InboxConfig, in context: Context) async -> AddEntry {
-    entry(for: configuration)
-  }
-
-  func timeline(for configuration: InboxConfig, in context: Context) async -> Timeline<AddEntry> {
-    Timeline(entries: [entry(for: configuration)], policy: .never)
-  }
-}
-
-struct AddView: View {
-  @Environment(\.widgetFamily) private var family
-  let entry: AddEntry
-
-  var body: some View {
-    Group {
-      if family == .accessoryCircular {
-        ZStack {
-          AccessoryWidgetBackground()
-          Image(systemName: "plus").font(.system(size: 22, weight: .semibold))
-        }
-      } else {
-        VStack(alignment: .leading, spacing: 0) {
-          Image(systemName: "plus")
-            .font(.system(size: 34, weight: .regular))
-            .foregroundStyle(Color("$accent"))
-          Spacer(minLength: 0)
-          Text("Add to").font(.system(size: 13, design: serif)).italic().foregroundStyle(Color("inkSoft"))
-          Text(entry.padName).font(.system(size: 20, design: serif)).foregroundStyle(Color("ink")).lineLimit(1).minimumScaleFactor(0.7)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+@available(iOS 18.0, *)
+struct AddControl: ControlWidget {
+  var body: some ControlWidgetConfiguration {
+    StaticControlConfiguration(kind: "HissyPadAddControl") {
+      ControlWidgetButton(action: AddControlIntent()) {
+        Label("Add to Inbox", systemImage: "plus")
       }
     }
-    .widgetURL(appURL("add", pad: entry.padKey))
-  }
-}
-
-struct AddWidget: Widget {
-  let kind = "HissyPadAdd"
-
-  var body: some WidgetConfiguration {
-    AppIntentConfiguration(kind: kind, intent: InboxConfig.self, provider: AddProvider()) { entry in
-      AddView(entry: entry)
-        .containerBackground(for: .widget) { Color("$widgetBackground") }
-    }
-    .configurationDisplayName("Add to Inbox")
-    .description("One tap to add a line at the top of your Inbox.")
-    .supportedFamilies([.systemSmall, .accessoryCircular])
+    .displayName("Add to Inbox")
+    .description("Open HissyPad at a new line for your Inbox.")
   }
 }
 
@@ -246,6 +191,9 @@ struct AddWidget: Widget {
 struct HissyPadWidgets: WidgetBundle {
   var body: some Widget {
     InboxWidget()
-    AddWidget()
+    TodayWidget()
+    if #available(iOS 18.0, *) {
+      AddControl()
+    }
   }
 }

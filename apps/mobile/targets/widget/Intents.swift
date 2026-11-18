@@ -62,3 +62,23 @@ struct SendIntent: AppIntent {
     return .result()
   }
 }
+
+// The circle next to a line in the Today list: cross the line out where it is.
+struct DoneIntent: AppIntent {
+  static let title: LocalizedStringResource = "Mark line done"
+  static let isDiscoverable = false
+
+  @Parameter(title: "Line")
+  var line: String
+
+  init() {}
+
+  init(line: String) {
+    self.line = line
+  }
+
+  func perform() async throws -> some IntentResult {
+    Shared.done(line: line)
+    return .result()
+  }
+}
