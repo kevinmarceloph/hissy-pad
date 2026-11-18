@@ -98,9 +98,12 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 | `src/local/sqlite.ts` | LocalStore on expo-sqlite; adds new columns on open |
 | `src/theme.ts` | the paper and ink tokens |
 | `src/widget.ts` | the app's end of the widget: writes the snapshot, applies queued presses, handles the widget's links |
-| `targets/widget/` | the iOS widget itself, in Swift (WidgetKit + App Intents): `Shared.swift` (the shared storage), `Intents.swift` (the pad setting, the send button), `InboxWidget.swift` (timelines and views for the Inbox widget and the small Add widget), `expo-target.config.js` (target settings and colors) |
+| `targets/widget/` | the iOS widget itself, in Swift (WidgetKit + App Intents): `Shared.swift` (the shared storage and the queue), `Intents.swift` (the pad setting, the send button), `InboxWidget.swift` (timelines and views for the Inbox widget and the small Add widget), `expo-target.config.js` (target settings and colors) |
+| `targets/watch/` | the Apple Watch app (SwiftUI): `WatchStore.swift` (the last snapshot from the phone, Done), `HissyPadWatchApp.swift` (pad list and pad screens) |
+| `targets/_shared/Models.swift` | the JSON shapes (snapshot, pad, item, queued action), compiled into the app, the widget and the watch |
 | `native/AppShortcuts.swift` | the Siri / Shortcuts command "Add to HissyPad" (an App Intent). Compiled into the app, not the widget |
-| `plugins/withAppShortcuts.js` | config plugin: adds `native/AppShortcuts.swift` and the widget's `Shared.swift` to the app target |
+| `native/WatchBridge.swift` | the phone's end of the watch app: sends it the snapshot, queues the lines crossed out on it |
+| `plugins/withNativeSources.js` | config plugin: compiles `native/*.swift` and the widget's `Shared.swift` into the app target and starts the watch bridge from the AppDelegate |
 | `plugins/withNoShakeToEdit.js` | config plugin: turns off iOS's own shake prompt |
 
 ### The widget and the app
@@ -110,7 +113,9 @@ The widget runs in its own process and cannot run any of the JavaScript. The two
 - `widget.snapshot`: every pad with its open top-level lines. The app writes it when the pads change and tells the widget to redraw. A button on the widget edits it in place, so the widget redraws at once.
 - `widget.actions`: what happened outside the app since it was last in front: buttons pressed on the widget, and lines added through Siri (which carry the id they were given, so the widget can show the line and act on it before the app has run). The app applies them (`cmdWidgetActions`) and clears the list when it comes to the front. So a press or a Siri add reaches the pad, and sync, only when the app next opens.
 
-A widget cannot take typing, so its + opens the app at `hissypad://add?pad=…` with a prompt. The shapes are defined once in `packages/state/src/widget.ts` and mirrored by the Codable structs in `Shared.swift`: change both together.
+A widget cannot take typing, so its + opens the app at `hissypad://add?pad=…` with a prompt. The shapes are defined once in `packages/state/src/widget.ts` and mirrored by the Codable structs in `targets/_shared/Models.swift`: change both together.
+
+The watch is one step further out: it cannot read the App Group either. `native/WatchBridge.swift`, running in the iPhone app, sends it the snapshot over WatchConnectivity, and a line crossed out on the watch comes back as `{id, dir: "done"}`, which the bridge puts in the same queue. The watch keeps the last snapshot, so it shows the pads without the phone, but it never talks to the server.
 
 ## supabase
 

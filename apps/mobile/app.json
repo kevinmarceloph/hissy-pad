@@ -34,7 +34,7 @@
       "expo-web-browser",
       "./plugins/withNoShakeToEdit",
       "@bacons/apple-targets",
-      "./plugins/withAppShortcuts"
+      "./plugins/withNativeSources"
     ],
     "scheme": "hissypad",
     "splash": {

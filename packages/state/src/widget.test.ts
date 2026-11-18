@@ -37,12 +37,12 @@ describe('the widget', () => {
   })
 
   it('long pads and long lines are cut to what a widget can show', () => {
-    const many = Array.from({ length: 20 }, (_, i) => `line ${i}`).join('\n')
+    const many = Array.from({ length: 40 }, (_, i) => `line ${i}`).join('\n')
     resetStore(`${'x'.repeat(300)}\n${many}`)
     return loadPad().then(() => {
       const main = widgetSnapshot().pads[0]!
-      expect(main.count).toBe(21)
-      expect(main.items).toHaveLength(12)
+      expect(main.count).toBe(41)
+      expect(main.items).toHaveLength(25)
       expect(main.items[0]!.text).toHaveLength(140)
       expect(main.items[0]!.text.endsWith('…')).toBe(true)
     })
@@ -118,5 +118,14 @@ describe('the widget', () => {
     expect(cmdWidgetActions([{ dir: 'add', id: 'not-a-uuid', pad: WIDGET_MAIN, text: 'loose' }])).toBe(1)
     expect(all()['not-a-uuid']).toBeUndefined()
     expect(whole().startsWith('loose\nA')).toBe(true)
+  })
+
+  it('a Done from the watch crosses the line out where it is, once', () => {
+    expect(cmdWidgetActions([{ dir: 'done', id: id('B') }, { dir: 'done', id: id('B') }, { dir: 'done', id: 'missing' }])).toBe(1)
+    expect(whole()).toBe('A\n~B\n  B1\n  B2\n\nC\nD')
+    expect(all()[id('B')]!.doneAt).not.toBeNull()
+    expect(widgetSnapshot().pads[0]!.items.map((i) => i.text)).toEqual(['A', 'C', 'D'])
+    undo()
+    expect(all()[id('B')]!.done).toBe(false)
   })
 })

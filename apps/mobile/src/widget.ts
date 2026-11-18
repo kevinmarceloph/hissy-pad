@@ -1,4 +1,6 @@
-// The app's end of the home-screen widget (iOS). The widget is a separate process, so the
+// The app's end of the home-screen widgets, Siri and the watch app (iOS). None of them can
+// run this code: the widget is a separate process, the watch a separate device (reached
+// through native/WatchBridge.swift, which reads the same storage). So the
 // two trade JSON through the App Group's UserDefaults (the Swift end is in
 // targets/widget/Shared.swift, the shapes in packages/state/src/widget.ts):
 //   - whenever the pads change, the app writes a snapshot and asks the widget to redraw;
@@ -19,6 +21,7 @@ import {
 export const APP_GROUP = 'group.ph.marcelo.hissypad'
 const SNAPSHOT_KEY = 'widget.snapshot'
 const ACTIONS_KEY = 'widget.actions'
+const POLL_MS = 4000
 
 const storage = new ExtensionStorage(APP_GROUP)
 let published = ''
@@ -34,7 +37,7 @@ function publish() {
 }
 
 // Apply what was pressed on the widget while the app was away, then publish the result.
-function drain() {
+function drain(force = true) {
   if (usePad.getState().load !== 'ready') return
   let actions: WidgetAction[] = []
   try {
@@ -51,8 +54,10 @@ function drain() {
     const n = cmdWidgetActions(actions)
     log('widget:drain', { queued: actions.length, applied: n })
   }
-  published = '' // the widget may have edited the snapshot: write ours again
-  publish()
+  if (actions.length > 0 || force) {
+    published = '' // the widget may have edited the snapshot: write ours again
+    publish()
+  }
 }
 
 // hissypad://add?pad=<key> and hissypad://pad?pad=<key>. Returns true when the URL was
@@ -86,14 +91,20 @@ export function useWidgetBridge(ready: boolean) {
       if (timer) clearTimeout(timer)
       timer = setTimeout(publish, 400)
     }
-    void loadSortTargets().then(drain)
+    void loadSortTargets().then(() => drain())
     const unPad = usePad.subscribe((s, prev) => { if (s.all !== prev.all) soon() })
     const unSort = useSort.subscribe(soon)
     const app = AppState.addEventListener('change', (state) => {
       if (state === 'active') drain()
       else publish() // leaving: do not wait for the timer
     })
+    // A line crossed out on the watch while the app is open arrives in the queue with
+    // nothing to announce it, so look every few seconds while in front.
+    const poll = setInterval(() => {
+      if (AppState.currentState === 'active') drain(false)
+    }, POLL_MS)
     return () => {
+      clearInterval(poll)
       if (timer) clearTimeout(timer)
       unPad()
       unSort()

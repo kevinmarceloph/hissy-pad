@@ -1,10 +1,11 @@
-// The home-screen widget's side of the app, without the phone: what the widget is given
-// to draw (a snapshot of every pad's top lines) and what happens to the buttons pressed
-// on it (a queue of actions, applied the next time the app is in front). The widget is a
+// The app's side of everything that lives outside it on Apple devices (the home-screen
+// widgets, Siri, the watch), without the phone: what they are given to draw (a snapshot
+// of every pad's top lines) and what happens to what is done there (a queue of actions,
+// applied the next time the app is in front). The widget is a
 // separate process that cannot run this code, so the two only ever exchange these two
 // JSON values through shared storage (apps/mobile/src/widget.ts writes and reads them,
 // targets/widget/*.swift is the other end).
-import { buildIndex, childrenOf, createPad, descendantIds, insertAt, isLive, isPadNode, listPads, type PadId, type Rows } from '@hissypad/core'
+import { buildIndex, childrenOf, createPad, descendantIds, insertAt, isLive, isPadNode, listPads, setDone, type PadId, type Rows } from '@hissypad/core'
 import { applyAll, usePad } from './store'
 import { MAIN_PAD_NAME } from './pads'
 import { padOf } from './lists'
@@ -14,7 +15,7 @@ import { log } from './log'
 // The main pad's key in the snapshot (every other pad is keyed by its row id).
 export const WIDGET_MAIN = 'main'
 export const WIDGET_INBOX_NAME = 'Inbox'
-const MAX_ITEMS = 12
+const MAX_ITEMS = 25 // the widget shows a handful; the watch lists them all
 const MAX_TEXT = 140
 
 export interface WidgetItem {
@@ -41,6 +42,7 @@ export interface WidgetSnapshot {
 // A button pressed on the widget, or a line added from outside the app (Siri, Shortcuts).
 export type WidgetAction =
   | { dir: 'left' | 'right' | 'up'; id: string } // send the line `id`
+  | { dir: 'done'; id: string } // cross the line out where it is (the watch)
   | { dir: 'add'; id: string; pad: string; text: string } // a new line, with the id it was given
 
 // The key that means "the pad named Inbox, made on the spot if there is none".
@@ -94,6 +96,13 @@ export function cmdWidgetActions(actions: readonly WidgetAction[]): number {
       const id = UUID.test(a.id) && !all[a.id] ? a.id : undefined
       if (typeof a.text !== 'string' || (UUID.test(a.id) && all[a.id])) continue
       if (cmdAddToPad(typeof a.pad === 'string' ? a.pad : WIDGET_INBOX, a.text, id)) n++
+      continue
+    }
+    if (a.dir === 'done') {
+      if (!isLive(all[a.id]) || all[a.id]!.done) continue
+      const { id } = a
+      applyAll((rows, ctx) => setDone(rows, ctx, [id], true), { label: 'widget:done' })
+      n++
       continue
     }
     if (!isLive(all[a.id]) || !['left', 'right', 'up'].includes(a.dir)) continue

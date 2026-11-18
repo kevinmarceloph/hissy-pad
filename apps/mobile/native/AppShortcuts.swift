@@ -1,5 +1,5 @@
 // "Add to HissyPad" for Siri, Spotlight and the Shortcuts app. Compiled into the app
-// itself (plugins/withAppShortcuts.js adds this file and Shared.swift to the app target),
+// itself (plugins/withNativeSources.js adds this file and Shared.swift to the app target),
 // because the system only looks for App Shortcuts in the app, not in its widget.
 //
 // The intent does not open the app or run its JavaScript. It queues the line in the

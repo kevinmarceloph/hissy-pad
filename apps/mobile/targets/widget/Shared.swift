@@ -6,56 +6,27 @@
 //   widget.actions   what happened outside the app since it was last in front: buttons
 //                    pressed on the widget, lines added through Siri (appended here; the
 //                    app applies them and clears the list)
-// This file is compiled into the widget and, through plugins/withAppShortcuts.js, into the
-// app itself, where the Siri shortcut uses it.
+// The shapes are in targets/_shared/Models.swift. This file is compiled into the widget
+// and, through plugins/withNativeSources.js, into the app itself, where the Siri shortcut
+// and the watch bridge use it.
 import Foundation
 
 let appGroup = "group.ph.marcelo.hissypad"
-let mainPadId = "main"
-let inboxKey = "inbox" // "the pad named Inbox, made by the app if there is none"
-
-struct WidgetItem: Codable, Identifiable, Hashable {
-  let id: String
-  let text: String
-  let subs: Int
-}
-
-struct WidgetPad: Codable, Identifiable, Hashable {
-  let id: String
-  let name: String
-  var count: Int
-  var items: [WidgetItem]
-}
-
-struct Snapshot: Codable {
-  let v: Int
-  var pads: [WidgetPad]
-  var inbox: String
-  let left: String
-  let right: String
-}
-
-struct QueuedAction: Codable {
-  let id: String
-  let dir: String      // "left", "right", "up", or "add"
-  var pad: String?     // for "add": a pad id, or "inbox"
-  var text: String?    // for "add": the new line
-}
 
 enum Shared {
   static let snapshotKey = "widget.snapshot"
   static let actionsKey = "widget.actions"
-  static let maxItems = 12
+  static let maxItems = 25
 
   static var defaults: UserDefaults? { UserDefaults(suiteName: appGroup) }
 
   static func snapshot() -> Snapshot? {
-    guard let text = defaults?.string(forKey: snapshotKey), let data = text.data(using: .utf8) else { return nil }
-    return try? JSONDecoder().decode(Snapshot.self, from: data)
+    guard let text = defaults?.string(forKey: snapshotKey) else { return nil }
+    return Snapshot.decode(text)
   }
 
   static func save(_ snapshot: Snapshot) {
-    guard let data = try? JSONEncoder().encode(snapshot), let text = String(data: data, encoding: .utf8) else { return }
+    guard let text = snapshot.encoded() else { return }
     defaults?.set(text, forKey: snapshotKey)
   }
 
@@ -74,13 +45,7 @@ enum Shared {
   // result before the app has run. The app does the real move when it next opens.
   static func send(line: String, dir: String) {
     if var snap = snapshot() {
-      var moved: WidgetItem?
-      for i in snap.pads.indices {
-        if let at = snap.pads[i].items.firstIndex(where: { $0.id == line }) {
-          moved = snap.pads[i].items.remove(at: at)
-          snap.pads[i].count = max(0, snap.pads[i].count - 1)
-        }
-      }
+      let moved = snap.remove(line: line)
       let target = dir == "left" ? snap.left : snap.right
       if dir != "up", let item = moved, let i = snap.pads.firstIndex(where: { $0.name == target }) {
         snap.pads[i].count += 1
@@ -110,5 +75,15 @@ enum Shared {
       save(snap)
     }
     enqueue(QueuedAction(id: id, dir: "add", pad: inboxKey, text: text))
+  }
+
+  // A line crossed out on the watch: it leaves the lists (they hold open lines only) and
+  // the app crosses it out for real, where it is, when it next opens.
+  static func done(line: String) {
+    if var snap = snapshot() {
+      snap.remove(line: line)
+      save(snap)
+    }
+    enqueue(QueuedAction(id: line, dir: "done"))
   }
 }
