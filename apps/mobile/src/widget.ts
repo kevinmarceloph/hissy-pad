@@ -3,7 +3,9 @@
 // targets/widget/Shared.swift, the shapes in packages/state/src/widget.ts):
 //   - whenever the pads change, the app writes a snapshot and asks the widget to redraw;
 //   - when the app comes to the front, it applies the buttons pressed on the widget.
-// Tapping the widget opens hissypad://pad?pad=… and its + opens hissypad://add?pad=….
+// Tapping the widget opens hissypad://pad?pad=… and its + (and the small Add widget) open
+// hissypad://add?pad=…, where pad=inbox means the pad named Inbox. A line added through
+// Siri arrives in the same queue as the button presses.
 // On a build from before the widget, the storage module is missing and its JS falls back
 // to no-ops, so all of this quietly does nothing.
 import { useEffect } from 'react'

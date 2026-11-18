@@ -7,7 +7,7 @@ import { select } from './selection'
 import { openPad } from './store'
 import { cmdToggleDone } from './commands'
 import { setSortTarget } from './sort'
-import { cmdAddToPad, cmdWidgetActions, widgetPadName, widgetSnapshot, WIDGET_MAIN } from './widget'
+import { cmdAddToPad, cmdWidgetActions, widgetPadName, widgetSnapshot, WIDGET_INBOX, WIDGET_MAIN } from './widget'
 import { resetStore } from './testing'
 
 const all = () => usePad.getState().all
@@ -86,5 +86,37 @@ describe('the widget', () => {
     expect(cmdAddToPad(inbox, '   ')).toBe('')
     expect(whole()).toBe('also main\ntop of main\nA\nB\n  B1\n  B2\n\nC\nD\n@Inbox\n  second\n  buy milk\n  ')
     expect([widgetPadName(inbox), widgetPadName(WIDGET_MAIN), widgetPadName('gone')]).toEqual(['Inbox', 'Main', 'Main'])
+  })
+
+  it('adding to "the Inbox" makes the Inbox pad the first time and reuses it after', () => {
+    expect(widgetPadName(WIDGET_INBOX)).toBe('Inbox')
+    expect(cmdAddToPad(WIDGET_INBOX, 'first')).not.toBe('')
+    expect(cmdAddToPad(WIDGET_INBOX, 'second')).not.toBe('')
+    expect(listPads(all()).map((p) => p.text)).toEqual(['Inbox'])
+    expect(whole()).toBe('A\nB\n  B1\n  B2\n\nC\nD\n@Inbox\n  second\n  first')
+    expect(widgetSnapshot().inbox).toBe(listPads(all())[0]!.id)
+    undo()
+    undo() // making the pad and adding the first line were one step
+    expect(listPads(all())).toHaveLength(0)
+  })
+
+  it('a line added through Siri keeps the id it was given, so a later press on it finds it', () => {
+    const given = '0b6f7c1e-8a52-4a51-9d0e-1c2d3e4f5a6b'
+    expect(cmdWidgetActions([
+      { dir: 'add', id: given, pad: WIDGET_INBOX, text: ' call mum ' },
+      { dir: 'up', id: given },
+    ])).toBe(2)
+    expect(all()[given]).toMatchObject({ text: 'call mum', done: true })
+    expect(listPads(all()).map((p) => p.text)).toEqual(['Inbox', 'Today'])
+    // The same add delivered twice, a blank one and a malformed one do nothing; an id
+    // that is not a uuid still adds the line, under a fresh id.
+    expect(cmdWidgetActions([
+      { dir: 'add', id: given, pad: WIDGET_INBOX, text: 'call mum' },
+      { dir: 'add', id: '11111111-2222-4333-8444-555555555555', pad: WIDGET_INBOX, text: '   ' },
+      { dir: 'add', id: 'x', pad: WIDGET_INBOX, text: 3 as unknown as string },
+    ])).toBe(0)
+    expect(cmdWidgetActions([{ dir: 'add', id: 'not-a-uuid', pad: WIDGET_MAIN, text: 'loose' }])).toBe(1)
+    expect(all()['not-a-uuid']).toBeUndefined()
+    expect(whole().startsWith('loose\nA')).toBe(true)
   })
 })

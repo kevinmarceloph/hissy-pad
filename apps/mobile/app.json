@@ -33,7 +33,8 @@
       "expo-sqlite",
       "expo-web-browser",
       "./plugins/withNoShakeToEdit",
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      "./plugins/withAppShortcuts"
     ],
     "scheme": "hissypad",
     "splash": {

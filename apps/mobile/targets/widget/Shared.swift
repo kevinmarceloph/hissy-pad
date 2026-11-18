@@ -3,12 +3,16 @@
 // packages/state/src/widget.ts:
 //   widget.snapshot  every pad with its open top-level lines (the app writes it; the
 //                    widget edits it in place after a button, so it redraws at once)
-//   widget.actions   the buttons pressed since the app was last in front (the widget
-//                    appends; the app applies them and clears the list)
+//   widget.actions   what happened outside the app since it was last in front: buttons
+//                    pressed on the widget, lines added through Siri (appended here; the
+//                    app applies them and clears the list)
+// This file is compiled into the widget and, through plugins/withAppShortcuts.js, into the
+// app itself, where the Siri shortcut uses it.
 import Foundation
 
 let appGroup = "group.ph.marcelo.hissypad"
 let mainPadId = "main"
+let inboxKey = "inbox" // "the pad named Inbox, made by the app if there is none"
 
 struct WidgetItem: Codable, Identifiable, Hashable {
   let id: String
@@ -26,14 +30,16 @@ struct WidgetPad: Codable, Identifiable, Hashable {
 struct Snapshot: Codable {
   let v: Int
   var pads: [WidgetPad]
-  let inbox: String
+  var inbox: String
   let left: String
   let right: String
 }
 
 struct QueuedAction: Codable {
   let id: String
-  let dir: String
+  let dir: String      // "left", "right", "up", or "add"
+  var pad: String?     // for "add": a pad id, or "inbox"
+  var text: String?    // for "add": the new line
 }
 
 enum Shared {
@@ -83,5 +89,26 @@ enum Shared {
       save(snap)
     }
     enqueue(QueuedAction(id: line, dir: dir))
+  }
+
+  // A new line for the Inbox, typed outside the app (Siri, Shortcuts). It gets its id
+  // here, so the widget can show it at once and its buttons work on it before the app has
+  // run. If there is no Inbox pad yet, the snapshot gets a stand-in for the one the app
+  // will make.
+  static func add(text: String) {
+    let id = UUID().uuidString.lowercased()
+    let item = WidgetItem(id: id, text: String(text.prefix(140)), subs: 0)
+    if var snap = snapshot() {
+      if let i = snap.pads.firstIndex(where: { $0.name.lowercased() == "inbox" && $0.id != mainPadId }) {
+        snap.pads[i].items.insert(item, at: 0)
+        snap.pads[i].items = Array(snap.pads[i].items.prefix(maxItems))
+        snap.pads[i].count += 1
+      } else {
+        snap.pads.append(WidgetPad(id: inboxKey, name: "Inbox", count: 1, items: [item]))
+        snap.inbox = inboxKey
+      }
+      save(snap)
+    }
+    enqueue(QueuedAction(id: id, dir: "add", pad: inboxKey, text: text))
   }
 }
