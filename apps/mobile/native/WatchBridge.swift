@@ -1,15 +1,24 @@
-// The iPhone's end of the watch app. The watch cannot read the phone's storage, so the
-// phone hands it the same snapshot the widget draws from, and takes back the lines
-// crossed out on the watch.
+// The iPhone's end of the watch app. It does two jobs.
 //
+// Signing the watch in, so it can sync with the server by itself (targets/watch/PadSync.swift):
+//   watch -> phone   {user}, as the session's application context: the account the watch
+//                    is signed in to, "" for none. Kept under watch.state in the shared
+//                    defaults, where the app's JavaScript reads it (src/widget.ts).
+//   phone -> watch   {signin: <json>} or {signout: true}. The JavaScript leaves it under
+//                    watch.handoff; it is sent on and taken out of the defaults here.
+//
+// Feeding a watch that has no account to sync with (the phone app is not signed in). It
+// cannot read the phone's storage, so the phone hands it the snapshot the widget draws
+// from, and takes back the lines crossed out on the watch:
 //   phone -> watch   the snapshot, as the session's application context (the watch gets
 //                    the latest one whenever it can, and keeps it)
 //   watch -> phone   {id, dir: "done"}, sent at once when the phone is in reach, else
 //                    queued by the system until it is
+// A Done that arrives this way goes into the same queue as a widget button (Shared.done),
+// so the app applies it the next time it is in front.
 //
-// A Done from the watch goes into the same queue as a widget button (Shared.done), so the
-// app applies it the next time it is in front. Compiled into the app target by
-// plugins/withNativeSources.js, which also starts it from the AppDelegate.
+// Compiled into the app target by plugins/withNativeSources.js, which also starts it from
+// the AppDelegate.
 import OSLog
 import UIKit
 import WatchConnectivity
@@ -22,6 +31,8 @@ final class WatchBridge: NSObject, WCSessionDelegate, @unchecked Sendable {
   private var started = false
   private var lastSent: String?
   private var pending: DispatchWorkItem?
+  private let stateKey = "watch.state"
+  private let handoffKey = "watch.handoff"
 
   func start() {
     guard !started, WCSession.isSupported() else { return }
@@ -51,8 +62,13 @@ final class WatchBridge: NSObject, WCSessionDelegate, @unchecked Sendable {
   // context, so the watch is told even when the pads did not change.
   func push(force: Bool = false) {
     let session = WCSession.default
+    guard session.activationState == .activated else { return }
     // No watch, or no HissyPad on it: nothing to do, and nothing worth logging.
-    guard session.activationState == .activated, session.isPaired, session.isWatchAppInstalled else { return }
+    guard session.isPaired, session.isWatchAppInstalled else {
+      Shared.defaults?.removeObject(forKey: handoffKey)
+      return
+    }
+    handOver()
     guard let json = Shared.defaults?.string(forKey: Shared.snapshotKey) else {
       log.debug("push: no snapshot yet")
       return
@@ -65,6 +81,31 @@ final class WatchBridge: NSObject, WCSessionDelegate, @unchecked Sendable {
     } catch {
       log.error("push failed: \(error.localizedDescription, privacy: .public)")
     }
+  }
+
+  // Pass on the sign-in (or sign-out) the app left for the watch. Straight away when the
+  // watch is in reach; otherwise, or if that fails, as a transfer the system holds.
+  private func handOver() {
+    guard let left = Shared.defaults?.string(forKey: handoffKey) else { return }
+    Shared.defaults?.removeObject(forKey: handoffKey)
+    let message: [String: Any] = left == "signout" ? ["signout": true] : ["signin": left]
+    let session = WCSession.default
+    log.notice("handing the watch a \(left == "signout" ? "sign-out" : "sign-in", privacy: .public)")
+    if session.isReachable {
+      session.sendMessage(message, replyHandler: nil) { _ in
+        session.transferUserInfo(message)
+      }
+    } else {
+      session.transferUserInfo(message)
+    }
+  }
+
+  // The watch said which account it is signed in to. The app reads this and signs it in
+  // when it is not the phone's.
+  private func note(_ context: [String: Any]) {
+    guard let user = context["user"] as? String else { return }
+    guard let data = try? JSONSerialization.data(withJSONObject: ["user": user]), let json = String(data: data, encoding: .utf8) else { return }
+    if Shared.defaults?.string(forKey: stateKey) != json { Shared.defaults?.set(json, forKey: stateKey) }
   }
 
   private func handle(_ message: [String: Any]) {
@@ -80,7 +121,12 @@ final class WatchBridge: NSObject, WCSessionDelegate, @unchecked Sendable {
   }
 
   func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+    note(session.receivedApplicationContext)
     push(force: true)
+  }
+
+  func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+    note(applicationContext)
   }
 
   func sessionDidBecomeInactive(_ session: WCSession) {}
@@ -90,7 +136,10 @@ final class WatchBridge: NSObject, WCSessionDelegate, @unchecked Sendable {
   }
 
   func sessionWatchStateDidChange(_ session: WCSession) {
-    push(force: true) // the watch app was just installed, or the watch paired
+    // The watch app was just installed, or the watch paired; or it is gone, and so is
+    // what it last said about itself.
+    if !session.isPaired || !session.isWatchAppInstalled { Shared.defaults?.removeObject(forKey: stateKey) }
+    push(force: true)
   }
 
   func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {

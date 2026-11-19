@@ -9,20 +9,30 @@
 // where pad=inbox means the pad named Inbox. The Add control (Lock Screen, Control Center)
 // opens the app and leaves the same link, without the scheme, under widget.open. A line added through
 // Siri arrives in the same queue as the button presses.
+// The watch syncs by itself once it is signed in, and this is also where the phone signs
+// it in (signInWatch below): two more values in the same storage, both passed along by
+// WatchBridge.swift.
+//   watch.state    the account the watch says it is signed in to (the bridge writes it)
+//   watch.handoff  a sign-in for the watch, or "signout" (written here; the bridge sends
+//                  it and takes it out)
 // On a build from before the widget, the storage module is missing and its JS falls back
 // to no-ops, so all of this quietly does nothing.
 import { useEffect } from 'react'
 import { Alert, AppState, Platform } from 'react-native'
 import { ExtensionStorage } from '@bacons/apple-targets'
 import {
-  cmdAddToPad, cmdWidgetActions, loadSortTargets, log, openPad, usePad, useSort, widgetPadName, widgetSnapshot, WIDGET_MAIN,
+  cmdAddToPad, cmdWidgetActions, loadSortTargets, log, openPad, usePad, useSort, watchHandoffDue, watchSignedIn, widgetPadName,
+  widgetSnapshot, WIDGET_MAIN,
   type WidgetAction,
 } from '@hissypad/state'
+import { supabase } from './supabase'
 
 export const APP_GROUP = 'group.ph.marcelo.hissypad'
 const SNAPSHOT_KEY = 'widget.snapshot'
 const ACTIONS_KEY = 'widget.actions'
 const OPEN_KEY = 'widget.open'
+const WATCH_STATE_KEY = 'watch.state'
+const WATCH_HANDOFF_KEY = 'watch.handoff'
 const POLL_MS = 4000
 
 const storage = new ExtensionStorage(APP_GROUP)
@@ -78,6 +88,54 @@ function followOpen() {
   handleWidgetUrl(`hissypad://${link}`)
 }
 
+// Sign the watch in to this phone's account when it is not: get a one-time token for a
+// session of its own (the watch-token Edge Function) and leave it for the bridge to send.
+// Called whenever the app comes to the front and every few seconds while it is there;
+// watchHandoffDue decides whether this is one of the times to act.
+let watchTries = 0
+let watchLastAt = 0
+let watchBusy = false
+async function signInWatch() {
+  const session = usePad.getState().session
+  if (!supabase || !session || watchBusy) return
+  let state: string | null = null
+  try {
+    state = storage.get(WATCH_STATE_KEY)
+  } catch {
+    return
+  }
+  if (watchSignedIn(state, session.user.id)) watchTries = 0
+  if (!watchHandoffDue(state, session.user.id, watchTries, watchLastAt, Date.now())) return
+  watchBusy = true
+  watchTries++
+  watchLastAt = Date.now()
+  try {
+    const { data, error } = await supabase.functions.invoke<{ token_hash?: string }>('watch-token', { method: 'POST' })
+    const token = data?.token_hash
+    log('watch:handoff', { try: watchTries, ok: !!token, error: error?.message })
+    // Still the same account after the wait?
+    if (!token || usePad.getState().session?.user.id !== session.user.id) return
+    storage.set(WATCH_HANDOFF_KEY, JSON.stringify({
+      url: process.env.EXPO_PUBLIC_SUPABASE_URL, key: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY, token, user: session.user.id,
+    }))
+  } catch (e) {
+    log('watch:handoff', { try: watchTries, ok: false, error: (e as Error).message })
+  } finally {
+    watchBusy = false
+  }
+}
+
+// Signing out on the phone signs the watch out too: it forgets the account and its lines.
+export function signOutWatch() {
+  if (Platform.OS !== 'ios') return
+  try {
+    if (storage.get(WATCH_STATE_KEY)) storage.set(WATCH_HANDOFF_KEY, 'signout')
+  } catch {
+    // no shared storage on this build
+  }
+  watchTries = 0
+}
+
 // hissypad://add?pad=<key> and hissypad://pad?pad=<key>. Returns true when the URL was
 // one of the widget's (so the sign-in handler leaves it alone).
 export function handleWidgetUrl(url: string): boolean {
@@ -113,6 +171,7 @@ export function useWidgetBridge(ready: boolean) {
     const arrive = () => {
       drain()
       followOpen()
+      void signInWatch()
       waits.push(setTimeout(followOpen, 300), setTimeout(followOpen, 1200))
     }
     void loadSortTargets().then(arrive)
@@ -122,12 +181,14 @@ export function useWidgetBridge(ready: boolean) {
       if (state === 'active') arrive()
       else publish() // leaving: do not wait for the timer
     })
-    // A line crossed out on the watch while the app is open arrives in the queue with
-    // nothing to announce it, so look every few seconds while in front.
+    // A line crossed out on a watch without an account, or a watch saying it needs a
+    // sign-in, arrives while the app is open with nothing to announce it, so look every
+    // few seconds while in front.
     const poll = setInterval(() => {
       if (AppState.currentState !== 'active') return
       drain(false)
       followOpen()
+      void signInWatch()
     }, POLL_MS)
     return () => {
       clearInterval(poll)

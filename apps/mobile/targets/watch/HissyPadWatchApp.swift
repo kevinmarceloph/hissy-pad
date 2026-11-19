@@ -3,12 +3,16 @@ import WatchKit
 
 @main
 struct HissyPadWatchApp: App {
-  @StateObject private var store = WatchStore()
+  @StateObject private var store = WatchStore.shared
 
   var body: some Scene {
     WindowGroup {
       PadListView()
         .environmentObject(store)
+    }
+    // Time the system gives now and then while the app is away (WatchStore.rest asks for it).
+    .backgroundTask(.appRefresh(WatchStore.refreshTask)) {
+      await WatchStore.shared.background()
     }
   }
 }
@@ -18,6 +22,7 @@ private let serif = Font.Design.serif
 // The pads, each with how many open lines it has.
 struct PadListView: View {
   @EnvironmentObject private var store: WatchStore
+  @Environment(\.scenePhase) private var phase
 
   var body: some View {
     NavigationStack {
@@ -25,7 +30,7 @@ struct PadListView: View {
         if store.pads.isEmpty {
           VStack(spacing: 6) {
             Text("HissyPad").font(.system(.headline, design: serif)).italic()
-            Text("Open HissyPad on your iPhone and your pads appear here.")
+            Text("Open HissyPad on your iPhone once and your pads appear here. After that the watch syncs on its own.")
               .font(.system(.footnote, design: serif))
               .foregroundStyle(.secondary)
               .multilineTextAlignment(.center)
@@ -44,11 +49,17 @@ struct PadListView: View {
                 }
               }
             }
-            if let at = store.updatedAt {
-              Text("From your iPhone, \(at.formatted(date: .omitted, time: .shortened))")
-                .font(.system(.caption2, design: serif))
-                .foregroundStyle(.secondary)
-                .listRowBackground(Color.clear)
+            if !store.footer.isEmpty {
+              // Where the lines came from and when. A tap syncs now.
+              Button {
+                store.wake()
+              } label: {
+                Text(store.footer)
+                  .font(.system(.caption2, design: serif))
+                  .foregroundStyle(.secondary)
+              }
+              .buttonStyle(.plain)
+              .listRowBackground(Color.clear)
             }
           }
         }
@@ -56,7 +67,9 @@ struct PadListView: View {
       .navigationTitle("HissyPad")
       .navigationDestination(for: String.self) { PadView(padId: $0) }
     }
-    .onAppear { store.refresh() }
+    .onChange(of: phase, initial: true) { _, now in
+      if now == .active { store.wake() } else { store.rest() }
+    }
   }
 }
 

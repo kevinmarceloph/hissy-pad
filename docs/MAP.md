@@ -60,6 +60,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `sort.ts` | Sort: the queue, the two targets, sending a card, the session a sort screen holds, the swipe rule |
 | `shake.ts` | shake detection from accelerometer samples |
 | `widget.ts` | the home-screen widget's data: the snapshot it draws from, applying the buttons pressed on it, adding a line to a pad |
+| `watch.ts` | when the phone should hand the Apple Watch a sign-in, and how long to wait before trying again |
 | `sync.ts` | wires the engine to the store and to Supabase auth; `refresh`, `forceSync`, the status line (`syncLine`) |
 | `remote.ts` | the `Remote` the engine talks to, over Supabase |
 | `log.ts` | the debug log (`?debug=1`) |
@@ -97,12 +98,12 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 | `src/shake.ts` | shake to undo (needs a build with `expo-sensors`) |
 | `src/local/sqlite.ts` | LocalStore on expo-sqlite; adds new columns on open |
 | `src/theme.ts` | the paper and ink tokens |
-| `src/widget.ts` | the app's end of the widget: writes the snapshot, applies queued presses, handles the widget's links |
+| `src/widget.ts` | the app's end of the widget: writes the snapshot, applies queued presses, handles the widget's links; also signs the watch in and out (`signInWatch`, `signOutWatch`) |
 | `targets/widget/` | the iOS widget itself, in Swift (WidgetKit + App Intents): `Shared.swift` (the shared storage and the queue), `Intents.swift` (the pad setting, the send and done buttons), `InboxWidget.swift` (the Inbox widget, the Add control, the bundle), `TodayWidget.swift` (the Today list), `AddControlIntent.swift` (what the Add control runs; also compiled into the app), `expo-target.config.js` (target settings and colors) |
-| `targets/watch/` | the Apple Watch app (SwiftUI): `WatchStore.swift` (the last snapshot from the phone, Done), `HissyPadWatchApp.swift` (pad list and pad screens) |
+| `targets/watch/` | the Apple Watch app (SwiftUI), which syncs by itself: `Rows.swift` (its copy of the rows, which lines are open in which pad, the merge), `Remote.swift` (Supabase over plain HTTPS: session, fetch, cross out), `PadSync.swift` (sign in, send, fetch, one round at a time), `WatchStore.swift` (what is shown, the file and the keychain, the phone's messages), `HissyPadWatchApp.swift` (pad list and pad screens) |
 | `targets/_shared/Models.swift` | the JSON shapes (snapshot, pad, item, queued action), compiled into the app, the widget and the watch |
 | `native/AppShortcuts.swift` | the Siri / Shortcuts command "Add to HissyPad" (an App Intent). Compiled into the app, not the widget |
-| `native/WatchBridge.swift` | the phone's end of the watch app: sends it the snapshot, queues the lines crossed out on it |
+| `native/WatchBridge.swift` | the phone's end of the watch app: passes it the sign-in, notes which account it is on; for a watch with no account, sends the snapshot and queues the lines crossed out on it |
 | `plugins/withNativeSources.js` | config plugin: compiles `native/*.swift` and the widget's `Shared.swift` and `AddControlIntent.swift` into the app target and starts the watch bridge from the AppDelegate |
 | `plugins/withNoShakeToEdit.js` | config plugin: turns off iOS's own shake prompt |
 
@@ -117,11 +118,24 @@ The widget runs in its own process and cannot run any of the JavaScript. The two
 
 A widget cannot take typing, so its + opens the app at `hissypad://add?pad=…` with a prompt. The Add control (iOS 18+) does the same through `widget.open`, since a control's intent opens the app and runs inside it. The shapes are defined once in `packages/state/src/widget.ts` and mirrored by the Codable structs in `targets/_shared/Models.swift`: change both together.
 
-The watch is one step further out: it cannot read the App Group either. `native/WatchBridge.swift`, running in the iPhone app, sends it the snapshot over WatchConnectivity, and a line crossed out on the watch comes back as `{id, dir: "done"}`, which the bridge puts in the same queue. The watch keeps the last snapshot, so it shows the pads without the phone, but it never talks to the server.
+### The watch
+
+The watch is a sync client of its own, like the web app and the phone, in Swift. Signed in, it keeps every row in a file, fetches what changed straight from PostgREST (`synced_at` past its cursor, the newer `updated_at` wins) and crosses a line out with a three-column `PATCH` (`done`, `done_at`, `updated_at`), which the server's last-write-wins trigger judges like any other write. It does this on its own network, with the phone nowhere near; with no network, a Done is held in the file and sent on the next sync. `Rows.swift` repeats three rules from the packages (the tree in `core/tree.ts`, the open lines in `state/widget.ts`, the merge in `core/sync/engine.ts`): change them together.
+
+It cannot share the phone's session (a refresh token works once) and it has no keyboard for an email, so the phone signs it in:
+
+1. The watch tells the phone which account it is on, `{user}` with `""` for none, as its WatchConnectivity application context. `WatchBridge.swift` keeps that under `watch.state` in the App Group.
+2. The app sees it is not its own account (`watchHandoffDue` in `state/watch.ts`, checked when the app comes to the front and every few seconds while it is there) and asks the `watch-token` Edge Function for a one-time sign-in token for the same account.
+3. It leaves `{url, key, token, user}` under `watch.handoff`; the bridge sends it to the watch and takes it out.
+4. The watch trades the token for a session of its own at `/auth/v1/verify` and keeps it in its keychain.
+
+Signing out on the phone leaves `signout` under `watch.handoff`, and the watch forgets the account and its lines.
+
+A watch whose phone app is not signed in has no server to talk to. It falls back to what it did before: the bridge sends it the widget snapshot over WatchConnectivity, and a line crossed out comes back as `{id, dir: "done"}`, which the bridge puts in the widget queue.
 
 ## supabase
 
-`migrations/` (one file per schema change), `tests/nodes.test.sql` (pgTAP: row-level security and last-write-wins), `config.toml` (local stack on ports 54421-54429).
+`migrations/` (one file per schema change), `tests/nodes.test.sql` (pgTAP: row-level security and last-write-wins), `config.toml` (local stack on ports 54421-54429), `functions/watch-token/` (the Edge Function that gives a signed-in caller a one-time sign-in token for their own account, for the watch; `supabase functions serve` runs it locally, `supabase functions deploy watch-token` puts it on the hosted project).
 
 ## Adding things
 
@@ -139,6 +153,7 @@ The watch is one step further out: it cannot read the App Group either. `native/
 3. A new file in `supabase/migrations/` and a pgTAP case in `supabase/tests/`. The hosted project needs `supabase db push`.
 4. `apps/mobile/src/local/sqlite.ts`: the `Row` type, `toRow`, the `create table`, an `alter table` for databases made before it, and the upsert.
 5. `rowBrief` in `state/log.ts` if the log should show it.
+6. If the watch should read it: `WireRow` (and its `columns`) and `Row` in `apps/mobile/targets/watch/Rows.swift`. The watch only ever writes `done`, `done_at` and `updated_at`, so a column it does not know is safe from it.
 The web's IndexedDB store keeps rows as objects and needs nothing.
 
 **Something native on iOS (a widget, an extension).** A folder under `apps/mobile/targets/` with an `expo-target.config.js` (the `@bacons/apple-targets` plugin turns it into an Xcode target on prebuild). Its data rules go in `packages/state` as plain functions with tests; the Swift side only draws and records. It needs a new build, not an update, and anything the app calls from JS must tolerate a build that does not have it.

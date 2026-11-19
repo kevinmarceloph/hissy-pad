@@ -17,7 +17,7 @@ packages/core    pure TS, no React: types, tree, ops, rank, drop resolver, paste
 packages/state   Zustand store (all rows + the scoped pad), history, selection, commands, the toolbar registry (actions.ts), pads, lists, sort, shake, sync binding, Supabase remote, debug log
 apps/web         Vite SPA on :5180: src/app (shell), src/pad (editor, drag), src/pads (tabs, fresh start), src/panels (trash, done, sort), src/platform (IndexedDB, clipboard); Playwright e2e
 apps/mobile      Expo SDK 58 shell: expo-sqlite store, screens in src/ui, the same toolbar registry, EAS build/update profiles
-supabase/        migrations (nodes, RLS, LWW trigger), pgTAP tests, local stack on ports 54421-54429
+supabase/        migrations (nodes, RLS, LWW trigger), pgTAP tests, functions (watch-token: the watch's sign-in), local stack on ports 54421-54429
 ```
 
 Platform logic goes in `packages/state` or `packages/core`, never in an app. If web and mobile would both need it, it belongs in a package. A toolbar button is an entry in `LINE_ACTIONS` (`packages/state/src/actions.ts`), not markup in either app.
@@ -47,6 +47,7 @@ Mobile commands (Expo, EAS, env pull, update channels) are in `README.md`. The p
   3. A native change (a new dependency with native code, `app.json`, `eas.json`, a config plugin, an Expo SDK bump) cannot ship as an update: run `npx eas-cli build --profile preview --platform ios --non-interactive` instead and say that the phone needs the new build installed.
   Say in the reply what was pushed, updated or built, and skip a step only when its check failed, saying so.
 - Schema changes are a new file in `supabase/migrations/` with a pgTAP test, plus the matching column add in the mobile SQLite store (it migrates on open). Rows are never hard-deleted; `deleted_at` is the tombstone.
+- The Apple Watch app is a sync client of its own, in Swift (`apps/mobile/targets/watch`): it repeats the tree, open-line and merge rules from the packages, so change `Rows.swift` with them. A change under `supabase/functions/` ships with `supabase --workdir /Users/kevin/Personal/hissy-pad functions deploy <name>`.
 - Every edit stamps `updated_at` through the clock in core. Undo re-stamps the touched rows so the change syncs.
 - `_repro.test.*` files are scratch reproductions, not part of the suite. Delete them when the bug is fixed.
 - Keep the look: paper ground, serif, one accent. Dials in the header of `apps/web/src/styles.css`.
