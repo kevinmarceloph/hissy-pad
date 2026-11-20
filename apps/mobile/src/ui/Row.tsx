@@ -34,6 +34,15 @@ export const Row = memo(function Row({ row, depth, childCount, editing, selected
   useEffect(() => {
     if (!isEditing) setDraft(row.text)
   }, [row.text, isEditing])
+  // Becoming the editing row re-seeds the draft during render, not in the effect above:
+  // Backspace at the start of the line below changes this row's text and makes it the
+  // editing row in one render, which the effect skips, so the input showed the old text
+  // and the folded-in text was gone (and the next keystroke wrote that loss to the store).
+  const [wasEditing, setWasEditing] = useState(isEditing)
+  if (wasEditing !== isEditing) {
+    setWasEditing(isEditing)
+    if (isEditing) setDraft(row.text)
+  }
   useEffect(() => {
     if (!isEditing) return
     // Do not reset the draft here: it is seeded on mount and keystrokes may already have
