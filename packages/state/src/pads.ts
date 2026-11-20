@@ -19,7 +19,12 @@ export function padName(all: Rows, padId: PadId): string {
 export interface SubPadItem { id: string; name: string; count: number }
 export interface PadItem { id: PadId; name: string; count: number; subs: SubPadItem[] }
 
-const subName = (text: string) => text.split('\n')[0]!.trim() || 'Untitled'
+// A sub-pad's name in a list is its first line up to an em dash: what follows the dash is
+// a description, shown on the pad itself only. A line that starts with the dash keeps it all.
+export function subName(text: string): string {
+  const line = text.split('\n')[0]!.trim()
+  return line.split('\u2014')[0]!.trim() || line || 'Untitled'
+}
 
 export function padList(all: Rows): PadItem[] {
   const counts = padCounts(all)

@@ -5,7 +5,7 @@ import { loadPad, openPad, usePad } from './store'
 import { redo, undo } from './history'
 import { select } from './selection'
 import { cmdSetKind, cmdDeleteDone, cmdDeleteSelection, cmdIndent, cmdSetText, cmdSplit } from './commands'
-import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdLineToPad, cmdPadToLine, cmdMoveTo, openSubPad, placeList, placeFromKey, cmdMovePad, padCandidate, cmdMoveToPad, cmdNewPad, cmdRenamePad, padList } from './pads'
+import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdLineToPad, cmdPadToLine, cmdMoveTo, openSubPad, placeList, placeFromKey, cmdMovePad, padCandidate, cmdMoveToPad, cmdNewPad, cmdRenamePad, padList, subName, PLACE_ARROW, MAIN_PAD_NAME } from './pads'
 import { importOutline } from './store'
 
 const reset = resetStore
@@ -168,6 +168,19 @@ describe('pads in the store', () => {
     const x = cmdNewPad('X')
     expect(cmdPadToLine(w, { padId: null, subId: null })).toBe('Work')
     expect(usePad.getState().padId).toBe(x)
+  })
+
+  it('a sub-pad is listed by the text before an em dash; the rest is a description', () => {
+    const id = (t: string) => idOf(usePad.getState().all, t)
+    cmdSetText(id('B'), '\u{1F525} \u2014 urgent things')
+    select([id('\u{1F525} \u2014 urgent things')], id('\u{1F525} \u2014 urgent things'))
+    cmdSetKind('header')
+    const all = usePad.getState().all
+    expect(padList(all)[0]!.subs.map((s) => s.name)).toEqual(['\u{1F525}'])
+    expect(placeList(all).map((p) => p.label)).toContain(`${MAIN_PAD_NAME} ${PLACE_ARROW} \u{1F525}`)
+    expect(subName('\u2014 all dash')).toBe('\u2014 all dash')
+    expect(subName('a - b')).toBe('a - b')
+    expect(subName('')).toBe('Untitled')
   })
 
   it('a top-level header is a sub-pad: listed as "Pad → Sub-pad", a target for a move, and a place to jump to', () => {
