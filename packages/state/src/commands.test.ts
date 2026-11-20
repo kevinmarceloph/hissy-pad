@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { idOf, shape } from '@hissypad/core'
 import { loadPad, usePad } from './store'
 import { undo } from './history'
-import { edit, select } from './selection'
+import { edit, select, stopEditing } from './selection'
 import {
   cmdAddAbove, cmdAddAt, cmdAddAtTop, cmdAddUnder, cmdAddBelow, cmdAppendAtEnd, cmdBackspaceAtStart, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdEditNeighbor,
-  cmdEnter, cmdIndent, cmdMove, cmdPasteAfterSelection, cmdPasteInto, cmdSetKind, cmdTextChanged, cmdToggleCollapsed, cmdToggleNumbered,
+  cmdEnter, cmdSetText, cmdIndent, cmdMove, cmdPasteAfterSelection, cmdPasteInto, cmdSetKind, cmdTextChanged, cmdToggleCollapsed, cmdToggleNumbered,
   cmdUngroup, copyPayload, setClipboard,
 } from './commands'
 import { resetStore } from './testing'
@@ -163,6 +163,11 @@ describe('commands', () => {
   it('clicking below the last line reuses an empty last line or adds one', () => {
     cmdAppendAtEnd()
     expect(shown()).toBe('A\nB\n  B1\n  B2\nC\n')
+    // Left untouched, that line is cancelled; a blank line made on purpose is reused.
+    usePad.setState({ editing: null })
+    expect(Object.keys(rows())).toHaveLength(5)
+    sel('C')
+    cmdAddBelow()
     const blank = editing()!.id
     usePad.setState({ editing: null })
     cmdAppendAtEnd()
@@ -191,6 +196,38 @@ describe('commands', () => {
     expect(rows()[id('B')]!.collapsed).toBe(true)
     expect(Object.values(rows()).filter((r) => r.deletedAt === null)).toHaveLength(5)
     expect(cmdAddUnder('nope')).toBe('')
+  })
+
+  it('a line opened on empty space and left without typing is cancelled, undo step included; anything done to it keeps it', () => {
+    const before = usePad.getState().past.length
+    // Tap the end of the pad, then tap out.
+    cmdAppendAtEnd()
+    expect(shown()).toBe('A\nB\n  B1\n  B2\nC\n')
+    stopEditing()
+    expect(shown()).toBe('A\nB\n  B1\n  B2\nC')
+    expect(usePad.getState().past.length).toBe(before)
+    expect(usePad.getState().future).toEqual([])
+    // Under a header, leaving by tapping another line: that line stays the one being edited.
+    cmdAddUnder(id('B'))
+    edit(id('A'), 0)
+    expect(shown()).toBe('A\nB\n  B1\n  B2\nC')
+    expect(editing()).toMatchObject({ id: id('A') })
+    // The floating +, at the top or dropped somewhere.
+    cmdAddAtTop()
+    stopEditing()
+    cmdAddAt({ parentId: null, afterId: id('A') })
+    stopEditing()
+    expect(shown()).toBe('A\nB\n  B1\n  B2\nC')
+    // Typed in: it stays, even if the text is taken out again.
+    const kept = cmdAddAtTop()
+    cmdSetText(kept, 'x')
+    stopEditing()
+    expect(shown()).toBe('x\nA\nB\n  B1\n  B2\nC')
+    // Enter in the blank line is a choice: both lines stay.
+    cmdAppendAtEnd()
+    cmdEnter(editing()!.id, 0)
+    stopEditing()
+    expect(shown()).toBe('x\nA\nB\n  B1\n  B2\nC\n\n')
   })
 
   it('the floating + dropped on the pad opens a blank line at that spot and edits it, one undo step', () => {

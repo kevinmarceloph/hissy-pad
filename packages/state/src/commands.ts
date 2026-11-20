@@ -14,6 +14,7 @@ export function setClipboard(fn: ClipboardWriter) {
   copyText = fn
 }
 import { apply, importOutline, usePad } from './store'
+import { dropLastOp } from './history'
 import { edit, neighbor, select, stopEditing, targets, visibleIds } from './selection'
 
 export function cmdSplit(id: string, caret: number) {
@@ -76,6 +77,7 @@ export function cmdAddAtTop(): string {
     return res.rows
   }, { label: 'cmdAddAtTop' })
   edit(newId, 0)
+  openedBlank(newId)
   return newId
 }
 
@@ -89,6 +91,7 @@ export function cmdAddAt(placement: Placement): string {
     return res.rows
   }, { label: 'cmdAddAt' })
   edit(newId, 0)
+  openedBlank(newId)
   return newId
 }
 
@@ -105,6 +108,7 @@ export function cmdAddUnder(id: string): string {
     return res.rows
   }, { label: 'cmdAddUnder' })
   edit(newId, 0)
+  openedBlank(newId)
   return newId
 }
 
@@ -293,9 +297,31 @@ export function cmdAppendAtEnd() {
     return res.rows
   }, { label: 'cmdAppendAtEnd' })
   edit(newId, 0)
+  openedBlank(newId)
 }
 
 export function cmdEditNeighbor(id: string, dir: -1 | 1) {
   const n = neighbor(id, dir)
   if (n) edit(n, dir < 0 ? 'end' : 0)
 }
+
+// ---- a new line left empty ---------------------------------------------------------
+//
+// A line opened by a tap on empty space (the end of the pad, the space under a header) or
+// by the floating + is cancelled when the user leaves it without typing: the line goes,
+// and so does its undo step. Anything done in between (a letter typed, Enter, an indent)
+// is an op of its own and makes the line stay, blank or not.
+
+let blank: { id: string; depth: number } | null = null
+
+function openedBlank(id: string) {
+  blank = { id, depth: usePad.getState().past.length }
+}
+
+usePad.subscribe((s) => {
+  const b = blank
+  if (!b || s.editing?.id === b.id) return
+  blank = null
+  const row = s.all[b.id]
+  if (s.past.length === b.depth && row && row.deletedAt === null && row.text === '') dropLastOp()
+})

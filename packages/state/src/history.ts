@@ -52,6 +52,21 @@ export function undo() {
   persist(rows, r.rows)
 }
 
+// Take the last op back as if it had never happened: its rows go back, there is nothing to
+// redo, and editing and selection stay where they are. For a new line that was opened and
+// left without a word typed.
+export function dropLastOp() {
+  const { all: rows, past } = get()
+  const entry = past.at(-1)
+  if (!entry) return
+  breakCoalesce()
+  const r = restore(entry.before, Object.keys(entry.before))
+  setAll(r.rows)
+  set({ past: past.slice(0, -1) })
+  log('drop', { label: entry.label, rows: r.touched.map((id) => rowBrief(r.rows[id])) })
+  persist(rows, r.rows)
+}
+
 export function redo() {
   const { all: rows, past, future } = get()
   const entry = future[0]
