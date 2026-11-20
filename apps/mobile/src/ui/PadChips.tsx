@@ -5,7 +5,7 @@
 import { useMemo } from 'react'
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native'
 import type { PadId } from '@hissypad/core'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, padList, usePad } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, padList, padTopLines, usePad } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 
 function ask(title: string, message: string | undefined, initial: string, onName: (name: string) => void) {
@@ -22,7 +22,7 @@ export function PadChips({ theme }: { theme: Theme }) {
   const pads = useMemo(() => padList(all), [all])
 
   function manage(id: string, name: string) {
-    const lines = Object.values(all).filter((r) => r.deletedAt === null && r.parentId === id).length
+    const lines = padTopLines(all, id)
     const i = pads.findIndex((p) => p.id === id)
     Alert.alert(name, undefined, [
       ...(i > 1 ? [{ text: '← Move left', onPress: () => void cmdMovePad(id, -1) }] : []),
@@ -71,7 +71,10 @@ export function PadChips({ theme }: { theme: Theme }) {
             onLongPress={() => p.id !== null && manage(p.id, p.name)}
             style={[s.chip, { borderBottomColor: on ? theme.accent : 'transparent' }]}
           >
-            <Text style={[s.chipText, { color: on ? theme.ink : theme.inkSoft }]} numberOfLines={1}>{p.name}</Text>
+            <Text style={[s.chipText, { color: on ? theme.ink : theme.inkSoft }]} numberOfLines={1}>
+              {p.name}
+              {p.count > 0 && <Text style={[s.chipCount, { color: theme.inkMute }]}>{'  '}{p.count}</Text>}
+            </Text>
           </Pressable>
         )
       })}
@@ -87,4 +90,5 @@ const s = StyleSheet.create({
   inner: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, gap: 2 },
   chip: { minHeight: 36, paddingHorizontal: 10, justifyContent: 'center', borderBottomWidth: 2, maxWidth: 180 },
   chipText: { fontFamily: serif, fontSize: 15 },
+  chipCount: { fontFamily: serif, fontSize: 12, fontVariant: ['tabular-nums'] },
 })

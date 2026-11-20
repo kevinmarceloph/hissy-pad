@@ -13,7 +13,7 @@ async function mount(outline?: string) {
 }
 
 const texts = () => shape(usePad.getState().rows)
-const tab = (name: string | RegExp) => screen.getByRole('tab', { name })
+const tab = (name: string) => screen.getAllByRole('tab').find((t) => t.querySelector('.name')!.textContent === name)!
 const rowByText = (t: string) => screen.getAllByRole('treeitem').find((el) => (el.textContent ?? '').replace(/​/g, '').trim() === t)!
 
 describe('pads', () => {
@@ -47,7 +47,7 @@ describe('pads', () => {
     await user.click(screen.getByRole('button', { name: 'New pad' }))
     await user.type(screen.getByLabelText('Pad name'), 'Work')
     await user.click(screen.getByRole('button', { name: 'Create' }))
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Main', 'Work'])
+    expect(screen.getAllByRole('tab').map((t) => t.querySelector('.name')!.textContent)).toEqual(['Main', 'Work'])
     await user.click(tab('Work'))
     const name = screen.getByLabelText('Pad name')
     await user.clear(name)
@@ -135,7 +135,7 @@ describe('pads', () => {
       await user.type(screen.getByLabelText('Pad name'), name)
       await user.click(screen.getByRole('button', { name: 'Create' }))
     }
-    const names = () => screen.getAllByRole('tab').map((t) => t.textContent)
+    const names = () => screen.getAllByRole('tab').map((t) => t.querySelector('.name')!.textContent)
     await user.click(tab('Two'))
     expect(screen.getByRole('button', { name: 'Move pad right' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Move pad left' }))
@@ -143,6 +143,20 @@ describe('pads', () => {
     expect(screen.getByRole('button', { name: 'Move pad left' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Move pad right' }))
     expect(names()).toEqual(['Main', 'One', 'Two'])
+  })
+
+  it('each tab shows how many open lines its pad has, and nothing at zero; blank lines are not counted', async () => {
+    const user = userEvent.setup()
+    await mount('keep\n\ntrip\n  flights\n  hotel')
+    const counts = () => screen.getAllByRole('tab').map((t) => t.querySelector('.n')?.textContent?.trim() ?? '')
+    expect(counts()).toEqual(['2'])
+    await user.click(within(rowByText('trip')).getByRole('button', { name: 'Select line' }))
+    await user.click(screen.getByRole('button', { name: 'Make pad' }))
+    expect(counts()).toEqual(['1', '2'])
+    await user.click(screen.getByRole('button', { name: 'New pad' }))
+    await user.type(screen.getByLabelText('Pad name'), 'Empty')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+    expect(counts()).toEqual(['1', '2', ''])
   })
 
   it('Fold in turns the open pad back into a line of the pad picked, with its lines under it', async () => {
@@ -154,7 +168,7 @@ describe('pads', () => {
     await user.click(tab('trip'))
     expect(screen.getByLabelText('Fold into')).toHaveValue('')
     await user.click(screen.getByRole('button', { name: 'Fold in' }))
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Main'])
+    expect(screen.getAllByRole('tab').map((t) => t.querySelector('.name')!.textContent)).toEqual(['Main'])
     expect(texts()).toBe('trip\n  flights\n  hotel\nkeep')
     expect(screen.getByText(/“trip” is a line in Main now/)).toBeInTheDocument()
   })
@@ -164,7 +178,7 @@ describe('pads', () => {
     await mount('keep\ntrip\n  flights\n  hotel')
     await user.click(within(rowByText('trip')).getByRole('button', { name: 'Select line' }))
     await user.click(screen.getByRole('button', { name: 'Make pad' }))
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Main', 'trip'])
+    expect(screen.getAllByRole('tab').map((t) => t.querySelector('.name')!.textContent)).toEqual(['Main', 'trip'])
     expect(texts()).toBe('keep')
     expect(screen.getByText(/“trip” is a pad now/)).toBeInTheDocument()
     await user.click(tab('trip'))

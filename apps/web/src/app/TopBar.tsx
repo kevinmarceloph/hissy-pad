@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { copyPayload } from '@hissypad/state'
 import { importOutline, SAMPLE_OUTLINE, usePad } from '@hissypad/state'
-import { cmdDeleteDone } from '@hissypad/state'
+import { cmdDeleteDone, countOf } from '@hissypad/state'
 import { copyText } from '../platform/clipboard'
 import { DonePanel, TrashPanel } from '../panels/Lists'
 import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
@@ -67,7 +67,8 @@ export function TopBar({ onFreshStart, onSort, view }: { onFreshStart: () => voi
     const ids = importOutline(draft, where)
     setDraft('')
     dialog.current?.close()
-    setToast(ids.length ? `Added ${ids.length} ${ids.length === 1 ? 'line' : 'lines'}` : 'Nothing to add')
+    const n = countOf(ids)
+    setToast(n ? `Added ${n} ${n === 1 ? 'line' : 'lines'}` : 'Nothing to add')
   }
 
   return (

@@ -8,7 +8,8 @@ import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, serif, type Theme } from '../t
 interface Props {
   row: NodeRow
   depth: number
-  childCount: number // direct children, shown as a chip while folded
+  childCount: number // direct children
+  foldCount: number // the ones the chip counts while folded: blank lines left out
   editing: Editing | null
   selected: boolean
   selectedChild: boolean // under a selected line, so it moves with it; fainter wash
@@ -20,7 +21,7 @@ interface Props {
   onBulletLongPress: (id: string, x: number, y: number) => void
 }
 
-export const Row = memo(function Row({ row, depth, childCount, editing, selected, selectedChild, number, dragging, preview, theme, onLayout, onBulletLongPress }: Props) {
+export const Row = memo(function Row({ row, depth, childCount, foldCount, editing, selected, selectedChild, number, dragging, preview, theme, onLayout, onBulletLongPress }: Props) {
   const isEditing = editing?.id === row.id
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
@@ -132,11 +133,11 @@ export const Row = memo(function Row({ row, depth, childCount, editing, selected
               // takes a background but no padding or radius on iOS, hence the spaces.
               <Text
                 accessibilityRole="button"
-                accessibilityLabel={`Expand ${childCount} ${childCount === 1 ? 'line' : 'lines'}`}
+                accessibilityLabel={`Expand ${foldCount} ${foldCount === 1 ? 'line' : 'lines'}`}
                 onPress={() => apply((rows, ctx) => toggleCollapsed(rows, ctx, row.id), { label: 'toggleFold' })}
                 style={[s.chip, { backgroundColor: theme.accentSoft, color: row.done ? theme.inkMute : theme.inkSoft }]}
               >
-                {'\u2002+'}{childCount}{'\u2002'}
+                {'\u2002'}{foldCount > 0 ? `+${foldCount}` : '…'}{'\u2002'}
               </Text>
             )}
           </Text>

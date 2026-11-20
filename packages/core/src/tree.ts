@@ -178,3 +178,15 @@ export function topmost(index: TreeIndex, ids: Iterable<string>): string[] {
   const order = new Map(flatten(index, false).map((r, i) => [r.id, i]))
   return out.sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0))
 }
+
+// The rule for every count the app shows ("3 lines", a pad's number, "+2 under it"): a
+// line with no text is not counted. A blank line is a spacer, not an item.
+export function isBlank(r: NodeRow): boolean {
+  return r.text.trim() === ''
+}
+
+export function countLines(rows: Iterable<NodeRow | undefined>): number {
+  let n = 0
+  for (const r of rows) if (r && !isBlank(r)) n++
+  return n
+}

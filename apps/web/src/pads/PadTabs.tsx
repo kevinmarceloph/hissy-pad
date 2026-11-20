@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, padList, usePad } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, padList, padTopLines, usePad } from '@hissypad/state'
 import type { PadId } from '@hissypad/core'
 import { showToast } from '../app/toast'
 import { MOD } from '../platform/os'
@@ -65,7 +65,7 @@ export function PadTabs() {
     if (label) showToast(`“${label}” is a line in ${target.name} now. ${MOD}+Z brings the pad back.`)
   }
 
-  const lines = sheet?.mode === 'edit' ? Object.values(all).filter((r) => r.deletedAt === null && r.parentId === sheet.padId).length : 0
+  const lines = sheet?.mode === 'edit' ? padTopLines(all, sheet.padId) : 0
 
   return (
     <nav className="pads" aria-label="Pads">
@@ -76,10 +76,11 @@ export function PadTabs() {
             type="button"
             role="tab"
             aria-selected={p.id === padId}
-            title={p.id === padId && p.id !== null ? 'Rename or delete this pad' : `Open ${p.name}`}
+            title={(p.id === padId && p.id !== null ? 'Rename, fold in or delete this pad' : `Open ${p.name}`) + (p.count > 0 ? `: ${p.count} open ${p.count === 1 ? 'line' : 'lines'}` : '')}
             onClick={() => pick(p.id)}
           >
-            {p.name}
+            <span className="name">{p.name}</span>
+            {p.count > 0 && <span className="n" aria-hidden="true"> {p.count}</span>}
           </button>
         ))}
       </div>

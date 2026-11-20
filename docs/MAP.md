@@ -30,10 +30,10 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | file | what is in it |
 |---|---|
 | `types.ts` | `NodeRow` (one row of the `nodes` table), `normalizeRow` for rows from an older build, `ROW_KEYS` and `sameRow`, `kindOf` |
-| `tree.ts` | the tree derived from `parentId` + `rank`: `buildIndex`, `childrenOf`, `flatten`, `descendantIds`, `topmost`, list numbers |
+| `tree.ts` | the tree derived from `parentId` + `rank`: `buildIndex`, `childrenOf`, `flatten`, `descendantIds`, `topmost`, list numbers, and the counting rule (`isBlank`, `countLines`: a blank line is never counted) |
 | `rank.ts` | fractional ranks: a rank between two others, re-ranking a run |
 | `ops.ts` | every edit to lines: insert, split, set text, done, kind, fold, remove, restore, move, indent, dedent, ungroup, merge, delete done |
-| `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, Fresh start |
+| `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), Fresh start |
 | `drop.ts` | `resolveDrop`: where a dragged line lands, from pointer position and row layout |
 | `paste.ts` | text to outline and back: `parseOutline`, `insertOutline`, `toOutline`, `toOutlineHtml` |
 | `clock.ts` | the monotonic clock every edit stamps `updated_at` with, and `newUuid` |
@@ -120,7 +120,7 @@ A widget cannot take typing, so its + opens the app at `hissypad://add?pad=…` 
 
 ### The watch
 
-The watch is a sync client of its own, like the web app and the phone, in Swift. Signed in, it keeps every row in a file, fetches what changed straight from PostgREST (`synced_at` past its cursor, the newer `updated_at` wins) and crosses a line out with a three-column `PATCH` (`done`, `done_at`, `updated_at`), which the server's last-write-wins trigger judges like any other write. It does this on its own network, with the phone nowhere near; with no network, a Done is held in the file and sent on the next sync. `Rows.swift` repeats three rules from the packages (the tree in `core/tree.ts`, the open lines in `state/widget.ts`, the merge in `core/sync/engine.ts`): change them together.
+The watch is a sync client of its own, like the web app and the phone, in Swift. Signed in, it keeps every row in a file, fetches what changed straight from PostgREST (`synced_at` past its cursor, the newer `updated_at` wins) and crosses a line out with a three-column `PATCH` (`done`, `done_at`, `updated_at`), which the server's last-write-wins trigger judges like any other write. It does this on its own network, with the phone nowhere near; with no network, a Done is held in the file and sent on the next sync. `Rows.swift` repeats three rules from the packages (the tree in `core/tree.ts`, the open lines and the counting rule in `core/pads.ts` and `core/tree.ts`, the merge in `core/sync/engine.ts`): change them together.
 
 It cannot share the phone's session (a refresh token works once) and it has no keyboard for an email, so the phone signs it in:
 

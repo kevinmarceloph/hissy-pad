@@ -12,7 +12,8 @@ import { toggleCollapsed } from '@hissypad/core'
 interface Props {
   row: NodeRow
   depth: number
-  childCount: number    // direct children, shown as a chip while folded
+  childCount: number    // direct children
+  foldCount: number     // the ones the chip counts while folded: blank lines left out
   editing: Editing | null
   selected: boolean
   selectedChild: boolean // under a selected line, so it moves with it; shown in a fainter wash
@@ -72,7 +73,7 @@ function caretFromPoint(el: HTMLElement, x: number, y: number): number | 'end' {
   return range.toString().length
 }
 
-export function Row({ row, depth, childCount, editing, selected, selectedChild, number, dragging, preview, onBulletPointerDown, onBulletClickCapture }: Props) {
+export function Row({ row, depth, childCount, foldCount, editing, selected, selectedChild, number, dragging, preview, onBulletPointerDown, onBulletClickCapture }: Props) {
   const isEditing = editing?.id === row.id
   const ref = useRef<HTMLTextAreaElement>(null)
 
@@ -207,11 +208,11 @@ export function Row({ row, depth, childCount, editing, selected, selectedChild, 
               type="button"
               className="chip"
               tabIndex={-1}
-              aria-label={`Expand ${childCount} ${childCount === 1 ? 'line' : 'lines'}`}
+              aria-label={`Expand ${foldCount} ${foldCount === 1 ? 'line' : 'lines'}`}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={() => apply((rows, ctx) => toggleCollapsed(rows, ctx, row.id), { label: 'toggleFold' })}
             >
-              +{childCount}
+              {foldCount > 0 ? `+${foldCount}` : '…'}
             </button>
           )}
         </div>

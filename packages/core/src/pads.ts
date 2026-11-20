@@ -8,7 +8,7 @@
 // insert at top, Delete done, select all) works unchanged inside the pad. The store
 // turns the changed rows back (parentId null -> the pad id) before saving them.
 import type { NodeRow, OpCtx, Rows } from './types'
-import { buildIndex, childrenOf, descendantIds, flatten, isLive, topmost } from './tree'
+import { buildIndex, childrenOf, countLines, descendantIds, flatten, isBlank, isLive, topmost, type TreeIndex } from './tree'
 import { insertAt, moveNodes, type Placement } from './ops'
 
 // null is the main pad (the root level).
@@ -21,6 +21,21 @@ export function isPadNode(r: NodeRow | undefined): r is NodeRow {
 // The pads other than the main one, in root order. Each pad's name is its node's text.
 export function listPads(all: Rows): NodeRow[] {
   return childrenOf(buildIndex(all), null).filter((r) => r.pad)
+}
+
+// A pad's top-level lines that hold something: text, or sub items under a blank line.
+// Blank spacers are left out (the counting rule, see isBlank). `open` also leaves out
+// crossed-out lines: that is the list the Sort queue, the widgets and the watch show.
+export function padLines(index: TreeIndex, padId: PadId, open = false): NodeRow[] {
+  return childrenOf(index, padId).filter((r) => !r.pad && !(open && r.done) && (!isBlank(r) || childrenOf(index, r.id).length > 0))
+}
+
+// The number each pad shows: its open top-level lines. Main is under the key null.
+export function padCounts(all: Rows): Map<PadId, number> {
+  const index = buildIndex(all)
+  const out = new Map<PadId, number>([[null, padLines(index, null, true).length]])
+  for (const p of listPads(all)) out.set(p.id, padLines(index, p.id, true).length)
+  return out
 }
 
 // Lifted copies are cached per source row, so the scoped view of an unchanged pad row
@@ -191,7 +206,7 @@ export function sideRows(scoped: Rows, resolved: ReadonlyMap<string, Side>, side
 // Commit a fresh start on pad `padId`: the right side stays in the pad, the left side
 // moves to a new pad named `archiveName`, each side keeping its order and rebuilt so a
 // line hangs under its nearest ancestor on the same side. Returns the new rows, the
-// archive pad's id and how many lines moved. A row whose parent does not change stays
+// archive pad's id and how many lines moved (blank ones not counted). A row whose parent does not change stays
 // untouched, so the common case (a few top lines kept, the rest archived) writes only the
 // archived roots and the new pad.
 export function freshStart(
@@ -219,6 +234,6 @@ export function freshStart(
       out = moveNodes(out, ctx, [r.id], p)
     }
   }
-  const moved = descendantIds(buildIndex(out), made.padId).length
+  const moved = countLines(descendantIds(buildIndex(out), made.padId).map((id) => out[id]))
   return { rows: out, archiveId: made.padId, moved }
 }

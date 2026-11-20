@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { pad, shape, idOf, testCtx } from './testing'
-import { createPad, freshStart, lineToPad, padToLine, listPads, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
+import { buildIndex, countLines } from './tree'
+import { toggleDone } from './ops'
+import { createPad, freshStart, lineToPad, padToLine, listPads, padCounts, padLines, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
 import { dedent, insertAt, remove, setText } from './ops'
 import { changedRows } from './sync/store'
 
@@ -92,6 +94,20 @@ describe('reordering pads', () => {
     // The pads' lines and the main pad are as they were.
     expect(shape(scopePad(first, t.w))).toBe(shape(scopePad(rows, t.w)))
     expect(shape(scopePad(first, null))).toBe(shape(scopePad(rows, null)))
+  })
+})
+
+describe('counts', () => {
+  it('a pad counts its open top-level lines; blank and crossed-out lines are not counted', () => {
+    const t = table()
+    expect([...padCounts(t.rows)]).toEqual([[null, 3], [t.w, 2]])
+    let rows = insertAt(t.rows, t.ctx, { parentId: null, afterId: null }, '  ').rows // a spacer
+    const holder = insertAt(rows, t.ctx, { parentId: t.w, afterId: null }, '')        // blank, but something under it
+    rows = insertAt(holder.rows, t.ctx, { parentId: holder.newId, afterId: null }, 'kept').rows
+    rows = toggleDone(rows, t.ctx, [idOf(rows, 'A')])
+    expect([...padCounts(rows)]).toEqual([[null, 2], [t.w, 3]])
+    expect(padLines(buildIndex(rows), null).map((r) => r.text)).toEqual(['A', 'B', 'C']) // crossed out still listed here
+    expect(countLines(Object.values(rows))).toBe(Object.values(rows).length - 2)
   })
 })
 

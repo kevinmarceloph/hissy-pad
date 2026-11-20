@@ -7,7 +7,7 @@ import { useMemo } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { kindOf } from '@hissypad/core'
 import {
-  cmdMoveToPad, cmdSetKind, lineAbilities, lineCount, padList, usePad,
+  cmdMoveToPad, cmdSetKind, countOf, lineAbilities, lineCount, padList, usePad,
   LINE_ACTIONS, LINE_KINDS, type LineActionGroup,
 } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
@@ -72,7 +72,7 @@ export function Toolbar({ theme }: { theme: Theme }) {
         {shown.filter((a) => a.group === 'add').map((a) => button(a))}
       </View>
       <View style={[s.row, s.second]}>
-        {n > 1 && <Text style={[s.count, { color: theme.inkMute }]}>{lineCount(n)}</Text>}
+        {n > 1 && countOf(selection, rows) > 0 && <Text style={[s.count, { color: theme.inkMute }]}>{lineCount(countOf(selection, rows))}</Text>}
         {rest.map((a) => button(a))}
         {(others.length > 0 || tucked.length > 0) && <Btn theme={theme} label="More…" a11y="More actions" onPress={more} />}
       </View>

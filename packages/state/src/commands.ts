@@ -2,7 +2,7 @@
 // handler (Pad). Each one picks its targets from the store and decides where the caret or
 // selection goes afterwards.
 import {
-  buildIndex, childrenOf, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone, ungroup,
+  buildIndex, childrenOf, countLines, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone, ungroup,
   setKind, setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline, toOutlineHtml, type NodeKind, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
@@ -239,13 +239,13 @@ export function cmdSetKind(kind: NodeKind) {
 // caller can say so and point at undo.
 export function cmdDeleteDone(): number {
   stopEditing()
-  const before = Object.values(usePad.getState().rows).filter((r) => r.deletedAt === null).length
+  const before = countLines(Object.values(usePad.getState().rows).filter((r) => r.deletedAt === null))
   apply((rows, ctx) => {
     const out = removeDone(rows, ctx)
     const anyLive = Object.values(out).some((r) => r.deletedAt === null)
     return anyLive ? out : insertAt(out, ctx, { parentId: null, afterId: null }, '').rows
   }, { label: 'cmdDeleteDone' })
-  const after = Object.values(usePad.getState().rows).filter((r) => r.deletedAt === null).length
+  const after = countLines(Object.values(usePad.getState().rows).filter((r) => r.deletedAt === null))
   usePad.setState({ selection: [], anchorId: null, focusId: null })
   return Math.max(0, before - after)
 }

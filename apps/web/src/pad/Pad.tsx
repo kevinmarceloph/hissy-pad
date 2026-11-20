@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { buildIndex, childrenOf, descendantIds, listNumbers } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, descendantIds, listNumbers } from '@hissypad/core'
 import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
   cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
@@ -195,6 +195,7 @@ export function Pad() {
             row={rows[id]!}
             depth={depth}
             childCount={childrenOf(index, id).length}
+            foldCount={countLines(childrenOf(index, id))}
             editing={editing}
             selected={selectedSet.has(id)}
             selectedChild={selectedChildSet.has(id)}

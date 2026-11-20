@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Clipboard from 'expo-clipboard'
 import * as Haptics from 'expo-haptics'
-import { buildIndex, childrenOf, descendantIds, flatten, listNumbers, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, descendantIds, flatten, listNumbers, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
 import { apply, cmdAppendAtEnd, cmdCopySelection, cmdDeleteDone, clearLog, dumpLog, importOutline, logEnabled, refresh, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, serif, useTheme } from '../theme'
 import { Row } from './Row'
@@ -132,7 +132,8 @@ export function Pad() {
     for (const t of ids) for (const dd of descendantIds(idx, t)) moving.add(dd)
     if (state.editing) usePad.setState({ editing: null })
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    dragRef.current = { ids, moving, label: moving.size > 1 ? `${moving.size} lines` : state.rows[id]?.text || '(blank)', x, y, target: null }
+    const counted = countLines([...moving].map((m) => state.rows[m]))
+    dragRef.current = { ids, moving, label: counted > 1 ? `${counted} lines` : state.rows[id]?.text || '(blank)', x, y, target: null }
     setDrag(dragRef.current)
     updateDrag(x, y)
   }, [updateDrag])
@@ -192,7 +193,8 @@ export function Pad() {
   async function pasteIn() {
     const text = await Clipboard.getStringAsync()
     const ids = importOutline(text, 'top')
-    setToast(ids.length ? `Added ${ids.length} ${ids.length === 1 ? 'line' : 'lines'} at the top` : 'Clipboard is empty')
+    const n = countLines(ids.map((i) => usePad.getState().rows[i]))
+    setToast(n ? `Added ${n} ${n === 1 ? 'line' : 'lines'} at the top` : 'Clipboard is empty')
     setTimeout(() => setToast(null), 2500)
   }
 
@@ -267,6 +269,7 @@ export function Pad() {
                 row={rows[id]!}
                 depth={depth}
                 childCount={childrenOf(index, id).length}
+                foldCount={countLines(childrenOf(index, id))}
                 editing={editing}
                 selected={selectedSet.has(id)}
                 selectedChild={selectedChildSet.has(id)}

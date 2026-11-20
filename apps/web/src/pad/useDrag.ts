@@ -3,13 +3,13 @@
 // else just that row, always with its subtree. Drop resolution is core's resolveDrop over
 // the rows' live boxes; this hook only measures, draws state and commits the move.
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { buildIndex, descendantIds, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
+import { buildIndex, countLines, descendantIds, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
 import { apply, select, usePad, visibleIds } from '@hissypad/state'
 import { log } from '@hissypad/state'
 
 export interface DragState {
   ids: string[]          // topmost moved rows
-  count: number          // rows that will move, subtree included
+  count: number          // lines that will move, subtree included, blank ones not counted
   label: string
   x: number
   y: number
@@ -61,7 +61,7 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     ;(document.activeElement as HTMLElement | null)?.blur?.()
     const first = rows[ids[0]!]!
     log('drag:begin', { ids: ids.map((i) => i.slice(0, 8)), moving: moving.size })
-    setDrag({ ids, count: moving.size, label: first.text || '(blank)', x, y, target: null, indicatorLeft: 0 })
+    setDrag({ ids, count: countLines([...moving].map((m) => rows[m])), label: first.text || '(blank)', x, y, target: null, indicatorLeft: 0 })
     document.body.classList.add('is-dragging-rows')
   }, [rowsEl, setDrag])
 

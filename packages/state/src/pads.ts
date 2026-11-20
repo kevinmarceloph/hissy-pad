@@ -1,7 +1,7 @@
 // Pad commands: switch, create, rename, delete, move lines across, and the fresh start.
 // The data side is core's pads.ts; this file picks targets from the store and lands the
 // selection afterwards.
-import { buildIndex, createPad, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, moveToPad, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
+import { buildIndex, countLines, descendantIds, padCounts, padLines, createPad, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, moveToPad, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
 import { apply, applyAll, openPad, usePad } from './store'
 import { edit, stopEditing, targets } from './selection'
 import { log } from './log'
@@ -13,9 +13,27 @@ export function padName(all: Rows, padId: PadId): string {
   return all[padId]?.text || 'Untitled pad'
 }
 
-// The pads in switcher order: main first, then the others by root rank.
-export function padList(all: Rows): { id: PadId; name: string }[] {
-  return [{ id: null, name: MAIN_PAD_NAME }, ...listPads(all).map((r) => ({ id: r.id, name: r.text || 'Untitled pad' }))]
+// The pads in switcher order: main first, then the others by root rank. `count` is the
+// pad's open top-level lines, blank ones left out; the switcher shows it when it is not 0.
+export function padList(all: Rows): { id: PadId; name: string; count: number }[] {
+  const counts = padCounts(all)
+  return [
+    { id: null, name: MAIN_PAD_NAME, count: counts.get(null) ?? 0 },
+    ...listPads(all).map((r) => ({ id: r.id, name: r.text || 'Untitled pad', count: counts.get(r.id) ?? 0 })),
+  ]
+}
+
+// How many top-level lines a pad holds, crossed-out ones included and blank ones not: what
+// "Delete pad" says goes with it.
+export function padTopLines(all: Rows, padId: PadId): number {
+  return padLines(buildIndex(all), padId).length
+}
+
+// The lines the app counts among `ids`: blank ones are left out.
+export function countOf(ids: Iterable<string>, rows: Rows = usePad.getState().rows): number {
+  let n = 0
+  for (const id of ids) n += countLines([rows[id]])
+  return n
 }
 
 // A pad shown with nothing in it gets one blank line to type into (the same rule as
@@ -58,15 +76,14 @@ export function cmdMovePad(padId: string, dir: -1 | 1): boolean {
 }
 
 // Delete a pad with everything in it (undo brings it all back). Returns how many lines
-// went with it. The main pad cannot be deleted.
+// went with it (blank ones not counted). The main pad cannot be deleted.
 export function cmdDeletePad(padId: string): number {
   const { all, padId: current } = usePad.getState()
   if (!isPadNode(all[padId])) return 0
-  const before = Object.values(all).filter((r) => r.deletedAt === null).length
+  const n = countOf(descendantIds(buildIndex(all), padId), all)
   if (current === padId) openPad(null)
   applyAll((rows, ctx) => remove(rows, ctx, [padId]), { label: 'cmdDeletePad' })
-  const after = Object.values(usePad.getState().all).filter((r) => r.deletedAt === null).length
-  return Math.max(0, before - after - 1)
+  return n
 }
 
 // Move the selection (or the line being edited) to the top of another pad. Returns how
@@ -77,10 +94,10 @@ export function cmdMoveToPad(padId: PadId): number {
   if (ids.length === 0 || padId === current) return 0
   if (padId !== null && !isPadNode(all[padId])) return 0
   stopEditing()
-  const liveBefore = Object.keys(usePad.getState().rows).length
+  const liveBefore = countLines(Object.values(usePad.getState().rows))
   applyAll((rows, ctx) => moveToPad(rows, ctx, ids, padId), { label: 'cmdMoveToPad' })
   usePad.setState({ selection: [], anchorId: null, focusId: null })
-  const n = liveBefore - Object.keys(usePad.getState().rows).length
+  const n = liveBefore - countLines(Object.values(usePad.getState().rows))
   ensureLine()
   log('pad:move', { n, to: padId?.slice(0, 8) ?? 'main' })
   return n

@@ -5,7 +5,7 @@
 // separate process that cannot run this code, so the two only ever exchange these two
 // JSON values through shared storage (apps/mobile/src/widget.ts writes and reads them,
 // targets/widget/*.swift is the other end).
-import { buildIndex, childrenOf, createPad, descendantIds, insertAt, isLive, isPadNode, listPads, setDone, type PadId, type Rows } from '@hissypad/core'
+import { buildIndex, countLines, padLines, createPad, descendantIds, insertAt, isLive, isPadNode, listPads, setDone, type PadId, type Rows } from '@hissypad/core'
 import { applyAll, usePad } from './store'
 import { MAIN_PAD_NAME } from './pads'
 import { padOf } from './lists'
@@ -21,7 +21,7 @@ const MAX_TEXT = 140
 export interface WidgetItem {
   id: string
   text: string // first line, cut to a length a widget can show
-  subs: number // how many lines are under it
+  subs: number // how many lines are under it, blank ones not counted
 }
 
 export interface WidgetPad {
@@ -56,14 +56,14 @@ const fromKey = (key: string): PadId => (key === WIDGET_MAIN ? null : key)
 export function widgetSnapshot(all: Rows = usePad.getState().all, choice: Record<SortSide, SortChoice> = useSort.getState()): WidgetSnapshot {
   const index = buildIndex(all)
   const pad = (id: PadId, name: string): WidgetPad => {
-    const open = childrenOf(index, id).filter((r) => !r.pad && !r.done && (r.text.trim() !== '' || childrenOf(index, r.id).length > 0))
+    const open = padLines(index, id, true)
     return {
       id: padKey(id),
       name,
       count: open.length,
       items: open.slice(0, MAX_ITEMS).map((r) => {
         const line = r.text.split('\n')[0]!.trim()
-        return { id: r.id, text: line.length > MAX_TEXT ? line.slice(0, MAX_TEXT - 1) + '…' : line, subs: descendantIds(index, r.id).length }
+        return { id: r.id, text: line.length > MAX_TEXT ? line.slice(0, MAX_TEXT - 1) + '…' : line, subs: countLines(descendantIds(index, r.id).map((d) => all[d])) }
       }),
     }
   }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
-import { resolveSides, sendTo, sideRows, type Side, type Sides } from '@hissypad/core'
+import { countLines, resolveSides, sendTo, sideRows, type Side, type Sides } from '@hissypad/core'
 import { archiveNameFor, cmdFreshStart, padName, usePad } from '@hissypad/state'
 import { showToast } from '../app/toast'
 import { MOD } from '../platform/os'
@@ -76,6 +76,8 @@ export function FreshStart({ onClose }: { onClose: () => void }) {
     setPick({ side: to === 'right' ? 'left' : 'right', ids: [], anchor: null })
   }
 
+  const kept = countLines(right.map((r) => rows[r.id]))
+
   function commit() {
     const res = cmdFreshStart(sides, name)
     const n = res.moved
@@ -141,7 +143,7 @@ export function FreshStart({ onClose }: { onClose: () => void }) {
           <button type="button" className="all" onClick={() => setSides(NONE)} disabled={right.length === 0} title="Put everything back">Reset</button>
         </div>
         <section className="pane" aria-label="Staying">
-          <h3><span className="pane-label">Stays in</span> <strong>{here}</strong> <span className="count">{right.length ? `${right.length} ${right.length === 1 ? 'line' : 'lines'}` : ''}</span></h3>
+          <h3><span className="pane-label">Stays in</span> <strong>{here}</strong> <span className="count">{kept ? `${kept} ${kept === 1 ? 'line' : 'lines'}` : ''}</span></h3>
           {pane('right', right)}
         </section>
       </div>

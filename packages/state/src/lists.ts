@@ -3,7 +3,7 @@
 // first). Both read `all` (every pad, tombstones included), so a line deleted in another
 // pad is still found. Pure selectors plus the two commands the panels need; both
 // platforms render these, and nothing here knows about the DOM or React Native.
-import { isPadNode, restore, setCollapsed, setDone, type NodeRow, type PadId, type Rows } from '@hissypad/core'
+import { isBlank, isPadNode, restore, setCollapsed, setDone, type NodeRow, type PadId, type Rows } from '@hissypad/core'
 import { applyAll, openPad, usePad } from './store'
 import { select } from './selection'
 
@@ -16,13 +16,13 @@ export interface TrashEntry {
   id: string
   text: string
   deletedAt: string
-  childCount: number // rows under it that went in the same delete (and come back with it)
+  childCount: number // rows under it that went in the same delete (and come back with it), blank ones not counted
 }
 
 export interface TrashBatch {
   deletedAt: string      // the newest stamp in the batch
   entries: TrashEntry[]  // top-level rows of the delete, in text order of the pad they left
-  count: number          // every row in the batch, children included
+  count: number          // every row in the batch, children included, blank ones not
 }
 
 export interface DoneEntry {
@@ -59,7 +59,8 @@ export function trashEntries(rows: Rows = usePad.getState().all, now: number = D
     const inBatch = new Set(g.map((r) => r.id))
     const kids = new Map<string, number>()
     for (const r of g) {
-      // Count r under every ancestor that is in the same batch.
+      // Count r under every ancestor that is in the same batch (a blank line is not counted).
+      if (isBlank(r)) continue
       let cur = r.parentId
       while (cur !== null && inBatch.has(cur)) {
         kids.set(cur, (kids.get(cur) ?? 0) + 1)
@@ -71,7 +72,7 @@ export function trashEntries(rows: Rows = usePad.getState().all, now: number = D
       .filter((r) => worthListing(r, kids.get(r.id) ?? 0))
       .map((r) => ({ id: r.id, text: r.text, deletedAt: r.deletedAt, childCount: kids.get(r.id) ?? 0 }))
     if (entries.length === 0) continue
-    batches.push({ deletedAt: g.at(-1)!.deletedAt, entries, count: entries.reduce((n, e) => n + 1 + e.childCount, 0) })
+    batches.push({ deletedAt: g.at(-1)!.deletedAt, entries, count: entries.reduce((n, e) => n + (e.text.trim() === '' ? 0 : 1) + e.childCount, 0) })
   }
   return batches.reverse()
 }
@@ -82,7 +83,7 @@ export function doneAtOf(r: NodeRow): string {
 
 export function doneEntries(rows: Rows = usePad.getState().all): DoneEntry[] {
   const kids = new Map<string, number>()
-  for (const r of Object.values(rows)) if (r.deletedAt === null && r.parentId !== null) kids.set(r.parentId, (kids.get(r.parentId) ?? 0) + 1)
+  for (const r of Object.values(rows)) if (r.deletedAt === null && r.parentId !== null && !isBlank(r)) kids.set(r.parentId, (kids.get(r.parentId) ?? 0) + 1)
   return Object.values(rows)
     .filter((r) => r.deletedAt === null && r.done && !padNode(r))
     .sort((a, b) => ms(doneAtOf(b)) - ms(doneAtOf(a)) || (a.id < b.id ? -1 : 1))

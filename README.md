@@ -101,6 +101,7 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 
 | pads (the tabs under the title) | |
 |---|---|
+| the small number on a tab | the pad's open top-level lines; nothing at zero. Blank lines are never counted, here or in any other count |
 | + | a new pad |
 | click the open tab | rename it, move it left or right, fold it into another pad (the opposite of Make pad: it becomes a line there, its lines under it), or delete it. Main stays first |
 

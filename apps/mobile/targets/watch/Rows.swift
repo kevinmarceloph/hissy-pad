@@ -176,10 +176,11 @@ enum Outline {
         return a.id.utf8.lexicographicallyPrecedes(b.id.utf8)
       }
     }
-    func under(_ id: String) -> Int {
-      (children[id] ?? []).reduce(0) { $0 + 1 + under($1.id) }
-    }
     func trimmed(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
+    // A blank line is not counted (the counting rule, isBlank in core).
+    func under(_ id: String) -> Int {
+      (children[id] ?? []).reduce(0) { $0 + (trimmed($1.text).isEmpty ? 0 : 1) + under($1.id) }
+    }
     func pad(_ id: String?, _ name: String) -> WidgetPad {
       let open = (children[id] ?? []).filter { !$0.pad && !$0.done && (!trimmed($0.text).isEmpty || children[$0.id] != nil) }
       let items = open.map { r -> WidgetItem in

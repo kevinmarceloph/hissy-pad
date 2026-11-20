@@ -69,7 +69,8 @@ describe('pads in the store', () => {
     importOutline('w1\nw2', 'top')
     cmdRenamePad(w, 'Werk')
     expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Main', 'Werk'])
-    expect(cmdDeletePad(w)).toBe(3) // w1, w2 and the blank first line
+    expect(padList(usePad.getState().all).map((p) => p.count)).toEqual([3, 2]) // A, B, C; w1, w2 (B1 is nested, the blank line is not counted)
+    expect(cmdDeletePad(w)).toBe(2) // w1 and w2; the blank first line is not counted
     expect(usePad.getState().padId).toBeNull()
     expect(listPads(usePad.getState().all)).toEqual([])
     undo()

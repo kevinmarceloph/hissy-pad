@@ -2,7 +2,7 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import { createPortal } from 'react-dom'
 import { kindOf, type PadId } from '@hissypad/core'
 import {
-  clearSelection, cmdMoveToPad, cmdSetKind, lineAbilities, lineCount, padList, padName, stopEditing, usePad,
+  clearSelection, cmdMoveToPad, countOf, cmdSetKind, lineAbilities, lineCount, padList, padName, stopEditing, usePad,
   LINE_ACTIONS, LINE_KINDS, type LineAction, type LineActionGroup,
 } from '@hissypad/state'
 import { showToast } from '../app/toast'
@@ -110,7 +110,8 @@ export function SelectionBar() {
   // Mixed selections show the first line's type; a tap sets them all.
   const first = rows[ids[0]!]
   const current = first ? kindOf(first) : 'plain'
-  const label = n === 0 ? 'Editing' : lineCount(n)
+  const counted = countOf(selection, rows)
+  const label = n === 0 ? 'Editing' : counted > 0 ? lineCount(counted) : n === 1 ? 'Blank line' : 'Blank lines'
   const close = () => {
     if (n > 0) clearSelection()
     else {
