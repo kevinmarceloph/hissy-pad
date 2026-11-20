@@ -106,7 +106,7 @@ describe('Pad', () => {
     expect(texts()).toBe('top\nx\n  y\nz\nlast')
   })
 
-  it('bullet click selects, shift-click ranges, toggle folds', async () => {
+  it('bullet click selects, shift-click ranges; Fold in the toolbar folds, with no arrow beside the line', async () => {
     const user = userEvent.setup()
     await mount('p\n  c1\n  c2\nq')
     await user.click(within(rowByText('p')).getByRole('button', { name: /Select line/ }))
@@ -115,8 +115,11 @@ describe('Pad', () => {
     await user.keyboard('{/Shift}')
     expect(usePad.getState().selection).toHaveLength(4)
     await user.keyboard('{Escape}')
-    await user.click(within(rowByText('p')).getByRole('button', { name: 'Collapse' }))
+    expect(within(rowByText('p')).queryByRole('button', { name: /Collapse|Expand$/ })).toBeNull()
+    await user.click(within(rowByText('p')).getByRole('button', { name: /Select line/ }))
+    await user.click(within(screen.getByRole('toolbar', { name: 'Selected lines' })).getByRole('button', { name: /^Fold/ }))
     expect(screen.getAllByRole('treeitem')).toHaveLength(2)
+    expect(within(screen.getAllByRole('treeitem')[0]!).getByRole('button', { name: 'Expand 2 lines' })).toBeInTheDocument()
   })
 
   it('Delete done removes crossed-out lines and says how to undo', async () => {

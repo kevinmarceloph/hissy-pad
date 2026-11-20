@@ -140,7 +140,7 @@ kbd {
 }
 .row.is-selected { background: var(--accent-soft); }
 .row.is-selected-child { background: var(--accent-faint); }
-.row .toggle, .row .bullet {
+.row .bullet {
   grid-column: 1;
   grid-row: 1;
   height: calc(var(--size) * var(--lh));
@@ -189,26 +189,6 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
   box-shadow: 0 6px 24px -12px rgb(0 0 0 / 0.35);
   font-size: 0.95rem;
 }
-.row .toggle {
-  justify-self: start;
-  width: 1rem;
-  margin-left: -1.1rem;
-  opacity: 0;
-  transition: opacity 120ms;
-}
-.row .toggle::before {
-  content: '';
-  position: absolute; left: 50%; top: 50%;
-  translate: -50% -50%;
-  border: 0.32rem solid transparent;
-  border-top: 0.42rem solid var(--ink-mute);
-  border-bottom: 0;
-}
-.row.is-collapsed .toggle::before { rotate: -90deg; translate: -40% -50%; }
-/* The bullet's sideways tap target reaches under the chevron and, being later in the DOM,
-   won the click on most of it. While the chevron is shown it sits on top; while hidden the
-   bullet keeps the whole strip, so a phone tap next to a bullet still selects. */
-.row:hover .toggle, .row:focus-within .toggle, .row.is-collapsed .toggle, .row .toggle:focus-visible { opacity: 1; z-index: 1; }
 .row .bullet::before {
   content: '';
   position: absolute; left: 50%; top: 50%;

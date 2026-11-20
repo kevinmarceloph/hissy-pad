@@ -177,14 +177,6 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
     <div className={cls} style={{ '--depth': depth } as React.CSSProperties} data-id={row.id} role="treeitem" aria-selected={selected} aria-expanded={hasChildren ? !row.collapsed : undefined} aria-level={depth + 1}>
       <button
         type="button"
-        className="toggle"
-        tabIndex={-1}
-        aria-label={row.collapsed ? 'Expand' : 'Collapse'}
-        hidden={!hasChildren}
-        onClick={() => apply((rows, ctx) => toggleCollapsed(rows, ctx, row.id), { label: 'toggleFold' })}
-      />
-      <button
-        type="button"
         className="bullet"
         data-num={number !== null ? `${number}.` : undefined}
         aria-label={selected ? 'Deselect line' : 'Select line'}
