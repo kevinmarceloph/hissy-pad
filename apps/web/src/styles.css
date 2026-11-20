@@ -298,6 +298,13 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
   text-decoration-thickness: 1px;
 }
 .row.is-done .text a { color: inherit; }
+/* Inline marks, drawn with their symbols left in. Each decoration is set on the span, so
+   an underline inside a crossed-out line shows both. */
+.mark.b { font-weight: 700; }
+.mark.i { font-style: italic; }
+.mark.u { text-decoration: underline; text-underline-offset: 0.15em; text-decoration-thickness: 1px; }
+.mark.s { text-decoration: line-through; text-decoration-thickness: 1px; }
+.mark.u.s { text-decoration: underline line-through; text-underline-offset: 0.15em; text-decoration-thickness: 1px; }
 .placeholder { display: inline-block; min-width: 1px; }
 /* Folded: a count of the hidden children, inline right after the text. Tapping it unfolds. */
 .row .chip {

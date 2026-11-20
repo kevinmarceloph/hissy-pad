@@ -340,4 +340,17 @@ describe('Trash and Done panels', () => {
     expect(texts()).toBe('top\nchild\n  grand\nother\nlast')
     expect(usePad.getState().past.at(-1)?.label).toBe('cmdUngroup')
   })
+
+  it('inline marks are drawn with their symbols left in; stray symbols and the line being edited stay plain', async () => {
+    await mount('a **bold** and _it_ ~~gone~~ __under__\n2 * 3 * 4 and snake_case_name\n**see https://x.com/a_b**')
+    const row = rowByText('a **bold** and _it_ ~~gone~~ __under__')
+    expect([...row.querySelectorAll('.mark')].map((el) => `${el.className}|${el.textContent}`)).toEqual([
+      'mark b|**bold**', 'mark i|_it_', 'mark s|~~gone~~', 'mark u|__under__',
+    ])
+    expect(rowByText('2 * 3 * 4 and snake_case_name').querySelector('.mark')).toBeNull()
+    const link = rowByText('**see https://x.com/a_b**').querySelector('.mark.b a')!
+    expect(link.getAttribute('href')).toBe('https://x.com/a_b')
+    const ta = await startEditing('a **bold** and _it_ ~~gone~~ __under__')
+    expect(ta.value).toBe('a **bold** and _it_ ~~gone~~ __under__')
+  })
 })

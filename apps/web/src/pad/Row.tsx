@@ -7,7 +7,7 @@ import {
 } from '@hissypad/state'
 import { redo, undo } from '@hissypad/state'
 import { apply } from '@hissypad/state'
-import { toggleCollapsed } from '@hissypad/core'
+import { inlineSpans, toggleCollapsed, URL_RE } from '@hissypad/core'
 
 interface Props {
   row: NodeRow
@@ -27,8 +27,6 @@ interface Props {
 // Either modifier works everywhere: Cmd is the Mac habit, Ctrl is what external keyboards
 // on Android and Windows send, and nothing here needs them to mean different things.
 const mod = (e: KeyboardEvent | MouseEvent) => e.metaKey || e.ctrlKey
-
-const URL_RE = /https?:\/\/[^\s<>"')\]]+/g
 
 function Linkified({ text }: { text: string }) {
   const parts: (string | { url: string })[] = []
@@ -50,6 +48,19 @@ function Linkified({ text }: { text: string }) {
           </a>
         ),
       )}
+    </>
+  )
+}
+
+// The line as it reads when not being edited: **bold**, *italic*, __underline__ and
+// ~~strikethrough~~ drawn as such with their symbols left in, links clickable.
+function Styled({ text }: { text: string }) {
+  return (
+    <>
+      {inlineSpans(text).map((sp, i) => {
+        const cls = [sp.bold && 'b', sp.italic && 'i', sp.underline && 'u', sp.strike && 's'].filter(Boolean).join(' ')
+        return cls ? <span key={i} className={`mark ${cls}`}><Linkified text={sp.text} /></span> : <Linkified key={i} text={sp.text} />
+      })}
     </>
   )
 }
@@ -202,7 +213,7 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
         />
       ) : (
         <div className="text" onMouseDown={onTextMouseDown}>
-          {row.text === '' ? <span className="placeholder" aria-hidden="true">{'​'}</span> : <Linkified text={row.text} />}
+          {row.text === '' ? <span className="placeholder" aria-hidden="true">{'​'}</span> : <Styled text={row.text} />}
           {folded && (
             <button
               type="button"

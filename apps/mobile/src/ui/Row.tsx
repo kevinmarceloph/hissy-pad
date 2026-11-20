@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
 import { apply, clickSelect, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
-import { toggleCollapsed } from '@hissypad/core'
+import { inlineSpans, toggleCollapsed } from '@hissypad/core'
 import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, serif, type Theme } from '../theme'
 
 interface Props {
@@ -127,7 +127,14 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
       ) : (
         <Pressable style={s.textWrap} onPress={() => edit(row.id, 'end')}>
           <Text style={[s.text, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
-            {row.text === '' ? ' ' : row.text}
+            {row.text === '' ? ' ' : inlineSpans(row.text).map((sp, i) => {
+              // **bold**, *italic*, __underline__, ~~strikethrough~~, symbols left in. A nested
+              // Text replaces the decoration it inherits, so a done line's strike is repeated.
+              const strike = sp.strike || row.done
+              const line = sp.underline ? (strike ? 'underline line-through' : 'underline') : sp.strike ? 'line-through' : undefined
+              if (!sp.bold && !sp.italic && !line) return sp.text
+              return <Text key={i} style={[sp.bold && s.bold, sp.italic && s.italic, line && { textDecorationLine: line }]}>{sp.text}</Text>
+            })}
             {folded && (
               // Nested so it sits right after the last word, wrapping with it. A nested Text
               // takes a background but no padding or radius on iOS, hence the spaces.
@@ -154,6 +161,7 @@ const s = StyleSheet.create({
   cross: { fontFamily: serif, fontSize: SIZE + 2, lineHeight: LINE },
   hash: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE, fontWeight: '700' },
   bold: { fontWeight: '700' },
+  italic: { fontStyle: 'italic' },
   num: { fontFamily: serif, fontSize: SIZE - 1, lineHeight: LINE, fontVariant: ['tabular-nums'] },
   textWrap: { flex: 1, minHeight: LINE },
   text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, padding: 0, margin: 0, textAlignVertical: 'top' },

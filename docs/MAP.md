@@ -33,6 +33,7 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | `tree.ts` | the tree derived from `parentId` + `rank`: `buildIndex`, `childrenOf`, `flatten`, `descendantIds`, `topmost`, list numbers, and the counting rule (`isBlank`, `countLines`: a blank line is never counted), and where the line of space under each header's group goes (`headerGaps`) |
 | `rank.ts` | fractional ranks: a rank between two others, re-ranking a run |
 | `ops.ts` | every edit to lines: insert, split, set text, done, kind, fold, remove, restore, move, indent, dedent, ungroup, merge, delete done |
+| `inline.ts` | inline marks drawn from the text, never stored: `inlineSpans` (bold, italic, underline, strikethrough, symbols kept) and the shared `URL_RE` |
 | `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), sub-pads and places (`isSubPad`, `listSubPads`, `Place`, `moveToPlace`), Fresh start |
 | `drop.ts` | `resolveDrop`: where a dragged line lands, from pointer position and row layout |
 | `paste.ts` | text to outline and back: `parseOutline`, `insertOutline`, `toOutline`, `toOutlineHtml` |

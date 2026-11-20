@@ -64,6 +64,7 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 | Cmd+Enter (or Ctrl) | cross out |
 | Cmd+. | fold / unfold |
 | Cmd+Shift+7 | numbered list on / off (a run of numbered siblings counts 1, 2, 3) |
+| `**bold**`, `*italic*` or `_italic_`, `__underline__`, `~~strike~~` | typed as text and drawn as such once the caret leaves the line, symbols left in. Marks must hug their words, so `2 * 3 * 4` and `snake_case` stay plain |
 | toolbar · / # / 1. | line type: bullet, header (bold, # bullet) or numbered |
 | Backspace at the start | join with the line above |
 | Cmd+Shift+Backspace | delete the line (children too) |
