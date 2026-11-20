@@ -2,7 +2,7 @@
 // handler (Pad). Each one picks its targets from the store and decides where the caret or
 // selection goes afterwards.
 import {
-  buildIndex, childrenOf, countLines, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone, ungroup,
+  buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone, ungroup,
   setKind, setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline, toOutlineHtml, type NodeKind, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
@@ -75,6 +75,22 @@ export function cmdAddAtTop(): string {
     newId = res.newId
     return res.rows
   }, { label: 'cmdAddAtTop' })
+  edit(newId, 0)
+  return newId
+}
+
+// A tap on the space under a header's group: a new blank line as the header's last sub
+// item, ready to type into. A folded header opens first. Returns the new line's id.
+export function cmdAddUnder(id: string): string {
+  if (!usePad.getState().rows[id]) return ''
+  let newId = ''
+  apply((rows, ctx) => {
+    const open = setCollapsed(rows, ctx, id, false)
+    const last = childrenOf(buildIndex(open), id).at(-1)
+    const res = insertAt(open, ctx, { parentId: id, afterId: last?.id ?? null }, '')
+    newId = res.newId
+    return res.rows
+  }, { label: 'cmdAddUnder' })
   edit(newId, 0)
   return newId
 }

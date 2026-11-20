@@ -1,7 +1,7 @@
 // The line toolbar above the keyboard. Its buttons come from LINE_ACTIONS in the state
 // package, the same list the web's SelectionBar draws. On the phone it is two rows
 // instead of one that scrolls sideways, and three things live elsewhere: crossing out and
-// "done editing" are the floating buttons at the top right (FloatingButtons.tsx), and the
+// "done editing" are the floating buttons at the bottom right (FloatingButtons.tsx), and the
 // pad actions (Move to…, Make pad) are behind More.
 import { useMemo } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
@@ -12,7 +12,7 @@ import {
 } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 
-// The 'mark' group (Done) is the floating check; it is not repeated here.
+// The 'mark' group (Done) is the floating × / • toggle; it is not repeated here.
 const HIDDEN: ReadonlySet<LineActionGroup> = new Set(['mark'])
 
 function Btn({ label, onPress, disabled, a11y, theme, on, style }: { label: string; onPress: () => void; disabled?: boolean; a11y?: string; theme: Theme; on?: boolean; style?: object | undefined }) {

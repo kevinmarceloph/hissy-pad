@@ -190,3 +190,20 @@ export function countLines(rows: Iterable<NodeRow | undefined>): number {
   for (const r of rows) if (r && !isBlank(r)) n++
   return n
 }
+
+// A header keeps one line of empty space under its group, to set it apart from what comes
+// next. Given the rows as drawn (depth-first, with depths), returns where those spaces go:
+// the id of the row a space follows -> the headers it belongs to, innermost first. A
+// header's group ends at the last drawn row under it, or at the header itself when it is
+// folded or has nothing under it.
+export function headerGaps(flat: readonly FlatRow[], rows: Rows): Map<string, string[]> {
+  const out = new Map<string, string[]>()
+  flat.forEach((f, i) => {
+    if (!rows[f.id]?.header) return
+    let end = i
+    while (end + 1 < flat.length && flat[end + 1]!.depth > f.depth) end++
+    const key = flat[end]!.id
+    out.set(key, [f.id, ...(out.get(key) ?? [])])
+  })
+  return out
+}

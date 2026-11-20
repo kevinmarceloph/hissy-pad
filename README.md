@@ -93,6 +93,7 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 |---|---|
 | Done, · / # / 1. | cross out, line type |
 | + above / + below | a new line beside the selection |
+| the space under a header's group | every header keeps one empty line after its sub items; click it to add a sub item to that header |
 | ← → ↑ ↓ | outdent, indent, move among siblings |
 | Fold / Ungroup | fold the line, or bring its sub items out to its own level |
 | Copy / Move to… | copy as an outline, send to another pad |

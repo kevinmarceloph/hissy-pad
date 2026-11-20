@@ -30,7 +30,7 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | file | what is in it |
 |---|---|
 | `types.ts` | `NodeRow` (one row of the `nodes` table), `normalizeRow` for rows from an older build, `ROW_KEYS` and `sameRow`, `kindOf` |
-| `tree.ts` | the tree derived from `parentId` + `rank`: `buildIndex`, `childrenOf`, `flatten`, `descendantIds`, `topmost`, list numbers, and the counting rule (`isBlank`, `countLines`: a blank line is never counted) |
+| `tree.ts` | the tree derived from `parentId` + `rank`: `buildIndex`, `childrenOf`, `flatten`, `descendantIds`, `topmost`, list numbers, and the counting rule (`isBlank`, `countLines`: a blank line is never counted), and where the line of space under each header's group goes (`headerGaps`) |
 | `rank.ts` | fractional ranks: a rank between two others, re-ranking a run |
 | `ops.ts` | every edit to lines: insert, split, set text, done, kind, fold, remove, restore, move, indent, dedent, ungroup, merge, delete done |
 | `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), Fresh start |
@@ -90,7 +90,7 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 | `src/ui/Pad.tsx` | the screen: top bar, pad chips, the list, long-press drag, pull to refresh |
 | `src/ui/Row.tsx` | one line |
 | `src/ui/Toolbar.tsx` | the line toolbar above the keyboard, drawn from `LINE_ACTIONS` as two rows (no sideways scroll); actions marked `more` and Move to… sit behind More |
-| `src/ui/FloatingButtons.tsx` | the round buttons at the top right: + (a line at the top) when nothing is targeted; a check (cross out) and a chevron (done editing) while editing or selecting |
+| `src/ui/FloatingButtons.tsx` | the round buttons at the bottom right: + (a line at the top) when nothing is targeted; a × / • toggle (cross out, or back to a bullet) and a chevron (done editing) while editing or selecting |
 | `src/ui/PadChips.tsx` | the pads as chips, with rename, reorder and delete |
 | `src/ui/Lists.tsx` | Trash and Recently done sheets |
 | `src/ui/Sort.tsx` | the Sort screen (PanResponder swipe) |

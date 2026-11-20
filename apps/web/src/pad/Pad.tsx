@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { buildIndex, childrenOf, countLines, descendantIds, listNumbers } from '@hissypad/core'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, listNumbers } from '@hissypad/core'
 import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
-  cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
+  cmdAddUnder, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
   cmdPasteAfterSelection, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
 import { Row } from './Row'
@@ -184,14 +184,17 @@ export function Pad() {
     }
   }, [])
 
+  // The line of space under each header's group; a click adds a sub item to the header.
+  const gaps = useMemo(() => headerGaps(displayed, rows), [displayed, rows])
+
   const lone = visible.length === 1 && rows[visible[0]!.id]!.text === ''
 
   return (
     <section className="pad" aria-label="Pad">
       <div className="rows" role="tree" aria-multiselectable="true" ref={rowsRef}>
         {displayed.map(({ id, depth, preview }) => (
+          <Fragment key={id}>
           <Row
-            key={id}
             row={rows[id]!}
             depth={depth}
             childCount={childrenOf(index, id).length}
@@ -205,6 +208,18 @@ export function Pad() {
             onBulletPointerDown={onBulletPointerDown}
             onBulletClickCapture={onBulletClickCapture}
           />
+          {gaps.get(id)?.map((h) => (
+            <button
+              key={`gap:${h}`}
+              type="button"
+              className="gap"
+              tabIndex={-1}
+              aria-label={`Add a line under ${rows[h]!.text.split('\n')[0] || 'the header'}`}
+              title="Add a line under this header"
+              onClick={() => cmdAddUnder(h)}
+            />
+          ))}
+          </Fragment>
         ))}
       </div>
       {drag && (

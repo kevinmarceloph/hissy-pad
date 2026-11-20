@@ -149,6 +149,19 @@ describe('Pad', () => {
     expect(texts()).toBe('1.a\n2.b\n3.b2\n4.c')
   })
 
+  it('a header has a line of space under its group; clicking it adds a sub item to the header', async () => {
+    const user = userEvent.setup()
+    await mount('a\n  a1\nb')
+    expect(screen.queryByRole('button', { name: /Add a line under/ })).toBeNull()
+    await user.click(within(rowByText('a')).getByRole('button', { name: 'Select line' }))
+    await user.click(screen.getByRole('button', { name: 'Header' }))
+    const gap = screen.getByRole('button', { name: 'Add a line under a' })
+    expect(gap.previousElementSibling).toBe(rowByText('a1')) // after the group, not the header
+    await user.click(gap)
+    await user.keyboard('a2')
+    expect(texts()).toBe('#a\n  a1\n  a2\nb')
+  })
+
   it('the type switcher turns a line into a header and back to a bullet', async () => {
     const user = userEvent.setup()
     await mount('a\nb')

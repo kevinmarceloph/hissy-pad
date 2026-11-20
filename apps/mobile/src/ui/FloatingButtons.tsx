@@ -1,6 +1,7 @@
-// The round buttons floating at the top right of the pad. With nothing targeted: + adds a
-// line at the top. While a line is being edited (or lines are selected): a check crosses
-// it out, and a chevron ends editing and puts the keyboard away (or clears the selection).
+// The round buttons floating at the bottom right of the pad, above the toolbar and the
+// keyboard. With nothing targeted: + adds a line at the top. While a line is being edited
+// (or lines are selected): a toggle crosses it out (it shows ×, the bullet a done line
+// gets, or • to turn a done line back), and a chevron ends editing and puts the keyboard away (or clears the selection).
 import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { clearSelection, cmdAddAtTop, cmdToggleDone, stopEditing, usePad } from '@hissypad/state'
@@ -62,7 +63,7 @@ export function FloatingButtons({ theme, onAdd }: { theme: Theme; onAdd?: () => 
           cmdToggleDone()
         }}
       >
-        <Text style={[s.glyph, { color: allDone ? theme.accent : theme.ink }]}>✓</Text>
+        <Text style={[s.glyph, s.mark, { color: allDone ? theme.accent : theme.ink }]}>{allDone ? '•' : '×'}</Text>
       </Round>
       <Round theme={theme} label={selection.length > 0 ? 'Clear selection' : 'Done editing'} onPress={finish}>
         {/* A chevron pointing down, drawn so it does not depend on a font having the glyph. */}
@@ -73,12 +74,13 @@ export function FloatingButtons({ theme, onAdd }: { theme: Theme; onAdd?: () => 
 }
 
 const s = StyleSheet.create({
-  wrap: { position: 'absolute', top: 8, right: 12, zIndex: 5, flexDirection: 'row', gap: 10 },
+  wrap: { position: 'absolute', bottom: 12, right: 12, zIndex: 5, flexDirection: 'row', gap: 10 },
   round: {
     width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth * 2, alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4,
   },
   glyph: { fontFamily: serif, fontSize: 21, lineHeight: 26 },
+  mark: { fontSize: 26, lineHeight: 28 },
   plus: { fontSize: 28, lineHeight: 30 },
   chevron: { width: 11, height: 11, borderRightWidth: 2, borderBottomWidth: 2, transform: [{ rotate: '45deg' }], marginTop: -5 },
 })

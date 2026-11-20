@@ -4,7 +4,7 @@ import { loadPad, usePad } from './store'
 import { undo } from './history'
 import { edit, select } from './selection'
 import {
-  cmdAddAbove, cmdAddAtTop, cmdAddBelow, cmdAppendAtEnd, cmdBackspaceAtStart, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdEditNeighbor,
+  cmdAddAbove, cmdAddAtTop, cmdAddUnder, cmdAddBelow, cmdAppendAtEnd, cmdBackspaceAtStart, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdEditNeighbor,
   cmdEnter, cmdIndent, cmdMove, cmdPasteAfterSelection, cmdPasteInto, cmdSetKind, cmdTextChanged, cmdToggleCollapsed, cmdToggleNumbered,
   cmdUngroup, copyPayload, setClipboard,
 } from './commands'
@@ -177,6 +177,20 @@ describe('commands', () => {
     expect(editing()).toMatchObject({ id: id('A'), caret: 'end' })
     cmdEditNeighbor(id('A'), -1)
     expect(editing()!.id).toBe(id('A'))
+  })
+
+  it('the space under a header adds a last sub item to it, opening it if folded, one undo step', () => {
+    sel('B')
+    cmdSetKind('header')
+    cmdToggleCollapsed()
+    const added = cmdAddUnder(id('B'))
+    expect(shown()).toBe('A\n#B\n  B1\n  B2\n  \nC')
+    expect(rows()[id('B')]!.collapsed).toBe(false)
+    expect(editing()).toMatchObject({ id: added, caret: 0 })
+    undo()
+    expect(rows()[id('B')]!.collapsed).toBe(true)
+    expect(Object.values(rows()).filter((r) => r.deletedAt === null)).toHaveLength(5)
+    expect(cmdAddUnder('nope')).toBe('')
   })
 
   it('the floating + opens a blank line at the very top and edits it, one undo step', () => {

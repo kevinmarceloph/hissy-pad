@@ -18,6 +18,7 @@ export {
   isLive,
   isBlank,
   countLines,
+  headerGaps,
   compareSiblings,
   type TreeIndex,
   type FlatRow,

@@ -44,7 +44,7 @@ async function swipe(page: Page, dx: number, dy: number, touch: boolean, hold?: 
   await page.mouse.up()
 }
 
-const tabs = (page: Page) => page.getByRole('tab').allTextContents()
+const tabs = (page: Page) => page.locator('[role=tab] .name').allTextContents()
 
 async function padLines(page: Page, name: string): Promise<string> {
   await page.getByRole('tab', { name }).click()

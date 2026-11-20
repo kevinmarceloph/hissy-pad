@@ -1,15 +1,15 @@
 // The pad screen: a scroll view of visible rows, the toolbar above the keyboard, and drag
 // via a long press on a bullet. Drop resolution is core's resolveDrop over the rows'
 // measured layouts; this file only measures and draws.
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react'
 import { Keyboard, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Clipboard from 'expo-clipboard'
 import * as Haptics from 'expo-haptics'
-import { buildIndex, childrenOf, countLines, descendantIds, flatten, listNumbers, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdAppendAtEnd, cmdCopySelection, cmdDeleteDone, clearLog, dumpLog, importOutline, logEnabled, refresh, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
-import { GUTTER, INDENT, serif, useTheme } from '../theme'
+import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, flatten, listNumbers, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
+import { apply, cmdAddUnder, cmdAppendAtEnd, cmdCopySelection, cmdDeleteDone, clearLog, dumpLog, importOutline, logEnabled, refresh, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
+import { GUTTER, INDENT, LINE, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
 import { FloatingButtons } from './FloatingButtons'
@@ -91,6 +91,8 @@ export function Pad() {
     const placed = moving.map((v) => ({ id: v.id, depth: v.depth - base + t.depth, preview: true }))
     return [...anchors.slice(0, t.gapIndex).map((v) => ({ ...v, preview: false })), ...placed, ...anchors.slice(t.gapIndex).map((v) => ({ ...v, preview: false }))]
   }, [visible, drag])
+  // The line of space under each header's group; a tap adds a sub item to the header.
+  const gaps = useMemo(() => headerGaps(displayed, rows), [displayed, rows])
 
   const onRowLayout = useCallback((id: string, e: LayoutChangeEvent) => {
     layouts.current.set(id, { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height })
@@ -264,8 +266,8 @@ export function Pad() {
             refreshControl={session ? <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={theme.inkMute} colors={[theme.accent]} progressBackgroundColor={theme.paperRaised} /> : undefined}
           >
             {displayed.map(({ id, depth, preview }) => (
+              <Fragment key={id}>
               <Row
-                key={id}
                 row={rows[id]!}
                 depth={depth}
                 childCount={childrenOf(index, id).length}
@@ -280,6 +282,10 @@ export function Pad() {
                 onLayout={onRowLayout}
                 onBulletLongPress={() => {}}
               />
+              {gaps.get(id)?.map((h) => (
+                <Pressable key={`gap:${h}`} style={s.gap} onPress={() => cmdAddUnder(h)} accessibilityRole="button" accessibilityLabel="Add a line under this header" />
+              ))}
+              </Fragment>
             ))}
             {lone && (
               <Text style={[s.hint, { color: theme.inkMute }]}>Type anything. Return for a new line, the toolbar for nesting and crossing out. Press and hold a bullet to drag.</Text>
@@ -311,6 +317,7 @@ const s = StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingHorizontal: 8, paddingBottom: 24 },
   hint: { fontFamily: serif, fontStyle: 'italic', fontSize: 15, lineHeight: 22, paddingHorizontal: GUTTER + 8, paddingVertical: 8 },
+  gap: { height: LINE }, // the line of space under a header's group
   tail: { height: 56 },
   ghost: { position: 'absolute', zIndex: 10, maxWidth: 260, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth },
   ghostText: { fontFamily: serif, fontSize: 15 },
