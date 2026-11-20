@@ -5,10 +5,9 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type Compo
 import { Keyboard, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import * as Clipboard from 'expo-clipboard'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, flatten, listNumbers, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdCopySelection, cmdDeleteDone, clearLog, dumpLog, importOutline, logEnabled, refresh, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
+import { apply, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -257,26 +256,9 @@ export function Pad() {
     setRefreshing(false)
   }, [])
 
-  async function pasteIn() {
-    const text = await Clipboard.getStringAsync()
-    const ids = importOutline(text, 'top')
-    const n = countLines(ids.map((i) => usePad.getState().rows[i]))
-    setToast(n ? `Added ${n} ${n === 1 ? 'line' : 'lines'} at the top` : 'Clipboard is empty')
-    setTimeout(() => setToast(null), 2500)
-  }
-
   function deleteDone() {
     const n = cmdDeleteDone()
     setToast(n === 0 ? 'Nothing crossed out' : `Deleted ${n} ${n === 1 ? 'line' : 'lines'}`)
-    setTimeout(() => setToast(null), 2500)
-  }
-
-  function copyAll() {
-    const all = Object.values(rows).filter((r) => r.deletedAt === null && r.parentId === null).map((r) => r.id)
-    select(all, all[0] ?? null, all.at(-1) ?? null)
-    void cmdCopySelection()
-    usePad.setState({ selection: [], anchorId: null, focusId: null })
-    setToast('Copied the whole pad as text')
     setTimeout(() => setToast(null), 2500)
   }
 
@@ -288,8 +270,6 @@ export function Pad() {
       <View style={s.top}>
         <Text style={[s.title, { color: theme.inkSoft }]}>HissyPad</Text>
         <Pressable onPress={deleteDone} disabled={doneCount === 0} style={s.topBtn}><Text style={[s.topText, { color: doneCount ? theme.inkSoft : theme.inkMute }]}>Delete done</Text></Pressable>
-        <Pressable onPress={() => void pasteIn()} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Paste in</Text></Pressable>
-        <Pressable onPress={copyAll} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Copy all</Text></Pressable>
         <Pressable onPress={() => { stopEditing(); setSheet('sort') }} style={s.topBtn} accessibilityLabel="Sort this pad"><Text style={[s.topText, { color: theme.inkSoft }]}>Sort</Text></Pressable>
         <Pressable onPress={() => setSheet('done')} style={s.topBtn} accessibilityLabel="Recently done"><Text style={[s.topText, { color: theme.inkSoft }]}>Done</Text></Pressable>
         <Pressable onPress={() => setSheet('trash')} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Trash</Text></Pressable>

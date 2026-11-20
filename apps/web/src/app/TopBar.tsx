@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { copyPayload } from '@hissypad/state'
-import { importOutline, SAMPLE_OUTLINE, usePad } from '@hissypad/state'
-import { cmdDeleteDone, countOf } from '@hissypad/state'
+import { usePad } from '@hissypad/state'
+import { cmdDeleteDone } from '@hissypad/state'
 import { copyText } from '../platform/clipboard'
 import { DonePanel, TrashPanel } from '../panels/Lists'
 import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
@@ -31,11 +30,9 @@ export function TopBar({ onFreshStart, onSort, view }: { onFreshStart: () => voi
   const toast = useToast((s) => s.text)
   const toastAt = useToast((s) => s.at)
   const setToast = showToast
-  const dialog = useRef<HTMLDialogElement>(null)
   const logDialog = useRef<HTMLDialogElement>(null)
   const trashDialog = useRef<HTMLDialogElement>(null)
   const doneDialog = useRef<HTMLDialogElement>(null)
-  const [draft, setDraft] = useState('')
   const [logText, setLogText] = useState('')
 
   useEffect(() => {
@@ -57,20 +54,6 @@ export function TopBar({ onFreshStart, onSort, view }: { onFreshStart: () => voi
     setToast(n === 0 ? 'Nothing crossed out' : `Deleted ${n} ${n === 1 ? 'line' : 'lines'}. ${MOD}+Z brings them back.`)
   }
 
-  function exportAll() {
-    const live = Object.values(rows).filter((r) => r.deletedAt === null && r.parentId === null).map((r) => r.id)
-    const { text, html } = copyPayload(rows, live)
-    void copyText(text, html).then((ok) => setToast(ok ? 'Copied the whole pad as text' : null))
-  }
-
-  function doImport(where: 'top' | 'bottom') {
-    const ids = importOutline(draft, where)
-    setDraft('')
-    dialog.current?.close()
-    const n = countOf(ids)
-    setToast(n ? `Added ${n} ${n === 1 ? 'line' : 'lines'}` : 'Nothing to add')
-  }
-
   return (
     <header className="top">
       <h1>HissyPad</h1>
@@ -78,8 +61,6 @@ export function TopBar({ onFreshStart, onSort, view }: { onFreshStart: () => voi
         <button type="button" onClick={deleteDone} disabled={doneCount === 0 || view !== 'pad'} title="Delete every crossed-out line (undo brings them back)">
           Delete done
         </button>
-        <button type="button" onClick={() => dialog.current?.showModal()} disabled={view !== 'pad'}>Paste in…</button>
-        <button type="button" onClick={exportAll} disabled={liveCount === 0}>Copy all</button>
         <button type="button" onClick={onFreshStart} disabled={liveCount === 0 || view !== 'pad'} title="Pick what stays; the rest moves to a new pad">Fresh start…</button>
         <button type="button" onClick={onSort} disabled={liveCount === 0 || view !== 'pad'} title="One line at a time: swipe left for later, right for today, up for done">Sort…</button>
         <button type="button" onClick={() => doneDialog.current?.showModal()} aria-label="Recently done" title="Crossed-out lines, newest first">Done</button>
@@ -109,18 +90,6 @@ export function TopBar({ onFreshStart, onSort, view }: { onFreshStart: () => voi
             <button type="button" onClick={() => { clearLog(); setLogText('') }}>Clear</button>
             <button type="button" onClick={() => void copyText(logText)}>Copy</button>
             <button type="submit" className="primary">Close</button>
-          </div>
-        </form>
-      </dialog>
-      <dialog ref={dialog} className="import" aria-labelledby="import-title" onClose={() => setDraft('')}>
-        <form method="dialog" onSubmit={(e) => { e.preventDefault(); doImport('top') }}>
-          <h2 id="import-title">Paste an outline</h2>
-          <p>Plain text from Google Docs, Workflowy or anywhere. Indentation becomes nesting, bullets and numbers are dropped, blank lines stay as spacers.</p>
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={12} aria-label="Outline text" placeholder={SAMPLE_OUTLINE.split('\n').slice(6, 14).join('\n')} />
-          <div className="actions">
-            <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>
-            <button type="button" onClick={() => doImport('bottom')} disabled={!draft.trim()}>Add at bottom</button>
-            <button type="submit" className="primary" disabled={!draft.trim()}>Add at top</button>
           </div>
         </form>
       </dialog>

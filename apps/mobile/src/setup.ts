@@ -27,7 +27,7 @@ export async function setupApp() {
   })
   // Plain text only. expo-clipboard's HTML format replaces the plain-text half with iOS's
   // own rendering of the HTML, which drops the list markers and indents, so a plain paste
-  // (and Paste in here) would lose the structure. Both halves need a native module.
+  // would lose the structure. Both halves need a native module.
   setClipboard(async (text) => {
     await Clipboard.setStringAsync(text)
     return true

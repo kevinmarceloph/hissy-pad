@@ -83,7 +83,6 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 | top bar | |
 |---|---|
 | Delete done | remove every crossed-out line (undo brings them back) |
-| Paste in… / Copy all | import an outline / copy the whole pad |
 | Done | "Recently done": crossed-out lines, newest first, with an Undone button each |
 | Trash | lines deleted in the last 30 days, grouped by the delete that removed them, with a Restore button each |
 | Fresh start… | two panes: send across what stays, and everything left behind moves to a new pad |
