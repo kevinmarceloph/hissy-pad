@@ -15,6 +15,7 @@ import { FloatingButtons } from './FloatingButtons'
 import { Account } from './Account'
 import { DoneSheet, TrashSheet } from './Lists'
 import { SortSheet } from './Sort'
+import { SearchSheet } from './Search'
 import { PadChips } from './PadChips'
 
 interface Drag {
@@ -71,7 +72,7 @@ export function Pad() {
   const container = useRef<ComponentRef<typeof View>>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [logText, setLogText] = useState<string | null>(null)
-  const [sheet, setSheet] = useState<'trash' | 'done' | 'sort' | null>(null)
+  const [sheet, setSheet] = useState<'trash' | 'done' | 'sort' | 'search' | null>(null)
 
   const { index, visible, numbers } = useMemo(() => {
     const index = buildIndex(rows)
@@ -269,6 +270,7 @@ export function Pad() {
     <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: kb > 0 ? kb : insets.bottom }]}>
       <View style={s.top}>
         <Text style={[s.title, { color: theme.inkSoft }]}>HissyPad</Text>
+        <Pressable onPress={() => { stopEditing(); setSheet('search') }} style={s.topBtn} accessibilityLabel="Search every pad"><Text style={[s.topText, { color: theme.inkSoft }]}>Search</Text></Pressable>
         <Pressable onPress={deleteDone} disabled={doneCount === 0} style={s.topBtn}><Text style={[s.topText, { color: doneCount ? theme.inkSoft : theme.inkMute }]}>Delete done</Text></Pressable>
         <Pressable onPress={() => { stopEditing(); setSheet('sort') }} style={s.topBtn} accessibilityLabel="Sort this pad"><Text style={[s.topText, { color: theme.inkSoft }]}>Sort</Text></Pressable>
         <Pressable onPress={() => setSheet('done')} style={s.topBtn} accessibilityLabel="Recently done"><Text style={[s.topText, { color: theme.inkSoft }]}>Done</Text></Pressable>
@@ -292,6 +294,7 @@ export function Pad() {
       </Modal>
       <TrashSheet visible={sheet === 'trash'} onClose={() => setSheet(null)} theme={theme} />
       {sheet === 'sort' && <SortSheet onClose={() => setSheet(null)} theme={theme} />}
+      <SearchSheet visible={sheet === 'search'} onClose={() => setSheet(null)} theme={theme} />
       <DoneSheet visible={sheet === 'done'} onClose={() => setSheet(null)} theme={theme} />
       {toast && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
       {load === 'loading' ? (

@@ -3,6 +3,7 @@ import { usePad } from '@hissypad/state'
 import { cmdDeleteDone } from '@hissypad/state'
 import { copyText } from '../platform/clipboard'
 import { DonePanel, TrashPanel } from '../panels/Lists'
+import { SearchPanel } from '../panels/Search'
 import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
 import { PadTabs } from '../pads/PadTabs'
 import { showToast, useToast } from './toast'
@@ -33,6 +34,7 @@ export function TopBar({ onFreshStart, onSort, view }: { onFreshStart: () => voi
   const logDialog = useRef<HTMLDialogElement>(null)
   const trashDialog = useRef<HTMLDialogElement>(null)
   const doneDialog = useRef<HTMLDialogElement>(null)
+  const searchDialog = useRef<HTMLDialogElement>(null)
   const [logText, setLogText] = useState('')
 
   useEffect(() => {
@@ -46,6 +48,19 @@ export function TopBar({ onFreshStart, onSort, view }: { onFreshStart: () => voi
     return () => clearTimeout(t)
   }, [toast, toastAt])
 
+  // Cmd+K opens Search from anywhere in the pad, a line being typed in included. Not over
+  // another dialog, and not from Sort or Fresh start, which have no pad to jump into.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'k') return
+      if (view !== 'pad' || document.querySelector('dialog[open]')) return
+      e.preventDefault()
+      searchDialog.current?.showModal()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [view])
+
   const liveCount = Object.values(rows).filter((r) => r.deletedAt === null).length
   const doneCount = Object.values(rows).filter((r) => r.deletedAt === null && r.done).length
 
@@ -58,6 +73,7 @@ export function TopBar({ onFreshStart, onSort, view }: { onFreshStart: () => voi
     <header className="top">
       <h1>HissyPad</h1>
       <nav className="bar" aria-label="Pad actions">
+        <button type="button" onClick={() => searchDialog.current?.showModal()} disabled={view !== 'pad'} title={`Find a line in any pad (${MOD}+K)`}>Search</button>
         <button type="button" onClick={deleteDone} disabled={doneCount === 0 || view !== 'pad'} title="Delete every crossed-out line (undo brings them back)">
           Delete done
         </button>
@@ -81,6 +97,7 @@ export function TopBar({ onFreshStart, onSort, view }: { onFreshStart: () => voi
       {toast && <output className="toast" aria-live="polite">{toast}</output>}
       <TrashPanel dialog={trashDialog} />
       <DonePanel dialog={doneDialog} />
+      <SearchPanel dialog={searchDialog} />
       <dialog ref={logDialog} className="import" aria-labelledby="log-title">
         <form method="dialog">
           <h2 id="log-title">Debug log</h2>

@@ -445,6 +445,39 @@ dialog.list .actions { align-items: baseline; justify-content: space-between; ma
 dialog.list .actions .note { margin: 0; font-size: 0.85rem; color: var(--ink-mute); font-style: italic; }
 dialog.list .actions button.primary { margin-left: auto; }
 
+/* Search: the field stays put, the lines found scroll under it. Near the top of the window,
+   so the dialog does not jump as the list grows and shrinks. */
+dialog.search { margin-top: min(12vh, 6rem); max-height: min(76vh, 40rem); padding: 0.75rem; }
+dialog.search[open] { display: flex; flex-direction: column; }
+dialog.search form { display: flex; flex-direction: column; min-height: 0; }
+dialog.search input {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  color: inherit;
+  font: inherit;
+}
+dialog.search .results { overflow-y: auto; min-height: 0; margin-top: 0.25rem; }
+dialog.search h3 {
+  margin: 0.75rem 0.6rem 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+dialog.search .hit { display: grid; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; }
+dialog.search .hit[aria-selected='true'] { background: var(--accent-soft); }
+dialog.search .hit .txt, dialog.search .hit .sub { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+dialog.search .hit.is-done .txt { color: var(--ink-mute); text-decoration: line-through; text-decoration-color: var(--accent); text-decoration-thickness: 1px; }
+dialog.search .hit .sub { font-size: 0.82rem; color: var(--ink-mute); }
+dialog.search .hit .sub:empty { display: none; }
+dialog.search mark { background: none; color: var(--accent); font-weight: 600; }
+dialog.search .note { margin: 0.6rem 0.6rem 0.1rem; font-size: 0.85rem; color: var(--ink-mute); font-style: italic; }
+
 @media (max-width: 480px) {
   :root { --size: 16px; --indent: 1.2rem; --gutter: 2rem; }
   .top { gap: 0.5rem 0.75rem; }

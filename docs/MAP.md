@@ -57,6 +57,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `actions.ts` | the line toolbar as data: `LINE_ACTIONS`, `LINE_KINDS`, `lineAbilities`. Web and the phone both draw from it |
 | `pads.ts` | pad commands: new, rename, delete, reorder, move to, make pad from a line, fold a pad back into a line, the list of places (`placeList`: pads and "Pad → Sub-pad"), move to a place, jump to a sub-pad, Fresh start |
 | `lists.ts` | the Trash and Recently done panels: entries, restore, un-done, day grouping |
+| `search.ts` | Search across every pad: the lines found, grouped by pad with the words marked (`search`), and the jump to one (`cmdOpenHit`) |
 | `sort.ts` | Sort: the queue, the two targets, sending a card, the session a sort screen holds, the swipe rule |
 | `shake.ts` | shake detection from accelerometer samples |
 | `widget.ts` | the home-screen widget's data: the snapshot it draws from, applying the buttons pressed on it, adding a line to a pad |
@@ -76,7 +77,7 @@ Vite, React 19, a PWA. `src/main.tsx` wires the platform (IndexedDB, clipboard, 
 | `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start or Sort), `TopBar.tsx`, `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
 | `src/pad/` | the editor: `Pad.tsx` (the list and the selection-mode keys), `Row.tsx` (one line and its keys while editing), `SelectionBar.tsx` (the toolbar), `useDrag.ts` (pointer drag) |
 | `src/pads/` | `PadTabs.tsx` (tabs, the pad sheet) and `FreshStart.tsx` |
-| `src/panels/` | `Lists.tsx` (Trash, Recently done) and `Sort.tsx` |
+| `src/panels/` | `Lists.tsx` (Trash, Recently done), `Search.tsx` (Cmd+K, the top bar's Search) and `Sort.tsx` |
 | `src/platform/` | what only a browser has: `idb.ts` (LocalStore on IndexedDB), `clipboard.ts`, `supabase.ts`, `os.ts` (Mac or not, shortcut hints) |
 | `e2e/` | Playwright with real pointers and touches: `drag.spec.ts`, `sort.spec.ts`, `toolbar.spec.ts` (the Move to… menu is really on screen) |
 | `test/setup.ts` | jsdom gaps filled in (dialogs) |
@@ -93,6 +94,7 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 | `src/ui/FloatingButtons.tsx` | the round buttons at the bottom right: + when nothing is targeted (tap for a line at the top, drag it onto the pad for a line where it is dropped; the drag itself is `addDrag` in `Pad.tsx`); a • / × switch (open on the left, crossed out on the right) and a chevron (done editing) while editing or selecting |
 | `src/ui/PadChips.tsx` | the pads as chips, with rename, reorder and delete |
 | `src/ui/Lists.tsx` | Trash and Recently done sheets |
+| `src/ui/Search.tsx` | the Search sheet |
 | `src/ui/Sort.tsx` | the Sort screen (PanResponder swipe) |
 | `src/ui/Account.tsx` | sign in and the sync line |
 | `src/shake.ts` | shake to undo (needs a build with `expo-sensors`) |
@@ -173,8 +175,8 @@ supabase test db                    # pgTAP against the local stack
 | where | what it covers | lines covered (2026-11-17) |
 |---|---|---|
 | `packages/core/src/*.test.ts` | every op, ranks, the tree, paste, pads, the sync engine against a fake server, property tests | 98% |
-| `packages/state/src/*.test.ts` | commands, the toolbar registry, selection, undo, pads, sort, lists, sync wiring, the remote, the log | 96% |
-| `apps/web/src/**/*.test.tsx` | the app in jsdom: editing, keys, toolbar, pads, Fresh start, Sort, top bar, clipboard | 76% |
+| `packages/state/src/*.test.ts` | commands, the toolbar registry, selection, undo, pads, sort, search, lists, sync wiring, the remote, the log | 96% |
+| `apps/web/src/**/*.test.tsx` | the app in jsdom: editing, keys, toolbar, pads, Fresh start, Sort, Search, top bar, clipboard | 76% |
 | `apps/web/e2e` | drag and swipe with real pointer and touch input | not counted |
 
 Tests sit next to the file they test. State and web tests start from `resetStore('A\n  B')` and assert the whole pad as one string with `shape()`. The phone app has no tests of its own: its logic is in the packages, and the screens are checked on a device.

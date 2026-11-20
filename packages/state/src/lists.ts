@@ -114,7 +114,7 @@ function batchSubtree(rows: Rows, id: string): string[] {
 
 // Ancestors of `id` that are live but folded, so the restored row is on screen. Stops at
 // a pad node: a pad is a container, not a line that folds.
-function foldedAncestors(all: Rows, id: string): string[] {
+export function foldedAncestors(all: Rows, id: string): string[] {
   const out: string[] = []
   let cur = all[id]?.parentId ?? null
   while (cur !== null) {

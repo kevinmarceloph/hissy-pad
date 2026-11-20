@@ -82,6 +82,7 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 
 | top bar | |
 |---|---|
+| Search (Cmd+K) | find a line in any pad: every word of what you type, in any order, case and accents ignored. Results are grouped by pad, the open pad first; Up / Down pick one, Enter or a click goes to it (its pad opens, folds over it open, the line is selected). Pad names are found too |
 | Delete done | remove every crossed-out line (undo brings them back) |
 | Done | "Recently done": crossed-out lines, newest first, with an Undone button each |
 | Trash | lines deleted in the last 30 days, grouped by the delete that removed them, with a Restore button each |
