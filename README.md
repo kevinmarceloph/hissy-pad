@@ -102,7 +102,7 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 | pads (the tabs under the title) | |
 |---|---|
 | + | a new pad |
-| click the open tab | rename it, move it left or right, or delete it. Main stays first |
+| click the open tab | rename it, move it left or right, fold it into another pad (the opposite of Make pad: it becomes a line there, its lines under it), or delete it. Main stays first |
 
 Cmd+S syncs right now (and never opens the browser's save dialog); on a phone, pull down at the top of the page to do the same, in the web app and the Expo app alike. Drag a bullet to move a line (press and hold on a phone); move right to nest under the line above, left to climb out. If the dragged line is part of a selection, the whole selection moves. Cmd+Z / Shift+Cmd+Z undo and redo anywhere; on the phone, shake to undo. Tap a bullet to select it; once something is selected, tapping other bullets toggles them (no modifier, so it works on a phone). Shift+click selects a range. Blank lines show no bullet, done lines show a × like a bullet journal, and "Delete done" removes every crossed-out line (undo brings them back).
 

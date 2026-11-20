@@ -145,6 +145,20 @@ describe('pads', () => {
     expect(names()).toEqual(['Main', 'One', 'Two'])
   })
 
+  it('Fold in turns the open pad back into a line of the pad picked, with its lines under it', async () => {
+    const user = userEvent.setup()
+    await mount('keep\ntrip\n  flights\n  hotel')
+    await user.click(within(rowByText('trip')).getByRole('button', { name: 'Select line' }))
+    await user.click(screen.getByRole('button', { name: 'Make pad' }))
+    await user.click(tab('trip'))
+    await user.click(tab('trip'))
+    expect(screen.getByLabelText('Fold into')).toHaveValue('')
+    await user.click(screen.getByRole('button', { name: 'Fold in' }))
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Main'])
+    expect(texts()).toBe('trip\n  flights\n  hotel\nkeep')
+    expect(screen.getByText(/“trip” is a line in Main now/)).toBeInTheDocument()
+  })
+
   it('Make pad in the toolbar turns a line into a tab with its sub items inside', async () => {
     const user = userEvent.setup()
     await mount('keep\ntrip\n  flights\n  hotel')

@@ -1,11 +1,11 @@
 // The pads as a row of chips under the title. Tap to open one; tap the open one (or press
-// and hold any) to rename, move or delete it; the + chip makes a new pad. Names come through
+// and hold any) to rename, move, fold into another pad or delete it; the + chip makes a new pad. Names come through
 // Alert.prompt on iOS; Android has no prompt, so a new pad there is called "New pad" and
 // can be renamed from the web.
 import { useMemo } from 'react'
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native'
 import type { PadId } from '@hissypad/core'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdRenamePad, openPad, padList, usePad } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, padList, usePad } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 
 function ask(title: string, message: string | undefined, initial: string, onName: (name: string) => void) {
@@ -28,6 +28,15 @@ export function PadChips({ theme }: { theme: Theme }) {
       ...(i > 1 ? [{ text: '← Move left', onPress: () => void cmdMovePad(id, -1) }] : []),
       ...(i >= 0 && i < pads.length - 1 ? [{ text: 'Move right →', onPress: () => void cmdMovePad(id, 1) }] : []),
       { text: 'Rename…', onPress: () => ask('Rename pad', undefined, name, (n) => cmdRenamePad(id, n)) },
+      {
+        // The opposite of Make pad: the pad becomes a line at the top of the pad picked.
+        text: 'Fold into…',
+        onPress: () =>
+          Alert.alert(`Fold “${name}” into`, 'It becomes a line there, with its lines under it.', [
+            ...pads.filter((p) => p.id !== id).map((p) => ({ text: p.name, onPress: () => void cmdPadToLine(id, p.id) })),
+            { text: 'Cancel', style: 'cancel' as const },
+          ]),
+      },
       {
         text: 'Delete pad',
         style: 'destructive',

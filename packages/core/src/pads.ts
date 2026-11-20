@@ -91,6 +91,17 @@ export function lineToPad(all: Rows, ctx: OpCtx, id: string): { rows: Rows; name
   return { rows: { ...moved, [id]: pad }, name }
 }
 
+// The opposite of lineToPad: fold a pad back into another pad (null for main) as a line
+// at its top. The pad's name is the line's text and its lines become the sub items. Only
+// that one row is written. Refused for a row that is not a pad, or a target that is the
+// pad itself or not a pad.
+export function padToLine(all: Rows, ctx: OpCtx, padId: string, into: PadId): Rows | null {
+  if (!isPadNode(all[padId]) || into === padId) return null
+  if (into !== null && !isPadNode(all[into])) return null
+  const moved = moveNodes(all, ctx, [padId], { parentId: into, afterId: null })
+  return { ...moved, [padId]: { ...moved[padId]!, parentId: into, pad: false, updatedAt: ctx.now() } }
+}
+
 // Move a pad one place left (-1) or right (1) among the pads. The main pad is always
 // first and is not in this order. Only the moved pad's rank changes.
 export function movePad(all: Rows, ctx: OpCtx, padId: string, dir: -1 | 1): Rows {

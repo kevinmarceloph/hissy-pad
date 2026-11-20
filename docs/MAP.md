@@ -55,7 +55,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `selection.ts` | selecting and editing: `select`, `clickSelect`, `selectRange`, `stepSelection`, `edit`, `targets`, `neighbor` |
 | `commands.ts` | the editor commands (`cmd…`): what a key or button does to lines, and where the caret or selection goes after |
 | `actions.ts` | the line toolbar as data: `LINE_ACTIONS`, `LINE_KINDS`, `lineAbilities`. Web and the phone both draw from it |
-| `pads.ts` | pad commands: new, rename, delete, reorder, move to, make pad from a line, Fresh start |
+| `pads.ts` | pad commands: new, rename, delete, reorder, move to, make pad from a line, fold a pad back into a line, Fresh start |
 | `lists.ts` | the Trash and Recently done panels: entries, restore, un-done, day grouping |
 | `sort.ts` | Sort: the queue, the two targets, sending a card, the session a sort screen holds, the swipe rule |
 | `shake.ts` | shake detection from accelerometer samples |

@@ -1,7 +1,7 @@
 // Pad commands: switch, create, rename, delete, move lines across, and the fresh start.
 // The data side is core's pads.ts; this file picks targets from the store and lands the
 // selection afterwards.
-import { buildIndex, createPad, freshStart, lineToPad, movePad, topmost, insertAt, isPadNode, listPads, moveToPad, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
+import { buildIndex, createPad, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, moveToPad, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
 import { apply, applyAll, openPad, usePad } from './store'
 import { edit, stopEditing, targets } from './selection'
 import { log } from './log'
@@ -111,6 +111,20 @@ export function cmdLineToPad(): { padId: string; name: string } | null {
   ensureLine()
   log('pad:fromLine', { id: id.slice(0, 8), name })
   return { padId: id, name }
+}
+
+// The opposite of Make pad: fold a pad into another pad (null for main) as a line at its
+// top, the pad's lines under it. If the folded pad was the one shown, the pad it went into
+// opens. Returns the folded pad's name, or null when refused. One undo step.
+export function cmdPadToLine(padId: string, into: PadId): string | null {
+  const { all, padId: current } = usePad.getState()
+  if (!isPadNode(all[padId]) || into === padId || (into !== null && !isPadNode(all[into]))) return null
+  const name = padName(all, padId)
+  stopEditing()
+  if (current === padId) openPad(into)
+  applyAll((rows, ctx) => padToLine(rows, ctx, padId, into) ?? rows, { label: 'cmdPadToLine' })
+  log('pad:toLine', { id: padId.slice(0, 8), into: into?.slice(0, 8) ?? 'main' })
+  return name
 }
 
 // "Before 2 Nov 2026", or "Work, before 2 Nov 2026" for a pad of its own.

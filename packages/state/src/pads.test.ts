@@ -5,7 +5,7 @@ import { loadPad, openPad, usePad } from './store'
 import { redo, undo } from './history'
 import { select } from './selection'
 import { cmdDeleteDone, cmdDeleteSelection, cmdIndent, cmdSetText, cmdSplit } from './commands'
-import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdLineToPad, cmdMovePad, padCandidate, cmdMoveToPad, cmdNewPad, cmdRenamePad, padList } from './pads'
+import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdLineToPad, cmdPadToLine, cmdMovePad, padCandidate, cmdMoveToPad, cmdNewPad, cmdRenamePad, padList } from './pads'
 import { importOutline } from './store'
 
 const reset = resetStore
@@ -149,6 +149,24 @@ describe('pads in the store', () => {
     expect(cmdMovePad(a, 1)).toBe(false)
     undo()
     expect(names()).toEqual(['Main', 'One', 'Two'])
+  })
+
+  it('Fold into turns a pad back into a line of another pad, opens that pad if the folded one was shown, and undoes', () => {
+    const w = cmdNewPad('Work')
+    importOutline('one\n\ttwo', 'top')
+    expect(cmdPadToLine(w, w)).toBeNull()
+    expect(cmdPadToLine(w, 'nope')).toBeNull()
+    expect(cmdPadToLine(w, null)).toBe('Work')
+    expect(usePad.getState().padId).toBeNull()
+    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Main'])
+    expect(main()).toBe('Work\n  one\n    two\n  \nA\nB\n  B1\nC')
+    undo()
+    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Main', 'Work'])
+    expect(main()).toBe('A\nB\n  B1\nC')
+    // From another pad: the pad shown stays.
+    const x = cmdNewPad('X')
+    expect(cmdPadToLine(w, null)).toBe('Work')
+    expect(usePad.getState().padId).toBe(x)
   })
 
   it('Make pad turns the one selected line into a pad, stays on the pad shown, and undoes in one step', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { pad, shape, idOf, testCtx } from './testing'
-import { createPad, freshStart, lineToPad, listPads, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
+import { createPad, freshStart, lineToPad, padToLine, listPads, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
 import { dedent, insertAt, remove, setText } from './ops'
 import { changedRows } from './sync/store'
 
@@ -118,6 +118,28 @@ describe('a line becomes a pad', () => {
     expect(lineToPad(t.rows, t.ctx, t.w)).toBeNull()
     const blank = insertAt(t.rows, t.ctx, { parentId: null, afterId: null }, '  ')
     expect(lineToPad(blank.rows, t.ctx, blank.newId)!.name).toBe('Untitled pad')
+  })
+})
+
+describe('a pad folds back into a line', () => {
+  it('lands at the top of the other pad with its lines as sub items, one row written', () => {
+    const t = table()
+    const out = padToLine(t.rows, t.ctx, t.w, null)!
+    expect(listPads(out)).toEqual([])
+    expect(out[t.w]).toMatchObject({ pad: false, parentId: null, text: 'Work' })
+    expect(shape(scopePad(out, null)).startsWith('Work\n  W1\n  W2\n    W2a')).toBe(true)
+    expect(changedRows(t.rows, out).map((r) => r.id)).toEqual([t.w])
+  })
+  it('folds into a pad other than main, undoes a Make pad, and refuses a line, itself or a missing target', () => {
+    const t = table()
+    const b = idOf(t.rows, 'B')
+    const made = lineToPad(t.rows, t.ctx, b)!.rows
+    const out = padToLine(made, t.ctx, b, t.w)!
+    expect(listPads(out).map((p) => p.text)).toEqual(['Work'])
+    expect(shape(scopePad(out, t.w)).startsWith('B\n  B1\n  B2\nW1')).toBe(true)
+    expect(padToLine(t.rows, t.ctx, idOf(t.rows, 'A'), null)).toBeNull()
+    expect(padToLine(t.rows, t.ctx, t.w, t.w)).toBeNull()
+    expect(padToLine(t.rows, t.ctx, t.w, 'nope')).toBeNull()
   })
 })
 

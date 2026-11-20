@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdRenamePad, openPad, padList, usePad } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, padList, usePad } from '@hissypad/state'
 import type { PadId } from '@hissypad/core'
 import { showToast } from '../app/toast'
 import { MOD } from '../platform/os'
@@ -18,11 +18,13 @@ export function PadTabs() {
   const [sheet, setSheet] = useState<Sheet | null>(null)
   const [name, setName] = useState('')
   const [confirming, setConfirming] = useState(false)
+  const [into, setInto] = useState('')
 
   useEffect(() => {
     if (!sheet) return
     setName(sheet.mode === 'edit' ? (all[sheet.padId]?.text ?? '') : '')
     setConfirming(false)
+    setInto('')
     dialog.current?.showModal()
     input.current?.focus()
     input.current?.select()
@@ -51,6 +53,16 @@ export function PadTabs() {
     const n = cmdDeletePad(sheet.padId)
     dialog.current?.close()
     showToast(`Deleted “${label}”${n ? ` and its ${n} ${n === 1 ? 'line' : 'lines'}` : ''}. ${MOD}+Z brings it back.`)
+  }
+
+  // The opposite of Make pad: the pad becomes a line at the top of the pad picked.
+  function fold() {
+    if (!sheet || sheet.mode !== 'edit') return
+    const target = pads.find((p) => (p.id ?? '') === into)
+    if (!target) return
+    const label = cmdPadToLine(sheet.padId, target.id)
+    dialog.current?.close()
+    if (label) showToast(`“${label}” is a line in ${target.name} now. ${MOD}+Z brings the pad back.`)
   }
 
   const lines = sheet?.mode === 'edit' ? Object.values(all).filter((r) => r.deletedAt === null && r.parentId === sheet.padId).length : 0
@@ -91,6 +103,17 @@ export function PadTabs() {
               </div>
             )
           })()}
+          {sheet?.mode === 'edit' && (
+            <div className="field order">
+              <span>Fold into another pad, as a line with this pad's lines under it</span>
+              <div>
+                <select value={into} onChange={(e) => setInto(e.target.value)} aria-label="Fold into">
+                  {pads.filter((p) => p.id !== sheet.padId).map((p) => <option key={p.id ?? 'main'} value={p.id ?? ''}>{p.name}</option>)}
+                </select>
+                <button type="button" onClick={fold} aria-label="Fold in">Fold in</button>
+              </div>
+            </div>
+          )}
           {confirming && (
             <p role="status">Delete this pad{lines ? ` and the ${lines} ${lines === 1 ? 'line' : 'lines'} at its top level, with everything under them` : ''}? Undo brings it back.</p>
           )}
