@@ -1,8 +1,11 @@
 // The round buttons floating at the bottom right of the pad, above the toolbar and the
-// keyboard. With nothing targeted: + adds a line at the top. While a line is being edited
+// keyboard. With nothing targeted: + adds a line at the top when tapped, or where it is
+// dropped when dragged onto the pad (like the + in Things). While a line is being edited
 // (or lines are selected): a left/right switch crosses it out (• on the left for open, ×
 // on the right for crossed out; the side the line is on is filled), and a chevron ends editing and puts the keyboard away (or clears the selection).
+import { useMemo } from 'react'
 import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { clearSelection, cmdAddAtTop, cmdToggleDone, stopEditing, usePad } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
@@ -21,27 +24,56 @@ function Round({ label, onPress, theme, children, accent }: { label: string; onP
   )
 }
 
-export function FloatingButtons({ theme, onAdd }: { theme: Theme; onAdd?: () => void }) {
+export interface AddDrag {
+  begin: (x: number, y: number) => void // screen coordinates
+  move: (x: number, y: number) => void
+  end: (commit: boolean) => void
+}
+
+export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Theme; onAdd?: () => void; addDrag?: AddDrag; dragging?: boolean }) {
   const editing = usePad((s) => s.editing)
   const selection = usePad((s) => s.selection)
   const rows = usePad((s) => s.rows)
   const targets = selection.length > 0 ? selection : editing ? [editing.id] : []
 
+  const addAtTop = () => {
+    void Haptics.selectionAsync().catch(() => {})
+    cmdAddAtTop()
+    onAdd?.()
+  }
+  // A tap adds at the top; a drag carries the + to the spot where the line should go.
+  const plus = useMemo(() => {
+    const tap = Gesture.Tap().runOnJS(true).onEnd((_e, ok) => {
+      if (ok) addAtTop()
+    })
+    const pan = Gesture.Pan()
+      .minDistance(8)
+      .runOnJS(true)
+      .onStart((e) => addDrag?.begin(e.absoluteX, e.absoluteY))
+      .onUpdate((e) => addDrag?.move(e.absoluteX, e.absoluteY))
+      .onEnd(() => addDrag?.end(true))
+      .onFinalize((_e, ok) => {
+        if (!ok) addDrag?.end(false)
+      })
+    return Gesture.Race(pan, tap)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addDrag])
+
   if (targets.length === 0) {
     return (
       <View style={s.wrap} pointerEvents="box-none">
-        <Round
-          theme={theme}
-          label="Add a line at the top"
-          accent
-          onPress={() => {
-            void Haptics.selectionAsync().catch(() => {})
-            cmdAddAtTop()
-            onAdd?.()
-          }}
-        >
-          <Text style={[s.glyph, s.plus, { color: theme.accent }]}>+</Text>
-        </Round>
+        <GestureDetector gesture={plus}>
+          <View
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Add a line at the top"
+            accessibilityHint="Drag it onto the pad to add the line there"
+            onAccessibilityTap={addAtTop}
+            style={[s.round, { backgroundColor: theme.paperRaised, borderColor: theme.accent, opacity: dragging ? 0.35 : 1 }]}
+          >
+            <Text style={[s.glyph, s.plus, { color: theme.accent }]}>+</Text>
+          </View>
+        </GestureDetector>
       </View>
     )
   }

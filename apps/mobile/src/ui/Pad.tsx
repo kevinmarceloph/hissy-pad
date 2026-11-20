@@ -8,7 +8,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Clipboard from 'expo-clipboard'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, flatten, listNumbers, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdAddUnder, cmdAppendAtEnd, cmdCopySelection, cmdDeleteDone, clearLog, dumpLog, importOutline, logEnabled, refresh, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
+import { apply, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdCopySelection, cmdDeleteDone, clearLog, dumpLog, importOutline, logEnabled, refresh, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -25,7 +25,15 @@ interface Drag {
   x: number
   y: number
   target: DropTarget | null
+  // The floating + being dragged to where a new line should go: nothing moves, a
+  // placeholder shows the spot. `from` is where the finger started.
+  add?: { fromX: number; fromY: number }
 }
+
+// The placeholder row of a + drag, in the displayed list.
+const NEW_ROW = '\u0000new'
+// A + drag let go this close to where it began adds nothing.
+const ADD_CANCEL = 36
 
 // Keyboard height, so the toolbar can sit right above it (KeyboardAvoidingView was not
 // reliable here).
@@ -85,6 +93,10 @@ export function Pad() {
   const displayed = useMemo(() => {
     const t = drag?.target
     if (!t) return visible.map((v) => ({ ...v, preview: false }))
+    if (drag!.add) {
+      const plain = visible.map((v) => ({ ...v, preview: false }))
+      return [...plain.slice(0, t.gapIndex), { id: NEW_ROW, depth: t.depth, preview: true }, ...plain.slice(t.gapIndex)]
+    }
     const anchors = visible.filter((v) => !drag!.moving.has(v.id))
     const moving = visible.filter((v) => drag!.moving.has(v.id))
     const base = moving[0]?.depth ?? 0
@@ -128,7 +140,9 @@ export function Pad() {
       layout,
       moving: d.moving,
       pointerY: y - origin.current.y + scrollY.current,
-      pointerDepth: (x - origin.current.x - GUTTER) / INDENT,
+      // A new line lands level with the line below it (the shallowest the gap allows); a
+      // moved row follows the finger's x.
+      pointerDepth: d.add ? 0 : (x - origin.current.x - GUTTER) / INDENT,
     })
     const prev = d.target
     const changed = (prev?.gapIndex ?? -1) !== (target?.gapIndex ?? -1) || prev?.depth !== target?.depth
@@ -168,6 +182,36 @@ export function Pad() {
     }
   }, [])
 
+  // The floating + dragged like in Things: a placeholder follows the finger between the
+  // lines, and letting go opens a new line there. Let go near where it started, or with
+  // no spot found, and nothing is added.
+  const addDrag = useMemo(() => ({
+    begin(x: number, y: number) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+      dragRef.current = { ids: [], moving: new Set<string>(), label: 'New line', x, y, target: null, add: { fromX: x, fromY: y } }
+      setDrag(dragRef.current)
+      updateDrag(x, y)
+    },
+    move(x: number, y: number) {
+      if (dragRef.current?.add) updateDrag(x, y)
+    },
+    end(commit: boolean) {
+      const d = dragRef.current
+      if (!d?.add) return
+      dragRef.current = null
+      setDrag(null)
+      const far = Math.hypot(d.x - d.add.fromX, d.y - d.add.fromY) > ADD_CANCEL
+      if (commit && far && d.target) {
+        cmdAddAt(d.target.placement)
+        void Haptics.selectionAsync()
+      }
+    },
+  }), [updateDrag])
+
+  // True while the list's own pan (a row being moved) owns the drag, so it leaves a +
+  // drag alone if both gestures are active.
+  const rowDrag = useRef(false)
+
   // One pan gesture over the whole list: it only activates after a long press, and the
   // row under the press is found from the measured layouts.
   const pan = useMemo(
@@ -183,12 +227,20 @@ export function Pad() {
             return b && y >= b.y && y < b.y + b.height
           })
           const x = e.absoluteX - origin.current.x
-          if (hit && x < GUTTER + INDENT * 6) beginDrag(hit, e.absoluteX, e.absoluteY)
+          if (hit && x < GUTTER + INDENT * 6 && !dragRef.current) {
+            rowDrag.current = true
+            beginDrag(hit, e.absoluteX, e.absoluteY)
+          }
         })
-        .onUpdate((e) => updateDrag(e.absoluteX, e.absoluteY))
-        .onEnd(() => endDrag(true))
+        .onUpdate((e) => {
+          if (rowDrag.current) updateDrag(e.absoluteX, e.absoluteY)
+        })
+        .onEnd(() => {
+          if (rowDrag.current) endDrag(true)
+        })
         .onFinalize((_e, success) => {
-          if (!success) endDrag(false)
+          if (rowDrag.current && !success) endDrag(false)
+          rowDrag.current = false
         }),
     [beginDrag, updateDrag, endDrag],
   )
@@ -280,6 +332,11 @@ export function Pad() {
           >
             {displayed.map(({ id, depth, preview }) => (
               <Fragment key={id}>
+              {id === NEW_ROW ? (
+                <View style={[s.newRow, { marginLeft: depth * INDENT, backgroundColor: theme.accentSoft }]}>
+                  <Text style={[s.newBullet, { color: theme.accent }]}>+</Text>
+                </View>
+              ) : (
               <Row
                 row={rows[id]!}
                 depth={depth}
@@ -295,6 +352,7 @@ export function Pad() {
                 onLayout={onRowLayout}
                 onBulletLongPress={() => {}}
               />
+              )}
               {gaps.get(id)?.map((h) => (
                 <Pressable key={`gap:${h}`} style={s.gap} onPress={() => cmdAddUnder(h)} accessibilityRole="button" accessibilityLabel="Add a line under this header" />
               ))}
@@ -306,7 +364,7 @@ export function Pad() {
             <Pressable style={s.tail} onPress={cmdAppendAtEnd} accessibilityLabel="Add a line at the end" />
             <Account theme={theme} />
           </ScrollView>
-          <FloatingButtons theme={theme} onAdd={() => scroller.current?.scrollTo({ y: 0, animated: true })} />
+          <FloatingButtons theme={theme} onAdd={() => scroller.current?.scrollTo({ y: 0, animated: true })} addDrag={addDrag} dragging={!!drag?.add} />
           </View>
         </GestureDetector>
       )}
@@ -330,6 +388,8 @@ const s = StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingHorizontal: 8, paddingBottom: 24 },
   hint: { fontFamily: serif, fontStyle: 'italic', fontSize: 15, lineHeight: 22, paddingHorizontal: GUTTER + 8, paddingVertical: 8 },
+  newRow: { height: LINE, borderRadius: 4, justifyContent: 'center' }, // where a dragged + would add a line
+  newBullet: { width: GUTTER, textAlign: 'center', fontFamily: serif, fontSize: 17, lineHeight: LINE },
   gap: { height: LINE }, // the line of space under a header's group
   tail: { height: 56 },
   ghost: { position: 'absolute', zIndex: 10, maxWidth: 260, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth },

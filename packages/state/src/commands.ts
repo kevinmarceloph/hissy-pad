@@ -3,7 +3,7 @@
 // selection goes afterwards.
 import {
   buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone, ungroup,
-  setKind, setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline, toOutlineHtml, type NodeKind, type Rows,
+  setKind, setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
 // dialog fallback; mobile: expo-clipboard). `html` is the same outline as nested lists,
@@ -75,6 +75,19 @@ export function cmdAddAtTop(): string {
     newId = res.newId
     return res.rows
   }, { label: 'cmdAddAtTop' })
+  edit(newId, 0)
+  return newId
+}
+
+// The floating + dragged onto the pad and dropped: a new blank line at that spot, ready to
+// type into. Returns its id.
+export function cmdAddAt(placement: Placement): string {
+  let newId = ''
+  apply((rows, ctx) => {
+    const res = insertAt(rows, ctx, placement, '')
+    newId = res.newId
+    return res.rows
+  }, { label: 'cmdAddAt' })
   edit(newId, 0)
   return newId
 }

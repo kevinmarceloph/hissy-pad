@@ -4,7 +4,7 @@ import { loadPad, usePad } from './store'
 import { undo } from './history'
 import { edit, select } from './selection'
 import {
-  cmdAddAbove, cmdAddAtTop, cmdAddUnder, cmdAddBelow, cmdAppendAtEnd, cmdBackspaceAtStart, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdEditNeighbor,
+  cmdAddAbove, cmdAddAt, cmdAddAtTop, cmdAddUnder, cmdAddBelow, cmdAppendAtEnd, cmdBackspaceAtStart, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdEditNeighbor,
   cmdEnter, cmdIndent, cmdMove, cmdPasteAfterSelection, cmdPasteInto, cmdSetKind, cmdTextChanged, cmdToggleCollapsed, cmdToggleNumbered,
   cmdUngroup, copyPayload, setClipboard,
 } from './commands'
@@ -191,6 +191,14 @@ describe('commands', () => {
     expect(rows()[id('B')]!.collapsed).toBe(true)
     expect(Object.values(rows()).filter((r) => r.deletedAt === null)).toHaveLength(5)
     expect(cmdAddUnder('nope')).toBe('')
+  })
+
+  it('the floating + dropped on the pad opens a blank line at that spot and edits it, one undo step', () => {
+    const added = cmdAddAt({ parentId: id('B'), afterId: id('B1') })
+    expect(shown()).toBe('A\nB\n  B1\n  \n  B2\nC')
+    expect(editing()).toMatchObject({ id: added, caret: 0 })
+    undo()
+    expect(shown()).toBe('A\nB\n  B1\n  B2\nC')
   })
 
   it('the floating + opens a blank line at the very top and edits it, one undo step', () => {
