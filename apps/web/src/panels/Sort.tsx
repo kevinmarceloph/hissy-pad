@@ -3,9 +3,9 @@
 // text and sub items edit the real rows, so a line can be fixed up before it goes. Every
 // send is one undo step; Back takes the last card back.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from 'react'
-import { buildIndex, flatten, listPads } from '@hissypad/core'
+import { buildIndex, flatten } from '@hissypad/core'
 import {
-  cmdSortAddSub, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, setSortTarget, sortSessionBack, sortSessionCard,
+  cmdSortAddSub, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard,
   sortSessionSend, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortDir, type SortSide,
 } from '@hissypad/state'
 
@@ -167,7 +167,8 @@ export function Sort({ onClose }: { onClose: () => void }) {
   const targetSelect = (side: SortSide) => {
     const t = side === 'left' ? left : right
     const def = sortTarget(all, side, null)
-    const pads = listPads(all).filter((p) => p.id !== def.padId)
+    // Every pad and sub-pad ("Pad → Sub-pad"), without the default pad, which has its own entry.
+    const places = placeList(all).filter((p) => p.key !== 'main' && !(p.subId === null && p.padId === def.padId && def.exists))
     const label = side === 'left' ? '← Left goes to' : '→ Right and ↑ up go to'
     if (naming?.side === side) {
       return (
@@ -190,7 +191,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
       <label className="sort-target">
         <span>{label}</span>
         <select
-          value={choice[side] === 'main' ? 'main' : t.isDefault ? '' : (t.padId ?? '')}
+          value={choice[side] === 'main' ? 'main' : t.isDefault ? '' : (t.subId ?? t.padId ?? '')}
           onChange={(e) => {
             const v = e.target.value
             if (v === '__new') setNaming({ side, name: '' })
@@ -201,7 +202,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
         >
           <option value="">{def.exists ? def.name : `${def.name} (new pad)`}</option>
           <option value="main">{padName(all, null)}</option>
-          {pads.map((p) => <option key={p.id} value={p.id}>{p.text || 'Untitled pad'}</option>)}
+          {places.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
           <option value="__new">New pad…</option>
         </select>
       </label>

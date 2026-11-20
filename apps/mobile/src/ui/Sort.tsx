@@ -7,9 +7,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Animated, Dimensions, Keyboard, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
-import { buildIndex, flatten, listPads } from '@hissypad/core'
+import { buildIndex, flatten } from '@hissypad/core'
 import {
-  cmdSortAddSub, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, setSortTarget, sortSessionBack, sortSessionCard,
+  cmdSortAddSub, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard,
   sortSessionSend, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortDir, type SortSide,
 } from '@hissypad/state'
 import { INDENT, serif, type Theme } from '../theme'
@@ -90,11 +90,11 @@ export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Them
 
   function pickTarget(side: SortSide) {
     const def = sortTarget(all, side, null)
-    const pads = listPads(all).filter((p) => p.id !== def.padId)
+    const places = placeList(all).filter((p) => p.key !== 'main' && !(p.subId === null && p.padId === def.padId && def.exists))
     Alert.alert(side === 'left' ? 'A left swipe goes to' : 'A right or up swipe goes to', undefined, [
       { text: def.exists ? def.name : `${def.name} (new pad)`, onPress: () => setSortTarget(side, null) },
       { text: padName(all, null), onPress: () => setSortTarget(side, 'main') },
-      ...pads.map((p) => ({ text: p.text || 'Untitled pad', onPress: () => setSortTarget(side, p.id) })),
+      ...places.map((p) => ({ text: p.label, onPress: () => setSortTarget(side, p.key) })),
       { text: 'New pad…', onPress: () => newTarget(side) },
       { text: 'Cancel', style: 'cancel' as const },
     ])

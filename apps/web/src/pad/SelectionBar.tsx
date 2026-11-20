@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { kindOf, type PadId } from '@hissypad/core'
+import { kindOf } from '@hissypad/core'
 import {
-  clearSelection, cmdMoveToPad, countOf, cmdSetKind, lineAbilities, lineCount, padList, padName, stopEditing, usePad,
+  clearSelection, cmdMoveTo, countOf, cmdSetKind, lineAbilities, lineCount, placeList, stopEditing, usePad, type PlaceItem,
   LINE_ACTIONS, LINE_KINDS, type LineAction, type LineActionGroup,
 } from '@hissypad/state'
 import { showToast } from '../app/toast'
@@ -21,7 +21,8 @@ export function SelectionBar() {
   const rows = usePad((s) => s.rows)
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
-  const pads = useMemo(() => padList(all).filter((p) => p.id !== padId), [all, padId])
+  // Everywhere the lines can go: the other pads, and every sub-pad (this pad's included).
+  const places = useMemo(() => placeList(all).filter((p) => p.subId !== null || p.padId !== padId), [all, padId])
   const [menu, setMenu] = useState(false)
   const moveBtn = useRef<HTMLButtonElement>(null)
   const [menuAt, setMenuAt] = useState<{ left: number; bottom: number } | null>(null)
@@ -98,10 +99,10 @@ export function SelectionBar() {
 
   if (!visible) return null
   const n = selection.length
-  function moveTo(id: PadId) {
+  function moveTo(place: PlaceItem) {
     setMenu(false)
-    const moved = cmdMoveToPad(id)
-    if (moved) showToast(`Moved ${lineCount(moved)} to “${padName(all, id)}”.`)
+    const moved = cmdMoveTo(place)
+    if (moved) showToast(`Moved ${lineCount(moved)} to “${place.label}”.`)
   }
   function run(a: LineAction) {
     const said = a.run()
@@ -126,13 +127,13 @@ export function SelectionBar() {
       ))}
     </span>
   )
-  const moveMenu = pads.length > 0 && (
+  const moveMenu = places.length > 0 && (
     <span className="moveto">
-      <button ref={moveBtn} type="button" onClick={() => setMenu((m) => !m)} aria-haspopup="menu" aria-expanded={menu} title="Move to another pad">Move to…</button>
+      <button ref={moveBtn} type="button" onClick={() => setMenu((m) => !m)} aria-haspopup="menu" aria-expanded={menu} title="Move to another pad or a sub-pad">Move to…</button>
       {menu && menuAt && createPortal(
         <div className="bar moveto-menu" role="menu" aria-label="Move to pad" style={{ left: menuAt.left, bottom: menuAt.bottom }} onMouseDown={(e) => e.preventDefault()}>
-          {pads.map((p) => (
-            <button key={p.id ?? 'main'} type="button" role="menuitem" onClick={() => moveTo(p.id)}>{p.name}</button>
+          {places.map((p) => (
+            <button key={p.key} type="button" role="menuitem" className={p.subId ? 'sub' : undefined} title={p.label} onClick={() => moveTo(p)}>{p.label}</button>
           ))}
         </div>,
         document.body,

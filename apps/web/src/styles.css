@@ -482,6 +482,13 @@ dialog.import input[type='email'] {
   white-space: nowrap;
   border-bottom: 2px solid transparent;
 }
+.pads .pad-tab { display: inline-flex; align-items: stretch; }
+/* The chevron beside a pad that has sub-pads (its top-level headers): opens the list to jump to. */
+.pads .subs { min-width: 24px; min-height: 32px; margin-left: -0.3rem; border-radius: 4px; color: var(--ink-mute); display: inline-flex; align-items: center; justify-content: center; }
+.pads .subs::before { content: ''; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+.pads .subs:hover, .pads .subs[aria-expanded='true'] { color: var(--ink); background: var(--paper-raised); }
+.sub-menu .n { color: var(--ink-mute); font-size: 0.8em; font-variant-numeric: tabular-nums; }
+.moveto-menu { max-width: 16rem; }
 .pads [role='tab'] .n { color: var(--ink-mute); font-size: 0.8em; font-variant-numeric: tabular-nums; }
 .pads [role='tab']:hover { color: var(--ink); background: var(--paper-raised); }
 .pads [role='tab'][aria-selected='true'] { color: var(--ink); border-bottom-color: var(--accent); }

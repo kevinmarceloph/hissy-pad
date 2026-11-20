@@ -60,6 +60,17 @@ export function Pad() {
     return [...anchors.slice(0, t.gapIndex).map((v) => ({ ...v, preview: false })), ...placed, ...anchors.slice(t.gapIndex).map((v) => ({ ...v, preview: false }))]
   }, [visible, drag?.target, draggingSet])
 
+  // A jump to a sub-pad: bring its header to the top of the window and flash it once.
+  const reveal = usePad((s) => s.reveal)
+  useEffect(() => {
+    if (!reveal) return
+    const el = rowsRef.current?.querySelector<HTMLElement>(`.row[data-id="${reveal.id}"]`)
+    if (!el) return
+    el.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
+    el.animate?.([{ background: 'var(--accent-soft)' }, { background: 'transparent' }], { duration: 1200, easing: 'ease-out' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reveal?.n])
+
   // FLIP: rows that moved since the last layout slide from their old spot (drag only).
   const prevTops = useRef(new Map<string, number>())
   useLayoutEffect(() => {

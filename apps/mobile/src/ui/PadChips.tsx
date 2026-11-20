@@ -1,11 +1,12 @@
 // The pads as a row of chips under the title. Tap to open one; tap the open one (or press
-// and hold any) to rename, move, fold into another pad or delete it; the + chip makes a new pad. Names come through
+// and hold any) to rename, move, fold into another pad or delete it; the chevron beside a
+// pad that has sub-pads jumps to one; the + chip makes a new pad. Names come through
 // Alert.prompt on iOS; Android has no prompt, so a new pad there is called "New pad" and
 // can be renamed from the web.
 import { useMemo } from 'react'
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native'
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import type { PadId } from '@hissypad/core'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, padList, padTopLines, usePad } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, openSubPad, padList, padTopLines, placeList, usePad, type PadItem } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 
 function ask(title: string, message: string | undefined, initial: string, onName: (name: string) => void) {
@@ -33,7 +34,7 @@ export function PadChips({ theme }: { theme: Theme }) {
         text: 'Fold into…',
         onPress: () =>
           Alert.alert(`Fold “${name}” into`, 'It becomes a line there, with its lines under it.', [
-            ...pads.filter((p) => p.id !== id).map((p) => ({ text: p.name, onPress: () => void cmdPadToLine(id, p.id) })),
+            ...placeList(all).filter((p) => p.padId !== id).map((p) => ({ text: p.label, onPress: () => void cmdPadToLine(id, p) })),
             { text: 'Cancel', style: 'cancel' as const },
           ]),
       },
@@ -50,6 +51,14 @@ export function PadChips({ theme }: { theme: Theme }) {
     ])
   }
 
+  // The chevron beside a pad that has sub-pads (its top-level headers): pick one to jump to.
+  function jump(p: PadItem) {
+    Alert.alert(p.name, 'Jump to a sub-pad', [
+      ...p.subs.map((sp) => ({ text: sp.count > 0 ? `${sp.name}  ${sp.count}` : sp.name, onPress: () => void openSubPad(sp.id) })),
+      { text: 'Cancel', style: 'cancel' as const },
+    ])
+  }
+
   function tap(id: PadId, name: string) {
     if (id === padId) {
       if (id !== null) manage(id, name)
@@ -63,19 +72,25 @@ export function PadChips({ theme }: { theme: Theme }) {
       {pads.map((p) => {
         const on = p.id === padId
         return (
-          <Pressable
-            key={p.id ?? 'main'}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            onPress={() => tap(p.id, p.name)}
-            onLongPress={() => p.id !== null && manage(p.id, p.name)}
-            style={[s.chip, { borderBottomColor: on ? theme.accent : 'transparent' }]}
-          >
-            <Text style={[s.chipText, { color: on ? theme.ink : theme.inkSoft }]} numberOfLines={1}>
-              {p.name}
-              {p.count > 0 && <Text style={[s.chipCount, { color: theme.inkMute }]}>{'  '}{p.count}</Text>}
-            </Text>
-          </Pressable>
+          <View key={p.id ?? 'main'} style={s.tab}>
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              onPress={() => tap(p.id, p.name)}
+              onLongPress={() => p.id !== null && manage(p.id, p.name)}
+              style={[s.chip, { borderBottomColor: on ? theme.accent : 'transparent' }]}
+            >
+              <Text style={[s.chipText, { color: on ? theme.ink : theme.inkSoft }]} numberOfLines={1}>
+                {p.name}
+                {p.count > 0 && <Text style={[s.chipCount, { color: theme.inkMute }]}>{'  '}{p.count}</Text>}
+              </Text>
+            </Pressable>
+            {p.subs.length > 0 && (
+              <Pressable accessibilityRole="button" accessibilityLabel={`Sub-pads of ${p.name}`} onPress={() => jump(p)} hitSlop={{ top: 4, bottom: 4, right: 6 }} style={s.subs}>
+                <View style={[s.chevron, { borderColor: theme.inkMute }]} />
+              </Pressable>
+            )}
+          </View>
         )
       })}
       <Pressable accessibilityRole="button" accessibilityLabel="New pad" onPress={() => ask('New pad', 'A name for it', '', (n) => cmdNewPad(n))} style={s.chip}>
@@ -89,6 +104,9 @@ const s = StyleSheet.create({
   strip: { flexGrow: 0 },
   inner: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, gap: 2 },
   chip: { minHeight: 36, paddingHorizontal: 10, justifyContent: 'center', borderBottomWidth: 2, maxWidth: 180 },
+  tab: { flexDirection: 'row', alignItems: 'stretch' },
+  subs: { minHeight: 36, width: 26, marginLeft: -6, alignItems: 'center', justifyContent: 'center' },
+  chevron: { width: 7, height: 7, borderRightWidth: 1.5, borderBottomWidth: 1.5, transform: [{ rotate: '45deg' }], marginTop: -4 },
   chipText: { fontFamily: serif, fontSize: 15 },
   chipCount: { fontFamily: serif, fontSize: 12, fontVariant: ['tabular-nums'] },
 })

@@ -159,6 +159,30 @@ describe('pads', () => {
     expect(counts()).toEqual(['1', '2', ''])
   })
 
+  it('a top-level header is a sub-pad: Move to lists it as "Pad → Sub-pad", and the chevron beside the tab jumps to it', async () => {
+    const user = userEvent.setup()
+    await mount('keep\ntrip\n  flights\nlater')
+    expect(screen.queryByRole('button', { name: 'Sub-pads of Main' })).toBeNull()
+    await user.click(within(rowByText('trip')).getByRole('button', { name: 'Select line' }))
+    await user.click(screen.getByRole('button', { name: 'Header' }))
+    await user.click(within(rowByText('trip')).getByRole('button', { name: 'Deselect line' }))
+    // Send a line of the same pad into the sub-pad.
+    await user.click(within(rowByText('later')).getByRole('button', { name: 'Select line' }))
+    await user.click(screen.getByRole('button', { name: 'Move to…' }))
+    expect(within(screen.getByRole('menu', { name: 'Move to pad' })).getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Main → trip'])
+    await user.click(screen.getByRole('menuitem', { name: 'Main → trip' }))
+    expect(texts()).toBe('keep\n#trip\n  later\n  flights')
+    // From another pad, the chevron beside Main lists its sub-pads and opens Main at it.
+    await user.click(screen.getByRole('button', { name: 'New pad' }))
+    await user.type(screen.getByLabelText('Pad name'), 'Work')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+    await user.click(screen.getByRole('button', { name: 'Sub-pads of Main' }))
+    await user.click(within(screen.getByRole('menu', { name: 'Sub-pads of Main' })).getByRole('menuitem', { name: /trip/ }))
+    expect(tab('Main')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('menu', { name: 'Sub-pads of Main' })).toBeNull()
+    expect(usePad.getState().reveal?.id).toBe(rowByText('trip').getAttribute('data-id'))
+  })
+
   it('Fold in turns the open pad back into a line of the pad picked, with its lines under it', async () => {
     const user = userEvent.setup()
     await mount('keep\ntrip\n  flights\n  hotel')
@@ -166,7 +190,7 @@ describe('pads', () => {
     await user.click(screen.getByRole('button', { name: 'Make pad' }))
     await user.click(tab('trip'))
     await user.click(tab('trip'))
-    expect(screen.getByLabelText('Fold into')).toHaveValue('')
+    expect(screen.getByLabelText('Fold into')).toHaveValue('main')
     await user.click(screen.getByRole('button', { name: 'Fold in' }))
     expect(screen.getAllByRole('tab').map((t) => t.querySelector('.name')!.textContent)).toEqual(['Main'])
     expect(texts()).toBe('trip\n  flights\n  hotel\nkeep')

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { pad, shape, idOf, testCtx } from './testing'
 import { allRows, buildIndex, countLines, headerGaps, visibleRows } from './tree'
 import { toggleDone } from './ops'
-import { createPad, freshStart, lineToPad, padToLine, listPads, padCounts, padLines, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
+import { createPad, freshStart, lineToPad, padToLine, MAIN_PLACE, isPlace, isSubPad, listSubPads, moveToPlace, placeOf, listPads, padCounts, padLines, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
 import { dedent, insertAt, remove, setText } from './ops'
 import { changedRows } from './sync/store'
 
@@ -111,6 +111,44 @@ describe('counts', () => {
   })
 })
 
+describe('sub-pads', () => {
+  // B (main) and W2 (Work) become headers at the top of their pads; B2 is a nested header.
+  function withSubs() {
+    const t = table()
+    const id = (s: string) => idOf(t.rows, s)
+    const head = (rows: typeof t.rows, s: string) => ({ ...rows, [id(s)]: { ...rows[id(s)]!, header: true } })
+    return { ...t, id, rows: head(head(head(t.rows, 'B'), 'W2'), 'B2') }
+  }
+  it('a header at the top level of a pad is a sub-pad; a nested header is not', () => {
+    const t = withSubs()
+    const index = buildIndex(t.rows)
+    expect(listSubPads(index, null).map((r) => r.text)).toEqual(['B'])
+    expect(listSubPads(index, t.w).map((r) => r.text)).toEqual(['W2'])
+    expect(isSubPad(t.rows, t.rows[t.id('B2')])).toBe(false)
+    expect(placeOf(t.rows, t.id('B'))).toEqual({ padId: null, subId: t.id('B') })
+    expect(placeOf(t.rows, t.id('W2'))).toEqual({ padId: t.w, subId: t.id('W2') })
+    expect(placeOf(t.rows, t.w)).toEqual({ padId: t.w, subId: null })
+    expect(placeOf(t.rows, t.id('A'))).toBeNull()
+    expect(isPlace(t.rows, { padId: null, subId: t.id('W2') })).toBe(false) // the wrong pad
+    expect(isPlace(t.rows, { padId: t.w, subId: t.id('W1') })).toBe(false)  // not a header
+  })
+  it('lines move to the top of a sub-pad, across pads or within one; never into itself', () => {
+    const t = withSubs()
+    let out = moveToPlace(t.rows, t.ctx, [t.id('A'), t.id('C')], { padId: t.w, subId: t.id('W2') })
+    expect(shape(scopePad(out, t.w))).toBe('W1\n#W2\n  A\n  C\n  W2a')
+    expect(shape(scopePad(out, null))).toBe('#B\n  B1\n  #B2')
+    out = moveToPlace(out, t.ctx, [t.id('W1'), t.id('W2')], { padId: t.w, subId: t.id('W2') })
+    expect(shape(scopePad(out, t.w))).toBe('#W2\n  W1\n  A\n  C\n  W2a')
+    expect(moveToPlace(out, t.ctx, [t.id('A')], { padId: t.w, subId: t.id('A') })).toBe(out)
+  })
+  it('a pad folds into a sub-pad of another pad, not into one of its own', () => {
+    const t = withSubs()
+    const out = padToLine(t.rows, t.ctx, t.w, { padId: null, subId: t.id('B') })!
+    expect(shape(scopePad(out, null))).toBe('A\n#B\n  Work\n    W1\n    #W2\n      W2a\n  B1\n  #B2\nC')
+    expect(padToLine(t.rows, t.ctx, t.w, { padId: t.w, subId: t.id('W2') })).toBeNull()
+  })
+})
+
 describe('the space under a header', () => {
   it('follows the last drawn row of its group; nested headers stack, innermost first; a folded header keeps it', () => {
     const t = table()
@@ -152,7 +190,7 @@ describe('a line becomes a pad', () => {
 describe('a pad folds back into a line', () => {
   it('lands at the top of the other pad with its lines as sub items, one row written', () => {
     const t = table()
-    const out = padToLine(t.rows, t.ctx, t.w, null)!
+    const out = padToLine(t.rows, t.ctx, t.w, MAIN_PLACE)!
     expect(listPads(out)).toEqual([])
     expect(out[t.w]).toMatchObject({ pad: false, parentId: null, text: 'Work' })
     expect(shape(scopePad(out, null)).startsWith('Work\n  W1\n  W2\n    W2a')).toBe(true)
@@ -162,12 +200,12 @@ describe('a pad folds back into a line', () => {
     const t = table()
     const b = idOf(t.rows, 'B')
     const made = lineToPad(t.rows, t.ctx, b)!.rows
-    const out = padToLine(made, t.ctx, b, t.w)!
+    const out = padToLine(made, t.ctx, b, { padId: t.w, subId: null })!
     expect(listPads(out).map((p) => p.text)).toEqual(['Work'])
     expect(shape(scopePad(out, t.w)).startsWith('B\n  B1\n  B2\nW1')).toBe(true)
-    expect(padToLine(t.rows, t.ctx, idOf(t.rows, 'A'), null)).toBeNull()
-    expect(padToLine(t.rows, t.ctx, t.w, t.w)).toBeNull()
-    expect(padToLine(t.rows, t.ctx, t.w, 'nope')).toBeNull()
+    expect(padToLine(t.rows, t.ctx, idOf(t.rows, 'A'), MAIN_PLACE)).toBeNull()
+    expect(padToLine(t.rows, t.ctx, t.w, { padId: t.w, subId: null })).toBeNull()
+    expect(padToLine(t.rows, t.ctx, t.w, { padId: 'nope', subId: null })).toBeNull()
   })
 })
 

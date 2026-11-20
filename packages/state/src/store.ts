@@ -43,6 +43,7 @@ export interface PadState {
   selection: string[] // in visible order
   anchorId: string | null
   focusId: string | null // the end of a shift-extended range
+  reveal: { id: string; n: number } | null // a row to scroll to (a jump to a sub-pad); n makes each ask new
   past: HistoryEntry[]
   future: HistoryEntry[]
   session: Session | null   // Supabase auth; null = local only
@@ -81,6 +82,7 @@ export const usePad = create<PadState>(() => ({
   selection: [],
   anchorId: null,
   focusId: null,
+  reveal: null,
   past: [],
   future: [],
   session: null,
@@ -240,6 +242,11 @@ export function openPad(padId: PadId): boolean {
   set({ padId, rows: scopePad(all, padId), editing: null, selection: [], anchorId: null, focusId: null })
   void local.setMeta(PAD_KEY, padId ?? '').catch(() => {})
   return true
+}
+
+// Ask the pad on screen to scroll to a row. The apps watch `reveal` and do the scrolling.
+export function revealRow(id: string) {
+  set({ reveal: { id, n: (get().reveal?.n ?? 0) + 1 } })
 }
 
 // Rows shown as `rows` again after `all` changed from outside an op (a sync merge).

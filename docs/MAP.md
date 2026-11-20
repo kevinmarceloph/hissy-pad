@@ -33,7 +33,7 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | `tree.ts` | the tree derived from `parentId` + `rank`: `buildIndex`, `childrenOf`, `flatten`, `descendantIds`, `topmost`, list numbers, and the counting rule (`isBlank`, `countLines`: a blank line is never counted), and where the line of space under each header's group goes (`headerGaps`) |
 | `rank.ts` | fractional ranks: a rank between two others, re-ranking a run |
 | `ops.ts` | every edit to lines: insert, split, set text, done, kind, fold, remove, restore, move, indent, dedent, ungroup, merge, delete done |
-| `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), Fresh start |
+| `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), sub-pads and places (`isSubPad`, `listSubPads`, `Place`, `moveToPlace`), Fresh start |
 | `drop.ts` | `resolveDrop`: where a dragged line lands, from pointer position and row layout |
 | `paste.ts` | text to outline and back: `parseOutline`, `insertOutline`, `toOutline`, `toOutlineHtml` |
 | `clock.ts` | the monotonic clock every edit stamps `updated_at` with, and `newUuid` |
@@ -55,7 +55,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `selection.ts` | selecting and editing: `select`, `clickSelect`, `selectRange`, `stepSelection`, `edit`, `targets`, `neighbor` |
 | `commands.ts` | the editor commands (`cmd…`): what a key or button does to lines, and where the caret or selection goes after |
 | `actions.ts` | the line toolbar as data: `LINE_ACTIONS`, `LINE_KINDS`, `lineAbilities`. Web and the phone both draw from it |
-| `pads.ts` | pad commands: new, rename, delete, reorder, move to, make pad from a line, fold a pad back into a line, Fresh start |
+| `pads.ts` | pad commands: new, rename, delete, reorder, move to, make pad from a line, fold a pad back into a line, the list of places (`placeList`: pads and "Pad → Sub-pad"), move to a place, jump to a sub-pad, Fresh start |
 | `lists.ts` | the Trash and Recently done panels: entries, restore, un-done, day grouping |
 | `sort.ts` | Sort: the queue, the two targets, sending a card, the session a sort screen holds, the swipe rule |
 | `shake.ts` | shake detection from accelerometer samples |

@@ -18,6 +18,40 @@ export function isPadNode(r: NodeRow | undefined): r is NodeRow {
   return isLive(r) && r.pad && r.parentId === null
 }
 
+// A sub-pad is a header line at the top level of a pad (main included). It is not stored
+// as anything more than that: making a top-level line a header makes it a sub-pad, and
+// its sub items are the sub-pad's lines. Lines can be sent to it and the pad switcher can
+// jump to it, but it is still shown as a header inside its pad.
+export function isSubPad(all: Rows, r: NodeRow | undefined): boolean {
+  return isLive(r) && r.header && !r.pad && (r.parentId === null || isPadNode(all[r.parentId]))
+}
+
+export function listSubPads(index: TreeIndex, padId: PadId): NodeRow[] {
+  return childrenOf(index, padId).filter((r) => r.header && !r.pad)
+}
+
+// A place lines can be sent to: a pad (null is main), or one of its sub-pads.
+export interface Place {
+  padId: PadId
+  subId: string | null
+}
+
+export const MAIN_PLACE: Place = { padId: null, subId: null }
+
+// The place a row id names: a pad node, or a sub-pad. null for anything else.
+export function placeOf(all: Rows, id: string): Place | null {
+  const r = all[id]
+  if (!r) return null
+  if (isSubPad(all, r)) return { padId: r.parentId, subId: id }
+  return isPadNode(r) ? { padId: id, subId: null } : null
+}
+
+// True while the place is still there (a pad can be deleted, a header turned back).
+export function isPlace(all: Rows, place: Place): boolean {
+  if (place.padId !== null && !isPadNode(all[place.padId])) return false
+  return place.subId === null || (isSubPad(all, all[place.subId]) && all[place.subId]!.parentId === place.padId)
+}
+
 // The pads other than the main one, in root order. Each pad's name is its node's text.
 export function listPads(all: Rows): NodeRow[] {
   return childrenOf(buildIndex(all), null).filter((r) => r.pad)
@@ -106,15 +140,15 @@ export function lineToPad(all: Rows, ctx: OpCtx, id: string): { rows: Rows; name
   return { rows: { ...moved, [id]: pad }, name }
 }
 
-// The opposite of lineToPad: fold a pad back into another pad (null for main) as a line
-// at its top. The pad's name is the line's text and its lines become the sub items. Only
+// The opposite of lineToPad: fold a pad back into another place (a pad or a sub-pad) as a
+// line at its top. The pad's name is the line's text and its lines become the sub items. Only
 // that one row is written. Refused for a row that is not a pad, or a target that is the
-// pad itself or not a pad.
-export function padToLine(all: Rows, ctx: OpCtx, padId: string, into: PadId): Rows | null {
-  if (!isPadNode(all[padId]) || into === padId) return null
-  if (into !== null && !isPadNode(all[into])) return null
-  const moved = moveNodes(all, ctx, [padId], { parentId: into, afterId: null })
-  return { ...moved, [padId]: { ...moved[padId]!, parentId: into, pad: false, updatedAt: ctx.now() } }
+// pad itself, one of its own sub-pads, or gone.
+export function padToLine(all: Rows, ctx: OpCtx, padId: string, into: Place): Rows | null {
+  if (!isPadNode(all[padId]) || into.padId === padId || !isPlace(all, into)) return null
+  const parentId = into.subId ?? into.padId
+  const moved = moveNodes(all, ctx, [padId], { parentId, afterId: null })
+  return { ...moved, [padId]: { ...moved[padId]!, parentId, pad: false, updatedAt: ctx.now() } }
 }
 
 // Move a pad one place left (-1) or right (1) among the pads. The main pad is always
@@ -133,11 +167,17 @@ export function movePad(all: Rows, ctx: OpCtx, padId: string, dir: -1 | 1): Rows
 
 // Move lines (with their subtrees) to the top of another pad, keeping their order.
 export function moveToPad(all: Rows, ctx: OpCtx, ids: Iterable<string>, padId: PadId): Rows {
-  if (padId !== null && !isPadNode(all[padId])) return all
+  return moveToPlace(all, ctx, ids, { padId, subId: null })
+}
+
+// The same for any place: the lines go to the top of the pad, or to the top of the
+// sub-pad's own lines. A sub-pad is never moved into itself.
+export function moveToPlace(all: Rows, ctx: OpCtx, ids: Iterable<string>, place: Place): Rows {
+  if (!isPlace(all, place)) return all
   const index = buildIndex(all)
-  const moving = topmost(index, ids)
+  const moving = topmost(index, ids).filter((id) => id !== place.subId)
   if (moving.length === 0) return all
-  return moveNodes(all, ctx, moving, { parentId: padId, afterId: null })
+  return moveNodes(all, ctx, moving, { parentId: place.subId ?? place.padId, afterId: null })
 }
 
 // ---- Fresh start -------------------------------------------------------------------

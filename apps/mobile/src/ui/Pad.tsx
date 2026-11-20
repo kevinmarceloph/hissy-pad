@@ -94,6 +94,19 @@ export function Pad() {
   // The line of space under each header's group; a tap adds a sub item to the header.
   const gaps = useMemo(() => headerGaps(displayed, rows), [displayed, rows])
 
+  // A jump to a sub-pad: scroll its header to the top. The pad may have just been switched,
+  // so wait a beat for the rows to be laid out.
+  const reveal = usePad((st) => st.reveal)
+  useEffect(() => {
+    if (!reveal) return
+    const t = setTimeout(() => {
+      const box = layouts.current.get(reveal.id)
+      if (box) scroller.current?.scrollTo({ y: Math.max(0, box.y - 8), animated: true })
+    }, 120)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reveal?.n])
+
   const onRowLayout = useCallback((id: string, e: LayoutChangeEvent) => {
     layouts.current.set(id, { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height })
   }, [])

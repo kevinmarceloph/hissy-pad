@@ -1,8 +1,8 @@
 // Pad commands: switch, create, rename, delete, move lines across, and the fresh start.
 // The data side is core's pads.ts; this file picks targets from the store and lands the
 // selection afterwards.
-import { buildIndex, countLines, descendantIds, padCounts, padLines, createPad, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, moveToPad, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
-import { apply, applyAll, openPad, usePad } from './store'
+import { buildIndex, countLines, descendantIds, padCounts, padLines, listSubPads, moveToPlace, placeOf, isPlace, MAIN_PLACE, type Place, createPad, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
+import { apply, applyAll, openPad, revealRow, usePad } from './store'
 import { edit, stopEditing, targets } from './selection'
 import { log } from './log'
 
@@ -15,12 +15,55 @@ export function padName(all: Rows, padId: PadId): string {
 
 // The pads in switcher order: main first, then the others by root rank. `count` is the
 // pad's open top-level lines, blank ones left out; the switcher shows it when it is not 0.
-export function padList(all: Rows): { id: PadId; name: string; count: number }[] {
+// `subs` are the pad's sub-pads (its top-level headers), top first, each with its own count.
+export interface SubPadItem { id: string; name: string; count: number }
+export interface PadItem { id: PadId; name: string; count: number; subs: SubPadItem[] }
+
+const subName = (text: string) => text.split('\n')[0]!.trim() || 'Untitled'
+
+export function padList(all: Rows): PadItem[] {
   const counts = padCounts(all)
+  const index = buildIndex(all)
+  const subs = (id: PadId): SubPadItem[] => listSubPads(index, id).map((r) => ({ id: r.id, name: subName(r.text), count: padLines(index, r.id, true).length }))
   return [
-    { id: null, name: MAIN_PAD_NAME, count: counts.get(null) ?? 0 },
-    ...listPads(all).map((r) => ({ id: r.id, name: r.text || 'Untitled pad', count: counts.get(r.id) ?? 0 })),
+    { id: null, name: MAIN_PAD_NAME, count: counts.get(null) ?? 0, subs: subs(null) },
+    ...listPads(all).map((r) => ({ id: r.id, name: r.text || 'Untitled pad', count: counts.get(r.id) ?? 0, subs: subs(r.id) })),
   ]
+}
+
+// Every place a line can be sent to, for any list of pads: each pad, then its sub-pads as
+// "Pad → Sub-pad". `key` is one string for the place (a select's value, a stored choice):
+// 'main', a pad's id, or a sub-pad's row id.
+export const PLACE_ARROW = '→'
+export interface PlaceItem extends Place { key: string; label: string; count: number }
+
+export function placeKey(place: Place): string {
+  return place.subId ?? place.padId ?? 'main'
+}
+
+export function placeFromKey(all: Rows, key: string): Place | null {
+  return key === 'main' ? MAIN_PLACE : placeOf(all, key)
+}
+
+export function placeName(all: Rows, place: Place): string {
+  const pad = padName(all, place.padId)
+  return place.subId === null ? pad : `${pad} ${PLACE_ARROW} ${subName(all[place.subId]?.text ?? '')}`
+}
+
+export function placeList(all: Rows): PlaceItem[] {
+  return padList(all).flatMap((p) => [
+    { padId: p.id, subId: null, key: placeKey({ padId: p.id, subId: null }), label: p.name, count: p.count },
+    ...p.subs.map((s) => ({ padId: p.id, subId: s.id, key: s.id, label: `${p.name} ${PLACE_ARROW} ${s.name}`, count: s.count })),
+  ])
+}
+
+// Jump to a sub-pad: open its pad if another one is shown, then scroll to its header.
+export function openSubPad(subId: string): boolean {
+  const place = placeOf(usePad.getState().all, subId)
+  if (!place || place.subId === null) return false
+  if (usePad.getState().padId !== place.padId) openPad(place.padId)
+  revealRow(subId)
+  return true
 }
 
 // How many top-level lines a pad holds, crossed-out ones included and blank ones not: what
@@ -89,17 +132,23 @@ export function cmdDeletePad(padId: string): number {
 // Move the selection (or the line being edited) to the top of another pad. Returns how
 // many lines moved, subtrees included; 0 when the target is the pad shown.
 export function cmdMoveToPad(padId: PadId): number {
-  const ids = targets()
-  const { padId: current, all } = usePad.getState()
-  if (ids.length === 0 || padId === current) return 0
-  if (padId !== null && !isPadNode(all[padId])) return 0
+  return cmdMoveTo({ padId, subId: null })
+}
+
+// The same for any place: a pad, or a sub-pad (one of the pad shown included). Returns how
+// many lines moved, subtrees included and blank ones not counted; 0 when nothing moved.
+export function cmdMoveTo(place: Place): number {
+  const { padId: current, all, rows } = usePad.getState()
+  if (!isPlace(all, place) || (place.subId === null && place.padId === current)) return 0
+  const index = buildIndex(rows)
+  const ids = topmost(index, targets()).filter((id) => place.subId === null || (id !== place.subId && rows[id]?.parentId !== place.subId))
+  if (ids.length === 0) return 0
   stopEditing()
-  const liveBefore = countLines(Object.values(usePad.getState().rows))
-  applyAll((rows, ctx) => moveToPad(rows, ctx, ids, padId), { label: 'cmdMoveToPad' })
+  const n = countOf(ids.flatMap((id) => [id, ...descendantIds(index, id)]), rows)
+  applyAll((table, ctx) => moveToPlace(table, ctx, ids, place), { label: 'cmdMoveTo' })
   usePad.setState({ selection: [], anchorId: null, focusId: null })
-  const n = liveBefore - countLines(Object.values(usePad.getState().rows))
   ensureLine()
-  log('pad:move', { n, to: padId?.slice(0, 8) ?? 'main' })
+  log('pad:move', { n, to: placeKey(place).slice(0, 8) })
   return n
 }
 
@@ -130,17 +179,17 @@ export function cmdLineToPad(): { padId: string; name: string } | null {
   return { padId: id, name }
 }
 
-// The opposite of Make pad: fold a pad into another pad (null for main) as a line at its
-// top, the pad's lines under it. If the folded pad was the one shown, the pad it went into
+// The opposite of Make pad: fold a pad into another place (a pad or a sub-pad) as a line at
+// its top, the pad's lines under it. If the folded pad was the one shown, the pad it went into
 // opens. Returns the folded pad's name, or null when refused. One undo step.
-export function cmdPadToLine(padId: string, into: PadId): string | null {
+export function cmdPadToLine(padId: string, into: Place): string | null {
   const { all, padId: current } = usePad.getState()
-  if (!isPadNode(all[padId]) || into === padId || (into !== null && !isPadNode(all[into]))) return null
+  if (!isPadNode(all[padId]) || into.padId === padId || !isPlace(all, into)) return null
   const name = padName(all, padId)
   stopEditing()
-  if (current === padId) openPad(into)
+  if (current === padId) openPad(into.padId)
   applyAll((rows, ctx) => padToLine(rows, ctx, padId, into) ?? rows, { label: 'cmdPadToLine' })
-  log('pad:toLine', { id: padId.slice(0, 8), into: into?.slice(0, 8) ?? 'main' })
+  log('pad:toLine', { id: padId.slice(0, 8), into: placeKey(into).slice(0, 8) })
   return name
 }
 

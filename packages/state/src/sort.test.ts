@@ -4,6 +4,7 @@ import { idOf, listPads, shape } from '@hissypad/core'
 import { loadPad, openPad, usePad } from './store'
 import { undo } from './history'
 import { cmdNewPad } from './pads'
+import { cmdSetKind } from './commands'
 import {
   cmdSortAddSub, cmdSortBack, cmdSortNewTarget, sortSessionBack, sortSessionCard, sortSessionSend, sortSessionStart, sortSummary, swipeDir, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, setSortTarget, sortQueue, sortTarget, useSort,
 } from './sort'
@@ -49,6 +50,23 @@ describe('sort', () => {
     cmdSortSend(id('A'), 'left')
     undo()
     expect(whole()).toBe('A\nB\n  B1\n\nC\nD')
+  })
+
+  it('a side can point at a sub-pad: the line goes to the bottom of its lines, and the header is not sent into itself', () => {
+    const b = id('B')
+    usePad.setState({ selection: [b] })
+    cmdSetKind('header')
+    usePad.setState({ selection: [] })
+    setSortTarget('right', b)
+    expect(sortTarget(all(), 'right')).toMatchObject({ padId: null, subId: b, name: 'Main → B', exists: true })
+    expect(cmdSortSend(id('A'), 'right')).toMatchObject({ pad: 'Main → B', moved: true })
+    expect(cmdSortSend(id('C'), 'up')).toMatchObject({ moved: true })
+    expect(cmdSortSend(b, 'right')).toMatchObject({ moved: false })
+    expect(whole()).toBe('#B\n  B1\n  A\n  ~C\n\nD')
+    // Turned back into a plain line, the choice falls back to the default.
+    usePad.setState({ selection: [b] })
+    cmdSetKind('plain')
+    expect(sortTarget(all(), 'right')).toMatchObject({ name: 'Today', isDefault: true })
   })
 
   it('a chosen pad or Main is the target, remembered on the device; a deleted choice falls back', async () => {

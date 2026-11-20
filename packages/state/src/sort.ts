@@ -5,19 +5,19 @@
 // the app's.
 import { create } from 'zustand'
 import {
-  buildIndex, childrenOf, createPad, insertAt, isLive, isPadNode, listPads, moveNodes, remove, setDone, setText,
+  buildIndex, childrenOf, createPad, insertAt, isLive, isPadNode, isSubPad, listPads, moveNodes, remove, setDone, setText,
   type OpCtx, type PadId, type Rows,
 } from '@hissypad/core'
 import { apply, applyAll, getLocalStore, usePad } from './store'
 import { undo } from './history'
 import { stopEditing } from './selection'
-import { MAIN_PAD_NAME, ensureLine } from './pads'
+import { MAIN_PAD_NAME, ensureLine, placeName } from './pads'
 import { log } from './log'
 
 export type SortSide = 'left' | 'right'
 export type SortDir = SortSide | 'up' | 'skip'
 
-// Where a side sends its lines: a pad's id, 'main', or null for the default (the pad
+// Where a side sends its lines: a pad's id, a sub-pad's row id, 'main', or null for the default (the pad
 // named "Later" or "Today", made the first time a line is sent to it).
 export type SortChoice = string | 'main' | null
 
@@ -64,7 +64,8 @@ export function cmdSortNewTarget(side: SortSide, name: string): string {
 
 export interface SortTarget {
   padId: PadId      // null = the main pad
-  name: string
+  subId: string | null // a sub-pad of that pad, or null for the pad itself
+  name: string      // "Today", or "Work → Today" for a sub-pad
   exists: boolean   // false: the default pad, not made yet
   isDefault: boolean
 }
@@ -72,11 +73,15 @@ export interface SortTarget {
 // A side's target as things stand. A chosen pad that is gone (deleted here or on another
 // device) falls back to the default.
 export function sortTarget(all: Rows, side: SortSide, choice: SortChoice = useSort.getState()[side]): SortTarget {
-  if (choice === 'main') return { padId: null, name: MAIN_PAD_NAME, exists: true, isDefault: false }
-  if (choice !== null && isPadNode(all[choice])) return { padId: choice, name: all[choice].text || 'Untitled pad', exists: true, isDefault: false }
+  if (choice === 'main') return { padId: null, subId: null, name: MAIN_PAD_NAME, exists: true, isDefault: false }
+  if (choice !== null && isPadNode(all[choice])) return { padId: choice, subId: null, name: all[choice].text || 'Untitled pad', exists: true, isDefault: false }
+  if (choice !== null && isSubPad(all, all[choice])) {
+    const place = { padId: all[choice]!.parentId, subId: choice }
+    return { ...place, name: placeName(all, place), exists: true, isDefault: false }
+  }
   const want = SORT_DEFAULT_NAME[side]
   const hit = listPads(all).find((p) => p.text.trim().toLowerCase() === want.toLowerCase())
-  return hit ? { padId: hit.id, name: hit.text.trim(), exists: true, isDefault: true } : { padId: null, name: want, exists: false, isDefault: true }
+  return hit ? { padId: hit.id, subId: null, name: hit.text.trim(), exists: true, isDefault: true } : { padId: null, subId: null, name: want, exists: false, isDefault: true }
 }
 
 // What there is to sort in the pad shown: its top-level lines, top to bottom, leaving out
@@ -95,8 +100,8 @@ export interface SortResult {
   undoDepth: number // the undo stack's length before this card; cmdSortBack returns to it
 }
 
-// The move itself, on the whole table: `id` goes to the bottom of the target pad (made
-// on the spot when it is a default that does not exist yet) unless it is already in it,
+// The move itself, on the whole table: `id` goes to the bottom of the target (a pad, made
+// on the spot when it is a default that does not exist yet, or a sub-pad) unless it is already in it,
 // and is crossed out when the direction is up. `here` is the pad the line is in now.
 export function sendToTarget(all: Rows, ctx: OpCtx, id: string, dir: Exclude<SortDir, 'skip'>, target: SortTarget, here: PadId): { rows: Rows; moved: boolean } {
   let out = all
@@ -107,9 +112,12 @@ export function sendToTarget(all: Rows, ctx: OpCtx, id: string, dir: Exclude<Sor
     out = made.rows
     padId = made.padId
   }
-  if (padId !== here) {
-    const last = childrenOf(buildIndex(out), padId).filter((r) => !r.pad).at(-1)
-    out = moveNodes(out, ctx, [id], { parentId: padId, afterId: last?.id ?? null })
+  // A sub-pad takes the line under its header; it is not sent into itself or sent again.
+  const parent = target.subId ?? padId
+  const there = target.subId !== null ? id === target.subId || out[id]?.parentId === target.subId : padId === here
+  if (!there) {
+    const last = childrenOf(buildIndex(out), parent).filter((r) => !r.pad).at(-1)
+    out = moveNodes(out, ctx, [id], { parentId: parent, afterId: last?.id ?? null })
     moved = true
   }
   if (dir === 'up') out = setDone(out, ctx, [id], true)

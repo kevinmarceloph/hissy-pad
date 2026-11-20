@@ -109,7 +109,7 @@ export function cmdWidgetActions(actions: readonly WidgetAction[]): number {
     const here = padOf(all, a.id)
     const target = sortTarget(all, a.dir === 'left' ? 'left' : 'right')
     // Already where it was sent, and nothing else to do: a second press of the same button.
-    if (target.exists && target.padId === here && (a.dir !== 'up' || all[a.id]!.done)) continue
+    if (target.exists && target.subId === null && target.padId === here && (a.dir !== 'up' || all[a.id]!.done)) continue
     const { id, dir } = a
     applyAll((rows, ctx) => sendToTarget(rows, ctx, id, dir, target, here).rows, { label: `widget:${dir}` })
     n++

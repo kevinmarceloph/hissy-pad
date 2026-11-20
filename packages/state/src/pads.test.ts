@@ -4,8 +4,8 @@ import { shape, idOf, listPads } from '@hissypad/core'
 import { loadPad, openPad, usePad } from './store'
 import { redo, undo } from './history'
 import { select } from './selection'
-import { cmdDeleteDone, cmdDeleteSelection, cmdIndent, cmdSetText, cmdSplit } from './commands'
-import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdLineToPad, cmdPadToLine, cmdMovePad, padCandidate, cmdMoveToPad, cmdNewPad, cmdRenamePad, padList } from './pads'
+import { cmdSetKind, cmdDeleteDone, cmdDeleteSelection, cmdIndent, cmdSetText, cmdSplit } from './commands'
+import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdLineToPad, cmdPadToLine, cmdMoveTo, openSubPad, placeList, placeFromKey, cmdMovePad, padCandidate, cmdMoveToPad, cmdNewPad, cmdRenamePad, padList } from './pads'
 import { importOutline } from './store'
 
 const reset = resetStore
@@ -155,9 +155,9 @@ describe('pads in the store', () => {
   it('Fold into turns a pad back into a line of another pad, opens that pad if the folded one was shown, and undoes', () => {
     const w = cmdNewPad('Work')
     importOutline('one\n\ttwo', 'top')
-    expect(cmdPadToLine(w, w)).toBeNull()
-    expect(cmdPadToLine(w, 'nope')).toBeNull()
-    expect(cmdPadToLine(w, null)).toBe('Work')
+    expect(cmdPadToLine(w, { padId: w, subId: null })).toBeNull()
+    expect(cmdPadToLine(w, { padId: 'nope', subId: null })).toBeNull()
+    expect(cmdPadToLine(w, { padId: null, subId: null })).toBe('Work')
     expect(usePad.getState().padId).toBeNull()
     expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Main'])
     expect(main()).toBe('Work\n  one\n    two\n  \nA\nB\n  B1\nC')
@@ -166,8 +166,41 @@ describe('pads in the store', () => {
     expect(main()).toBe('A\nB\n  B1\nC')
     // From another pad: the pad shown stays.
     const x = cmdNewPad('X')
-    expect(cmdPadToLine(w, null)).toBe('Work')
+    expect(cmdPadToLine(w, { padId: null, subId: null })).toBe('Work')
     expect(usePad.getState().padId).toBe(x)
+  })
+
+  it('a top-level header is a sub-pad: listed as "Pad → Sub-pad", a target for a move, and a place to jump to', () => {
+    const id = (t: string) => idOf(usePad.getState().all, t)
+    select([id('B')], id('B'))
+    cmdSetKind('header')
+    const w = cmdNewPad('Work')
+    importOutline('w1\nw2', 'top')
+    select([id('w2')], id('w2'))
+    cmdSetKind('header')
+    const all = () => usePad.getState().all
+    expect(placeList(all()).map((p) => p.label)).toEqual(['Main', 'Main → B', 'Work', 'Work → w2'])
+    expect(padList(all()).map((p) => p.subs.map((s) => `${s.name}:${s.count}`))).toEqual([['B:1'], ['w2:0']])
+    expect(placeFromKey(all(), 'main')).toEqual({ padId: null, subId: null })
+    expect(placeFromKey(all(), id('B'))).toEqual({ padId: null, subId: id('B') })
+    // From Work, send w1 to Main → B: it lands at the top of B's lines.
+    select([id('w1')], id('w1'))
+    expect(cmdMoveTo({ padId: null, subId: id('B') })).toBe(1)
+    expect(shown()).toBe('#w2\n')
+    // A sub-pad of the pad shown is a target too; the pad itself is not.
+    openPad(null)
+    expect(main()).toBe('A\n#B\n  w1\n  B1\nC')
+    select([id('A'), id('C')], id('A'))
+    expect(cmdMoveTo({ padId: null, subId: null })).toBe(0)
+    expect(cmdMoveTo({ padId: null, subId: id('B') })).toBe(2)
+    expect(main()).toBe('#B\n  A\n  C\n  w1\n  B1')
+    undo()
+    expect(main()).toBe('A\n#B\n  w1\n  B1\nC')
+    // Jumping: the pad opens and the header is the row to scroll to.
+    expect(openSubPad(id('w2'))).toBe(true)
+    expect(usePad.getState().padId).toBe(w)
+    expect(usePad.getState().reveal?.id).toBe(id('w2'))
+    expect(openSubPad(id('A'))).toBe(false)
   })
 
   it('Make pad turns the one selected line into a pad, stays on the pad shown, and undoes in one step', () => {

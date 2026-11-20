@@ -7,7 +7,7 @@ import { useMemo } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { kindOf } from '@hissypad/core'
 import {
-  cmdMoveToPad, cmdSetKind, countOf, lineAbilities, lineCount, padList, usePad,
+  cmdMoveTo, cmdSetKind, countOf, lineAbilities, lineCount, placeList, usePad,
   LINE_ACTIONS, LINE_KINDS, type LineActionGroup,
 } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
@@ -31,7 +31,8 @@ export function Toolbar({ theme }: { theme: Theme }) {
   const padId = usePad((s) => s.padId)
   const ids = selection.length > 0 ? selection : editing ? [editing.id] : []
   const can = useMemo(() => lineAbilities(rows, ids), [rows, ids])
-  const others = useMemo(() => padList(all).filter((p) => p.id !== padId), [all, padId])
+  // Everywhere the lines can go: the other pads, and every sub-pad (this pad's included).
+  const others = useMemo(() => placeList(all).filter((p) => p.subId !== null || p.padId !== padId), [all, padId])
   if (ids.length === 0) return null
   const shown = LINE_ACTIONS.filter((a) => !HIDDEN.has(a.group) && !a.more)
   const tucked = LINE_ACTIONS.filter((a) => a.more && (a.enabled ? a.enabled(can) : true))
@@ -39,7 +40,7 @@ export function Toolbar({ theme }: { theme: Theme }) {
   // More: the pads to move to, then the tucked-away actions (iOS stacks them).
   function more() {
     Alert.alert('More', undefined, [
-      ...others.map((p) => ({ text: `Move to ${p.name}`, onPress: () => void cmdMoveToPad(p.id) })),
+      ...others.map((p) => ({ text: `Move to ${p.label}`, onPress: () => void cmdMoveTo(p) })),
       ...tucked.map((a) => ({ text: a.label, onPress: () => void a.run() })),
       { text: 'Cancel', style: 'cancel' as const },
     ])
