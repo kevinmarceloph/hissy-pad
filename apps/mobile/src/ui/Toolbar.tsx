@@ -12,7 +12,7 @@ import {
 } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 
-// The 'mark' group (Done) is the floating × / • toggle; it is not repeated here.
+// The 'mark' group (Done) is the floating • / × switch; it is not repeated here.
 const HIDDEN: ReadonlySet<LineActionGroup> = new Set(['mark'])
 
 function Btn({ label, onPress, disabled, a11y, theme, on, style }: { label: string; onPress: () => void; disabled?: boolean; a11y?: string; theme: Theme; on?: boolean; style?: object | undefined }) {

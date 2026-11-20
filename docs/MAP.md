@@ -90,7 +90,7 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 | `src/ui/Pad.tsx` | the screen: top bar, pad chips, the list, long-press drag, pull to refresh |
 | `src/ui/Row.tsx` | one line |
 | `src/ui/Toolbar.tsx` | the line toolbar above the keyboard, drawn from `LINE_ACTIONS` as two rows (no sideways scroll); actions marked `more` and Move to… sit behind More |
-| `src/ui/FloatingButtons.tsx` | the round buttons at the bottom right: + (a line at the top) when nothing is targeted; a × / • toggle (cross out, or back to a bullet) and a chevron (done editing) while editing or selecting |
+| `src/ui/FloatingButtons.tsx` | the round buttons at the bottom right: + (a line at the top) when nothing is targeted; a • / × switch (open on the left, crossed out on the right) and a chevron (done editing) while editing or selecting |
 | `src/ui/PadChips.tsx` | the pads as chips, with rename, reorder and delete |
 | `src/ui/Lists.tsx` | Trash and Recently done sheets |
 | `src/ui/Sort.tsx` | the Sort screen (PanResponder swipe) |
