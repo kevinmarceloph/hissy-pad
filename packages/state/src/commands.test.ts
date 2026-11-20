@@ -22,11 +22,11 @@ describe('commands', () => {
     await loadPad()
   })
 
-  it('Enter at the start of a line opens a blank one above and stays put; elsewhere it splits', () => {
+  it('Enter at the start of a line opens a blank one above and edits it; elsewhere it splits', () => {
     const a = id('A')
     cmdEnter(a, 0)
     expect(shown()).toBe('\nA\nB\n  B1\n  B2\nC')
-    expect(editing()).toMatchObject({ id: a, caret: 0 })
+    expect(editing()).toMatchObject({ id: id(''), caret: 0 })
     cmdEnter(id('B1'), 1)
     expect(shown()).toBe('\nA\nB\n  B\n  1\n  B2\nC')
     expect(editing()).toMatchObject({ id: id('1'), caret: 0 })

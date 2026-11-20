@@ -208,16 +208,16 @@ describe('toolbar iteration', () => {
     Element.prototype.scrollIntoView = () => {}
   })
 
-  it('Enter at the start of a line adds a blank line above and keeps the caret', async () => {
+  it('Enter at the start of a line adds a blank line above and moves the caret into it', async () => {
     const user = userEvent.setup()
     await mount('first\nsecond')
     const ta = await startEditing('second')
     ta.setSelectionRange(0, 0)
     await user.keyboard('{Enter}')
     expect(texts()).toBe('first\n\nsecond')
-    expect(usePad.getState().rows[usePad.getState().editing!.id]!.text).toBe('second')
+    expect(usePad.getState().rows[usePad.getState().editing!.id]!.text).toBe('')
     await user.keyboard('x')
-    expect(texts()).toBe('first\n\nxsecond')
+    expect(texts()).toBe('first\nx\nsecond')
   })
 
   it('Enter mid-line splits and Enter at the end adds below', async () => {

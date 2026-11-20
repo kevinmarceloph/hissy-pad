@@ -27,13 +27,18 @@ export function cmdSplit(id: string, caret: number) {
   edit(newId, 0)
 }
 
-// Enter at the very start of a non-empty line: a blank line appears above and the caret
-// stays where it was (Workflowy). Anywhere else, the line splits at the caret.
+// Enter at the very start of a non-empty line: a blank line appears above and takes the
+// caret, so the next thing typed goes in front. Anywhere else, the line splits at the caret.
 export function cmdEnter(id: string, caret: number) {
   const row = usePad.getState().rows[id]
   if (row && caret === 0 && row.text.length > 0) {
-    apply((rows, ctx) => insertBefore(rows, ctx, id, '').rows, { label: 'cmdEnter' })
-    edit(id, 0)
+    let newId = ''
+    apply((rows, ctx) => {
+      const res = insertBefore(rows, ctx, id, '')
+      newId = res.newId
+      return res.rows
+    }, { label: 'cmdEnter' })
+    edit(newId, 0)
     return
   }
   cmdSplit(id, caret)
