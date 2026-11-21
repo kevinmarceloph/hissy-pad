@@ -621,7 +621,7 @@ dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-f
 }
 .sort-card.is-dragging { cursor: grabbing; user-select: none; -webkit-user-select: none; }
 .sort-card.is-dragging textarea, .sort-card.is-dragging input { pointer-events: none; }
-.sort-card.leans-left, .sort-card.leans-right, .sort-card.leans-up { border-color: var(--accent); }
+.sort-card.leans-left, .sort-card.leans-right, .sort-card.leans-up, .sort-card.leans-down { border-color: var(--accent); }
 .sort-count { margin: 0 0 0.5rem; color: var(--ink-mute); font-size: 0.82rem; }
 .sort-card textarea, .sort-card input {
   display: block; width: 100%; padding: 0; margin: 0;
@@ -651,12 +651,14 @@ dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-f
 .stamp-left { right: 0.8rem; rotate: 6deg; }
 .stamp-right { left: 0.8rem; rotate: -6deg; }
 .stamp-up { left: 50%; translate: -50% 0; }
+.stamp-down { left: 50%; translate: -50% 0; top: auto; bottom: 0.7rem; }
 .sort-card.is-ghost { pointer-events: none; animation: sort-out 220ms ease-in forwards; }
 .sort-card.is-ghost .sort-text { margin-top: 1.75rem; }
 .sort-card.is-ghost.to-left { --tx: -130%; --ty: 0%; --rot: -14deg; }
 .sort-card.is-ghost.to-right { --tx: 130%; --ty: 0%; --rot: 14deg; }
 .sort-card.is-ghost.to-up { --tx: 0%; --ty: -140%; --rot: 0deg; }
-.sort-card.is-ghost.to-skip { --tx: 0%; --ty: 60%; --rot: 0deg; }
+.sort-card.is-ghost.to-down { --tx: 0%; --ty: 140%; --rot: 0deg; }
+.sort-card.is-ghost.to-skip { --tx: 0%; --ty: 0%; --rot: 0deg; }
 @keyframes sort-out {
   from { transform: translate(var(--dx, 0px), var(--dy, 0px)); opacity: 1; }
   to { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)); opacity: 0; }
@@ -669,6 +671,8 @@ dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-f
 .sort-empty p { margin: 0; font-size: 1.2rem; }
 .sort-empty .tally { font-size: 0.95rem; color: var(--ink-mute); margin-top: 0.25rem; }
 .sort-actions, .sort-minor, .sort-targets { display: flex; justify-content: center; gap: 0.5rem; margin: 1rem auto 0; max-width: 30rem; }
+.sort-actions.sort-down { margin-top: 0.5rem; }
+.sort-actions.sort-down button { flex: 0 1 calc((100% - 1rem) / 3); }
 .sort-actions button { flex: 1 1 0; min-width: 0; min-height: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sort-minor button { border-color: transparent; background: none; color: var(--ink-soft); }
 .sort-minor button:hover:not(:disabled) { background: var(--paper-raised); color: var(--ink); }

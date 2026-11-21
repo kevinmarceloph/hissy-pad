@@ -80,7 +80,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
       if (inField || e.altKey) return
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); back(); return }
       if (e.metaKey || e.ctrlKey) return
-      const dir: SortDir | null = e.key === 'ArrowLeft' ? 'left' : e.key === 'ArrowRight' ? 'right' : e.key === 'ArrowUp' ? 'up' : e.key === 'ArrowDown' ? 'skip' : null
+      const dir: SortDir | null = e.key === 'ArrowLeft' ? 'left' : e.key === 'ArrowRight' ? 'right' : e.key === 'ArrowUp' ? 'up' : e.key === 'ArrowDown' ? 'down' : e.key.toLowerCase() === 's' ? 'skip' : null
       if (dir) { e.preventDefault(); send(dir) }
       else if (e.key === 'Backspace') { e.preventDefault(); back() }
     }
@@ -151,7 +151,8 @@ export function Sort({ onClose }: { onClose: () => void }) {
   const leaning = drag ? swipeDir(drag.dx, drag.dy) : null
   const pull = (dir: SortDir) => {
     if (!drag) return 0
-    const v = dir === 'left' ? -drag.dx : dir === 'right' ? drag.dx : -drag.dy > Math.abs(drag.dx) ? -drag.dy : 0
+    const vy = dir === 'up' ? -drag.dy : drag.dy
+    const v = dir === 'left' ? -drag.dx : dir === 'right' ? drag.dx : vy > Math.abs(drag.dx) ? vy : 0
     return Math.max(0, Math.min(1, v / SWIPE))
   }
   const cardStyle: CSSProperties | undefined = drag
@@ -214,7 +215,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
       <header className="sort-head">
         <div>
           <h2 id="sort-title">Sort {padName(all, padId)}</h2>
-          <p>{id ? `${remaining} to go. Swipe the card, or use the arrow keys.` : 'One line at a time: later, today, or already done.'}</p>
+          <p>{id ? `${remaining} to go. Swipe the card, or use the arrow keys.` : 'One line at a time: later, today, already done, or delete.'}</p>
         </div>
         <button type="button" className="primary" onClick={onClose}>Done</button>
       </header>
@@ -245,6 +246,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
             <span className="stamp stamp-left" style={{ opacity: pull('left') }} aria-hidden="true">{left.name}</span>
             <span className="stamp stamp-right" style={{ opacity: pull('right') }} aria-hidden="true">{right.name}</span>
             <span className="stamp stamp-up" style={{ opacity: pull('up') }} aria-hidden="true">Done</span>
+            <span className="stamp stamp-down" style={{ opacity: pull('down') }} aria-hidden="true">Delete</span>
             <p className="sort-count">{at + 1} of {queue.length}</p>
             <AutoText
               className="sort-text"
@@ -300,9 +302,12 @@ export function Sort({ onClose }: { onClose: () => void }) {
         <button type="button" onClick={() => send('up')} disabled={!id} aria-label={`Up: ${upLabel}`}><kbd>↑</kbd> Done</button>
         <button type="button" onClick={() => send('right')} disabled={!id} aria-label={`Right: ${right.name}`}>{right.name} <kbd>→</kbd></button>
       </div>
+      <div className="sort-actions sort-down">
+        <button type="button" onClick={() => send('down')} disabled={!id} aria-label="Down: delete"><kbd>↓</kbd> Delete</button>
+      </div>
       <div className="sort-minor">
         <button type="button" onClick={back} disabled={sent.length === 0}>Back</button>
-        <button type="button" onClick={() => send('skip')} disabled={!id}>Skip <kbd>↓</kbd></button>
+        <button type="button" onClick={() => send('skip')} disabled={!id}>Skip <kbd>S</kbd></button>
       </div>
       <div className="sort-targets">
         {targetSelect('left')}

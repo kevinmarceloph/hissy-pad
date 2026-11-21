@@ -20,6 +20,21 @@ describe('sort', () => {
     Element.prototype.scrollIntoView = () => {}
   })
 
+  it('down deletes the card: the arrow key or the Delete button sends it to the Trash, Back restores it', async () => {
+    const user = userEvent.setup()
+    await mount('A\nB\nC')
+    await user.click(button('Sort…'))
+    await user.keyboard('{ArrowDown}')
+    expect(card().value).toBe('B')
+    expect(whole()).toBe('B\nC')
+    await user.click(button('Down: delete'))
+    expect(whole()).toBe('C')
+    await user.click(button('Back'))
+    expect(card().value).toBe('B')
+    await user.keyboard('{ArrowDown}{ArrowDown}')
+    expect(screen.getByText('3 deleted')).toBeInTheDocument()
+  })
+
   it('arrow keys and buttons send cards left, right and up; Back takes one back; the end shows a tally', async () => {
     const user = userEvent.setup()
     await mount('A\nB\n  B1\nC\nD')
@@ -35,7 +50,7 @@ describe('sort', () => {
     await user.click(button('Back'))
     expect(card().value).toBe('C')
     expect(whole()).toBe('C\nD\n@Later\n  A\n@Today\n  B\n    B1')
-    await user.keyboard('{ArrowDown}{ArrowRight}')
+    await user.keyboard('s{ArrowRight}')
     expect(screen.getByText('All sorted.')).toBeInTheDocument()
     expect(screen.getByText('2 to Today, 1 to Later, 1 skipped')).toBeInTheDocument()
     await user.click(button('Done'))

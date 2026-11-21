@@ -50,7 +50,7 @@ export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Them
     Keyboard.dismiss()
     void Haptics.selectionAsync().catch(() => {})
     const { width, height } = Dimensions.get('window')
-    const to = dir === 'left' ? { x: -width * 1.2, y: 0 } : dir === 'right' ? { x: width * 1.2, y: 0 } : dir === 'up' ? { x: 0, y: -height * 0.8 } : { x: 0, y: height * 0.5 }
+    const to = dir === 'left' ? { x: -width * 1.2, y: 0 } : dir === 'right' ? { x: width * 1.2, y: 0 } : dir === 'up' ? { x: 0, y: -height * 0.8 } : dir === 'down' ? { x: 0, y: height * 0.8 } : { x: 0, y: 0 }
     Animated.timing(pan, { toValue: to, duration: 180, useNativeDriver: true }).start(() => {
       commit(dir)
       pan.setValue({ x: 0, y: 0 })
@@ -117,6 +117,7 @@ export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Them
   const stampLeft = pan.x.interpolate({ inputRange: [-SWIPE_DISTANCE, 0], outputRange: [1, 0], extrapolate: 'clamp' })
   const stampRight = pan.x.interpolate({ inputRange: [0, SWIPE_DISTANCE], outputRange: [0, 1], extrapolate: 'clamp' })
   const stampUp = pan.y.interpolate({ inputRange: [-SWIPE_DISTANCE, -SWIPE_DISTANCE / 3], outputRange: [1, 0], extrapolate: 'clamp' })
+  const stampDown = pan.y.interpolate({ inputRange: [SWIPE_DISTANCE / 3, SWIPE_DISTANCE], outputRange: [0, 1], extrapolate: 'clamp' })
   const summary = sortSummary(session, left.name, right.name)
 
   const stamp = (label: string, opacity: Animated.AnimatedInterpolation<number>, style: object) => (
@@ -153,6 +154,7 @@ export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Them
               {stamp(left.name, stampLeft, s.stampLeft)}
               {stamp(right.name, stampRight, s.stampRight)}
               {stamp('Done', stampUp, s.stampUp)}
+              {stamp('Delete', stampDown, s.stampDown)}
               <Text style={[s.count, { color: theme.inkMute }]}>{at + 1} of {queue.length}</Text>
               <TextInput
                 value={row.text}
@@ -215,6 +217,9 @@ export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Them
           {action('↑ Done', `Up: ${right.name}, done`, () => send('up'), !id)}
           {action(`${right.name} →`, `Right: ${right.name}`, () => send('right'), !id)}
         </View>
+        <View style={[s.actions, s.actionsDown]}>
+          {action('↓ Delete', 'Down: delete', () => send('down'), !id)}
+        </View>
         <View style={s.minor}>
           <Pressable onPress={back} disabled={sent.length === 0} accessibilityRole="button" style={s.minorBtn}>
             <Text style={[s.minorText, { color: sent.length ? theme.inkSoft : theme.inkMute, opacity: sent.length ? 1 : 0.5 }]}>Back</Text>
@@ -259,10 +264,12 @@ const s = StyleSheet.create({
   stampLeft: { right: 12, transform: [{ rotate: '6deg' }] },
   stampRight: { left: 12, transform: [{ rotate: '-6deg' }] },
   stampUp: { alignSelf: 'center' },
+  stampDown: { alignSelf: 'center', top: undefined, bottom: 10 },
   stampText: { fontFamily: serif, fontSize: 14, letterSpacing: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { fontFamily: serif, fontSize: 20 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  actionsDown: { marginTop: 8, paddingHorizontal: '33%' },
   action: { flex: 1, minHeight: 48, paddingHorizontal: 6, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
   actionText: { fontFamily: serif, fontSize: 16 },
   minor: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 4 },

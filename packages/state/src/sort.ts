@@ -1,6 +1,6 @@
 // Sort: the lines of the pad shown, one card at a time. Left sends a line to one pad
 // ("Later" unless set otherwise), right to another ("Today"), up to the right-hand pad
-// crossed out. The card can be edited and given sub items before it goes. This file holds
+// crossed out, down to the Trash. The card can be edited and given sub items before it goes. This file holds
 // the queue, the two targets (remembered per device) and the commands; the swipe itself is
 // the app's.
 import { create } from 'zustand'
@@ -15,7 +15,7 @@ import { MAIN_PAD_NAME, ensureLine, placeName } from './pads'
 import { log } from './log'
 
 export type SortSide = 'left' | 'right'
-export type SortDir = SortSide | 'up' | 'skip'
+export type SortDir = SortSide | 'up' | 'down' | 'skip'
 
 // Where a side sends its lines: a pad's id, a sub-pad's row id, 'main', or null for the default (the pad
 // named "Later" or "Today", made the first time a line is sent to it).
@@ -37,11 +37,12 @@ export function setSortTarget(side: SortSide, choice: SortChoice) {
   void getLocalStore().setMeta(KEY[side], choice ?? '').catch(() => {})
 }
 
-// A drag of (dx, dy) as a swipe, or null when it is too short to count. Up wins only
-// when the drag is more vertical than sideways.
+// A drag of (dx, dy) as a swipe, or null when it is too short to count. Up and down win
+// only when the drag is more vertical than sideways.
 export const SWIPE_DISTANCE = 90
 export function swipeDir(dx: number, dy: number, threshold = SWIPE_DISTANCE): SortDir | null {
   if (dy < -threshold && -dy > Math.abs(dx)) return 'up'
+  if (dy > threshold && dy > Math.abs(dx)) return 'down'
   if (dx > threshold) return 'right'
   if (dx < -threshold) return 'left'
   return null
@@ -103,7 +104,7 @@ export interface SortResult {
 // The move itself, on the whole table: `id` goes to the bottom of the target (a pad, made
 // on the spot when it is a default that does not exist yet, or a sub-pad) unless it is already in it,
 // and is crossed out when the direction is up. `here` is the pad the line is in now.
-export function sendToTarget(all: Rows, ctx: OpCtx, id: string, dir: Exclude<SortDir, 'skip'>, target: SortTarget, here: PadId): { rows: Rows; moved: boolean } {
+export function sendToTarget(all: Rows, ctx: OpCtx, id: string, dir: Exclude<SortDir, 'skip' | 'down'>, target: SortTarget, here: PadId): { rows: Rows; moved: boolean } {
   let out = all
   let padId = target.padId
   let moved = false
@@ -134,6 +135,15 @@ export function cmdSortSend(id: string, dir: SortDir): SortResult | null {
   const here = state.padId
   if (dir === 'skip') return { dir, pad: '', moved: false, undoDepth }
   stopEditing()
+  if (dir === 'down') {
+    // Down deletes: the line and what is under it go to the Trash, one undo step, so Back
+    // (or the Trash itself) brings them back.
+    apply((rows, ctx) => remove(rows, ctx, [id]), { label: 'cmdSortSend:down' })
+    usePad.setState({ selection: [], anchorId: null, focusId: null })
+    ensureLine()
+    log('sort:send', { id: id.slice(0, 8), dir })
+    return { dir, pad: '', moved: false, undoDepth }
+  }
   const side: SortSide = dir === 'left' ? 'left' : 'right'
   const target = sortTarget(state.all, side)
   let moved = false
@@ -231,13 +241,14 @@ export function sortSessionBack(session: SortSession): SortSession {
   return { ...session, pos: session.queue.indexOf(last.id), sent: session.sent.slice(0, -1) }
 }
 
-// "2 to Today, 1 done, 1 to Later, 1 skipped", for the end of a sort.
+// "2 to Today, 1 done, 1 to Later, 1 deleted, 1 skipped", for the end of a sort.
 export function sortSummary(session: SortSession, left: string, right: string): string {
   const n = (dir: SortDir) => session.sent.filter((s) => s.dir === dir).length
   return [
     n('right') && `${n('right')} to ${right}`,
     n('up') && `${n('up')} done`,
     n('left') && `${n('left')} to ${left}`,
+    n('down') && `${n('down')} deleted`,
     n('skip') && `${n('skip')} skipped`,
   ].filter(Boolean).join(', ')
 }

@@ -137,13 +137,28 @@ describe('sort', () => {
     expect(sortSummary(sortSessionStart(), 'Later', 'Today')).toBe('')
   })
 
+  it('down deletes the card: the line and its children go to the Trash, and Back brings them back', () => {
+    let session = sortSessionStart()
+    const a = id('A')
+    session = sortSessionSend(session, 'down')
+    expect(all()[a]!.deletedAt).not.toBeNull()
+    expect(session.sent.at(-1)).toMatchObject({ dir: 'down', moved: false })
+    expect(listPads(all())).toHaveLength(0) // no pad is made for a delete
+    expect(sortSummary(session, 'Later', 'Today')).toBe('1 deleted')
+    session = sortSessionBack(session)
+    expect(all()[a]!.deletedAt).toBeNull()
+    expect(sortSessionCard(session).id).toBe(a)
+  })
+
   it('a drag is a swipe only past the threshold, and up needs to be more vertical than sideways', () => {
     expect(swipeDir(40, 0)).toBeNull()
     expect(swipeDir(120, 30)).toBe('right')
     expect(swipeDir(-120, -30)).toBe('left')
     expect(swipeDir(30, -120)).toBe('up')
     expect(swipeDir(130, -120)).toBe('right')
-    expect(swipeDir(0, 200)).toBeNull()
+    expect(swipeDir(0, 200)).toBe('down')
+    expect(swipeDir(130, 120)).toBe('right')
+    expect(swipeDir(-10, 60)).toBeNull()
     expect(swipeDir(40, 0, 30)).toBe('right')
   })
 })

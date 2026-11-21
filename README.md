@@ -88,7 +88,7 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 | Done | "Recently done": crossed-out lines, newest first, with an Undone button each |
 | Trash | lines deleted in the last 30 days, grouped by the delete that removed them, with a Restore button each |
 | Fresh start… | two panes: send across what stays, and everything left behind moves to a new pad |
-| Sort… | the pad's top-level lines one card at a time: left for Later, right for Today, up for Today and crossed out, down to skip. Swipe, arrow keys or buttons. The card's text and sub items can be edited first, and each side can point at any pad, Main or a new one |
+| Sort… | the pad's top-level lines one card at a time: left for Later, right for Today, up for Today and crossed out, down to delete (it goes to the Trash). Swipe, arrow keys or buttons; Skip (S) leaves a line where it is. The card's text and sub items can be edited first, and each side can point at any pad, Main or a new one |
 
 | toolbar (a line being edited, or lines selected) | |
 |---|---|
