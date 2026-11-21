@@ -38,6 +38,7 @@ export function SearchPanel({ dialog }: { dialog: RefObject<HTMLDialogElement | 
   return (
     <dialog ref={dialog} className="import search" aria-label="Search" onClose={() => { setQuery(''); setActive(0) }}>
       <form method="dialog" onSubmit={(e) => { e.preventDefault(); open(hits[at]?.id) }}>
+        <div className="bar">
         <input
           type="search"
           role="combobox"
@@ -53,6 +54,8 @@ export function SearchPanel({ dialog }: { dialog: RefObject<HTMLDialogElement | 
           onChange={(e) => { setQuery(e.target.value); setActive(0) }}
           onKeyDown={onKeyDown}
         />
+        <button type="button" onClick={() => dialog.current?.close()}>Close</button>
+        </div>
         <div className="results" id="search-results" role="listbox" aria-label="Lines found" ref={list}>
           {result.groups.map((g) => (
             <div key={g.padId ?? 'main'} role="group" aria-label={g.name}>

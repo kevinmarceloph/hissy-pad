@@ -404,6 +404,17 @@ dialog.import .actions button:disabled { opacity: 0.5; cursor: default; }
 dialog.list { max-height: min(80vh, 40rem); }
 dialog.list[open] { display: flex; flex-direction: column; }
 dialog.list form { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+/* The title and Close stay put while the entries scroll under them. */
+dialog.list .head {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding-bottom: 0.5rem;
+  background: var(--paper);
+}
+dialog.list .head h2 { margin: 0; }
+dialog.list .head button, dialog.search .bar button {
+  flex: none; min-height: 36px; padding: 0 0.8rem; border-radius: 4px; border: 1px solid var(--rule);
+}
 dialog.list h3 {
   margin: 0.9rem 0 0.25rem;
   font-size: 0.8rem;
@@ -430,15 +441,15 @@ dialog.list li button { flex: none; min-height: 32px; padding: 0 0.6rem; border-
 dialog.list li button:hover { color: var(--accent); border-color: var(--accent); }
 dialog.list .actions { align-items: baseline; justify-content: space-between; margin-top: 1rem; }
 dialog.list .actions .note { margin: 0; font-size: 0.85rem; color: var(--ink-mute); font-style: italic; }
-dialog.list .actions button.primary { margin-left: auto; }
 
 /* Search: the field stays put, the lines found scroll under it. Near the top of the window,
    so the dialog does not jump as the list grows and shrinks. */
 dialog.search { margin-top: min(12vh, 6rem); max-height: min(76vh, 40rem); padding: 0.75rem; }
 dialog.search[open] { display: flex; flex-direction: column; }
 dialog.search form { display: flex; flex-direction: column; min-height: 0; }
+dialog.search .bar { display: flex; align-items: center; gap: 0.5rem; }
 dialog.search input {
-  width: 100%;
+  flex: 1; min-width: 0;
   padding: 0.5rem 0.6rem;
   border: 1px solid var(--rule);
   border-radius: 4px;

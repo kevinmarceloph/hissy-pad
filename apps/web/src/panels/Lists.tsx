@@ -23,7 +23,10 @@ export function TrashPanel({ dialog }: { dialog: RefObject<HTMLDialogElement | n
   return (
     <dialog ref={dialog} className="import list" aria-labelledby="trash-title">
       <form method="dialog">
-        <h2 id="trash-title">Trash</h2>
+        <div className="head">
+          <h2 id="trash-title">Trash</h2>
+          <button type="submit">Close</button>
+        </div>
         {batches.length === 0 ? (
           <p className="empty">Nothing deleted in the last {TRASH_DAYS} days.</p>
         ) : (
@@ -58,7 +61,6 @@ export function TrashPanel({ dialog }: { dialog: RefObject<HTMLDialogElement | n
         )}
         <div className="actions">
           <p className="note">Deleted lines stay here for {TRASH_DAYS} days.</p>
-          <button type="submit" className="primary">Close</button>
         </div>
       </form>
     </dialog>
@@ -73,7 +75,10 @@ export function DonePanel({ dialog }: { dialog: RefObject<HTMLDialogElement | nu
   return (
     <dialog ref={dialog} className="import list" aria-labelledby="done-title">
       <form method="dialog">
-        <h2 id="done-title">Recently done</h2>
+        <div className="head">
+          <h2 id="done-title">Recently done</h2>
+          <button type="submit">Close</button>
+        </div>
         {entries.length === 0 ? (
           <p className="empty">Nothing is crossed out.</p>
         ) : (
@@ -96,7 +101,6 @@ export function DonePanel({ dialog }: { dialog: RefObject<HTMLDialogElement | nu
         )}
         <div className="actions">
           <p className="note">Crossed-out lines stay in the pad until you delete them.</p>
-          <button type="submit" className="primary">Close</button>
         </div>
       </form>
     </dialog>

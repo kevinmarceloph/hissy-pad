@@ -67,6 +67,16 @@ describe('search', () => {
     expect(screen.getByText('Book flights')).toBeInTheDocument()
   })
 
+  it('the Close button closes the panel and clears the field', async () => {
+    const user = userEvent.setup()
+    await mount()
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    await user.type(field(), 'milk')
+    await user.click(within(panel()).getByRole('button', { name: 'Close' }))
+    expect(panel().open).toBe(false)
+    expect(field()).toHaveValue('')
+  })
+
   it('says so when nothing is found, and Cmd+K does nothing from Sort', async () => {
     const user = userEvent.setup()
     await mount()
