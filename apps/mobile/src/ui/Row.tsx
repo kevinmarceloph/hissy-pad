@@ -1,9 +1,12 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState, type ComponentRef } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
 import { apply, clickSelect, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
 import { inlineSpans, toggleCollapsed } from '@hissypad/core'
 import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, serif, type Theme } from '../theme'
+
+// How long after a line changes place a blur still counts as the move's doing.
+const MOVE_BLUR_MS = 400
 
 interface Props {
   row: NodeRow
@@ -26,6 +29,12 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
   const sel = useRef({ start: 0, end: 0 })
+  // Moving the line (the toolbar's up arrow, say) makes the native list take its view out
+  // and put it back, which blurs the input and would end editing and drop the keyboard.
+  // A blur right after the line changed place is that, not the user leaving: take focus back.
+  const input = useRef<ComponentRef<typeof TextInput>>(null)
+  const place = useRef({ key: `${row.parentId}/${row.rank}`, movedAt: 0 })
+  if (place.current.key !== `${row.parentId}/${row.rank}`) place.current = { key: `${row.parentId}/${row.rank}`, movedAt: Date.now() }
   // Local mirror of the text while editing, so each keystroke renders before the store.
   const [draft, setDraft] = useState(row.text)
   // The caret is placed declaratively: a one-shot controlled `selection` on mount (or when
@@ -118,7 +127,12 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
           onChangeText={onChange}
           onKeyPress={onKeyPress}
           onSelectionChange={onSelectionChange}
+          ref={input}
           onBlur={() => {
+            if (Date.now() - place.current.movedAt < MOVE_BLUR_MS && usePad.getState().editing?.id === row.id) {
+              input.current?.focus()
+              return
+            }
             if (usePad.getState().editing?.id === row.id) usePad.setState({ editing: null })
           }}
           style={[s.text, s.input, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}
