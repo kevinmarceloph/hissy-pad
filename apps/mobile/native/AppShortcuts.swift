@@ -3,8 +3,10 @@
 // because the system only looks for App Shortcuts in the app, not in its widget.
 //
 // The intent does not open the app or run its JavaScript. It queues the line in the
-// shared storage, the same way a widget button does, and the app adds it for real the
-// next time it is in front. The widget shows it straight away.
+// shared storage, the same way a widget button does, so the widget shows it straight
+// away; then it sends the line to the server itself (SiriSync.swift) and takes it back out
+// of the queue. If that does not work (signed out, no Inbox pad yet, no network), the
+// line stays queued and the app adds it for real the next time it is in front.
 import AppIntents
 import WidgetKit
 
@@ -25,7 +27,8 @@ struct AddToInboxIntent: AppIntent {
     guard !clean.isEmpty else {
       throw $text.needsValueError(IntentDialog("What should I add?"))
     }
-    Shared.add(text: clean)
+    let id = Shared.add(text: clean)
+    if await SiriSync.shared.add(id: id, text: clean) { Shared.sent(id: id) }
     WidgetCenter.shared.reloadAllTimelines()
     return .result(dialog: IntentDialog("Added to Inbox."))
   }

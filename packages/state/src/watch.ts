@@ -1,7 +1,9 @@
 // Signing the Apple Watch in. The watch syncs by itself, with a session of its own, and it
 // has no way to type an email: the phone gets it a one-time sign-in token (the
 // `watch-token` Edge Function) and passes it over. This is the decision of when to, kept
-// here so it can be tested; the calls are in apps/mobile/src/widget.ts.
+// here so it can be tested; the calls are in apps/mobile/src/widget.ts. Siri's sender on
+// the phone (apps/mobile/native/SiriSync.swift) is signed in by the same rule: read
+// "the watch" below as either.
 //
 // The watch tells the phone which account it is signed in to (`user`, '' for none), and
 // the phone hands a token over whenever that is not its own account. A hand-over can fail

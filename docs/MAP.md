@@ -129,8 +129,9 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 | `targets/watch/` | the Apple Watch app (SwiftUI), which syncs by itself: `Rows.swift` (its copy of the rows, which lines are open in which pad, the merge, a new line and its rank), `Remote.swift` (Supabase over plain HTTPS: session, fetch, cross out, add a line), `PadSync.swift` (sign in, send, fetch, one round at a time), `WatchStore.swift` (what is shown, the file and the keychain, the phone's messages), `HissyPadWatchApp.swift` (pad list and pad screens) |
 | `targets/_shared/Models.swift` | the JSON shapes (snapshot, pad, item, queued action), compiled into the app, the widget and the watch |
 | `native/AppShortcuts.swift` | the Siri / Shortcuts command "Add to HissyPad" (an App Intent). Compiled into the app, not the widget |
+| `native/SiriSync.swift` | what sends that line to the server from Siri itself: a session of its own in the keychain (the app hands it a sign-in, as it does the watch), a post through the watch's `Remote.swift`, eight seconds at most, the queue when it cannot |
 | `native/WatchBridge.swift` | the phone's end of the watch app: passes it the sign-in, notes which account it is on; for a watch with no account, sends the snapshot and queues the lines crossed out or typed on it |
-| `plugins/withNativeSources.js` | config plugin: compiles `native/*.swift` and the widget's `Shared.swift` and `AddControlIntent.swift` into the app target and starts the watch bridge from the AppDelegate |
+| `plugins/withNativeSources.js` | config plugin: compiles `native/*.swift`, the widget's `Shared.swift` and `AddControlIntent.swift` and the watch's `Remote.swift` and `Rows.swift` into the app target, and starts the watch bridge and Siri's sync from the AppDelegate |
 | `plugins/withNoShakeToEdit.js` | config plugin: turns off iOS's own shake prompt |
 
 ### The widget and the app
@@ -138,7 +139,8 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 The widget runs in its own process and cannot run any of the JavaScript. The two share an App Group (`group.ph.marcelo.hissypad`) and pass two JSON strings through its UserDefaults:
 
 - `widget.snapshot`: every pad with its open top-level lines. The app writes it when the pads change and tells the widget to redraw. A button on the widget edits it in place, so the widget redraws at once.
-- `widget.actions`: what happened outside the app since it was last in front: buttons pressed on the widget, and lines added through Siri (which carry the id they were given, so the widget can show the line and act on it before the app has run). The app applies them (`cmdWidgetActions`) and clears the list when it comes to the front. So a press or a Siri add reaches the pad, and sync, only when the app next opens.
+- `widget.actions`: what happened outside the app since it was last in front: buttons pressed on the widget, and lines added through Siri that Siri could not send itself (which carry the id they were given, so the widget can show the line and act on it before the app has run). The app applies them (`cmdWidgetActions`) and clears the list when it comes to the front. So a press reaches the pad, and sync, only when the app next opens. A Siri add goes to the server at once (`native/SiriSync.swift`) and is taken back out of this list; the app gets the line with its next sync.
+- `siri.state`, `siri.handoff`: the account Siri's sender is signed in to, and a sign-in (or `signout`) the app leaves for it. The same pair the watch has (`watch.state`, `watch.handoff`), by the same rule (`state/watch.ts`).
 
 - `widget.open`: a link the Add control leaves for the app to follow as it opens (`add?pad=inbox`). The app clears it.
 

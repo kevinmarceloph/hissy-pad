@@ -114,6 +114,23 @@ struct Remote {
     return rows
   }
 
+  // The rank of every live row right under `parent`, for a sender that keeps no rows of
+  // its own (Siri on the phone, native/SiriSync.swift) and needs one above the first. All
+  // of them, in pages, and the caller picks the smallest: the server's own ordering of
+  // text follows its locale, not the bytes ranks are compared by.
+  func ranks(under parent: String, access: String) async throws -> [String] {
+    struct Ranked: Decodable { let rank: String }
+    let page = 1000
+    var all: [String] = []
+    while true {
+      let path = "/rest/v1/nodes?select=rank&parent_id=eq.\(parent)&deleted_at=is.null&order=id.asc&limit=\(page)&offset=\(all.count)"
+      let data = try await send("GET", path, access: access)
+      guard let rows = try? JSONDecoder().decode([Ranked].self, from: data) else { throw Failure.refused("Ranks that could not be read") }
+      all += rows.map(\.rank)
+      if rows.count < page { return all }
+    }
+  }
+
   // A line typed here. Sent as it was when made; if it was crossed out since, that goes
   // after it as a Done of its own. A second send of the same line (the answer to the
   // first was lost) is ignored by the server instead of refused.

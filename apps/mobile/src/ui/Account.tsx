@@ -3,7 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 import * as WebBrowser from 'expo-web-browser'
 import { usePad, requestSync, syncLine } from '@hissypad/state'
 import { supabase } from '../supabase'
-import { signOutWatch } from '../widget'
+import { signOutOthers } from '../widget'
 import { serif, type Theme } from '../theme'
 
 WebBrowser.maybeCompleteAuthSession()
@@ -122,7 +122,7 @@ export function Account({ theme }: { theme: Theme }) {
       <Text style={[s.foot, { color: theme.inkMute }]}>{line} </Text>
       {sync?.state === 'error' && <Pressable onPress={requestSync}><Text style={[s.foot, { color: theme.link }]}>Retry </Text></Pressable>}
       <Text style={[s.foot, { color: theme.inkSoft }]}>{session.user.email} </Text>
-      <Pressable onPress={() => { signOutWatch(); void supabase!.auth.signOut() }}><Text style={[s.foot, { color: theme.link, textDecorationLine: 'underline' }]}>Sign out</Text></Pressable>
+      <Pressable onPress={() => { signOutOthers(); void supabase!.auth.signOut() }}><Text style={[s.foot, { color: theme.link, textDecorationLine: 'underline' }]}>Sign out</Text></Pressable>
     </View>
   )
 }

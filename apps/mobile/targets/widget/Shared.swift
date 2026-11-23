@@ -4,8 +4,9 @@
 //   widget.snapshot  every pad with its open top-level lines (the app writes it; the
 //                    widget edits it in place after a button, so it redraws at once)
 //   widget.actions   what happened outside the app since it was last in front: buttons
-//                    pressed on the widget, lines added through Siri (appended here; the
-//                    app applies them and clears the list)
+//                    pressed on the widget, lines added through Siri that Siri could not
+//                    send to the server itself (appended here; the app applies them and
+//                    clears the list)
 //   widget.open      a link for the app to follow when it next comes to the front, left
 //                    by the Add control ("add?pad=inbox"); the app clears it
 // The shapes are in targets/_shared/Models.swift. This file is compiled into the widget
@@ -62,8 +63,9 @@ enum Shared {
   // A new line for the Inbox, typed outside the app (Siri, Shortcuts). It gets its id
   // here, so the widget can show it at once and its buttons work on it before the app has
   // run. If there is no Inbox pad yet, the snapshot gets a stand-in for the one the app
-  // will make.
-  static func add(text: String) {
+  // will make. Returns the id.
+  @discardableResult
+  static func add(text: String) -> String {
     let id = UUID().uuidString.lowercased()
     let item = WidgetItem(id: id, text: String(text.prefix(140)), subs: 0)
     if var snap = snapshot() {
@@ -78,6 +80,25 @@ enum Shared {
       save(snap)
     }
     enqueue(QueuedAction(id: id, dir: "add", pad: inboxKey, text: text))
+    return id
+  }
+
+  // The Inbox pad's row id, when the app has one and has said so. Nil when the pad is
+  // still to be made (or is only the stand-in above): making it is the app's job.
+  static func inboxPad() -> String? {
+    snapshot()?.pads.first { $0.name.lowercased() == "inbox" && $0.id != mainPadId && $0.id != inboxKey }?.id
+  }
+
+  // A queued new line reached the server by itself (native/SiriSync.swift), so the app has
+  // nothing to add: it will get the line when it syncs. Take it out of the queue. If the
+  // app applied it meanwhile, it made the same row under the same id.
+  static func sent(id: String) {
+    guard let text = defaults?.string(forKey: actionsKey), let data = text.data(using: .utf8),
+      let queue = try? JSONDecoder().decode([QueuedAction].self, from: data) else { return }
+    let rest = queue.filter { !($0.dir == "add" && $0.id == id) }
+    if rest.count == queue.count { return }
+    guard let kept = try? JSONEncoder().encode(rest), let json = String(data: kept, encoding: .utf8) else { return }
+    defaults?.set(json, forKey: actionsKey)
   }
 
   // A new line typed on the watch, for the pad it was typed in, with the id the watch

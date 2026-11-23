@@ -8,13 +8,15 @@
 // Tapping the widget opens hissypad://pad?pad=… and its + opens hissypad://add?pad=…,
 // where pad=inbox means the pad named Inbox. The Add control (Lock Screen, Control Center)
 // opens the app and leaves the same link, without the scheme, under widget.open. A line added through
-// Siri arrives in the same queue as the button presses.
+// Siri goes to the server from Siri itself (native/SiriSync.swift) and comes back with the
+// next sync; one it could not send arrives in the same queue as the button presses.
 // The watch syncs by itself once it is signed in, and this is also where the phone signs
-// it in (signInWatch below): two more values in the same storage, both passed along by
-// WatchBridge.swift.
+// it in, and Siri (signInOthers below): four more values in the same storage.
 //   watch.state    the account the watch says it is signed in to (the bridge writes it)
 //   watch.handoff  a sign-in for the watch, or "signout" (written here; the bridge sends
 //                  it and takes it out)
+//   siri.state     the account Siri's sender is signed in to (SiriSync.swift writes it)
+//   siri.handoff   a sign-in for it, or "signout" (written here; SiriSync.swift takes it)
 // On a build from before the widget, the storage module is missing and its JS falls back
 // to no-ops, so all of this quietly does nothing.
 import { useEffect } from 'react'
@@ -33,6 +35,8 @@ const ACTIONS_KEY = 'widget.actions'
 const OPEN_KEY = 'widget.open'
 const WATCH_STATE_KEY = 'watch.state'
 const WATCH_HANDOFF_KEY = 'watch.handoff'
+const SIRI_STATE_KEY = 'siri.state'
+const SIRI_HANDOFF_KEY = 'siri.handoff'
 const POLL_MS = 4000
 
 const storage = new ExtensionStorage(APP_GROUP)
@@ -88,52 +92,70 @@ function followOpen() {
   handleWidgetUrl(`hissypad://${link}`)
 }
 
-// Sign the watch in to this phone's account when it is not: get a one-time token for a
-// session of its own (the watch-token Edge Function) and leave it for the bridge to send.
-// Called whenever the app comes to the front and every few seconds while it is there;
-// watchHandoffDue decides whether this is one of the times to act.
-let watchTries = 0
-let watchLastAt = 0
-let watchBusy = false
-async function signInWatch() {
-  const session = usePad.getState().session
-  if (!supabase || !session || watchBusy) return
-  let state: string | null = null
+// Sign the watch in to this phone's account when it is not, and Siri likewise: get a
+// one-time token for a session of its own (the watch-token Edge Function) and leave it for
+// the Swift side to take (the bridge sends the watch's on; native/SiriSync.swift trades
+// Siri's in itself). Called whenever the app comes to the front and every few seconds
+// while it is there; watchHandoffDue decides whether this is one of the times to act.
+interface Other { name: string; stateKey: string; handoffKey: string; tries: number; lastAt: number }
+const watch: Other = { name: 'watch', stateKey: WATCH_STATE_KEY, handoffKey: WATCH_HANDOFF_KEY, tries: 0, lastAt: 0 }
+const siri: Other = { name: 'siri', stateKey: SIRI_STATE_KEY, handoffKey: SIRI_HANDOFF_KEY, tries: 0, lastAt: 0 }
+let handingOver = false
+
+// One at a time, Siri first: the server keeps one such token per account, so a second
+// one asked for before the first is traded in would void it. Siri trades its own in at
+// once; the watch's has to travel.
+async function signInOthers() {
+  if (handingOver) return
+  handingOver = true
   try {
-    state = storage.get(WATCH_STATE_KEY)
-  } catch {
-    return
-  }
-  if (watchSignedIn(state, session.user.id)) watchTries = 0
-  if (!watchHandoffDue(state, session.user.id, watchTries, watchLastAt, Date.now())) return
-  watchBusy = true
-  watchTries++
-  watchLastAt = Date.now()
-  try {
-    const { data, error } = await supabase.functions.invoke<{ token_hash?: string }>('watch-token', { method: 'POST' })
-    const token = data?.token_hash
-    log('watch:handoff', { try: watchTries, ok: !!token, error: error?.message })
-    // Still the same account after the wait?
-    if (!token || usePad.getState().session?.user.id !== session.user.id) return
-    storage.set(WATCH_HANDOFF_KEY, JSON.stringify({
-      url: process.env.EXPO_PUBLIC_SUPABASE_URL, key: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY, token, user: session.user.id,
-    }))
-  } catch (e) {
-    log('watch:handoff', { try: watchTries, ok: false, error: (e as Error).message })
+    if (!(await signIn(siri))) await signIn(watch)
   } finally {
-    watchBusy = false
+    handingOver = false
   }
 }
 
-// Signing out on the phone signs the watch out too: it forgets the account and its lines.
-export function signOutWatch() {
-  if (Platform.OS !== 'ios') return
+// True when a token was handed over.
+async function signIn(to: Other): Promise<boolean> {
+  const session = usePad.getState().session
+  if (!supabase || !session) return false
+  let state: string | null = null
   try {
-    if (storage.get(WATCH_STATE_KEY)) storage.set(WATCH_HANDOFF_KEY, 'signout')
+    state = storage.get(to.stateKey)
   } catch {
-    // no shared storage on this build
+    return false
   }
-  watchTries = 0
+  if (watchSignedIn(state, session.user.id)) to.tries = 0
+  if (!watchHandoffDue(state, session.user.id, to.tries, to.lastAt, Date.now())) return false
+  to.tries++
+  to.lastAt = Date.now()
+  try {
+    const { data, error } = await supabase.functions.invoke<{ token_hash?: string }>('watch-token', { method: 'POST' })
+    const token = data?.token_hash
+    log(`${to.name}:handoff`, { try: to.tries, ok: !!token, error: error?.message })
+    // Still the same account after the wait?
+    if (!token || usePad.getState().session?.user.id !== session.user.id) return false
+    storage.set(to.handoffKey, JSON.stringify({
+      url: process.env.EXPO_PUBLIC_SUPABASE_URL, key: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY, token, user: session.user.id,
+    }))
+    return true
+  } catch (e) {
+    log(`${to.name}:handoff`, { try: to.tries, ok: false, error: (e as Error).message })
+    return false
+  }
+}
+
+// Signing out on the phone signs the watch and Siri out too: they forget the account.
+export function signOutOthers() {
+  if (Platform.OS !== 'ios') return
+  for (const to of [watch, siri]) {
+    try {
+      if (storage.get(to.stateKey)) storage.set(to.handoffKey, 'signout')
+    } catch {
+      // no shared storage on this build
+    }
+    to.tries = 0
+  }
 }
 
 // hissypad://add?pad=<key> and hissypad://pad?pad=<key>. Returns true when the URL was
@@ -171,7 +193,7 @@ export function useWidgetBridge(ready: boolean) {
     const arrive = () => {
       drain()
       followOpen()
-      void signInWatch()
+      void signInOthers()
       waits.push(setTimeout(followOpen, 300), setTimeout(followOpen, 1200))
     }
     void loadSortTargets().then(arrive)
@@ -188,7 +210,7 @@ export function useWidgetBridge(ready: boolean) {
       if (AppState.currentState !== 'active') return
       drain(false)
       followOpen()
-      void signInWatch()
+      void signInOthers()
     }, POLL_MS)
     return () => {
       clearInterval(poll)
