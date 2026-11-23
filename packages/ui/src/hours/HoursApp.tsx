@@ -12,8 +12,6 @@ import { LINE, SchemeContext, serif, SIZE, useTheme } from './theme';
 type Screen = 'day' | 'categories' | 'flags' | 'plans';
 
 type Props = {
-  // Leaves Hours for the pad.
-  onClose?: (() => void) | undefined;
   // The host's own Light / Dark choice; null or absent follows the device.
   scheme?: 'light' | 'dark' | null;
 };
@@ -21,7 +19,7 @@ type Props = {
 // The Hours mode, whole: one row per hour with a plan and what happened, the pad's lines
 // assigned to each hour, and the screens for the user's own lists. The web app and the
 // phone both mount this; it opens the hours' local rows on first use.
-export function HoursApp({ onClose, scheme = null }: Props) {
+export function HoursApp({ scheme = null }: Props) {
   const [stores, setStores] = useState<HoursStores | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>('day');
@@ -59,7 +57,6 @@ export function HoursApp({ onClose, scheme = null }: Props) {
             <RecurringScreen onBack={back} />
           ) : (
             <DayScreen
-              onClose={onClose}
               onEditCategories={() => setScreen('categories')}
               onEditFlags={() => setScreen('flags')}
               onEditPlans={() => setScreen('plans')}

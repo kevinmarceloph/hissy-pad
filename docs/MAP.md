@@ -80,7 +80,7 @@ Screens written once in React Native. The phone draws them natively; the web app
 | file | what is in it |
 |---|---|
 | `src/hours/HoursApp.tsx` | the Hours mode, whole: opens the stores, switches between the day and the three list screens |
-| `src/hours/DayScreen.tsx` | the day: header, the 24-cell strip, the hour rows, the footer (lists, settings: day start and chimes, the sync line) |
+| `src/hours/DayScreen.tsx` | the day: a one-line header (earlier, the day, the calendar, later, the menu), the 24-cell strip pinned under it, the hour rows (padded so the current hour opens at the top), and the panels over them: the calendar (`DayPicker`), the menu (the lists, Settings, the sync line) and Settings (day start, chimes) |
 | `src/hours/HourRow.tsx` | one hour: its row (box, words, the lines' count, flag marks) and its editor |
 | `src/hours/Items.tsx` | the pad's lines in an open hour: tick, take out, add |
 | `src/hours/SlotPicker.tsx` | the hour picker the pad's toolbar opens |

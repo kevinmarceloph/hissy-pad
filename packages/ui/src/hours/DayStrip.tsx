@@ -6,7 +6,7 @@ import { isLogged, planState, type Entry } from '@hissypad/core/hours';
 import type { Summary } from '@hissypad/core/hours';
 
 import { Mark, planOutline } from './Mark';
-import { serif, SMALL, useTheme } from './theme';
+import { serif, useTheme } from './theme';
 
 type Props = {
   day: DayKey;
@@ -18,24 +18,45 @@ type Props = {
   categories: Category[];
 };
 
-// The whole day at a glance: 24 cells, from the day's start hour around the clock. The outline of a cell is the
-// plan for that hour and the fill is where it went (see Mark). A bar under a cell marks
-// the hour in progress.
+const plural = (n: number) => (n === 1 ? 'hour' : 'hours');
+const hours = (n: number) => `${n}h`;
+
+// The day in words: how much of it is written down, how much of the plan held, and the
+// hours by category. Nothing on screen says this any more (2026-11-23, Kevin: the strip
+// alone, no text under it), so it is the strip's name for a screen reader.
+export function stripWords(summary: Summary): string {
+  const accounted = summary.elapsed - summary.blank;
+  const { due, kept } = summary.plan;
+  const count =
+    summary.elapsed === 0
+      ? summary.planned > 0
+        ? `${summary.planned} ${plural(summary.planned)} planned.`
+        : summary.logged > 0
+          ? `${summary.logged} ${plural(summary.logged)} logged ahead of time.`
+          : 'This day has not started.'
+      : summary.logged === 0
+        ? 'Nothing logged for this day yet.'
+        : `${accounted} of ${summary.elapsed} ${plural(summary.elapsed)} accounted for.`;
+  const parts = summary.byCategory.map(
+    ({ category, hours: n, planned }) =>
+      `${shortLabel(category.label)} ${n > 0 ? hours(n) : `${hours(planned)} planned`}${n > 0 && planned > 0 ? `, ${hours(planned)} planned` : ''}`,
+  );
+  if (summary.untagged > 0) parts.push(`Untagged ${hours(summary.untagged)}`);
+  if (summary.blank > 0) parts.push(`Blank ${hours(summary.blank)}`);
+  return [count, due > 0 ? `${kept} of ${due} planned ${plural(due)} went as planned.` : '', parts.length ? `${parts.join('; ')}.` : '']
+    .filter(Boolean)
+    .join(' ');
+}
+
+// The whole day at a glance: 24 cells, from the day's start hour around the clock. The
+// outline of a cell is the plan for that hour and the fill is where it went (see Mark). A
+// bar under a cell marks the hour in progress. Under it, only the four hour ticks.
 export function DayStrip({ day, start, now, byHour, summary, categories }: Props) {
   const theme = useTheme();
-  const hours = (n: number) => `${n}h`;
-  const { due, kept } = summary.plan;
 
   return (
     <View>
-      <View
-        style={styles.strip}
-        role="img"
-        aria-label={
-          `${summary.logged} of 24 hours logged, ${summary.blank} blank so far` +
-          (summary.planned > 0 ? `, ${summary.planned} planned` : '') +
-          (due > 0 ? `, ${kept} of ${due} as planned` : '')
-        }>
+      <View style={styles.strip} role="img" aria-label={stripWords(summary)}>
         {daySlots(day, start).map((slot) => {
           const { hour } = slot;
           const entry = byHour[hour];
@@ -63,40 +84,6 @@ export function DayStrip({ day, start, now, byHour, summary, categories }: Props
           </Text>
         ))}
       </View>
-
-      <View style={styles.legend}>
-        {summary.byCategory.map(({ category, hours: n, planned }) => (
-          <View key={category.id} style={styles.legendItem}>
-            <Mark
-              style={styles.swatch}
-              fill={n > 0 ? theme.palette[category.color] : null}
-              outline={theme.palette[category.color]}
-              kept
-            />
-            <Text style={[styles.legendText, { color: theme.inkSoft }]}>
-              {shortLabel(category.label)} {n > 0 ? hours(n) : `${hours(planned)} planned`}
-              {n > 0 && planned > 0 ? `, ${hours(planned)} planned` : ''}
-            </Text>
-          </View>
-        ))}
-        {summary.untagged > 0 && (
-          <View style={styles.legendItem}>
-            <Mark style={styles.swatch} fill={theme.ink} />
-            <Text style={[styles.legendText, { color: theme.inkSoft }]}>Untagged {hours(summary.untagged)}</Text>
-          </View>
-        )}
-        {summary.blank > 0 && (
-          <View style={styles.legendItem}>
-            <Mark style={styles.swatch} />
-            <Text style={[styles.legendText, { color: theme.inkSoft }]}>Blank {hours(summary.blank)}</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Always here, so the rows below do not jump when the first plan is written. */}
-      <Text style={[styles.key, { color: theme.inkSoft }]}>
-        Outline: the plan. Fill: what happened. An outline around a different fill: an hour that went elsewhere.
-      </Text>
     </View>
   );
 }
@@ -108,10 +95,4 @@ const styles = StyleSheet.create({
   now: { height: 3, borderRadius: 1.5 },
   ticks: { flexDirection: 'row', marginTop: 2 },
   tick: { flex: 1, fontFamily: serif, fontSize: 12, lineHeight: 16 },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 4, marginTop: 10, minHeight: 20 },
-  // A long name wraps inside its item instead of running off the screen.
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
-  legendText: { fontFamily: serif, fontSize: SMALL, lineHeight: 20, flexShrink: 1 },
-  swatch: { width: 12, height: 12 },
-  key: { fontFamily: serif, fontSize: SMALL, lineHeight: 20, marginTop: 6 },
 });
