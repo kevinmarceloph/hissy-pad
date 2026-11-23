@@ -12,10 +12,10 @@
 // from, and takes back the lines crossed out on the watch:
 //   phone -> watch   the snapshot, as the session's application context (the watch gets
 //                    the latest one whenever it can, and keeps it)
-//   watch -> phone   {id, dir: "done"}, sent at once when the phone is in reach, else
-//                    queued by the system until it is
-// A Done that arrives this way goes into the same queue as a widget button (Shared.done),
-// so the app applies it the next time it is in front.
+//   watch -> phone   {id, dir: "done"} or {id, dir: "add", pad, text}, sent at once when
+//                    the phone is in reach, else queued by the system until it is
+// What arrives this way goes into the same queue as a widget button (Shared.done,
+// Shared.add), so the app applies it the next time it is in front.
 //
 // Compiled into the app target by plugins/withNativeSources.js, which also starts it from
 // the AppDelegate.
@@ -113,9 +113,17 @@ final class WatchBridge: NSObject, WCSessionDelegate, @unchecked Sendable {
       push(force: true)
       return
     }
-    guard let id = message["id"] as? String, message["dir"] as? String == "done" else { return }
-    log.notice("done from the watch: \(id, privacy: .public)")
-    Shared.done(line: id)
+    guard let id = message["id"] as? String, let dir = message["dir"] as? String else { return }
+    if dir == "add" {
+      guard let pad = message["pad"] as? String, let text = message["text"] as? String else { return }
+      log.notice("a new line from the watch: \(id, privacy: .public)")
+      Shared.add(id: id, pad: pad, text: text)
+    } else if dir == "done" {
+      log.notice("done from the watch: \(id, privacy: .public)")
+      Shared.done(line: id)
+    } else {
+      return
+    }
     WidgetCenter.shared.reloadAllTimelines()
     push(force: true)
   }

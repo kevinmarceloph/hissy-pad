@@ -1,4 +1,4 @@
-// The Apple Watch app: look at pads, cross lines out. Signed in, it syncs with the server
+// The Apple Watch app: look at pads, cross lines out, add a line. Signed in, it syncs with the server
 // itself (PadSync.swift); the iPhone app (native/WatchBridge.swift) signs it in, and feeds
 // it a snapshot instead when there is no account.
 /** @type {import('@bacons/apple-targets/app.plugin').Config} */

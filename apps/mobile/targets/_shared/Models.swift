@@ -48,6 +48,15 @@ struct Snapshot: Codable {
     }
     return found
   }
+
+  // Show a line added outside the app at the top of its pad, before the app has made it.
+  // Nothing happens if no pad here has that id.
+  mutating func add(_ action: QueuedAction, max: Int? = nil) {
+    guard let text = action.text, let i = pads.firstIndex(where: { $0.id == action.pad }) else { return }
+    pads[i].items.insert(WidgetItem(id: action.id, text: String(text.prefix(140)), subs: 0), at: 0)
+    if let max { pads[i].items = Array(pads[i].items.prefix(max)) }
+    pads[i].count += 1
+  }
 }
 
 // Something done outside the app, waiting for the app to apply it.

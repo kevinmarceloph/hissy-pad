@@ -4,6 +4,8 @@
 //                  (widgetSnapshot): which lines are open, in which pad, in what order
 //   PadCopy.merge  packages/core/src/sync/engine.ts (pullNew): the newer updated_at wins
 //   PadCopy.tick   packages/core/src/clock.ts
+//   PadCopy.add    packages/state/src/widget.ts (cmdAddToPad): a new line at the top of a pad
+//   Rank.before    packages/core/src/rank.ts (between(null, b))
 // Change them together. Foundation only, so this file also compiles and runs on a Mac.
 import Foundation
 
@@ -86,10 +88,53 @@ struct DonePatch: Codable, Equatable {
   let at: Int64
 }
 
+// A line typed here that the server has not been told about yet, as it was when made.
+struct AddPatch: Codable, Equatable {
+  let id: String
+  let parent: String?
+  let rank: String
+  let text: String
+  let at: Int64
+}
+
+// Ranks are base-62 strings that sort as plain text (packages/core/src/rank.ts): a head
+// letter that says how many digits the whole part has, then those digits, then maybe a
+// fraction. The watch only ever needs one above the first line.
+enum Rank {
+  private static let digits = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".utf8)
+
+  private static func headDigits(_ c: UInt8) -> Int? {
+    if c >= 97 && c <= 122 { return Int(c) - 97 + 1 } // a..z
+    if c >= 65 && c <= 90 { return 90 - Int(c) + 1 }  // A..Z
+    return nil
+  }
+
+  // A rank that sorts before `first`: its whole part, less one. "a0" when there is no
+  // first. Nil for a rank that cannot be read, or the very bottom of the range.
+  static func before(_ first: String?) -> String? {
+    guard let first else { return "a0" }
+    let bytes = Array(first.utf8)
+    guard let head = bytes.first, let n = headDigits(head), bytes.count >= 1 + n else { return nil }
+    var whole = Array(bytes[0...n])
+    for i in stride(from: n, to: 0, by: -1) {
+      guard let d = digits.firstIndex(of: whole[i]) else { return nil }
+      if d > 0 {
+        whole[i] = digits[d - 1]
+        return String(decoding: whole, as: UTF8.self)
+      }
+      whole[i] = digits[digits.count - 1]
+    }
+    if head == 65 { return nil }
+    let prev: UInt8 = head == 97 ? 90 : head - 1
+    return String(decoding: [prev] + Array(repeating: digits[digits.count - 1], count: headDigits(prev) ?? 0), as: UTF8.self)
+  }
+}
+
 struct PadCopy: Codable {
   let user: String
   var rows: [String: Row] = [:]
   var pending: [DonePatch] = []
+  var added: [AddPatch]? // optional: a file written before the watch could add has none
   var cursor: String?    // the newest synced_at fetched, as the server wrote it
   var clock: Int64 = 0   // the latest timestamp made or seen here
   var syncedAt: Double?  // when a sync last went all the way through
@@ -113,6 +158,30 @@ struct PadCopy: Codable {
     pending.append(DonePatch(id: id, at: at))
     return true
   }
+
+  // A new line at the top of a pad (nil for Main). Returns its id, or nil for blank text.
+  mutating func add(_ text: String, pad: String?, now: Int64 = Stamp.now()) -> String? {
+    let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    if clean.isEmpty { return nil }
+    let live = rows.values.filter { !$0.deleted }
+    let ids = Set(live.map(\.id))
+    // A pad that is gone meanwhile: the line goes to Main, as cmdAddToPad does.
+    let parent = pad.flatMap { ids.contains($0) ? $0 : nil }
+    // Everything at that level, crossed out or not; a row whose parent is gone sits at the root.
+    let first = live
+      .filter { r in parent == nil ? (r.parent.map { !ids.contains($0) } ?? true) : r.parent == parent }
+      .map(\.rank)
+      .min { $0.utf8.lexicographicallyPrecedes($1.utf8) }
+    guard let rank = Rank.before(first) else { return nil }
+    let at = tick(now: now)
+    let id = UUID().uuidString.lowercased()
+    rows[id] = Row(id: id, parent: parent, rank: rank, text: clean, updated: at)
+    added = (added ?? []) + [AddPatch(id: id, parent: parent, rank: rank, text: clean, at: at)]
+    return id
+  }
+
+  // How many changes made here the server has not been told about.
+  var unsent: Int { pending.count + (added?.count ?? 0) }
 
   // Take in rows fetched from the server, oldest synced_at first. A row wins when it is
   // newer than the copy here. A line crossed out here and not sent yet stays crossed out

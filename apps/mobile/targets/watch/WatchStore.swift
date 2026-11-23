@@ -3,12 +3,12 @@
 //   its own copy   Once the phone has handed over a sign-in (it does, by itself, the first
 //                  time the phone app is open and signed in), the watch keeps every row
 //                  and syncs with the server on its own (PadSync), on Wi-Fi or cellular,
-//                  with the phone nowhere near. A line crossed out with no network at all
-//                  is held here and sent when there is one.
+//                  with the phone nowhere near. A line typed or crossed out with no
+//                  network at all is held here and sent when there is one.
 //   the snapshot   Until then (the phone app is not signed in, so there is no server to
 //                  talk to), the last snapshot the iPhone sent, as before: a Done goes
 //                  back to the phone, at once if it is in reach and otherwise as a
-//                  message the system holds until it is.
+//                  message the system holds until it is. So does a new line.
 //
 // The copy is a file, the session is in the keychain.
 import Foundation
@@ -40,6 +40,10 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
   // Lines crossed out here that the phone has not caught up on. An older snapshot can
   // still arrive after the tap; these are kept out of it so the line does not come back.
   private var pending: Set<String>
+  // Lines typed here that no snapshot from the phone has listed yet, newest last. They
+  // are put back into an older snapshot that arrives after the typing.
+  private let addedKey = "pendingAdd"
+  private var added: [QueuedAction] = []
 
   override private init() {
     let session = Keychain.read()
@@ -50,6 +54,7 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
     if let json = store.string(forKey: snapshotKey) { snapshot = Snapshot.decode(json) }
     let at = store.double(forKey: atKey)
     if at > 0 { snapshotAt = Date(timeIntervalSince1970: at) }
+    if let data = store.data(forKey: addedKey) { added = (try? JSONDecoder().decode([QueuedAction].self, from: data)) ?? [] }
     sync.changed = { [weak self] in self?.absorb() }
     redraw()
     if WCSession.isSupported() {
@@ -67,10 +72,34 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
     }
     pending.insert(item.id)
     store.set(Array(pending), forKey: pendingKey)
+    keep(added.filter { $0.id != item.id })
     snapshot?.remove(line: item.id)
     if let json = snapshot?.encoded() { store.set(json, forKey: snapshotKey) }
     redraw()
     send(["id": item.id, "dir": "done"])
+  }
+
+  // A new line at the top of a pad. False for blank text.
+  func add(_ text: String, to padId: String) -> Bool {
+    if sync.copy != nil {
+      guard sync.add(text, pad: padId == mainPadId ? nil : padId) else { return false }
+      kick()
+      return true
+    }
+    let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !clean.isEmpty, snapshot != nil else { return false }
+    let action = QueuedAction(id: UUID().uuidString.lowercased(), dir: "add", pad: padId, text: clean)
+    keep(added + [action])
+    snapshot?.add(action)
+    if let json = snapshot?.encoded() { store.set(json, forKey: snapshotKey) }
+    redraw()
+    send(["id": action.id, "dir": "add", "pad": padId, "text": clean])
+    return true
+  }
+
+  private func keep(_ actions: [QueuedAction]) {
+    added = actions
+    if let data = try? JSONEncoder().encode(actions) { store.set(data, forKey: addedKey) }
   }
 
   // MARK: its own copy
@@ -92,12 +121,12 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
   }
 
   // The wrist went down. Ask the system for a little time later: sooner when something
-  // crossed out here is still waiting to be sent.
+  // typed or crossed out here is still waiting to be sent.
   func rest() {
     timer?.invalidate()
     timer = nil
     guard sync.session != nil else { return }
-    let wait: TimeInterval = sync.copy?.pending.isEmpty == false ? 5 * 60 : 60 * 60
+    let wait: TimeInterval = (sync.copy?.unsent ?? 0) > 0 ? 5 * 60 : 60 * 60
     WKApplication.shared().scheduleBackgroundRefresh(withPreferredDate: Date(timeIntervalSinceNow: wait), userInfo: WatchStore.refreshTask as NSString) { _ in }
   }
 
@@ -125,8 +154,8 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
       let synced = copy.syncedAt.map { "Synced \(Date(timeIntervalSince1970: $0).formatted(date: .omitted, time: .shortened))" } ?? "Not synced yet"
       if sync.session == nil {
         footer = "Open HissyPad on your iPhone to sign in again"
-      } else if !copy.pending.isEmpty {
-        footer = "\(copy.pending.count) to send. \(synced)"
+      } else if copy.unsent > 0 {
+        footer = "\(copy.unsent) to send. \(synced)"
       } else if sync.problem != nil {
         footer = "Offline. \(synced)"
       } else {
@@ -178,6 +207,9 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
     guard var incoming = Snapshot.decode(json) else { return }
     // A pending line the phone no longer lists has been dealt with; the rest stay hidden.
     let listed = Set(incoming.pads.flatMap { $0.items.map(\.id) })
+    // A line typed here that the phone now lists has arrived; the rest are put back.
+    keep(added.filter { !listed.contains($0.id) })
+    for action in added { incoming.add(action) }
     pending = pending.intersection(listed)
     for id in pending { incoming.remove(line: id) }
     store.set(Array(pending), forKey: pendingKey)

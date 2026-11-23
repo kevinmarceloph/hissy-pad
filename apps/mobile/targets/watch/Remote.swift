@@ -114,6 +114,15 @@ struct Remote {
     return rows
   }
 
+  // A line typed here. Sent as it was when made; if it was crossed out since, that goes
+  // after it as a Done of its own. A second send of the same line (the answer to the
+  // first was lost) is ignored by the server instead of refused.
+  func add(_ patch: AddPatch, access: String) async throws {
+    var body: [String: Any] = ["id": patch.id, "rank": patch.rank, "text": patch.text, "updated_at": Stamp.iso(patch.at)]
+    if let parent = patch.parent { body["parent_id"] = parent }
+    _ = try await send("POST", "/rest/v1/nodes?on_conflict=id", access: access, body: body, prefer: "resolution=ignore-duplicates,return=minimal")
+  }
+
   // Cross a line out on the server. Only these three columns are written, so whatever
   // else changed on the row meanwhile is kept, and the server still drops the write if
   // the row has a newer updated_at (the last-write-wins trigger).

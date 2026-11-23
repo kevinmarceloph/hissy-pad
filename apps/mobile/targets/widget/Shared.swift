@@ -80,6 +80,17 @@ enum Shared {
     enqueue(QueuedAction(id: id, dir: "add", pad: inboxKey, text: text))
   }
 
+  // A new line typed on the watch, for the pad it was typed in, with the id the watch
+  // gave it. The app adds it for real when it next opens.
+  static func add(id: String, pad: String, text: String) {
+    let action = QueuedAction(id: id, dir: "add", pad: pad, text: text)
+    if var snap = snapshot() {
+      snap.add(action, max: maxItems)
+      save(snap)
+    }
+    enqueue(action)
+  }
+
   // A line crossed out on the watch: it leaves the lists (they hold open lines only) and
   // the app crosses it out for real, where it is, when it next opens.
   static func done(line: String) {

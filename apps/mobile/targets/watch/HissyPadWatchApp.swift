@@ -74,6 +74,8 @@ struct PadListView: View {
 }
 
 // One pad: its open top-level lines. The circle crosses a line out; so does a swipe.
+// "New line" opens the watch's own text entry (dictation, scribble or its keyboard) and
+// puts what was said at the top of the pad.
 struct PadView: View {
   @EnvironmentObject private var store: WatchStore
   let padId: String
@@ -86,6 +88,16 @@ struct PadView: View {
   var body: some View {
     let pad = store.pad(padId)
     List {
+      if pad != nil {
+        TextFieldLink(prompt: Text("New line")) {
+          Label("New line", systemImage: "plus")
+            .font(.system(.body, design: serif))
+            .foregroundStyle(Color.accentColor)
+        } onSubmit: { text in
+          let added = withAnimation { store.add(text, to: padId) }
+          if added { WKInterfaceDevice.current().play(.click) }
+        }
+      }
       if let pad, !pad.items.isEmpty {
         ForEach(pad.items) { item in
           HStack(alignment: .firstTextBaseline, spacing: 8) {

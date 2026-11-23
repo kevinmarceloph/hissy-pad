@@ -1,5 +1,5 @@
 // The watch syncing by itself: sign in with what the phone handed over, send the lines
-// crossed out here, fetch what changed. One round at a time. It holds no storage and no
+// typed and crossed out here, fetch what changed. One round at a time. It holds no storage and no
 // UI: `changed` is called whenever something here is worth saving or redrawing
 // (WatchStore does both). Foundation only, so it also runs on a Mac.
 import Foundation
@@ -43,6 +43,12 @@ final class PadSync {
 
   func done(_ id: String) -> Bool {
     guard copy?.done(id) == true else { return false }
+    changed()
+    return true
+  }
+
+  func add(_ text: String, pad: String?) -> Bool {
+    guard copy?.add(text, pad: pad) != nil else { return false }
     changed()
     return true
   }
@@ -105,6 +111,18 @@ final class PadSync {
       if s.expires - Date().timeIntervalSince1970 < 60 { s = try await refresh(s) }
       let remote = Remote(url: s.url, key: s.key)
       let mine = { self.copy?.user == s.user && self.session?.user == s.user }
+
+      // New lines first: a line typed and then crossed out here needs to exist before its Done.
+      for patch in copy?.added ?? [] {
+        do {
+          try await remote.add(patch, access: s.access)
+        } catch Remote.Failure.refused {
+          // The server will never take this one: let it go instead of blocking the rest.
+        }
+        guard mine() else { return }
+        copy?.added?.removeAll { $0 == patch }
+        changed()
+      }
 
       for patch in copy?.pending ?? [] {
         do {
