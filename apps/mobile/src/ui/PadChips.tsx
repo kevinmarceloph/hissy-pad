@@ -93,7 +93,7 @@ export function PadChips({ theme }: { theme: Theme }) {
           </View>
         )
       })}
-      <Pressable accessibilityRole="button" accessibilityLabel="New pad" onPress={() => ask('New pad', 'A name for it', '', (n) => cmdNewPad(n))} style={s.chip}>
+      <Pressable accessibilityRole="button" accessibilityLabel="New pad" onPress={() => ask('New pad', 'A name for it', '', (n) => cmdNewPad(n))} style={[s.chip, { borderBottomColor: 'transparent' }]}>
         <Text style={[s.chipText, { color: theme.inkMute, fontSize: 19 }]}>+</Text>
       </Pressable>
     </ScrollView>

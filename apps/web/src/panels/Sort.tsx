@@ -217,7 +217,6 @@ export function Sort({ onClose }: { onClose: () => void }) {
           <h2 id="sort-title">Sort {padName(all, padId)}</h2>
           <p>{id ? `${remaining} to go. Swipe the card, or use the arrow keys.` : 'One line at a time: later, today, already done, or delete.'}</p>
         </div>
-        <button type="button" className="primary" onClick={onClose}>Done</button>
       </header>
 
       <div className="sort-stage">

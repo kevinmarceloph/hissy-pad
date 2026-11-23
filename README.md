@@ -83,13 +83,13 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 
 | top bar | |
 |---|---|
-| Search (Cmd+K) | find a line in any pad: every word of what you type, in any order, case and accents ignored. Results are grouped by pad, the open pad first; Up / Down pick one, Enter or a click goes to it (its pad opens, folds over it open, the line is selected). Pad names are found too |
-| Delete done | remove every crossed-out line (undo brings them back) |
-| Done | "Recently done": crossed-out lines, newest first, with an Undone button each |
-| Trash | lines deleted in the last 30 days, grouped by the delete that removed them, with a Restore button each |
-| Fresh start… | two panes: send across what stays, and everything left behind moves to a new pad |
-| Sort… | the pad's top-level lines one card at a time: left for Later, right for Today, up for Today and crossed out, down to delete (it goes to the Trash). Swipe, arrow keys or buttons; Skip (S) leaves a line where it is. The card's text and sub items can be edited first, and each side can point at any pad, Main or a new one |
-| Hours… | the day, one row per hour: what the hour was for and what happened (words and a category each), your own flags, recurring plans, a day that can start at any hour, chimes. It is Oras-oras rebuilt inside HissyPad. Lines of the pad can be put in an hour (select them, then Hour… in the toolbar, or type a line into an open hour); each hour shows how many of its lines are done out of all, and a line shows its hour as a small chip |
+| Pad, Hours, Sort (three icons in one box) | the mode switcher. The open mode is the raised cell with the accent line under it. The same switcher is on the phone |
+| Pad | the outline |
+| Hours | the day, one row per hour: what the hour was for and what happened (words and a category each), your own flags, recurring plans, a day that can start at any hour, chimes. It is Oras-oras rebuilt inside HissyPad. Lines of the pad can be put in an hour (select them, then Hour… in the toolbar, or type a line into an open hour); each hour shows how many of its lines are done out of all, and a line shows its hour as a small chip |
+| Sort | the open pad's top-level lines one card at a time: left for Later, right for Today, up for Today and crossed out, down to delete (it goes to the Trash). Swipe, arrow keys or buttons; Skip (S) leaves a line where it is. The card's text and sub items can be edited first, and each side can point at any pad, Main or a new one. The pad tabs stay above the card: pick another pad to sort it next |
+| the magnifier (Cmd+K) | Search: find a line in any pad: every word of what you type, in any order, case and accents ignored. Results are grouped by pad, the open pad first; Up / Down pick one, Enter or a click goes to it (the app comes back to the pad, its pad opens, folds over it open, the line is selected). Pad names are found too |
+| the three lines | a menu: Done ("Recently done": crossed-out lines, newest first, with an Undone button each), Trash (lines deleted in the last 30 days, grouped by the delete that removed them, with a Restore button each), Log (with `?debug=1`), and on the web Fresh start… (two panes: send across what stays, and everything left behind moves to a new pad) and the theme |
+| Clear 3 completed | under the pad tabs, only while the open pad has crossed-out lines: removes them all (undo brings them back) |
 
 | toolbar (a line being edited, or lines selected) | |
 |---|---|
@@ -109,13 +109,13 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 | + | a new pad |
 | click the open tab | rename it, move it left or right, fold it into another pad (the opposite of Make pad: it becomes a line there, its lines under it), or delete it. Main stays first |
 
-Cmd+S syncs right now (and never opens the browser's save dialog); on a phone, pull down at the top of the page to do the same, in the web app and the Expo app alike. Drag a bullet to move a line (press and hold on a phone); move right to nest under the line above, left to climb out. If the dragged line is part of a selection, the whole selection moves. Cmd+Z / Shift+Cmd+Z undo and redo anywhere; on the phone, shake to undo. Tap a bullet to select it; once something is selected, tapping other bullets toggles them (no modifier, so it works on a phone). Shift+click selects a range. Blank lines show no bullet, done lines show a × like a bullet journal, and "Delete done" removes every crossed-out line (undo brings them back).
+Cmd+S syncs right now (and never opens the browser's save dialog); on a phone, pull down at the top of the page to do the same, in the web app and the Expo app alike. Drag a bullet to move a line (press and hold on a phone); move right to nest under the line above, left to climb out. If the dragged line is part of a selection, the whole selection moves. Cmd+Z / Shift+Cmd+Z undo and redo anywhere; on the phone, shake to undo. Tap a bullet to select it; once something is selected, tapping other bullets toggles them (no modifier, so it works on a phone). Shift+click selects a range. Blank lines show no bullet, done lines show a × like a bullet journal, and "Clear 3 completed" under the pad tabs removes every crossed-out line (undo brings them back).
 
 Deleting is soft everywhere: a deleted line is a tombstone (`deleted_at`) that keeps syncing, so the Trash panel can list it for 30 days and put it back where it was, children included, on any device. Restoring a child whose parent is still deleted lands it at the top level. Crossing a line out stamps `done_at`, which is what the Done panel sorts by (lines crossed out before that column existed sort by their last edit). Nothing is purged from the server yet.
 
 ## Debugging
 
-Open the app with `?debug=1` (sticks until `?debug=0`). A Log button appears in the top bar with every op (label, before/after of each touched row, undo depth), undo and redo, selection and editing changes, drag begin/target/drop, and sync status. `window.hissypad.log()` returns the same text. Undo is per op: it restores only the rows that op touched, stamped fresh so the undo syncs, and never reverts rows that arrived from another device in between.
+Open the app with `?debug=1` (sticks until `?debug=0`). Log appears in the top bar's menu with every op (label, before/after of each touched row, undo depth), undo and redo, selection and editing changes, drag begin/target/drop, and sync status. `window.hissypad.log()` returns the same text. Undo is per op: it restores only the rows that op touched, stamped fresh so the undo syncs, and never reverts rows that arrived from another device in between.
 
 ## Deploy
 

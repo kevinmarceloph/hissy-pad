@@ -4,7 +4,8 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import { cmdOpenHit, search, searchCount, usePad } from '@hissypad/state'
 
-export function SearchPanel({ dialog }: { dialog: RefObject<HTMLDialogElement | null> }) {
+// `onOpen` runs when a line found is gone to: the app comes back to the pad from Hours or Sort.
+export function SearchPanel({ dialog, onOpen }: { dialog: RefObject<HTMLDialogElement | null>; onOpen?: () => void }) {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
   const [query, setQuery] = useState('')
@@ -23,6 +24,7 @@ export function SearchPanel({ dialog }: { dialog: RefObject<HTMLDialogElement | 
     if (!id) return
     dialog.current?.close()
     cmdOpenHit(id)
+    onOpen?.()
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {

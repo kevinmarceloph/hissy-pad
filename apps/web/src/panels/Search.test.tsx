@@ -77,7 +77,7 @@ describe('search', () => {
     expect(field()).toHaveValue('')
   })
 
-  it('says so when nothing is found, and Cmd+K does nothing from Sort', async () => {
+  it('says so when nothing is found, and Cmd+K opens it from Sort too', async () => {
     const user = userEvent.setup()
     await mount()
     await user.click(screen.getByRole('button', { name: 'Search' }))
@@ -86,9 +86,8 @@ describe('search', () => {
     expect(screen.getByText('Nothing found.')).toBeInTheDocument()
     await user.keyboard('{Enter}')
     panel().close()
-    await user.click(screen.getByRole('button', { name: 'Sort…' }))
+    await user.click(screen.getByRole('button', { name: 'Sort' }))
     fireEvent.keyDown(document.body, { key: 'k', ctrlKey: true })
-    expect(panel()).not.toHaveAttribute('open')
-    expect(screen.getByRole('button', { name: 'Search' })).toBeDisabled()
+    expect(panel()).toHaveAttribute('open')
   })
 })

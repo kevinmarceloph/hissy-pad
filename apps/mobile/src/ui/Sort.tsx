@@ -1,11 +1,10 @@
-// Sort on the phone: the pad's top-level lines one card at a time, full screen. Swipe the
+// Sort on the phone: the pad's top-level lines one card at a time, under the top bar. Swipe the
 // card left for Later, right for Today, up for Today and crossed out; the buttons do the
 // same. The card's text and sub items are live fields. Same queue, targets and commands as
 // the web (state/sort.ts); only the gesture is drawn here, with PanResponder and Animated
 // so it ships as a JS-only update.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Animated, Dimensions, Keyboard, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Alert, Animated, Dimensions, Keyboard, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, flatten } from '@hissypad/core'
 import {
@@ -16,8 +15,9 @@ import { INDENT, serif, type Theme } from '../theme'
 
 const SLOP = 10 // px before a touch on the card becomes a drag
 
-export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Theme }) {
-  const insets = useSafeAreaInsets()
+// Drawn under the app's top bar and the pad chips: the chips pick which pad is sorted, and
+// the mode switcher is the way out.
+export function SortView({ theme }: { theme: Theme }) {
   const rows = usePad((s) => s.rows)
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
@@ -132,16 +132,12 @@ export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Them
   )
 
   return (
-    <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-      <Pressable style={[s.root, { backgroundColor: theme.paper, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 12 }]} onPress={Keyboard.dismiss} accessible={false}>
+      <Pressable style={[s.root, { backgroundColor: theme.paper }]} onPress={Keyboard.dismiss} accessible={false}>
         <View style={s.head}>
           <View style={{ flex: 1 }}>
             <Text style={[s.title, { color: theme.ink }]} numberOfLines={1}>Sort {padName(all, padId)}</Text>
             <Text style={[s.lede, { color: theme.inkSoft }]}>{id ? `${queue.length - at} to go. Swipe the card.` : 'One line at a time.'}</Text>
           </View>
-          <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Done sorting" style={[s.doneBtn, { backgroundColor: theme.ink }]}>
-            <Text style={[s.doneText, { color: theme.paper }]}>Done</Text>
-          </Pressable>
         </View>
 
         <View style={s.stage}>
@@ -237,17 +233,14 @@ export function SortSheet({ onClose, theme }: { onClose: () => void; theme: Them
           </Pressable>
         </View>
       </Pressable>
-    </Modal>
   )
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 16 },
+  root: { flex: 1, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12 },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
   title: { fontFamily: serif, fontSize: 21 },
   lede: { fontFamily: serif, fontSize: 15, marginTop: 2 },
-  doneBtn: { minHeight: 40, paddingHorizontal: 16, borderRadius: 4, justifyContent: 'center' },
-  doneText: { fontFamily: serif, fontSize: 16 },
   stage: { flex: 1 },
   card: {
     paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth,

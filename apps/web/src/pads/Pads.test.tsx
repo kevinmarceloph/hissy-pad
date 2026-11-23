@@ -84,7 +84,8 @@ describe('pads', () => {
   it('Fresh start keeps what was sent right and archives the rest into a dated pad', async () => {
     const user = userEvent.setup()
     await mount('a\nb\n  b1\nc')
-    await user.click(screen.getByRole('button', { name: 'Fresh start…' }))
+    await user.click(screen.getByRole('button', { name: 'More' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Fresh start…' }))
     expect(screen.queryByRole('tree')).not.toBeInTheDocument()
     const leaving = screen.getByRole('listbox', { name: /move to the new pad/ })
     expect(within(leaving).getAllByRole('option')).toHaveLength(4)
@@ -118,7 +119,8 @@ describe('pads', () => {
   it('Escape leaves Fresh start without changing anything', async () => {
     const user = userEvent.setup()
     await mount('a\nb')
-    await user.click(screen.getByRole('button', { name: 'Fresh start…' }))
+    await user.click(screen.getByRole('button', { name: 'More' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Fresh start…' }))
     await user.click(screen.getByRole('option', { name: 'a' }))
     await user.click(screen.getByRole('button', { name: 'Keep the selected lines' }))
     await user.keyboard('{Escape}')

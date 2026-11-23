@@ -59,7 +59,7 @@ test('swipe cards left, right and up; edit one first', async ({ page }, info) =>
   const touch = info.project.name === 'phone'
   const shot = async (name: string) => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${info.project.name}-${name}.png` }) }
   await typeOutline(page, ['call the dentist', 'plan the trip', '\tbook flights', 'water the plants', 'read chapter 13'])
-  await page.getByRole('button', { name: 'Sort…' }).click()
+  await page.getByRole('button', { name: 'Sort', exact: true }).click()
   const text = page.getByRole('textbox', { name: 'Line text' })
   await expect(text).toHaveValue('call the dentist')
   await shot('1-card')
@@ -87,7 +87,7 @@ test('swipe cards left, right and up; edit one first', async ({ page }, info) =>
   await page.getByRole('button', { name: /^Skip/ }).click()
   await expect(page.getByText('All sorted.')).toBeVisible()
   await shot('5-all-sorted')
-  await page.getByRole('button', { name: 'Done', exact: true }).click()
+  await page.getByRole('button', { name: 'Pad', exact: true }).click()
 
   expect(await tabs(page)).toEqual(['Main', 'Later', 'Today'])
   expect(await padLines(page, 'Later')).toBe('call the dentist')

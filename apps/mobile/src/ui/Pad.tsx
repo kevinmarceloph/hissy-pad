@@ -2,7 +2,7 @@
 // via a long press on a bullet. Drop resolution is core's resolveDrop over the rows'
 // measured layouts; this file only measures and draws.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react'
-import { Keyboard, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { Alert, Keyboard, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
@@ -14,12 +14,13 @@ import { Toolbar } from './Toolbar'
 import { FloatingButtons } from './FloatingButtons'
 import { Account } from './Account'
 import { DoneSheet, TrashSheet } from './Lists'
-import { SortSheet } from './Sort'
+import { SortView } from './Sort'
 import { HoursApp, SlotPicker } from '@hissypad/ui'
 import { cmdApplySlot, setSlotPickerOpener, targetSlot } from '@hissypad/state/hours'
 import { targets } from '@hissypad/state'
 import { SearchSheet } from './Search'
 import { PadChips } from './PadChips'
+import { MenuIcon, ModeBar, SearchIcon, type Mode } from './TopIcons'
 
 interface Drag {
   ids: string[]
@@ -65,6 +66,7 @@ export function Pad() {
   const selection = usePad((s) => s.selection)
   const load = usePad((s) => s.load)
   const session = usePad((s) => s.session)
+  const padId = usePad((s) => s.padId)
   const [refreshing, setRefreshing] = useState(false)
   const [drag, setDrag] = useState<Drag | null>(null)
   const dragRef = useRef<Drag | null>(null)
@@ -75,7 +77,10 @@ export function Pad() {
   const container = useRef<ComponentRef<typeof View>>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [logText, setLogText] = useState<string | null>(null)
-  const [sheet, setSheet] = useState<'trash' | 'done' | 'sort' | 'search' | 'hours' | null>(null)
+  // Pad, Hours or Sort: the switcher in the top bar. The pad stays mounted under the other
+  // two, so it is where it was left on the way back.
+  const [mode, setMode] = useState<Mode>('pad')
+  const [sheet, setSheet] = useState<'trash' | 'done' | 'search' | null>(null)
   // The hour picker the toolbar's "Hour…" (behind More) opens.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
   useEffect(() => {
@@ -272,24 +277,43 @@ export function Pad() {
     setTimeout(() => setToast(null), 2500)
   }
 
+  function switchMode(next: Mode) {
+    if (next === mode) return
+    stopEditing()
+    Keyboard.dismiss()
+    setMode(next)
+  }
+
+  // The hamburger: the lists that are looked at now and then.
+  function openMenu() {
+    stopEditing()
+    Alert.alert('HissyPad', undefined, [
+      { text: 'Done', onPress: () => setSheet('done') },
+      { text: 'Trash', onPress: () => setSheet('trash') },
+      ...(logEnabled() ? [{ text: 'Log', onPress: () => setLogText(dumpLog()) }] : []),
+      { text: 'Cancel', style: 'cancel' as const },
+    ])
+  }
+
   const doneCount = Object.values(rows).filter((r) => r.deletedAt === null && r.done).length
   const lone = visible.length === 1 && rows[visible[0]!.id]!.text === ''
 
   return (
-    <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: kb > 0 ? kb : insets.bottom }]}>
+    <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: mode === 'pad' && kb > 0 ? kb : insets.bottom }]}>
       <View style={s.top}>
         <Text style={[s.title, { color: theme.inkSoft }]}>HissyPad</Text>
-        <Pressable onPress={() => { stopEditing(); setSheet('search') }} style={s.topBtn} accessibilityLabel="Search every pad"><Text style={[s.topText, { color: theme.inkSoft }]}>Search</Text></Pressable>
-        <Pressable onPress={deleteDone} disabled={doneCount === 0} style={s.topBtn}><Text style={[s.topText, { color: doneCount ? theme.inkSoft : theme.inkMute }]}>Delete done</Text></Pressable>
-        <Pressable onPress={() => { stopEditing(); setSheet('sort') }} style={s.topBtn} accessibilityLabel="Sort this pad"><Text style={[s.topText, { color: theme.inkSoft }]}>Sort</Text></Pressable>
-        <Pressable onPress={() => { stopEditing(); setSheet('hours') }} style={s.topBtn} accessibilityLabel="Hours: the day, one row per hour"><Text style={[s.topText, { color: theme.inkSoft }]}>Hours</Text></Pressable>
-        <Pressable onPress={() => setSheet('done')} style={s.topBtn} accessibilityLabel="Recently done"><Text style={[s.topText, { color: theme.inkSoft }]}>Done</Text></Pressable>
-        <Pressable onPress={() => setSheet('trash')} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Trash</Text></Pressable>
-        {logEnabled() && (
-          <Pressable onPress={() => setLogText(dumpLog())} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Log</Text></Pressable>
-        )}
+        <ModeBar mode={mode} onMode={switchMode} theme={theme} />
+        <View style={s.grow} />
+        <Pressable onPress={() => { stopEditing(); setSheet('search') }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Search every pad"><SearchIcon color={theme.inkSoft} /></Pressable>
+        <Pressable onPress={openMenu} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="More: Done and Trash"><MenuIcon color={theme.inkSoft} /></Pressable>
       </View>
-      <PadChips theme={theme} />
+      {/* Sort sits above the pads: the chips pick which pad's lines come next. */}
+      {mode !== 'hours' && <PadChips theme={theme} />}
+      {mode === 'pad' && doneCount > 0 && (
+        <Pressable onPress={deleteDone} style={s.clear} accessibilityRole="button" accessibilityLabel={`Clear ${doneCount} completed`} accessibilityHint="Deletes every crossed-out line in this pad. Shake to undo.">
+          <Text style={[s.clearText, { color: theme.inkMute }]}>Clear {doneCount} completed</Text>
+        </Pressable>
+      )}
       <Modal visible={logText !== null} animationType="slide" onRequestClose={() => setLogText(null)}>
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 48 }}>
           <View style={[s.top, { gap: 16 }]}>
@@ -303,13 +327,6 @@ export function Pad() {
         </View>
       </Modal>
       <TrashSheet visible={sheet === 'trash'} onClose={() => setSheet(null)} theme={theme} />
-      {sheet === 'sort' && <SortSheet onClose={() => setSheet(null)} theme={theme} />}
-      {/* Hours: the shared screens (packages/ui), over the pad. */}
-      <Modal visible={sheet === 'hours'} animationType="slide" onRequestClose={() => setSheet(null)}>
-        <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: insets.top, paddingBottom: insets.bottom }}>
-          {sheet === 'hours' && <HoursApp onClose={() => setSheet(null)} />}
-        </View>
-      </Modal>
       <Modal visible={picking !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPicking(null)}>
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
           {picking && (
@@ -327,14 +344,17 @@ export function Pad() {
           )}
         </View>
       </Modal>
-      <SearchSheet visible={sheet === 'search'} onClose={() => setSheet(null)} theme={theme} />
+      <SearchSheet visible={sheet === 'search'} onClose={() => setSheet(null)} onOpen={() => setMode('pad')} theme={theme} />
       <DoneSheet visible={sheet === 'done'} onClose={() => setSheet(null)} theme={theme} />
       {toast && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
+      {/* Hours: the shared screens (packages/ui). Sort starts over when the pad changes. */}
+      {mode === 'hours' && <View style={s.scroll}><HoursApp /></View>}
+      {mode === 'sort' && <SortView key={padId ?? 'main'} theme={theme} />}
       {load === 'loading' ? (
-        <Text style={[s.hint, { color: theme.inkMute }]}>Opening your pad…</Text>
+        mode === 'pad' && <Text style={[s.hint, { color: theme.inkMute }]}>Opening your pad…</Text>
       ) : (
         <GestureDetector gesture={pan}>
-          <View ref={container} style={s.scroll} onLayout={() => container.current?.measureInWindow((x, y) => (origin.current = { x, y }))}>
+          <View ref={container} style={mode === 'pad' ? s.scroll : s.hidden} onLayout={() => container.current?.measureInWindow((x, y) => (origin.current = { x, y }))}>
           <ScrollView
             ref={scroller}
             style={s.scroll}
@@ -389,14 +409,19 @@ export function Pad() {
           <Text numberOfLines={1} style={[s.ghostText, { color: theme.ink }]}>{drag.label}</Text>
         </View>
       )}
-      <Toolbar theme={theme} />
+      {mode === 'pad' && <Toolbar theme={theme} />}
     </View>
   )
 }
 
 const s = StyleSheet.create({
   root: { flex: 1 },
-  top: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 12, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6 },
+  grow: { flex: 1 },
+  iconBtn: { width: 40, height: 36, alignItems: 'center', justifyContent: 'center' },
+  clear: { alignSelf: 'flex-start', minHeight: 30, paddingHorizontal: 22, justifyContent: 'center' },
+  clearText: { fontFamily: serif, fontSize: 13 },
+  hidden: { display: 'none' },
   title: { fontFamily: serif, fontStyle: 'italic', fontSize: 19 },
   topBtn: { minHeight: 32, justifyContent: 'center' },
   topText: { fontFamily: serif, fontSize: 15 },

@@ -23,7 +23,7 @@ describe('sort', () => {
   it('down deletes the card: the arrow key or the Delete button sends it to the Trash, Back restores it', async () => {
     const user = userEvent.setup()
     await mount('A\nB\nC')
-    await user.click(button('Sort…'))
+    await user.click(button('Sort'))
     await user.keyboard('{ArrowDown}')
     expect(card().value).toBe('B')
     expect(whole()).toBe('B\nC')
@@ -38,7 +38,7 @@ describe('sort', () => {
   it('arrow keys and buttons send cards left, right and up; Back takes one back; the end shows a tally', async () => {
     const user = userEvent.setup()
     await mount('A\nB\n  B1\nC\nD')
-    await user.click(button('Sort…'))
+    await user.click(button('Sort'))
     expect(card().value).toBe('A')
     expect(screen.getByText(/4 to go/)).toBeInTheDocument()
     await user.keyboard('{ArrowLeft}')
@@ -53,7 +53,7 @@ describe('sort', () => {
     await user.keyboard('s{ArrowRight}')
     expect(screen.getByText('All sorted.')).toBeInTheDocument()
     expect(screen.getByText('2 to Today, 1 to Later, 1 skipped')).toBeInTheDocument()
-    await user.click(button('Done'))
+    await user.click(button('Pad'))
     expect(screen.getByRole('tree')).toBeInTheDocument()
     expect(shape(usePad.getState().rows)).toBe('C')
   })
@@ -61,7 +61,7 @@ describe('sort', () => {
   it('the card edits before it goes: text, a new sub item, and arrows inside a field do not sort', async () => {
     const user = userEvent.setup()
     await mount('A\nB')
-    await user.click(button('Sort…'))
+    await user.click(button('Sort'))
     await user.click(card())
     await user.keyboard('{ArrowLeft}!')
     expect(card().value).toBe('!A')
@@ -74,7 +74,7 @@ describe('sort', () => {
   it('a drag past the threshold is a swipe; a short one springs back', async () => {
     const user = userEvent.setup()
     await mount('A\nB')
-    await user.click(button('Sort…'))
+    await user.click(button('Sort'))
     const drag = (dx: number, dy: number) => {
       const el = screen.getByRole('article')
       fireEvent.pointerDown(el, { pointerId: 1, button: 0, clientX: 200, clientY: 300 })
@@ -97,7 +97,7 @@ describe('sort', () => {
     await user.type(screen.getByLabelText('Pad name'), 'Someday')
     await user.click(button('Create'))
     await user.click(screen.getByRole('tab', { name: 'Main' }))
-    await user.click(button('Sort…'))
+    await user.click(button('Sort'))
     await user.selectOptions(screen.getByLabelText('Pad for a left swipe'), 'Someday')
     expect(button('Left: Someday')).toBeInTheDocument()
     await user.keyboard('{ArrowLeft}')
@@ -109,7 +109,7 @@ describe('sort', () => {
   it('New pad… in a target select makes a pad on the spot and points that side at it', async () => {
     const user = userEvent.setup()
     await mount('A\nB')
-    await user.click(button('Sort…'))
+    await user.click(button('Sort'))
     await user.selectOptions(screen.getByLabelText('Pad for a left swipe'), 'New pad…')
     await user.type(screen.getByLabelText('Name for the new pad'), 'Someday{Enter}')
     expect(button('Left: Someday')).toBeInTheDocument()

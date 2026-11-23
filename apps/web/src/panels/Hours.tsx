@@ -29,12 +29,13 @@ export function useScheme(): 'light' | 'dark' {
   return scheme
 }
 
-export function Hours({ onClose }: { onClose: () => void }) {
+// Drawn under the app's own header: the mode switcher there is the way back to the pad.
+export function Hours() {
   const scheme = useScheme()
   return (
     <section className="hours" aria-label="Hours">
       <Suspense fallback={<p className="hint" aria-busy="true">Opening your hours…</p>}>
-        <HoursApp onClose={onClose} scheme={scheme} />
+        <HoursApp scheme={scheme} />
       </Suspense>
     </section>
   )

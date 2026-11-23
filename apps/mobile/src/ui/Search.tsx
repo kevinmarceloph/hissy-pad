@@ -7,7 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { cmdOpenHit, search, searchCount, usePad } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 
-export function SearchSheet({ visible, onClose, theme }: { visible: boolean; onClose: () => void; theme: Theme }) {
+// `onOpen` runs when a line found is gone to: the app comes back to the pad from Hours or Sort.
+export function SearchSheet({ visible, onClose, onOpen, theme }: { visible: boolean; onClose: () => void; onOpen?: () => void; theme: Theme }) {
   const insets = useSafeAreaInsets()
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
@@ -21,6 +22,7 @@ export function SearchSheet({ visible, onClose, theme }: { visible: boolean; onC
   const open = (id: string) => {
     onClose()
     cmdOpenHit(id)
+    onOpen?.()
   }
 
   const typed = query.trim() !== ''

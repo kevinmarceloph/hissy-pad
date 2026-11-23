@@ -96,7 +96,7 @@ Vite, React 19, a PWA. `src/main.tsx` wires the platform (IndexedDB, clipboard, 
 
 | folder | what is in it |
 |---|---|
-| `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start or Sort), `TopBar.tsx`, `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
+| `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start, Sort or Hours), `TopBar.tsx` (the mode switcher, Search, the menu with Done, Trash, Log, Fresh start and the theme, the pad tabs, "Clear N completed"), `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
 | `src/pad/` | the editor: `Pad.tsx` (the list and the selection-mode keys), `Row.tsx` (one line and its keys while editing), `SelectionBar.tsx` (the toolbar), `useDrag.ts` (pointer drag) |
 | `src/pads/` | `PadTabs.tsx` (tabs, the pad sheet) and `FreshStart.tsx` |
 | `src/panels/` | `Lists.tsx` (Trash, Recently done), `Search.tsx` (Cmd+K, the top bar's Search), `Sort.tsx` and `Hours.tsx` (mounts the shared Hours screens, loaded on first use; the hour picker's dialog; the page's light or dark scheme) |
@@ -110,7 +110,8 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 
 | file | what is in it |
 |---|---|
-| `src/ui/Pad.tsx` | the screen: top bar, pad chips, the list, long-press drag, pull to refresh |
+| `src/ui/Pad.tsx` | the screen: top bar (mode switcher, Search, the menu), pad chips, "Clear N completed", then the pad's list (long-press drag, pull to refresh), Sort or Hours by mode |
+| `src/ui/TopIcons.tsx` | the top bar's icons, drawn with Views (no icon font, no SVG module), and the Pad, Hours, Sort switcher |
 | `src/ui/Row.tsx` | one line |
 | `src/ui/Toolbar.tsx` | the line toolbar above the keyboard, drawn from `LINE_ACTIONS` as two rows (no sideways scroll); actions marked `more` and Move to… sit behind More |
 | `src/ui/FloatingButtons.tsx` | the round buttons at the bottom right: + when nothing is targeted (tap for a line at the top, drag it onto the pad for a line where it is dropped; the drag itself is `addDrag` in `Pad.tsx`); a • / × switch (open on the left, crossed out on the right) and a chevron (done editing) while editing or selecting |
@@ -170,7 +171,7 @@ A watch whose phone app is not signed in has no server to talk to. It falls back
 
 **A keyboard shortcut (web).** While editing a line: `onKeyDown` in `apps/web/src/pad/Row.tsx`. With lines selected: the window handler in `apps/web/src/pad/Pad.tsx`. Both call the same command. Add it to the keys table in the README, to the action's `keys` if it has a button, and to `Keys.test.tsx`.
 
-**A top-bar panel or view.** A panel is a `<dialog>` opened from `TopBar.tsx` (see `Lists.tsx`). A view that replaces the pad adds a value to the `view` state in `App.tsx` (see `Sort.tsx`). Its data and commands go in a file of their own in `packages/state/src`, so the phone can draw the same thing from `apps/mobile/src/ui`.
+**A top-bar panel or view.** A panel is a `<dialog>` opened from `TopBar.tsx` (see `Lists.tsx`). A view that replaces the pad adds a value to the `view` state in `App.tsx` and, if it is a mode, an icon to `MODES` in `TopBar.tsx` and in the phone's `TopIcons.tsx` (see `Sort.tsx`). What is looked at now and then goes in the menu, not on the bar. Its data and commands go in a file of their own in `packages/state/src`, so the phone can draw the same thing from `apps/mobile/src/ui`.
 
 **Something in Hours.** A rule about hours, categories, flags or plans: `core/src/hours`. A new synced column there goes in four places: the type in `core/src/hours`, the wire mapping in `state/src/hours/remote.ts`, a migration with a pgTAP case, and nothing on the device (rows are stored as JSON). A screen change: `packages/ui/src/hours`, once, for both apps.
 

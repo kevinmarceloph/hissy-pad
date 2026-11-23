@@ -22,21 +22,23 @@ describe('top bar', () => {
     localStorage.clear()
   })
 
-  it('Delete done is off until something is crossed out, then removes it and says how many', async () => {
+  it('Clear completed shows only once something is crossed out, then removes it and says how many', async () => {
     const user = userEvent.setup()
     await mount('a\nb\n  b1\nc')
-    expect(button('Delete done')).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /completed/ })).toBeNull()
     const b = idOf(usePad.getState().rows, 'b')
     select([b], b)
     cmdToggleDone()
-    await user.click(await screen.findByRole('button', { name: 'Delete done' }))
+    await user.click(await screen.findByRole('button', { name: /^Clear \d+ completed$/ }))
     expect(texts()).toBe('a\nc')
     expect(screen.getByRole('status')).toHaveTextContent('Deleted 2 lines.')
+    expect(screen.queryByRole('button', { name: /completed/ })).toBeNull()
   })
 
   it('the theme choice is applied to the page and remembered', async () => {
     const user = userEvent.setup()
     await mount('a')
+    await user.click(button('More'))
     await user.selectOptions(screen.getByLabelText('Theme'), 'Dark')
     expect(document.documentElement.dataset.theme).toBe('dark')
     expect(localStorage.getItem('hissypad.theme')).toBe('dark')
@@ -44,14 +46,33 @@ describe('top bar', () => {
     expect(document.documentElement.dataset.theme).toBe('')
   })
 
-  it('Sort… and Fresh start… are off while another view is open, and Done comes back to the pad', async () => {
+  it('the switcher goes between Pad, Hours and Sort, and marks the open one', async () => {
     const user = userEvent.setup()
     await mount('a\nb')
-    await user.click(button('Fresh start…'))
-    expect(button('Sort…')).toBeDisabled()
-    expect(button('Delete done')).toBeDisabled()
+    expect(button('Pad')).toHaveAttribute('aria-pressed', 'true')
+    await user.click(button('Sort'))
+    expect(button('Sort')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('textbox', { name: 'Line text' })).toHaveValue('a')
+    // Sort sits above the pads: the tabs are still there to pick what to sort next.
+    expect(screen.getByRole('tab', { name: /Main/ })).toBeInTheDocument()
+    await user.click(button('Hours'))
+    expect(button('Hours')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('tab', { name: /Main/ })).toBeNull()
+    await user.click(button('Pad'))
+    expect(screen.getByRole('tree')).toBeInTheDocument()
+  })
+
+  it('Done, Trash and Fresh start are behind More; Fresh start still counts as the pad', async () => {
+    const user = userEvent.setup()
+    await mount('a\nb')
+    expect(screen.queryByRole('menuitem', { name: 'Trash' })).toBeNull()
+    await user.click(button('More'))
+    expect(screen.getByRole('menuitem', { name: 'Recently done' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Trash' })).toBeInTheDocument()
+    await user.click(screen.getByRole('menuitem', { name: 'Fresh start…' }))
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(button('Pad')).toHaveAttribute('aria-pressed', 'true')
     await user.click(button('Cancel'))
     expect(screen.getByRole('tree')).toBeInTheDocument()
-    expect(button('Sort…')).toBeEnabled()
   })
 })

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { dismissStorageError, loadPad, usePad } from '@hissypad/state'
 import { Pad } from '../pad/Pad'
 import { SelectionBar } from '../pad/SelectionBar'
-import { TopBar } from './TopBar'
+import { TopBar, type View } from './TopBar'
 import { Account } from './Account'
 import { PullToRefresh } from './PullToRefresh'
 import { FreshStart } from '../pads/FreshStart'
@@ -16,7 +16,7 @@ export function App() {
   const load = usePad((s) => s.load)
   const storageError = usePad((s) => s.storageError)
   const padId = usePad((s) => s.padId)
-  const [view, setView] = useState<'pad' | 'fresh' | 'sort' | 'hours'>('pad')
+  const [view, setView] = useState<View>('pad')
   // The hour picker the toolbar's "Hour…" opens: the slot the lines share and how many they are.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
 
@@ -26,20 +26,17 @@ export function App() {
     return () => setSlotPickerOpener(null)
   }, [])
 
-  // Hours takes the whole window: its own header, its own way back to the pad.
-  if (view === 'hours' && load !== 'loading') return <Hours onClose={() => setView('pad')} />
-
   return (
-    <main className={view === 'fresh' ? 'app is-wide' : 'app'}>
+    <main className={view === 'fresh' ? 'app is-wide' : view === 'hours' ? 'app is-hours' : 'app'}>
       <PullToRefresh />
-      <TopBar view={view} onFreshStart={() => setView('fresh')} onSort={() => setView('sort')} onHours={() => setView('hours')} />
+      <TopBar view={view} onView={setView} />
       {storageError && (
         <div className="banner" role="alert">
           <span>{storageError}</span>
           <button type="button" onClick={dismissStorageError} aria-label="Dismiss">×</button>
         </div>
       )}
-      {load === 'loading' ? <p className="hint" aria-busy="true">Opening your pad…</p> : view === 'fresh' ? <FreshStart onClose={() => setView('pad')} /> : view === 'sort' ? <Sort key={padId ?? 'main'} onClose={() => setView('pad')} /> : <Pad />}
+      {load === 'loading' ? <p className="hint" aria-busy="true">Opening your pad…</p> : view === 'fresh' ? <FreshStart onClose={() => setView('pad')} /> : view === 'sort' ? <Sort key={padId ?? 'main'} onClose={() => setView('pad')} /> : view === 'hours' ? <Hours /> : <Pad />}
       {view === 'pad' && <SelectionBar />}
       {picking && (
         <SlotDialog
@@ -52,7 +49,7 @@ export function App() {
           }}
         />
       )}
-      <footer className="foot"><Account /></footer>
+      {view !== 'hours' && <footer className="foot"><Account /></footer>}
     </main>
   )
 }
