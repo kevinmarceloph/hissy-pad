@@ -169,7 +169,8 @@ Parity between web and phone (2026-11-23). The screens are one source, so what d
 
 | | web | phone |
 |---|---|---|
-| Checked by hand | yes, desktop and 375px, and on the live site | no: typechecked, bundled through Metro and shipped as an update without a simulator or device run (Kevin's call, 2026-11-23). The first look at it is on the iPhone |
+| Checked by hand | yes, desktop and 375px, and on the live site | yes, in the iOS simulator on a dev build (2026-11-23, iPhone 17 Pro): the day, an open hour, adding and ticking a line, the count on the row, the chip in the pad, the picker from More…. The list screens (categories, flags, recurring plans) and Settings were not opened there |
+| The strip and the day's count | fixed above the hours | scroll with the hours, and start scrolled out of view above the current hour: fixed, they left about three rows above the keyboard |
 | Chimes | a sound and a notification, only while the page is open | none yet. `expo-notifications` is in `package.json` but not in the installed build, so Settings leaves chimes out. They arrive with the next native build (`eas build --profile preview`), not with an update. Kevin does not need them for now |
 | Reply to a chime to log the hour | not possible in a browser | comes with the chimes |
 | Opening Hours | top bar "Hours…", takes the whole window | top bar "Hours", a full-screen sheet over the pad |

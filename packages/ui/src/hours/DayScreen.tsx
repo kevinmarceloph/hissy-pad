@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentRef } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CHIME_CHOICES, chimesSpoken, minuteLabel, toggleChime } from '@hissypad/core/hours';
 import { dayDate, dayOf, daySlots, dayTitle, hourLabel, HOURS, shiftDay, slotState } from '@hissypad/core/hours';
@@ -29,6 +29,11 @@ function useNow(clock: () => Date): Date {
 }
 
 const realClock = () => new Date();
+
+// On a phone the strip and the day's count scroll away with the hours: fixed above the
+// list they left about three rows between themselves and the keyboard (seen in the
+// simulator, 2026-11-23). In a browser they stay put, as in Oras-oras.
+const SUMMARY_SCROLLS = Platform.OS !== 'web';
 
 type Props = {
   clock?: (() => Date) | undefined;
@@ -86,10 +91,19 @@ export function DayScreen({ clock = realClock, onEditCategories, onEditFlags, on
   }, []);
 
   // Today opens with the current hour in view instead of at midnight.
+  // On a phone the summary scrolls with the hours (see SUMMARY_SCROLLS), so the hours start
+  // below it: its height is added once it has been measured.
+  const summaryHeight = useRef(0);
+  const placedFor = useRef<string | null>(null);
+  const place = () => {
+    const rows = day === today ? Math.max(0, ((now.getHours() - start + 24) % 24) - 2) * ROW : 0;
+    const y = SUMMARY_SCROLLS ? (rows > 0 ? rows + summaryHeight.current : 0) : rows;
+    list.current?.scrollTo({ y, animated: false });
+  };
   useEffect(() => {
     if (status !== 'ready') return;
-    const y = day === today ? Math.max(0, ((now.getHours() - start + 24) % 24) - 2) * ROW : 0;
-    list.current?.scrollTo({ y, animated: false });
+    if (SUMMARY_SCROLLS) placedFor.current = null; // placed when the summary is measured
+    else place();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, day, start]);
 
@@ -110,6 +124,48 @@ export function DayScreen({ clock = realClock, onEditCategories, onEditFlags, on
   const summary = summarize(Object.values(shown), day, now, categories, start);
   const accounted = summary.elapsed - summary.blank;
   const { due, kept } = summary.plan;
+
+  // The strip, its key and the day's count. Only drawn once the day is read.
+  const summaryBlock = (
+    <View
+      style={styles.summary}
+      onLayout={(e) => {
+        summaryHeight.current = e.nativeEvent.layout.height;
+        const key = `${day}:${start}`;
+        if (SUMMARY_SCROLLS && placedFor.current !== key) {
+          placedFor.current = key;
+          place();
+        }
+      }}>
+      <DayStrip day={day} start={start} now={now} byHour={shown} summary={summary} categories={categories} />
+      {/* One paragraph, two sentences: how much of the day is written down, and how
+          much of the plan held. */}
+      <Text style={[styles.count, { color: theme.inkSoft }]}>
+        <Text>
+          {summary.elapsed === 0
+            ? summary.planned > 0
+              ? `${summary.planned} ${plural(summary.planned)} planned.`
+              : summary.logged > 0
+                ? `${summary.logged} ${plural(summary.logged)} logged ahead of time.`
+                : 'This day has not started. You can plan it: tap an hour.'
+            : summary.logged === 0
+              ? 'Nothing logged for this day yet. Tap an hour and say where it went.'
+              : `${accounted} of ${summary.elapsed} ${plural(summary.elapsed)} accounted for.`}
+        </Text>
+        {due > 0 && ' '}
+        {due > 0 && (
+          <Text>
+            {kept} of {due} planned {plural(due)} went as planned.
+          </Text>
+        )}
+      </Text>
+      {error && (
+        <Text role="alert" style={[styles.count, { color: theme.accent }]}>
+          That change was not saved and has been undone: {error}
+        </Text>
+      )}
+    </View>
+  );
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.paper }]}>
@@ -160,35 +216,7 @@ export function DayScreen({ clock = realClock, onEditCategories, onEditFlags, on
 
         {status === 'ready' && (
           <>
-            <View style={styles.summary}>
-              <DayStrip day={day} start={start} now={now} byHour={shown} summary={summary} categories={categories} />
-              {/* One paragraph, two sentences: how much of the day is written down, and how
-                  much of the plan held. */}
-              <Text style={[styles.count, { color: theme.inkSoft }]}>
-                <Text>
-                  {summary.elapsed === 0
-                    ? summary.planned > 0
-                      ? `${summary.planned} ${plural(summary.planned)} planned.`
-                      : summary.logged > 0
-                        ? `${summary.logged} ${plural(summary.logged)} logged ahead of time.`
-                        : 'This day has not started. You can plan it: tap an hour.'
-                    : summary.logged === 0
-                      ? 'Nothing logged for this day yet. Tap an hour and say where it went.'
-                      : `${accounted} of ${summary.elapsed} ${plural(summary.elapsed)} accounted for.`}
-                </Text>
-                {due > 0 && ' '}
-                {due > 0 && (
-                  <Text>
-                    {kept} of {due} planned {plural(due)} went as planned.
-                  </Text>
-                )}
-              </Text>
-              {error && (
-                <Text role="alert" style={[styles.count, { color: theme.accent }]}>
-                  That change was not saved and has been undone: {error}
-                </Text>
-              )}
-            </View>
+            {!SUMMARY_SCROLLS && summaryBlock}
 
             <PullIndicator list={list} onRefresh={pulled} />
             <ScrollView
@@ -199,6 +227,7 @@ export function DayScreen({ clock = realClock, onEditCategories, onEditFlags, on
               keyboardDismissMode="interactive"
               automaticallyAdjustKeyboardInsets
               contentContainerStyle={styles.list}>
+              {SUMMARY_SCROLLS && summaryBlock}
               {slots.map(({ day: on, hour, plan }) => {
                 const slot = `${on}T${hour}`;
                 const state = slotState(on, hour, now);
