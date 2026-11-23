@@ -1,6 +1,6 @@
 -- pgTAP: RLS and last-write-wins on public.nodes. Run with `supabase test db`.
 begin;
-select plan(19);
+select plan(22);
 
 -- Two users, created directly (no GoTrue in a db test).
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
@@ -84,6 +84,14 @@ select has_column('public', 'nodes', 'done_at', 'nodes has done_at');
 select col_type_is('public', 'nodes', 'done_at', 'timestamp with time zone', 'done_at is timestamptz');
 update public.nodes set done = true, done_at = '2026-11-02T00:00:05Z', updated_at = '2026-11-02T00:00:05Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
 select is((select done_at from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), '2026-11-02T00:00:05Z'::timestamptz, 'done_at round-trips');
+
+-- slot: the hour a line is assigned to, 'YYYY-MM-DDTHH'; null by default, shape checked.
+select is((select slot from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), null, 'slot defaults to null');
+update public.nodes set slot = '2026-11-23T09', updated_at = '2026-11-23T00:00:00Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select is((select slot from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), '2026-11-23T09', 'slot round-trips');
+select throws_ok(
+  $$ update public.nodes set slot = '9am Monday', updated_at = '2026-11-23T00:00:01Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001' $$,
+  '23514', null, 'a slot that is not a day and an hour is rejected');
 
 select * from finish();
 rollback;

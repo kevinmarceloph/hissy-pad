@@ -89,6 +89,7 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 | Trash | lines deleted in the last 30 days, grouped by the delete that removed them, with a Restore button each |
 | Fresh start… | two panes: send across what stays, and everything left behind moves to a new pad |
 | Sort… | the pad's top-level lines one card at a time: left for Later, right for Today, up for Today and crossed out, down to delete (it goes to the Trash). Swipe, arrow keys or buttons; Skip (S) leaves a line where it is. The card's text and sub items can be edited first, and each side can point at any pad, Main or a new one |
+| Hours… | the day, one row per hour: what the hour was for and what happened (words and a category each), your own flags, recurring plans, a day that can start at any hour, chimes. It is Oras-oras rebuilt inside HissyPad. Lines of the pad can be put in an hour (select them, then Hour… in the toolbar, or type a line into an open hour); each hour shows how many of its lines are done out of all, and a line shows its hour as a small chip |
 
 | toolbar (a line being edited, or lines selected) | |
 |---|---|
@@ -122,4 +123,4 @@ Live at https://hissypad.marcelo.ph (Render static site `hissypad`, auto-deploys
 
 ## Status
 
-Phases 1-5 and 7 built, plus Sort, Trash, Recently done and shake to undo on the phone. Web is deployed and syncing against the hosted Supabase project; the Expo app runs on Kevin's iPhone from EAS builds. See [PLAN.md](PLAN.md) for what is pending.
+Phases 1-5 and 7 built, plus Sort, Trash, Recently done, shake to undo on the phone, and Hours (2026-11-23: web and phone from one set of screens in `packages/ui`). Web is deployed and syncing against the hosted Supabase project; the Expo app runs on Kevin's iPhone from EAS builds. See [PLAN.md](PLAN.md) for what is pending.

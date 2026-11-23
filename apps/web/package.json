@@ -20,7 +20,9 @@
     "react-dom": "^19.2",
     "workbox-window": "^7.4.1",
     "zustand": "^5",
-    "@hissypad/state": "workspace:*"
+    "@hissypad/state": "workspace:*",
+    "@hissypad/ui": "workspace:*",
+    "react-native-web": "~0.21.4"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6",

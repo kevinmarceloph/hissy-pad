@@ -116,6 +116,7 @@ export function insertOutline(
       numbered: l.numbered === true,
       header: l.header === true && l.numbered !== true,
       pad: false,
+      slot: null,
       updatedAt: ctx.now(),
       deletedAt: null,
     }

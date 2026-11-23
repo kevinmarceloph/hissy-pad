@@ -8,6 +8,7 @@ import {
   cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdToggleCollapsed, cmdToggleDone, cmdUngroup,
 } from './commands'
 import { cmdLineToPad } from './pads'
+import { cmdPickSlot } from './hours/slots'
 
 // What the current targets allow, so an impossible action reads as disabled instead of
 // silently doing nothing.
@@ -65,6 +66,7 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   { id: 'fold', group: 'tree', label: 'Fold', name: 'Fold', hint: 'Fold or unfold', keys: '⌘.', enabled: (c) => c.children, run: cmdToggleCollapsed },
   { id: 'ungroup', group: 'tree', label: 'Ungroup', name: 'Ungroup', hint: 'Ungroup: its sub items come out to its own level', enabled: (c) => c.children, run: cmdUngroup },
   { id: 'copy', group: 'clip', label: 'Copy', name: 'Copy', hint: 'Copy as outline', keys: '⌘C', run: () => void cmdCopySelection() },
+  { id: 'slot', group: 'pad', label: 'Hour…', name: 'Put in an hour', hint: 'Put in an hour of a day (Hours counts what is done there)', more: true, run: cmdPickSlot },
   {
     id: 'makePad', group: 'pad', label: 'Make pad', name: 'Make pad', hint: 'Make this line a pad: its text is the name, its sub items the lines', more: true,
     enabled: (c) => c.single,

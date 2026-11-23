@@ -72,7 +72,7 @@ function safe(v: unknown): string {
 }
 
 // A compact view of a row for the log: enough to see what changed, short enough to read.
-export function rowBrief(r: { id: string; parentId: string | null; rank: string; text: string; done: boolean; collapsed: boolean; numbered: boolean; header?: boolean; pad?: boolean; deletedAt: string | null } | undefined) {
+export function rowBrief(r: { id: string; parentId: string | null; rank: string; text: string; done: boolean; collapsed: boolean; numbered: boolean; header?: boolean; pad?: boolean; slot?: string | null; deletedAt: string | null } | undefined) {
   if (!r) return null
   return {
     id: r.id.slice(0, 8),
@@ -84,6 +84,7 @@ export function rowBrief(r: { id: string; parentId: string | null; rank: string;
     ...(r.numbered ? { numbered: true } : {}),
     ...(r.header ? { header: true } : {}),
     ...(r.pad ? { pad: true } : {}),
+    ...(r.slot ? { slot: r.slot } : {}),
     ...(r.deletedAt ? { deleted: true } : {}),
   }
 }

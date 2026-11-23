@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState, type ComponentRef } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
 import { apply, clickSelect, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
-import { inlineSpans, toggleCollapsed } from '@hissypad/core'
+import { inlineSpans, slotLabel, todayKey, toggleCollapsed } from '@hissypad/core'
 import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, serif, type Theme } from '../theme'
 
 // How long after a line changes place a blur still counts as the move's doing.
@@ -149,6 +149,10 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
               if (!sp.bold && !sp.italic && !line) return sp.text
               return <Text key={i} style={[sp.bold && s.bold, sp.italic && s.italic, line && { textDecorationLine: line }]}>{sp.text}</Text>
             })}
+            {row.slot && (
+              // The hour this line is in (Hours), in words, small, after the text.
+              <Text style={[s.slot, { color: theme.inkSoft }]}>{'\u2002'}{slotLabel(row.slot, todayKey())}</Text>
+            )}
             {folded && (
               // Nested so it sits right after the last word, wrapping with it. A nested Text
               // takes a background but no padding or radius on iOS, hence the spaces.
@@ -180,5 +184,6 @@ const s = StyleSheet.create({
   textWrap: { flex: 1, minHeight: LINE },
   text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, padding: 0, margin: 0, textAlignVertical: 'top' },
   input: { transform: [{ translateY: -INPUT_SHIFT }] },
+  slot: { fontSize: SIZE - 5, fontWeight: '400', fontStyle: 'normal', textDecorationLine: 'none' },
   chip: { fontSize: SIZE - 5, fontWeight: '400', textDecorationLine: 'none', fontVariant: ['tabular-nums'] },
 })

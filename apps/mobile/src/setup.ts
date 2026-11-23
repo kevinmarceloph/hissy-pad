@@ -9,7 +9,9 @@ if (!g.crypto?.randomUUID) g.crypto = { ...(g.crypto ?? {}), randomUUID }
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Clipboard from 'expo-clipboard'
 import { bindAuth, configureLocalStore, initLog, setClipboard, setLogEnabled, setSyncTriggers } from '@hissypad/state'
+import { configureChimes, configureHoursBackend } from '@hissypad/state/hours'
 import { createSqliteStore } from './local/sqlite'
+import { mobileChimes } from './chimes'
 import { supabase } from './supabase'
 
 let done = false
@@ -39,6 +41,9 @@ export async function setupApp() {
     return () => sub.remove()
   })
   if (__DEV__) setLogEnabled(true) // Metro shows the op log while developing
-  configureLocalStore(createSqliteStore())
+  const store = createSqliteStore()
+  configureLocalStore(store)
+  configureHoursBackend(store.hours)
+  configureChimes(mobileChimes())
   bindAuth(supabase)
 }

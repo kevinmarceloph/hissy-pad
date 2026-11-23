@@ -14,6 +14,7 @@ export interface WireNode {
   numbered: boolean
   header?: boolean // optional on the wire: rows written before the column existed
   pad?: boolean    // same: added 2026-11-02
+  slot?: string | null // same: added 2026-11-23
   updated_at: string
   deleted_at: string | null
   synced_at?: string
@@ -32,6 +33,7 @@ export function toWire(raw: NodeRow): WireNode {
     numbered: r.numbered,
     header: r.header,
     pad: r.pad,
+    slot: r.slot,
     updated_at: r.updatedAt,
     deleted_at: r.deletedAt,
   }
@@ -50,6 +52,7 @@ export function fromWire(w: WireNode): { row: NodeRow; syncedAt: string } {
       numbered: w.numbered,
       header: w.header === true && !w.numbered,
       pad: w.pad === true,
+      slot: w.slot ?? null,
       updatedAt: new Date(w.updated_at).toISOString(),
       deletedAt: w.deleted_at === null ? null : new Date(w.deleted_at).toISOString(),
     },

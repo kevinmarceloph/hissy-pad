@@ -25,5 +25,7 @@ export default defineConfig({
       workbox: { globPatterns: ['**/*.{js,css,html,png,svg,woff2}'] },
     }),
   ],
+  // The Hours screens (packages/ui) are React Native: on the web that is react-native-web.
+  resolve: { alias: { 'react-native': 'react-native-web' }, dedupe: ['react', 'react-dom', 'react-native-web', 'zustand'] },
   server: { port: 5180 },
 })

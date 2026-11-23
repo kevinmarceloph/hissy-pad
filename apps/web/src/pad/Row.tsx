@@ -7,7 +7,7 @@ import {
 } from '@hissypad/state'
 import { redo, undo } from '@hissypad/state'
 import { apply } from '@hissypad/state'
-import { inlineSpans, toggleCollapsed, URL_RE } from '@hissypad/core'
+import { slotLabel, todayKey, inlineSpans, toggleCollapsed, URL_RE } from '@hissypad/core'
 
 interface Props {
   row: NodeRow
@@ -206,6 +206,7 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
       ) : (
         <div className="text" onMouseDown={onTextMouseDown}>
           {row.text === '' ? <span className="placeholder" aria-hidden="true">{'​'}</span> : <Styled text={row.text} />}
+          {row.slot && <span className="slot" title="The hour this line is in (toolbar: Hour…)">{slotLabel(row.slot, todayKey())}</span>}
           {folded && (
             <button
               type="button"

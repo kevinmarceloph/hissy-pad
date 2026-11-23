@@ -307,6 +307,26 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
   cursor: pointer;
 }
 .row .chip:hover { color: var(--accent); }
+/* The hour a line is assigned to (Hours): small, after the text, in words. */
+.row .slot {
+  margin-left: 0.5rem;
+  padding: 0 0.35rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 400;
+  font-style: normal;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-block;
+  line-height: 1.15rem;
+  vertical-align: 0.1em;
+}
+/* Hours takes the window. Its screens are React Native (packages/ui), which lay out with
+   flex from a parent of known height. */
+.hours { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--paper); }
+dialog.slot-dialog { padding: 0; width: min(34rem, calc(100vw - 1.5rem)); }
 .row.is-done .chip { color: var(--ink-mute); }
 
 /* The line of space under a header's group: one whole line-height, see the 25.5px gotcha. */

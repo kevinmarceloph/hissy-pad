@@ -6,6 +6,8 @@ Guidance for Claude Code in this repo. The shared rules (who Kevin is, writing v
 
 HissyPad: a freeform outline, always open, between Google Docs and Hissycal; since 2026-11-02 a few of them ("pads", tabs under the title, with a two-pane Fresh start that moves the leftovers of a pad into a new one). A flat `nodes` table, offline-first, each row synced on its own with last-write-wins on the server. A pad is a root-level row with `pad` set and the main pad is the root level itself; the store shows one pad at a time as a scoped view (`rows`) over the whole table (`all`), see `packages/core/src/pads.ts`. Web (Vite + React 19, PWA) and mobile (Expo) share the same core and state packages. Live at https://hissypad.marcelo.ph (Render static site, auto-deploys from `main`, hosted Supabase behind it). Public repo `kevinmarceloph/hissy-pad`, Kevin's first public one: nothing under NDA, no pad content, no keys.
 
+Since 2026-11-23 it also holds **Hours**: Oras-oras (the hourly self-tracker in `../oras`, left as it is) rebuilt on this stack as a mode of its own, like Sort. One row per hour with a plan and what happened, categories, flags, recurring plans, a day start, chimes; plus two things Oras-oras does not have: a line of the pad can be put in an hour of a day (`slot` on the row), and each hour counts its lines done out of all. See "Hours" below.
+
 - `README.md`: layout, run commands, keys. Read it first.
 - `docs/MAP.md`: where everything is, file by file, and where each kind of change goes (a toolbar action, an op, a column, a panel). Keep it current when a file is added, moved or removed.
 - `PLAN.md`: the design (data model, sync, editing model), phases and what is pending. Keep its status line and phase notes current when a phase moves; dates are absolute (`2026-10-29`), Manila time.
@@ -15,12 +17,24 @@ HissyPad: a freeform outline, always open, between Google Docs and Hissycal; sin
 ```
 packages/core    pure TS, no React: types, tree, ops, rank, drop resolver, paste, pads (scoped view, fresh start), clock, sync engine, LocalStore
 packages/state   Zustand store (all rows + the scoped pad), history, selection, commands, the toolbar registry (actions.ts), pads, lists, sort, shake, sync binding, Supabase remote, debug log
+packages/ui      screens written once in React Native and drawn by both apps (the web through react-native-web): the Hours mode and the hour picker
 apps/web         Vite SPA on :5180: src/app (shell), src/pad (editor, drag), src/pads (tabs, fresh start), src/panels (trash, done, sort), src/platform (IndexedDB, clipboard); Playwright e2e
 apps/mobile      Expo SDK 58 shell: expo-sqlite store, screens in src/ui, the same toolbar registry, EAS build/update profiles
 supabase/        migrations (nodes, RLS, LWW trigger), pgTAP tests, functions (watch-token: the watch's sign-in), local stack on ports 54421-54429
 ```
 
 Platform logic goes in `packages/state` or `packages/core`, never in an app. If web and mobile would both need it, it belongs in a package. A toolbar button is an entry in `LINE_ACTIONS` (`packages/state/src/actions.ts`), not markup in either app.
+
+## Hours
+
+- Where it lives: `packages/core/src/hours` (pure logic, imported as `@hissypad/core/hours`), `packages/state/src/hours` (stores, the sync engine for its four tables, the slot commands; `@hissypad/state/hours`), `packages/ui/src/hours` (the screens). The names stay out of the pad's index files on purpose: `Entry`, `MemoryStore`, `syncLine` and others would collide.
+- The code came from `../oras` on 2026-11-23 and keeps its style (semicolons, its comments). Its rules still hold and are in `../oras/CLAUDE.md`: `(day, hour)` is the calendar slot, never the day as drawn; `byHour` is what is stored and `shown` is what is drawn; every write from the day screen goes through `pinRecurring`; flags are read and written through `flagChoice` and `setFlagChoice`; a color is a palette key, never a hex; nothing rests on color alone (Kevin is a deuteranope); every control in an open hour takes the `hold` handlers.
+- Nothing is seeded (Kevin, 2026-11-23): no default categories, no default flags. `SAMPLE_CATEGORIES` and `SAMPLE_FLAGS` exist for tests only. A new flag still starts with Yes and No as its options.
+- Storage: the four hours tables are real tables on the server (`hour_entries`, `hour_categories`, `hour_flags`, `recurring_plans`, `updated_at` in ms as a bigint, no `deleted_at`). On a device they are JSON rows behind `HoursBackend` (`core/hours/store.ts`): one IndexedDB store on web, one SQLite table on the phone. `HoursStore` keeps them all in memory and writes through.
+- Sync: a second engine beside the pad's (`state/hours/engine.ts`), started and stopped by the same `bindAuth`. One sign-in, the pad's. `refresh()` syncs both.
+- A line in an hour: `NodeRow.slot` is `'YYYY-MM-DDTHH'` (`core/slot.ts`), set by the toolbar's "Hour…" (`LINE_ACTIONS`, behind More on the phone; it opens the shared `SlotPicker` through `setSlotPickerOpener`) or by typing a line into an open hour. Counts are `slotCounts` over the whole table: every pad, blank lines and pad rows left out, a line counted for itself only.
+- Chimes: the web rings from the page (`apps/web/src/platform/chimes.ts`); the phone uses local notifications (`apps/mobile/src/chimes.ts`, expo-notifications, loaded only when the build has it).
+- The web app aliases `react-native` to `react-native-web` and dedupes `react` (`vite.config.ts`, `vitest.config.ts`). Hours is loaded on first use (`apps/web/src/panels/Hours.tsx`), so the pad does not carry it.
 
 ## Commands
 
@@ -49,6 +63,7 @@ Mobile commands (Expo, EAS, env pull, update channels) are in `README.md`. The p
 - Schema changes are a new file in `supabase/migrations/` with a pgTAP test, plus the matching column add in the mobile SQLite store (it migrates on open). Rows are never hard-deleted; `deleted_at` is the tombstone.
 - The Apple Watch app is a sync client of its own, in Swift (`apps/mobile/targets/watch`): it repeats the tree, open-line and merge rules from the packages, so change `Rows.swift` with them. A change under `supabase/functions/` ships with `supabase --workdir /Users/kevin/Personal/hissy-pad functions deploy <name>`.
 - Every edit stamps `updated_at` through the clock in core. Undo re-stamps the touched rows so the change syncs.
+- A shared screen goes in `packages/ui`, in React Native, only if it needs nothing the DOM has and the phone lacks. The pad's editor stays per app. Its tests run in jsdom through react-native-web (`packages/ui/src/testing/rntl.ts` maps React Native Testing Library's `press` and `changeText`).
 - `_repro.test.*` files are scratch reproductions, not part of the suite. Delete them when the bug is fixed.
 - Keep the look: paper ground, serif, one accent. Dials in the header of `apps/web/src/styles.css`.
 

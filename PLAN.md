@@ -2,7 +2,7 @@
 
 A scratchpad that sits between Google Docs and Hissycal. One freeform outline, always open, where the top of the page is whatever needs attention next. Drag things around in a hierarchy, multi-select, cross things out. Nothing else.
 
-Status (2026-11-17): a refactor pass (the line toolbar is one registry in `state/actions.ts` drawn by both apps, the sort session, list labels and sync line are shared, `store.ts` split into store, history and selection, the web app's files grouped into `app/`, `pad/`, `pads/`, `panels/`, `platform/`, `pnpm coverage` added; map in `docs/MAP.md`). Same day: Sort added on web and the phone (one card at a time, swipe left for Later, right for Today, up for Today and done; see "Sort" below). Earlier status (2026-11-02): phases 1-5 and 7 built (several pads, Fresh start), plus the Trash and Recently done panels (`done_at` column, `20261102010000_nodes_done_at.sql`; `supabase db push` needed on the hosted project). Earlier status (2026-10-29): phases 1-5 built. The web app is live at https://hissypad.marcelo.ph (Render static site, auto-deploys from `main`) against a hosted Supabase project; the Expo app runs on Kevin's iPhone from an EAS development build with EAS Update wired up. Earlier note: phases 1 and 2 built. `packages/core` (51 tests) and `apps/web` (18 tests) typecheck and pass; the web app was clicked through in a browser (typing, Enter/Tab, selection keys, paste import, hide/sweep done, reload persistence, dark, phone width).
+Status (2026-11-23): Hours added: Oras-oras rebuilt inside HissyPad as a mode (web and phone from one set of screens in `packages/ui`), with lines of the pad assignable to an hour and counted there. See "Hours" at the end. The server has the four hours tables and `nodes.slot` (`20261123000000_hours.sql`, `20261123010000_nodes_slot.sql`, pushed to the hosted project the same day). Earlier status (2026-11-17): a refactor pass (the line toolbar is one registry in `state/actions.ts` drawn by both apps, the sort session, list labels and sync line are shared, `store.ts` split into store, history and selection, the web app's files grouped into `app/`, `pad/`, `pads/`, `panels/`, `platform/`, `pnpm coverage` added; map in `docs/MAP.md`). Same day: Sort added on web and the phone (one card at a time, swipe left for Later, right for Today, up for Today and done; see "Sort" below). Earlier status (2026-11-02): phases 1-5 and 7 built (several pads, Fresh start), plus the Trash and Recently done panels (`done_at` column, `20261102010000_nodes_done_at.sql`; `supabase db push` needed on the hosted project). Earlier status (2026-10-29): phases 1-5 built. The web app is live at https://hissypad.marcelo.ph (Render static site, auto-deploys from `main`) against a hosted Supabase project; the Expo app runs on Kevin's iPhone from an EAS development build with EAS Update wired up. Earlier note: phases 1 and 2 built. `packages/core` (51 tests) and `apps/web` (18 tests) typecheck and pass; the web app was clicked through in a browser (typing, Enter/Tab, selection keys, paste import, hide/sweep done, reload persistence, dark, phone width).
 
 Decisions (2026-10-28): public repo from day one; login by magic link and Google; domain `hissypad.marcelo.ph`; `collapsed` syncs across devices.
 
@@ -149,3 +149,26 @@ Not ticked on purpose: Next.js, tRPC/Drizzle, TanStack Query. None of them earn 
 ## Blog post
 
 One post when phase 3 lands: "Syncing a scratchpad without a server", the flat-table-plus-LWW design, what broke in testing with two simulated devices, and why the calendar app's whole-blob sync was the wrong shape. Add it to the ideas list in `personal-site/README.md` when the time comes.
+
+## Hours (added 2026-11-23)
+
+Oras-oras (`../oras`, an hourly self-tracker, still live and untouched) folded in as a mode of HissyPad, opened from the top bar like Sort. What came over: one row per hour with a plan and a deed (words and a category each), the box on a row as its checkbox, the 24-cell strip, the user's own categories and flags (with icons and colored options), recurring plans, a day that can start at any hour, chimes at chosen minutes. Nothing is seeded: the lists start empty. The old app's data was not imported.
+
+What is new:
+
+- **A line in an hour.** A row of `nodes` has `slot`, `'YYYY-MM-DDTHH'` or null: a calendar day and hour on the wall clock, the same slot an hour's own row is stored under. The toolbar's "Hour…" opens a picker (a day to step through, 24 hours); an open hour in Hours lists its lines, ticks them, takes them out, and takes a new line typed there (it lands at the top of the pad that is open). The line shows its hour as a small chip in the pad.
+- **Done and open per hour.** An hour's row shows its lines as done out of all (`1/2`, with a tick in front when every one is done) and says it in words to a screen reader. The count covers every pad; blank lines do not count.
+
+How it is built:
+
+- Logic in `packages/core/src/hours` and `packages/state/src/hours`, screens in a new package, `packages/ui`, written in React Native and drawn on the web by react-native-web. That is Oras-oras's one good idea about layout (one set of screens), taken for the mode that needs nothing from the DOM; the pad's editor stays per app.
+- Four tables on the server, as Oras-oras had them (ms `updated_at`, no deletes, last write wins in a trigger shared by the four). On a device the rows are JSON behind a two-call backend.
+- A second sync engine for those tables, started by the same sign-in.
+
+Not done, or not verified:
+
+- The phone screens were typechecked and share every line with the web's, but had not been opened on a device or simulator when this was written.
+- Chimes on the phone need a build with `expo-notifications`; an older build leaves them out of Settings.
+- The Apple Watch and the widget know nothing of `slot` or Hours.
+- No import from Oras-oras's own Supabase project.
+

@@ -49,7 +49,9 @@ export {
   mergeIntoPrev,
   removeDone,
   sweepDone,
+  setSlot,
 } from './ops'
+export { slotKey, parseSlot, slotCounts, slotLines, slotLabel, todayKey, type SlotCount } from './slot'
 export {
   type PadId,
   type Side,

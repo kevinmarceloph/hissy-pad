@@ -15,6 +15,9 @@ import { FloatingButtons } from './FloatingButtons'
 import { Account } from './Account'
 import { DoneSheet, TrashSheet } from './Lists'
 import { SortSheet } from './Sort'
+import { HoursApp, SlotPicker } from '@hissypad/ui'
+import { cmdApplySlot, setSlotPickerOpener, targetSlot } from '@hissypad/state/hours'
+import { targets } from '@hissypad/state'
 import { SearchSheet } from './Search'
 import { PadChips } from './PadChips'
 
@@ -72,7 +75,13 @@ export function Pad() {
   const container = useRef<ComponentRef<typeof View>>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [logText, setLogText] = useState<string | null>(null)
-  const [sheet, setSheet] = useState<'trash' | 'done' | 'sort' | 'search' | null>(null)
+  const [sheet, setSheet] = useState<'trash' | 'done' | 'sort' | 'search' | 'hours' | null>(null)
+  // The hour picker the toolbar's "Hour…" (behind More) opens.
+  const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
+  useEffect(() => {
+    setSlotPickerOpener(() => setPicking({ value: targetSlot(), count: targets().length }))
+    return () => setSlotPickerOpener(null)
+  }, [])
 
   const { index, visible, numbers } = useMemo(() => {
     const index = buildIndex(rows)
@@ -273,6 +282,7 @@ export function Pad() {
         <Pressable onPress={() => { stopEditing(); setSheet('search') }} style={s.topBtn} accessibilityLabel="Search every pad"><Text style={[s.topText, { color: theme.inkSoft }]}>Search</Text></Pressable>
         <Pressable onPress={deleteDone} disabled={doneCount === 0} style={s.topBtn}><Text style={[s.topText, { color: doneCount ? theme.inkSoft : theme.inkMute }]}>Delete done</Text></Pressable>
         <Pressable onPress={() => { stopEditing(); setSheet('sort') }} style={s.topBtn} accessibilityLabel="Sort this pad"><Text style={[s.topText, { color: theme.inkSoft }]}>Sort</Text></Pressable>
+        <Pressable onPress={() => { stopEditing(); setSheet('hours') }} style={s.topBtn} accessibilityLabel="Hours: the day, one row per hour"><Text style={[s.topText, { color: theme.inkSoft }]}>Hours</Text></Pressable>
         <Pressable onPress={() => setSheet('done')} style={s.topBtn} accessibilityLabel="Recently done"><Text style={[s.topText, { color: theme.inkSoft }]}>Done</Text></Pressable>
         <Pressable onPress={() => setSheet('trash')} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Trash</Text></Pressable>
         {logEnabled() && (
@@ -294,6 +304,29 @@ export function Pad() {
       </Modal>
       <TrashSheet visible={sheet === 'trash'} onClose={() => setSheet(null)} theme={theme} />
       {sheet === 'sort' && <SortSheet onClose={() => setSheet(null)} theme={theme} />}
+      {/* Hours: the shared screens (packages/ui), over the pad. */}
+      <Modal visible={sheet === 'hours'} animationType="slide" onRequestClose={() => setSheet(null)}>
+        <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: insets.top, paddingBottom: insets.bottom }}>
+          {sheet === 'hours' && <HoursApp onClose={() => setSheet(null)} />}
+        </View>
+      </Modal>
+      <Modal visible={picking !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPicking(null)}>
+        <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
+          {picking && (
+            <SlotPicker
+              value={picking.value}
+              count={picking.count}
+              onCancel={() => setPicking(null)}
+              onPick={(slot) => {
+                const said = cmdApplySlot(slot)
+                setPicking(null)
+                setToast(said)
+                setTimeout(() => setToast(null), 2500)
+              }}
+            />
+          )}
+        </View>
+      </Modal>
       <SearchSheet visible={sheet === 'search'} onClose={() => setSheet(null)} theme={theme} />
       <DoneSheet visible={sheet === 'done'} onClose={() => setSheet(null)} theme={theme} />
       {toast && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}

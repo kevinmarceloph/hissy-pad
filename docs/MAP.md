@@ -8,6 +8,7 @@ Three layers, each only knowing the one below it.
 
 ```
 apps/web, apps/mobile   draw the pad, catch keys, pointers and gestures
+packages/ui             screens both apps draw from one source (React Native): Hours
         |  call commands, read the store
 packages/state          the store, commands, undo, sync wiring: no DOM, no React Native
         |  run ops on rows
@@ -37,6 +38,8 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), sub-pads and places (`isSubPad`, `listSubPads`, `Place`, `moveToPlace`), Fresh start |
 | `drop.ts` | `resolveDrop`: where a dragged line lands, from pointer position and row layout |
 | `paste.ts` | text to outline and back: `parseOutline`, `insertOutline`, `toOutline`, `toOutlineHtml` |
+| `slot.ts` | a line in an hour of a day: the slot's key (`slotKey`, `parseSlot`), the count of done and open lines per slot (`slotCounts`), the lines of one slot, how a slot reads in the pad (`slotLabel`) |
+| `hours/` | the Hours mode's logic, from Oras-oras, exported as `@hissypad/core/hours`: `day.ts` (days, hour slots, the day start), `entry.ts` (an hour's plan and deed, `applyPatch`, `toggleDone`), `categories.ts`, `flags.ts`, `recurring.ts`, `chime.ts`, `summary.ts`, `store.ts` (the store interfaces, `HoursBackend`, `HoursStore`) |
 | `clock.ts` | the monotonic clock every edit stamps `updated_at` with, and `newUuid` |
 | `sync/store.ts` | the `LocalStore` interface, an in-memory one, `changedRows` |
 | `sync/engine.ts` | the sync loop: push dirty rows, pull by cursor, merge, status |
@@ -66,8 +69,26 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `sync.ts` | wires the engine to the store and to Supabase auth; `refresh`, `forceSync`, the status line (`syncLine`) |
 | `remote.ts` | the `Remote` the engine talks to, over Supabase |
 | `log.ts` | the debug log (`?debug=1`) |
+| `hours/` | the Hours mode's state, exported as `@hissypad/state/hours`: `index.ts` (opens the store, wires the stores, starts and stops hours sync, `configureHoursBackend`, `configureChimes`), the day, category, flag, recurring plan and chime stores, `engine.ts` and `remote.ts` (sync for the four hours tables), `slots.ts` (lines in an hour: assign, cross out, take out, add, the picker's opener) |
 | `sample.ts` | the welcome pad a new device starts with |
 | `testing.ts` | `resetStore(outline)` for tests here and in the apps |
+
+## packages/ui
+
+Screens written once in React Native. The phone draws them natively; the web app draws them through react-native-web (an alias in its Vite config). Only what needs nothing from the DOM belongs here.
+
+| file | what is in it |
+|---|---|
+| `src/hours/HoursApp.tsx` | the Hours mode, whole: opens the stores, switches between the day and the three list screens |
+| `src/hours/DayScreen.tsx` | the day: header, the 24-cell strip, the hour rows, the footer (lists, settings: day start and chimes, the sync line) |
+| `src/hours/HourRow.tsx` | one hour: its row (box, words, the lines' count, flag marks) and its editor |
+| `src/hours/Items.tsx` | the pad's lines in an open hour: tick, take out, add |
+| `src/hours/SlotPicker.tsx` | the hour picker the pad's toolbar opens |
+| `src/hours/CategoriesScreen.tsx`, `FlagsScreen.tsx`, `RecurringScreen.tsx` | the user's own lists |
+| `src/hours/provider.tsx` | the stores as React context, and `useSync` (signed in or not, the sync line) |
+| `src/hours/theme.ts` | paper and ink tokens with the 12 label colors searched for a deuteranope; `SchemeContext` lets the host force light or dark |
+| `src/hours/Mark.tsx`, `FlagMark.tsx`, `DayStrip.tsx`, `Tap.tsx`, `MoveButtons.tsx`, `ColorField.tsx`, `FlagOptions.tsx`, `PullRefresh.tsx` | the parts |
+| `src/testing/` | `rntl.ts` (the tests' events over React Testing Library), `setup.ts` |
 
 ## apps/web
 
@@ -78,8 +99,8 @@ Vite, React 19, a PWA. `src/main.tsx` wires the platform (IndexedDB, clipboard, 
 | `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start or Sort), `TopBar.tsx`, `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
 | `src/pad/` | the editor: `Pad.tsx` (the list and the selection-mode keys), `Row.tsx` (one line and its keys while editing), `SelectionBar.tsx` (the toolbar), `useDrag.ts` (pointer drag) |
 | `src/pads/` | `PadTabs.tsx` (tabs, the pad sheet) and `FreshStart.tsx` |
-| `src/panels/` | `Lists.tsx` (Trash, Recently done), `Search.tsx` (Cmd+K, the top bar's Search) and `Sort.tsx` |
-| `src/platform/` | what only a browser has: `idb.ts` (LocalStore on IndexedDB), `clipboard.ts`, `supabase.ts`, `os.ts` (Mac or not, shortcut hints) |
+| `src/panels/` | `Lists.tsx` (Trash, Recently done), `Search.tsx` (Cmd+K, the top bar's Search), `Sort.tsx` and `Hours.tsx` (mounts the shared Hours screens, loaded on first use; the hour picker's dialog; the page's light or dark scheme) |
+| `src/platform/` | what only a browser has: `idb.ts` (LocalStore on IndexedDB), `clipboard.ts`, `supabase.ts`, `os.ts` (Mac or not, shortcut hints), `chimes.ts` (Hours' chimes in a browser: a timer, a sound, a notification) |
 | `e2e/` | Playwright with real pointers and touches: `drag.spec.ts`, `sort.spec.ts`, `toolbar.spec.ts` (the Move to… menu is really on screen) |
 | `test/setup.ts` | jsdom gaps filled in (dialogs) |
 
@@ -98,8 +119,9 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 | `src/ui/Search.tsx` | the Search sheet |
 | `src/ui/Sort.tsx` | the Sort screen (PanResponder swipe) |
 | `src/ui/Account.tsx` | sign in and the sync line |
+| `src/chimes.ts` | Hours' chimes on the phone: local notifications with a text reply (needs a build with `expo-notifications`) |
 | `src/shake.ts` | shake to undo (needs a build with `expo-sensors`) |
-| `src/local/sqlite.ts` | LocalStore on expo-sqlite; adds new columns on open |
+| `src/local/sqlite.ts` | LocalStore on expo-sqlite; adds new columns on open; also the Hours rows (`hours_rows`, JSON) |
 | `src/theme.ts` | the paper and ink tokens |
 | `src/widget.ts` | the app's end of the widget: writes the snapshot, applies queued presses, handles the widget's links; also signs the watch in and out (`signInWatch`, `signOutWatch`) |
 | `targets/widget/` | the iOS widget itself, in Swift (WidgetKit + App Intents): `Shared.swift` (the shared storage and the queue), `Intents.swift` (the pad setting, the send and done buttons), `InboxWidget.swift` (the Inbox widget, the Add control, the bundle), `TodayWidget.swift` (the Today list), `AddControlIntent.swift` (what the Add control runs; also compiled into the app), `expo-target.config.js` (target settings and colors) |
@@ -138,7 +160,7 @@ A watch whose phone app is not signed in has no server to talk to. It falls back
 
 ## supabase
 
-`migrations/` (one file per schema change), `tests/nodes.test.sql` (pgTAP: row-level security and last-write-wins), `config.toml` (local stack on ports 54421-54429), `functions/watch-token/` (the Edge Function that gives a signed-in caller a one-time sign-in token for their own account, for the watch; `supabase functions serve` runs it locally, `supabase functions deploy watch-token` puts it on the hosted project).
+`migrations/` (one file per schema change), `tests/nodes.test.sql` (pgTAP: row-level security and last-write-wins) and one test file per hours table, `config.toml` (local stack on ports 54421-54429), `functions/watch-token/` (the Edge Function that gives a signed-in caller a one-time sign-in token for their own account, for the watch; `supabase functions serve` runs it locally, `supabase functions deploy watch-token` puts it on the hosted project).
 
 ## Adding things
 
@@ -149,6 +171,8 @@ A watch whose phone app is not signed in has no server to talk to. It falls back
 **A keyboard shortcut (web).** While editing a line: `onKeyDown` in `apps/web/src/pad/Row.tsx`. With lines selected: the window handler in `apps/web/src/pad/Pad.tsx`. Both call the same command. Add it to the keys table in the README, to the action's `keys` if it has a button, and to `Keys.test.tsx`.
 
 **A top-bar panel or view.** A panel is a `<dialog>` opened from `TopBar.tsx` (see `Lists.tsx`). A view that replaces the pad adds a value to the `view` state in `App.tsx` (see `Sort.tsx`). Its data and commands go in a file of their own in `packages/state/src`, so the phone can draw the same thing from `apps/mobile/src/ui`.
+
+**Something in Hours.** A rule about hours, categories, flags or plans: `core/src/hours`. A new synced column there goes in four places: the type in `core/src/hours`, the wire mapping in `state/src/hours/remote.ts`, a migration with a pgTAP case, and nothing on the device (rows are stored as JSON). A screen change: `packages/ui/src/hours`, once, for both apps.
 
 **A column on a row.** In this order:
 1. `NodeRow`, `normalizeRow` and `ROW_FIELDS` in `core/types.ts` (the compiler refuses a `NodeRow` field that is missing from `ROW_FIELDS`).
@@ -178,6 +202,7 @@ supabase test db                    # pgTAP against the local stack
 | `packages/core/src/*.test.ts` | every op, ranks, the tree, paste, pads, the sync engine against a fake server, property tests | 98% |
 | `packages/state/src/*.test.ts` | commands, the toolbar registry, selection, undo, pads, sort, search, lists, sync wiring, the remote, the log | 96% |
 | `apps/web/src/**/*.test.tsx` | the app in jsdom: editing, keys, toolbar, pads, Fresh start, Sort, Search, top bar, clipboard | 76% |
+| `packages/ui/src/**/*.test.tsx` | the Hours screens in jsdom through react-native-web: the day, the lists, lines in an hour, the hour picker, the palette's contrast numbers | not measured |
 | `apps/web/e2e` | drag and swipe with real pointer and touch input | not counted |
 
 Tests sit next to the file they test. State and web tests start from `resetStore('A\n  B')` and assert the whole pad as one string with `shape()`. The phone app has no tests of its own: its logic is in the packages, and the screens are checked on a device.

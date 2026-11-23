@@ -7,6 +7,7 @@ import { createSupabaseRemote } from './remote'
 import { applyAll, clock, getLocalStore, SEED_KEY, setAll, setOnLocalChange, usePad } from './store'
 import { remove } from '@hissypad/core'
 import { log, rowBrief } from './log'
+import { refreshHours, startHoursSync, stopHoursSync } from './hours'
 
 let engine: SyncEngine | null = null
 let detachWindow: (() => void) | null = null
@@ -114,7 +115,8 @@ export function forceSync() {
 // rejects, a failed sync lands in `sync.state` instead.
 export function refresh(): Promise<void> {
   log('sync:refresh', { engine: engine !== null })
-  return engine?.sync() ?? Promise.resolve()
+  // The hours tables sync beside the pad's rows; one pull refreshes both.
+  return Promise.all([engine?.sync() ?? Promise.resolve(), refreshHours()]).then(() => undefined)
 }
 
 // Follow auth: a session starts the engine for that user, sign-out stops it.
@@ -122,8 +124,13 @@ export function bindAuth(client: SupabaseClient | null) {
   if (!client) return
   const apply = (session: Session | null) => {
     usePad.setState({ session })
-    if (session) startSync(createSupabaseRemote(client, session.user.id))
-    else stopSync()
+    if (session) {
+      startSync(createSupabaseRemote(client, session.user.id))
+      startHoursSync(client, session.user.id)
+    } else {
+      stopSync()
+      stopHoursSync()
+    }
   }
   void client.auth.getSession().then(({ data }) => apply(data.session))
   client.auth.onAuthStateChange((_event, session) => {

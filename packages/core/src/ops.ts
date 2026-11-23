@@ -43,6 +43,7 @@ function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: strin
     numbered,
     header: false,
     pad: false,
+    slot: null,
     updatedAt: ctx.now(),
     deletedAt: null,
   }
@@ -121,6 +122,13 @@ export function setDone(rows: Rows, ctx: OpCtx, ids: Iterable<string>, done: boo
     const now = ctx.now()
     out = { ...out, [id]: { ...out[id]!, done, doneAt: done ? now : null, updatedAt: now } }
   }
+  return out
+}
+
+// Assign lines to an hour of a day in Hours (slot.ts), or take them out of it with null.
+export function setSlot(rows: Rows, ctx: OpCtx, ids: Iterable<string>, slot: string | null): Rows {
+  let out = rows
+  for (const id of ids) if (isLive(out[id]) && out[id]!.slot !== slot) out = patch(out, ctx, id, { slot })
   return out
 }
 
