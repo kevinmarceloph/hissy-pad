@@ -165,10 +165,24 @@ How it is built:
 - Four tables on the server, as Oras-oras had them (ms `updated_at`, no deletes, last write wins in a trigger shared by the four). On a device the rows are JSON behind a two-call backend.
 - A second sync engine for those tables, started by the same sign-in.
 
+Parity between web and phone (2026-11-23). The screens are one source, so what differs is what each platform wires around them:
+
+| | web | phone |
+|---|---|---|
+| Checked by hand | yes, desktop and 375px, and on the live site | no: typechecked, bundled through Metro and shipped as an update without a simulator or device run (Kevin's call, 2026-11-23). The first look at it is on the iPhone |
+| Chimes | a sound and a notification, only while the page is open | none yet. `expo-notifications` is in `package.json` but not in the installed build, so Settings leaves chimes out. They arrive with the next native build (`eas build --profile preview`), not with an update. Kevin does not need them for now |
+| Reply to a chime to log the hour | not possible in a browser | comes with the chimes |
+| Opening Hours | top bar "Hours…", takes the whole window | top bar "Hours", a full-screen sheet over the pad |
+| "Hour…" on a line | a button in the toolbar | behind More… in the toolbar |
+| Pull down to sync | not in Hours (the pad's pull does not reach it); sync still runs on its own | the list's own pull control |
+| Light or dark | the top bar's switch, else the device | the device |
+| Cmd or Ctrl+Enter for Done, Escape to close an hour | yes | no keyboard |
+| Hour chip on a line | a bordered chip | plain small text after the line |
+| Apple Watch, home-screen widget | not applicable | neither knows `slot` or Hours: a line's hour does not show there, and nothing of the day does |
+
 Not done, or not verified:
 
-- The phone screens were typechecked and share every line with the web's, but had not been opened on a device or simulator when this was written.
-- Chimes on the phone need a build with `expo-notifications`; an older build leaves them out of Settings.
-- The Apple Watch and the widget know nothing of `slot` or Hours.
+- Everything in the phone column above marked as missing or unchecked.
+- Hours sync against the hosted project by a signed-in account (proven against the local stack only).
 - No import from Oras-oras's own Supabase project.
 
