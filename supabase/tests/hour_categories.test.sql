@@ -1,6 +1,6 @@
 -- pgTAP: RLS and last-write-wins on public.hour_categories. Run with `supabase test db`.
 begin;
-select plan(12);
+select plan(15);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
 values
@@ -56,6 +56,14 @@ select is((select label || '|' || color from public.hour_categories where id = '
   'Focus work|indigo', 'a newer rename and recolor applies');
 update public.hour_categories set label = 'stale', updated_at = 1999 where id = 'deep';
 select is(pg_temp.label_of('deep'), 'Focus work', 'an older updated_at is dropped');
+
+-- A category written without an icon has none; an icon is stored and limited in length.
+select is((select icon from public.hour_categories where id = 'deep'), '', 'a row from an older client has no icon');
+update public.hour_categories set icon = '💻', updated_at = 2500 where id = 'deep';
+select is((select icon from public.hour_categories where id = 'deep'), '💻', 'an icon is stored');
+select throws_ok(
+  $$ update public.hour_categories set icon = '12345678901234567', updated_at = 2600 where id = 'deep' $$,
+  '23514', null, 'an icon longer than 16 characters is rejected');
 
 -- Archiving is a newer row, not a delete.
 update public.hour_categories set archived = true, updated_at = 3000 where id = 'deep';

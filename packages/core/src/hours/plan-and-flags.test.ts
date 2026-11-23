@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { SAMPLE_CATEGORIES } from './categories';
+import { cleanIcon, SAMPLE_CATEGORIES } from './categories';
 import { applyPatch, DEED_EMPTY, EMPTY, firstLine, hasPlan, isLogged, planState, toggleDone, type Entry } from './entry';
 import {
   activeFlags,
   activeOptions,
   cleanFlagIds,
-  cleanIcon,
   cleanOptions,
   SAMPLE_FLAGS,
   DEFAULT_OPTIONS,

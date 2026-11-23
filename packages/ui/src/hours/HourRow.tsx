@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { findCategory, shortLabel, type Category } from '@hissypad/core/hours';
+import { categoryName, categoryShort, findCategory, type Category } from '@hissypad/core/hours';
 import { hourLabel, type SlotState } from '@hissypad/core/hours';
 import { DEED_EMPTY, EMPTY, firstLine, hasPlan, isLogged, planState, type Entry, type EntryPatch } from '@hissypad/core/hours';
 import { flagChoice, flagOption, setFlagChoice, type Flag } from '@hissypad/core/hours';
@@ -45,8 +45,8 @@ export function HourRow(props: Props) {
   const isNow = state === 'now';
   // An id with no category on this device shows as untagged; the id itself is kept.
   const category = findCategory(categories, entry?.category);
-  // The row has one line, so a category shows by its short name: the part before an em dash.
-  const categoryName = category ? shortLabel(category.label) : null;
+  // The row has one line, so a category shows by its icon, or by its name when it has none.
+  const categoryShown = category ? categoryShort(category) : null;
   // A text can run to many lines. The list shows the first, like the subject of a commit.
   const note = firstLine(entry?.note ?? '');
 
@@ -54,7 +54,7 @@ export function HourRow(props: Props) {
   const plan = findCategory(categories, entry?.planned);
   const planned = hasPlan(entry);
   const planWords = firstLine(entry?.plannedNote ?? '');
-  const planLabel = plan ? shortLabel(plan.label) : entry?.planned ? 'a category not on this device' : null;
+  const planLabel = plan ? categoryShort(plan) : entry?.planned ? 'a category not on this device' : null;
   const against = planState(entry);
   // Beside a logged hour there is room for one short thing; an hour with only a plan shows all of it.
   const planShort = !planned ? null : against === 'kept' ? 'as planned' : `planned ${planLabel ?? planWords}`;
@@ -74,7 +74,7 @@ export function HourRow(props: Props) {
     .join(', ');
 
   const main = logged
-    ? [categoryName ?? (note ? null : 'Untagged'), note || null].filter(Boolean).join(': ')
+    ? [categoryShown ?? (note ? null : 'Untagged'), note || null].filter(Boolean).join(': ')
     : planFull
       ? state === 'past'
         ? `blank, ${planFull}`
@@ -111,7 +111,7 @@ export function HourRow(props: Props) {
         />
         {logged ? (
           <Text numberOfLines={1} style={[styles.text, styles.note, { color: theme.ink }]}>
-            {(category || !note) && <Text style={{ color: theme.inkSoft }}>{categoryName ?? 'Untagged'}</Text>}
+            {(category || !note) && <Text style={{ color: theme.inkSoft }}>{categoryShown ?? 'Untagged'}</Text>}
             {category && note ? '  ' : ''}
             {note}
           </Text>
@@ -374,7 +374,7 @@ function Editor({ day, hour, entry, recurring, state, logged, categories, flags,
                   />
                   <Text style={[styles.label, styles.italic, { color: theme.inkSoft }]}>
                     {entry?.planned
-                      ? `${recurring ? 'Recurring plan' : 'Planned'}: ${plan?.label ?? 'a category not on this device'}`
+                      ? `${recurring ? 'Recurring plan' : 'Planned'}: ${plan ? categoryName(plan) : 'a category not on this device'}`
                       : savedPlan.trim() !== ''
                         ? recurring
                           ? 'Recurring plan, with no category'
@@ -518,7 +518,7 @@ export function Picker({ title, kind, value, categories, onPick, suggested = fal
   // can still be seen and taken off.
   const choices = categories.filter((c) => !c.archived || c.id === value);
   const current = findCategory(categories, value);
-  const shown = current?.label ?? (value ? 'A category not on this device' : 'None');
+  const shown = current ? categoryName(current) : (value ? 'A category not on this device' : 'None');
   const swatch = (color: string | null) => (
     <Mark style={styles.chipSwatch} fill={kind === 'done' ? color : null} outline={kind === 'plan' ? color : null} />
   );
@@ -557,13 +557,13 @@ export function Picker({ title, kind, value, categories, onPick, suggested = fal
                 {...hold}
                 role="option"
                 aria-selected={on}
-                aria-label={choice?.label ?? 'None'}
+                aria-label={choice ? categoryName(choice) : 'None'}
                 onPress={() => pick(choice?.id ?? null)}
                 style={[styles.option, { borderTopColor: theme.rule }]}
                 activeStyle={{ backgroundColor: theme.paperRaised }}>
                 {swatch(choice ? theme.palette[choice.color] : null)}
                 <Text style={[styles.selectText, { color: theme.ink }, on && { fontWeight: '700' }]}>
-                  {choice?.label ?? 'None'}
+                  {choice ? categoryName(choice) : 'None'}
                 </Text>
                 {/* A tick, not only bold type, marks the chosen one. */}
                 {on && <Text style={[styles.caret, { color: theme.ink }]}>✓</Text>}

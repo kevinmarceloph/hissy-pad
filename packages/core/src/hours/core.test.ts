@@ -122,6 +122,7 @@ describe('categories', () => {
   const cat = (id: string, over: Partial<Category> = {}): Category => ({
     id,
     label: id,
+    icon: '',
     color: 'blue',
     position: 0,
     archived: false,
@@ -157,9 +158,10 @@ describe('categories', () => {
   it('adds at the end with the first unused color', () => {
     expect(nextColor(SAMPLE_CATEGORIES)).toBe('sky');
     expect(nextColor(COLORS.map((c, i) => cat(String(i), { color: c.key })))).toBe('blue');
-    expect(newCategory(SAMPLE_CATEGORIES, 'cabc', ' Errands ', 'sky', 500)).toEqual({
+    expect(newCategory(SAMPLE_CATEGORIES, 'cabc', ' Errands ', '\u{1F6D2} cart', 'sky', 500)).toEqual({
       id: 'cabc',
       label: 'Errands',
+      icon: '\u{1F6D2}',
       color: 'sky',
       position: 8,
       archived: false,

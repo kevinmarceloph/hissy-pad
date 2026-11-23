@@ -33,10 +33,13 @@ describe('wire rows', () => {
   });
 
   it('maps a category, reading a bigint sent as text and a color it does not know', () => {
-    const category = { id: 'deep', label: 'Deep work', color: 'blue' as const, position: 0, archived: false, updatedAt: 5 };
+    const category = { id: 'deep', label: 'Deep work', icon: '\u{1F4BB}', color: 'blue' as const, position: 0, archived: false, updatedAt: 5 };
     expect(categoryFromWire({ ...categoryToWire(category), synced_at: '2026-11-19T13:00:00Z' }).row).toEqual(category);
     const odd = { ...categoryToWire(category), color: 'neon', updated_at: '7' as unknown as number };
     expect(categoryFromWire(odd).row).toMatchObject({ color: 'stone', updatedAt: 7 });
+    // A server from before categories had an icon sends none.
+    const { icon: _icon, ...old } = categoryToWire(category);
+    expect(categoryFromWire(old).row.icon).toBe('');
   });
 
   it('carries the plan and the flags, and reads a row from before they existed', () => {

@@ -102,12 +102,29 @@ describe('CategoriesScreen', () => {
     expect(screen.getByText('A category needs a name.')).toBeTruthy();
 
     await fireEvent.changeText(screen.getByLabelText('Name'), 'Errands');
+    await fireEvent.changeText(screen.getByLabelText('Icon'), '\u{1F6D2} cart');
     await fireEvent.press(screen.getByRole('radio', { name: 'Olive' }));
     await fireEvent.press(screen.getByText('Add'));
 
     expect(await screen.findByLabelText('Errands, Olive')).toBeTruthy();
-    expect(await saved('cnew000001')).toMatchObject({ label: 'Errands', color: 'olive', position: 8 });
+    // The icon is cut to its one emoji and shown in front of the name.
+    expect(screen.getByText('\u{1F6D2} Errands')).toBeTruthy();
+    expect(await saved('cnew000001')).toMatchObject({ label: 'Errands', icon: '\u{1F6D2}', color: 'olive', position: 8 });
     expect(screen.getByText('Add a category')).toBeTruthy();
+  });
+
+  it('gives a category an icon and takes it off again', async () => {
+    const { saved } = await setup();
+    await fireEvent.press(await screen.findByLabelText('Body, Moss'));
+    await fireEvent.changeText(screen.getByLabelText('Icon'), '\u{1F3C3}');
+    await fireEvent.press(screen.getByText('Done'));
+    expect((await saved('body')).icon).toBe('\u{1F3C3}');
+    expect(screen.getByText('\u{1F3C3} Body')).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('Body, Moss'));
+    await fireEvent.changeText(screen.getByLabelText('Icon'), '');
+    await fireEvent.press(screen.getByText('Done'));
+    expect((await saved('body')).icon).toBe('');
   });
 
   it('says so when every category is archived', async () => {

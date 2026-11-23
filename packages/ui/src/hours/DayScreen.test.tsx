@@ -153,19 +153,18 @@ describe('DayScreen', () => {
     expect(onEditCategories).toHaveBeenCalled();
   });
 
-  it('shows a category by the part of its name before an em dash, in the rows and the legend', async () => {
+  it('shows a category by its icon in the rows and the legend, and by icon and name in the pickers', async () => {
     const rows = new MemoryStore([], SAMPLE_CATEGORIES, SAMPLE_FLAGS);
     const { categories } = await setup(new MemoryStore([{ ...seed[0], planned: 'body' }]), rows);
-    await categories.getState().update('deep', { label: '\u{1F4BB} \u2014 Deep work, no chat' });
-    await categories.getState().update('body', { label: 'Body \u2014 gym or a run' });
+    await categories.getState().update('deep', { icon: '\u{1F4BB}', label: 'Deep work, no chat' });
 
-    // The row says the short names, the done one and the planned one.
+    // The row says the icon where there is one and the name where there is not.
     expect(await screen.findByLabelText('9am: \u{1F4BB}: proposals, planned Body')).toBeTruthy();
-    // So does the legend. The pickers say all of it.
+    // So does the legend. The pickers say the icon and the name.
     expect(screen.getByLabelText(/\u{1F4BB} 1h/u)).toBeTruthy();
     await fireEvent.press(screen.getByLabelText('9am: \u{1F4BB}: proposals, planned Body'));
-    expect(screen.getByLabelText('Where it went: \u{1F4BB} \u2014 Deep work, no chat')).toBeTruthy();
-    expect(screen.getByText('Planned: Body \u2014 gym or a run')).toBeTruthy();
+    expect(screen.getByLabelText('Where it went: \u{1F4BB} Deep work, no chat')).toBeTruthy();
+    expect(screen.getByText('Planned: Body')).toBeTruthy();
   });
 
   it('plans an hour that has not come, in words and by category', async () => {

@@ -36,6 +36,8 @@ export function colorLabel(key: ColorKey): string {
 export type Category = {
   id: string;
   label: string;
+  // One emoji that stands for the category where room is short, or '' for none.
+  icon: string;
   color: ColorKey;
   // Order in the picker and the legend. Gaps and ties are fine; ties break on id.
   position: number;
@@ -43,9 +45,9 @@ export type Category = {
   updatedAt: number; // ms since epoch, client clock
 };
 
-export type CategoryPatch = Partial<Pick<Category, 'label' | 'color' | 'position' | 'archived'>>;
+export type CategoryPatch = Partial<Pick<Category, 'label' | 'icon' | 'color' | 'position' | 'archived'>>;
 
-// Room for a short name, an em dash and a description after it (see shortLabel).
+// The longest name a category, a flag or a flag's option can have.
 export const LABEL_MAX = 48;
 
 // A set of categories for tests and examples. Nothing is seeded: the list starts empty
@@ -61,7 +63,7 @@ export const SAMPLE_CATEGORIES: Category[] = (
     ['sleep', 'Sleep', 'night'],
     ['drift', 'Drift', 'rose'],
   ] as const
-).map(([id, label, color], position) => ({ id, label, color, position, archived: false, updatedAt: 0 }));
+).map(([id, label, color], position) => ({ id, label, icon: '', color, position, archived: false, updatedAt: 0 }));
 
 export function sortCategories(list: Category[]): Category[] {
   return [...list].sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
@@ -75,12 +77,29 @@ export function findCategory(list: Category[], id: string | null | undefined): C
   return id ? list.find((c) => c.id === id) : undefined;
 }
 
-// A category's name where room is short (an hour's row, the legend over the day): the part
-// before an em dash. What follows the dash is a description, shown where the whole name is
-// (the pickers, the categories screen), so an emoji can be the name and still carry a note.
-// HissyPad's rule for sub-pads, the same way: a name that is all dash stays whole.
-export function shortLabel(label: string): string {
-  return (label.split('\u2014')[0] ?? '').trim() || label;
+// An icon is one emoji: the first thing a reader would call a character, however many
+// code points it is made of (a flag, a skin tone, a family). Anything after it is dropped.
+export function cleanIcon(raw: string): string {
+  const text = raw.trim();
+  if (text === '') return '';
+  const first =
+    typeof Intl !== 'undefined' && 'Segmenter' in Intl
+      ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)][0]?.segment ?? ''
+      : ([...text][0] ?? '');
+  // The server takes 16 characters at most.
+  return first.length <= 16 ? first : '';
+}
+
+// A category where room is short (an hour's row, the legend over the day): its icon, or
+// its name when it has none.
+export function categoryShort(category: Pick<Category, 'icon' | 'label'>): string {
+  return category.icon || category.label;
+}
+
+// A category where there is room for all of it (the pickers, the categories screen): the
+// icon, then the name.
+export function categoryName(category: Pick<Category, 'icon' | 'label'>): string {
+  return category.icon ? `${category.icon} ${category.label}` : category.label;
 }
 
 // Trims, collapses runs of whitespace and cuts to LABEL_MAX.
@@ -108,11 +127,12 @@ export function newCategory(
   list: Category[],
   id: string,
   label: string,
+  icon: string,
   color: ColorKey,
   now: number,
 ): Category {
   const last = list.reduce((max, c) => Math.max(max, c.position), -1);
-  return { id, label: cleanLabel(label), color, position: last + 1, archived: false, updatedAt: now };
+  return { id, label: cleanLabel(label), icon: cleanIcon(icon), color, position: last + 1, archived: false, updatedAt: now };
 }
 
 export function patchCategory(base: Category, patch: CategoryPatch, now: number): Category {
@@ -120,6 +140,7 @@ export function patchCategory(base: Category, patch: CategoryPatch, now: number)
     ...base,
     ...patch,
     label: patch.label !== undefined ? cleanLabel(patch.label) : base.label,
+    icon: patch.icon !== undefined ? cleanIcon(patch.icon) : base.icon,
     // Never go backwards, for the same reason as entries: last write wins on the server.
     updatedAt: Math.max(now, base.updatedAt + 1),
   };

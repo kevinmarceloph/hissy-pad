@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { findCategory, shortLabel, type Category } from '@hissypad/core/hours';
+import { categoryName, categoryShort, findCategory, type Category } from '@hissypad/core/hours';
 import { hourLabel, HOURS } from '@hissypad/core/hours';
 import { firstLine } from '@hissypad/core/hours';
 import {
@@ -30,7 +30,7 @@ const BLANK: RecurringFields = { note: '', category: null, from: 9, to: 10, days
 // A plan in a few words: its category, then the first line of its text.
 function planTitle(plan: Pick<RecurringPlan, 'note' | 'category'>, categories: Category[], short = false): string {
   const category = findCategory(categories, plan.category);
-  const name = category ? (short ? shortLabel(category.label) : category.label) : plan.category ? 'A category not on this device' : null;
+  const name = category ? (short ? categoryShort(category) : categoryName(category)) : plan.category ? 'A category not on this device' : null;
   return [name, firstLine(plan.note)].filter(Boolean).join(': ');
 }
 

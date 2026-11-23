@@ -22,10 +22,11 @@ describe('category store', () => {
 
   it('adds at the end and writes through', async () => {
     const { store, categories, labels } = await setup();
-    await categories.getState().add('Errands', 'sky');
+    await categories.getState().add('Errands', '\u{1F6D2}', 'sky');
     expect(labels().at(-1)).toBe('Errands');
     expect((await store.listCategories()).find((c) => c.id === 'cnew000001')).toMatchObject({
       label: 'Errands',
+      icon: '\u{1F6D2}',
       color: 'sky',
       position: 8,
       updatedAt: NOW.getTime(),

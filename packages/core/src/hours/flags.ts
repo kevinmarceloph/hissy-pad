@@ -2,7 +2,7 @@
 // user edits (rename, reorder, archive, add) and never deletes. Each flag has its own short
 // list of options, Yes and No to start, and each option has a color. An hour starts with
 // every flag unset: an entry stores one token per flag that was answered, "flag:option".
-import { cleanLabel, COLORS, isColorKey, type ColorKey } from './categories';
+import { cleanIcon, cleanLabel, COLORS, isColorKey, type ColorKey } from './categories';
 
 // One answer a flag can take. Options live inside their flag's row and sync with it.
 export type FlagOption = {
@@ -106,19 +106,6 @@ export function newOptionId(random: () => number = Math.random): string {
 export function nextOptionColor(options: FlagOption[]): ColorKey {
   const used = new Set(options.filter((o) => !o.archived).map((o) => o.color));
   return (COLORS.find((c) => !used.has(c.key)) ?? COLORS[0]).key;
-}
-
-// An icon is one emoji: the first thing a reader would call a character, however many
-// code points it is made of (a flag, a skin tone, a family). Anything after it is dropped.
-export function cleanIcon(raw: string): string {
-  const text = raw.trim();
-  if (text === '') return '';
-  const first =
-    typeof Intl !== 'undefined' && 'Segmenter' in Intl
-      ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)][0]?.segment ?? ''
-      : ([...text][0] ?? '');
-  // The server takes 16 characters at most.
-  return first.length <= 16 ? first : '';
 }
 
 // What stands for a flag where there is room for one mark: its icon, or failing that the

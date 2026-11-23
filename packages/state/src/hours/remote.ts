@@ -2,7 +2,7 @@
 // tables (supabase/migrations) live here and nowhere else.
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { isColorKey, type Category } from '@hissypad/core/hours';
+import { cleanIcon, isColorKey, type Category } from '@hissypad/core/hours';
 import type { Entry } from '@hissypad/core/hours';
 import { cleanFlagIds, cleanOptions, type Flag, type FlagOption } from '@hissypad/core/hours';
 import { cleanDays, cleanHour, type RecurringPlan } from '@hissypad/core/hours';
@@ -52,6 +52,8 @@ type WireRecurring = {
 type WireCategory = {
   id: string;
   label: string;
+  // Absent on a row read from a server that has not run the category-icons migration.
+  icon?: string | null;
   color: string;
   position: number;
   archived: boolean;
@@ -87,6 +89,7 @@ export const entryFromWire = (w: WireEntry): Pulled<Entry> => ({
 export const categoryToWire = (c: Category): WireCategory => ({
   id: c.id,
   label: c.label,
+  icon: c.icon,
   color: c.color,
   position: c.position,
   archived: c.archived,
@@ -97,6 +100,7 @@ export const categoryFromWire = (w: WireCategory): Pulled<Category> => ({
   row: {
     id: w.id,
     label: w.label,
+    icon: cleanIcon(w.icon ?? ''),
     // A color key this build does not know (written by a newer one) reads as stone.
     color: isColorKey(w.color) ? w.color : 'stone',
     position: w.position,

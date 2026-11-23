@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
+  categoryName,
+  cleanIcon,
   cleanLabel,
   colorLabel,
   LABEL_MAX,
@@ -18,7 +20,7 @@ import { MoveButtons } from './MoveButtons';
 import { Tap } from './Tap';
 import { GUTTER, LINE, MAX_WIDTH, ROW, serif, SIZE, SMALL, useTheme } from './theme';
 
-// Where the category list is edited: rename, recolor, reorder, archive, add. One editor is
+// Where the category list is edited: rename, pick an icon, recolor, reorder, archive, add. One editor is
 // open at a time, the same way the day screen edits one hour at a time. The order is
 // changed from the rows themselves, with the arrows at their right.
 export function CategoriesScreen({ onBack }: { onBack(): void }) {
@@ -88,8 +90,8 @@ export function CategoriesScreen({ onBack }: { onBack(): void }) {
             <NewCategory
               list={list}
               onCancel={() => setEditing(null)}
-              onAdd={(label, color) => {
-                void add(label, color);
+              onAdd={(label, icon, color) => {
+                void add(label, icon, color);
                 setEditing(null);
               }}
             />
@@ -113,7 +115,7 @@ export function CategoriesScreen({ onBack }: { onBack(): void }) {
                 <View key={category.id} style={[styles.wrap, styles.row, { borderBottomColor: theme.rule }]}>
                   <View style={[styles.swatch, { backgroundColor: theme.palette[category.color] }]} />
                   <Text numberOfLines={1} style={[styles.body, styles.name, { color: theme.inkSoft }]}>
-                    {category.label}
+                    {categoryName(category)}
                   </Text>
                   <Tap
                     aria-label={`Restore ${category.label}`}
@@ -158,7 +160,7 @@ function CategoryRow(props: RowProps) {
           activeStyle={{ backgroundColor: theme.paperRaised }}>
           <View style={[styles.swatch, { backgroundColor: theme.palette[category.color] }]} />
           <Text numberOfLines={1} style={[styles.body, styles.name, { color: theme.ink }]}>
-            {category.label}
+            {categoryName(category)}
           </Text>
         </Tap>
         {/* Beside the row's button, not inside it: the order changes without opening anything. */}
@@ -172,7 +174,11 @@ function CategoryRow(props: RowProps) {
 function RowEditor({ category, list, onClose, onUpdate }: RowProps) {
   const theme = useTheme();
   const [draft, setDraft] = useState(category.label);
+  const [icon, setIcon] = useState(category.icon);
   const [problem, setProblem] = useState<string | null>(null);
+
+  // The icon as a patch: empty when it has not changed.
+  const iconPatch = (): CategoryPatch => (cleanIcon(icon) === category.icon ? {} : { icon: cleanIcon(icon) });
 
   // The name as a patch: empty when it has not changed, null when it cannot be used (and
   // the reason is on screen).
@@ -185,11 +191,12 @@ function RowEditor({ category, list, onClose, onUpdate }: RowProps) {
     return label === category.label ? {} : { label };
   };
 
-  // The name is written when the field is left or submitted, not on every keystroke.
+  // The name and the icon are written when a field is left or submitted, not on every keystroke.
   const commit = (): boolean => {
-    const patch = namePatch();
-    if (patch?.label) onUpdate(patch);
-    return patch !== null;
+    const name = namePatch();
+    const patch = { ...name, ...iconPatch() };
+    if (name !== null && Object.keys(patch).length > 0) onUpdate(patch);
+    return name !== null;
   };
 
   return (
@@ -205,13 +212,14 @@ function RowEditor({ category, list, onClose, onUpdate }: RowProps) {
         }}
         onEscape={onClose}
       />
-      <ColorField value={category.color} onPick={(color) => onUpdate({ ...namePatch(), color })} />
+      <IconField value={icon} onChange={setIcon} onBlur={commit} onEscape={onClose} />
+      <ColorField value={category.color} onPick={(color) => onUpdate({ ...namePatch(), ...iconPatch(), color })} />
 
       <View style={styles.actions}>
         <View style={[styles.actionGroup, styles.actionGroupEnd]}>
           <Tap
             onPress={() => {
-              onUpdate({ ...namePatch(), archived: true });
+              onUpdate({ ...namePatch(), ...iconPatch(), archived: true });
               onClose();
             }}
             style={styles.button}
@@ -232,18 +240,19 @@ function RowEditor({ category, list, onClose, onUpdate }: RowProps) {
   );
 }
 
-type NewProps = { list: Category[]; onAdd(label: string, color: ColorKey): void; onCancel(): void };
+type NewProps = { list: Category[]; onAdd(label: string, icon: string, color: ColorKey): void; onCancel(): void };
 
 function NewCategory({ list, onAdd, onCancel }: NewProps) {
   const theme = useTheme();
   const [draft, setDraft] = useState('');
+  const [icon, setIcon] = useState('');
   const [color, setColor] = useState(() => nextColor(list));
   const [problem, setProblem] = useState<string | null>(null);
 
   const submit = () => {
     const found = labelProblem(list, draft);
     setProblem(found);
-    if (!found) onAdd(draft, color);
+    if (!found) onAdd(draft, icon, color);
   };
 
   return (
@@ -261,6 +270,7 @@ function NewCategory({ list, onAdd, onCancel }: NewProps) {
         }}
         onEscape={onCancel}
       />
+      <IconField value={icon} onChange={setIcon} onEscape={onCancel} />
       <ColorField value={color} onPick={setColor} />
       <View style={[styles.actions, styles.actionsEnd]}>
         <Tap onPress={onCancel} style={styles.button} activeStyle={{ backgroundColor: theme.paper }}>
@@ -324,6 +334,42 @@ function NameField({ value, problem, autoFocus, onChange, onBlur, onSubmit, onEs
   );
 }
 
+type IconProps = { value: string; onChange(value: string): void; onBlur?(): void; onEscape(): void };
+
+// One emoji. Whatever is typed is cut to its first character when it is saved.
+function IconField({ value, onChange, onBlur, onEscape }: IconProps) {
+  const theme = useTheme();
+  return (
+    <View style={styles.field}>
+      <Text nativeID="category-icon" style={[styles.small, { color: theme.inkSoft }]}>
+        Icon
+      </Text>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        onBlur={onBlur}
+        onKeyPress={(e) => {
+          if (e.nativeEvent.key === 'Escape') onEscape();
+        }}
+        aria-labelledby="category-icon"
+        accessibilityLabel="Icon"
+        placeholder="none"
+        placeholderTextColor={theme.inkQuiet}
+        returnKeyType="done"
+        maxLength={16}
+        style={[
+          styles.input,
+          styles.iconInput,
+          { color: theme.ink, borderColor: theme.accent, backgroundColor: theme.paper, outlineColor: theme.accent },
+        ]}
+      />
+      <Text style={[styles.small, { color: theme.inkSoft }]}>
+        One emoji. An hour's row and the day's strip show it in place of the name.
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   column: { flex: 1, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', paddingHorizontal: GUTTER },
@@ -354,6 +400,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 4,
   },
+  iconInput: { width: 96 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', rowGap: 4 },
   actionsEnd: { justifyContent: 'flex-end', columnGap: 4 },
   actionGroup: { flexDirection: 'row', alignItems: 'center' },

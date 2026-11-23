@@ -168,7 +168,9 @@ export class HoursStore implements EntryStore, CategoryStore, FlagStore, Recurri
       recurring: this.recurring as Map<string, Tracked<never>>,
     };
     for (const stored of await this.backend.load()) {
-      maps[stored.table]?.set(stored.key, { row: stored.row as never, dirty: stored.dirty });
+      // A category saved before categories had an icon has none.
+      const row = stored.table === 'categories' ? { icon: '', ...(stored.row as object) } : stored.row;
+      maps[stored.table]?.set(stored.key, { row: row as never, dirty: stored.dirty });
     }
   }
 

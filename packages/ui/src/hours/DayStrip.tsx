@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { findCategory, shortLabel, type Category } from '@hissypad/core/hours';
+import { categoryShort, findCategory, type Category } from '@hissypad/core/hours';
 import { daySlots, hourLabel, slotState, type DayKey } from '@hissypad/core/hours';
 import { isLogged, planState, type Entry } from '@hissypad/core/hours';
 import type { Summary } from '@hissypad/core/hours';
@@ -39,7 +39,7 @@ export function stripWords(summary: Summary): string {
         : `${accounted} of ${summary.elapsed} ${plural(summary.elapsed)} accounted for.`;
   const parts = summary.byCategory.map(
     ({ category, hours: n, planned }) =>
-      `${shortLabel(category.label)} ${n > 0 ? hours(n) : `${hours(planned)} planned`}${n > 0 && planned > 0 ? `, ${hours(planned)} planned` : ''}`,
+      `${categoryShort(category)} ${n > 0 ? hours(n) : `${hours(planned)} planned`}${n > 0 && planned > 0 ? `, ${hours(planned)} planned` : ''}`,
   );
   if (summary.untagged > 0) parts.push(`Untagged ${hours(summary.untagged)}`);
   if (summary.blank > 0) parts.push(`Blank ${hours(summary.blank)}`);
