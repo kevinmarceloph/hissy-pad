@@ -57,7 +57,9 @@ function mergeRemote(incoming: readonly NodeRow[]) {
   const all: Record<string, NodeRow> = { ...s.all }
   for (const r of incoming) {
     const cur = all[r.id]
-    if (!cur || r.updatedAt > cur.updatedAt) all[r.id] = r
+    // The engine has already chosen these: newer rows, and rows of the same age that a
+    // clean local copy had wrong. Only a row edited here since is kept.
+    if (!cur || r.updatedAt >= cur.updatedAt) all[r.id] = r
   }
   setAll(all)
   // Keep the selection and the editing line only if they are still in the pad shown

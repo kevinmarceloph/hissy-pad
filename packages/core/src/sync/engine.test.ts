@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { createClock } from '../clock'
 import { buildIndex, flatten } from '../tree'
-import { insertAt, insertAfter, remove, setText } from '../ops'
+import { insertAt, insertAfter, remove, setSlot, setText } from '../ops'
 import type { NodeRow, OpCtx, Rows } from '../types'
 import { changedRows, createMemoryStore } from './store'
-import { createSyncEngine, type SyncStatus } from './engine'
+import { createSyncEngine, EPOCH_KEY, PULL_EPOCH, type SyncStatus } from './engine'
 import { createFakeRemote } from './fakeRemote'
 
 // A simulated device: its own clock, local store, in-memory rows and engine, sharing one
@@ -36,7 +36,9 @@ function device(name: string, remote: ReturnType<typeof createFakeRemote>, wall:
     rows = next
   }
   const texts = () => flatten(buildIndex(rows), false).map((r) => '  '.repeat(r.depth) + rows[r.id]!.text).join('\n')
-  return { name, ctx, local, engine, edit, texts, get rows() { return rows }, statuses }
+  // Puts rows straight into memory, as a load from storage would.
+  const set = (patch: Rows) => { rows = { ...rows, ...patch } }
+  return { name, ctx, local, engine, edit, set, texts, get rows() { return rows }, statuses }
 }
 
 describe('sync engine', () => {
@@ -232,5 +234,51 @@ describe('normalizeRow / toWire', () => {
     expect(toWire(old).header).toBe(false)
     expect(normalizeRow(old).doneAt).toBeNull()
     expect(toWire(old).done_at).toBeNull()
+  })
+
+  it('takes the server`s row over a clean local copy of the same age that differs', async () => {
+    const remote = createFakeRemote()
+    const wall = { ms: 1_000_000 }
+    const a = device('a', remote, wall)
+    const b = device('b', remote, wall)
+    await a.edit((r, c) => insertAt(r, c, { parentId: null, afterId: null }, 'call the bank').rows)
+    await a.edit((r, c) => setSlot(r, c, Object.keys(r), '2026-11-23T15'))
+    await a.engine.sync()
+    await b.engine.sync()
+    const id = Object.keys(b.rows)[0]!
+    expect(b.rows[id]!.slot).toBe('2026-11-23T15')
+
+    // What a build from before the column did: it kept the row without its slot, clean.
+    const old = { ...b.rows[id]!, slot: null }
+    await b.local.upsertMany([old], { dirty: false })
+    b.set({ [id]: old })
+    // Its cursor is past the row, so an ordinary pull never sees it again.
+    await b.engine.sync()
+    expect(b.rows[id]!.slot).toBeNull()
+
+    // A build under a new pull epoch reads everything once more and takes the server's row.
+    await b.local.setMeta(EPOCH_KEY, 'before')
+    await b.engine.sync()
+    expect(b.rows[id]!.slot).toBe('2026-11-23T15')
+    expect(await b.local.getMeta(EPOCH_KEY)).toBe(PULL_EPOCH)
+    expect(await b.local.dirtyIds()).toEqual([])
+  })
+
+  it('keeps a local edit of the same age that is still waiting to be pushed', async () => {
+    const remote = createFakeRemote()
+    const wall = { ms: 1_000_000 }
+    const a = device('a', remote, wall)
+    const b = device('b', remote, wall)
+    await a.edit((r, c) => insertAt(r, c, { parentId: null, afterId: null }, 'one').rows)
+    await a.engine.sync()
+    await b.engine.sync()
+    const id = Object.keys(b.rows)[0]!
+    const mine = { ...b.rows[id]!, text: 'mine' }
+    await b.local.upsertMany([mine], { dirty: true })
+    b.set({ [id]: mine })
+    await b.local.setMeta(EPOCH_KEY, 'before')
+    remote.failNextPush(new Error('offline'))
+    await b.engine.sync()
+    expect(b.rows[id]!.text).toBe('mine')
   })
 })

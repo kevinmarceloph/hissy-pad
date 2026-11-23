@@ -6,7 +6,7 @@
 //
 // The engine owns no UI state. It reads and writes the LocalStore, asks the app for the
 // rows it holds in memory, and hands back the remote rows that won.
-import type { NodeRow, Rows } from '../types'
+import { sameRow, type NodeRow, type Rows } from '../types'
 import type { Clock } from '../clock'
 import type { LocalStore } from './store'
 
@@ -68,6 +68,15 @@ export interface SyncEngine {
 
 export const CURSOR_KEY = 'sync.cursor'
 
+// Raised when devices may hold rows that differ from the server's without knowing it. A
+// device that has not pulled under this number forgets its cursor once and reads every row
+// again; the merge takes what is newer, or what a clean local row got wrong.
+// 2: 2026-11-23. A build from before the `slot` column pulled rows that carried one, kept
+// them without it and moved its cursor past them: the phone showed no hour on lines that
+// had one on the web.
+export const PULL_EPOCH = '2'
+export const EPOCH_KEY = 'sync.epoch'
+
 export function createSyncEngine(o: SyncEngineOptions): SyncEngine {
   const pageSize = o.pageSize ?? 500
   const debounceMs = o.debounceMs ?? 800
@@ -116,7 +125,8 @@ export function createSyncEngine(o: SyncEngineOptions): SyncEngine {
   }
 
   async function pullNew(): Promise<void> {
-    const stored = await o.local.getMeta(CURSOR_KEY)
+    const repull = (await o.local.getMeta(EPOCH_KEY)) !== PULL_EPOCH
+    const stored = repull ? null : await o.local.getMeta(CURSOR_KEY)
     let since = stored === null ? null : new Date(Date.parse(stored) - slack).toISOString()
     let newest = stored
     for (;;) {
@@ -128,12 +138,14 @@ export function createSyncEngine(o: SyncEngineOptions): SyncEngine {
       for (const { row, syncedAt } of page) {
         o.clock.observe(row.updatedAt)
         const local = mine[row.id]
-        // Remote wins when it is strictly newer. Equal timestamps are our own echo. A
-        // local row that is newer is dirty and will be pushed on the next pass.
-        if (!local || row.updatedAt > local.updatedAt) {
-          if (local && dirty.has(row.id) && row.updatedAt <= local.updatedAt) continue
-          accepted.push(row)
-        }
+        // Remote wins when it is strictly newer. Equal timestamps are normally our own
+        // echo, and then the two rows are the same. A clean local row with the same
+        // timestamp that differs gives way: it claims to be the server's row, and the
+        // server's is what the other devices have (a build that did not know a column
+        // stored the row without it). A local row that is newer is dirty and will be
+        // pushed on the next pass.
+        const stale = local !== undefined && row.updatedAt === local.updatedAt && !dirty.has(row.id) && !sameRow(row, local)
+        if (!local || row.updatedAt > local.updatedAt || stale) accepted.push(row)
         if (newest === null || syncedAt > newest) newest = syncedAt
       }
       if (accepted.length) {
@@ -144,6 +156,8 @@ export function createSyncEngine(o: SyncEngineOptions): SyncEngine {
       if (page.length < pageSize) break
       since = page.at(-1)!.syncedAt
     }
+    // Only once every row has been read through: a pull that failed half way starts over.
+    if (repull) await o.local.setMeta(EPOCH_KEY, PULL_EPOCH)
   }
 
   async function runOnce(): Promise<void> {

@@ -65,6 +65,7 @@ Mobile commands (Expo, EAS, env pull, update channels) are in `README.md`. The p
 - The Apple Watch app is a sync client of its own, in Swift (`apps/mobile/targets/watch`): it repeats the tree, open-line and merge rules from the packages, so change `Rows.swift` with them. A change under `supabase/functions/` ships with `supabase --workdir /Users/kevin/Personal/hissy-pad functions deploy <name>`.
 - Every edit stamps `updated_at` through the clock in core. Undo re-stamps the touched rows so the change syncs.
 - A shared screen goes in `packages/ui`, in React Native, only if it needs nothing the DOM has and the phone lacks. The pad's editor stays per app. Its tests run in jsdom through react-native-web (`packages/ui/src/testing/rntl.ts` maps React Native Testing Library's `press` and `changeText`).
+- A new column on `nodes` needs `PULL_EPOCH` raised in `core/sync/engine.ts` when it ships: a device still running the old code pulls rows that carry the column, stores them without it and moves its cursor past them (2026-11-23: the phone showed no hour chips for lines given one on the web). Under a new epoch every device reads all rows once more, and the merge takes the server's row over a clean local one of the same `updated_at` that differs. The watch's own merge (`Rows.swift`) was left strictly-newer: it only keeps columns it knows.
 - `_repro.test.*` files are scratch reproductions, not part of the suite. Delete them when the bug is fixed.
 - Keep the look: paper ground, serif, one accent. Dials in the header of `apps/web/src/styles.css`.
 
