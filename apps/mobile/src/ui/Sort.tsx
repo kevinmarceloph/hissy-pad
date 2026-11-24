@@ -3,7 +3,7 @@
 // same. The card's text and sub items are live fields. Same queue, targets and commands as
 // the web (state/sort.ts); only the gesture is drawn here, with PanResponder and Animated
 // so it ships as a JS-only update.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef } from 'react'
 import { Alert, Animated, Dimensions, Keyboard, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
@@ -16,6 +16,29 @@ import { INDENT, serif, type Theme } from '../theme'
 import { HoursIcon } from './TopIcons'
 
 const SLOP = 10 // px before a touch on the card becomes a drag
+
+// A field on the card. On iOS a native text view keeps every touch that starts on it, so a
+// swipe begun on the card's text never reached the card. Until it is focused the field takes
+// no touches (pointerEvents on a wrapping View: iOS ignores it on the TextInput itself); a
+// plain Pressable around it holds the touch instead, focuses the field on a tap, and gives
+// the touch up to the card's pan once it turns into a drag.
+function CardField({ style, onFocus, onBlur, row, ...props }: ComponentProps<typeof TextInput> & { row?: boolean }) {
+  const ref = useRef<ComponentRef<typeof TextInput>>(null)
+  const [focused, setFocused] = useState(false)
+  return (
+    <Pressable onPress={() => ref.current?.focus()} accessible={false} style={row ? { flex: 1 } : undefined}>
+      <View pointerEvents={focused ? 'auto' : 'none'}>
+        <TextInput
+          ref={ref}
+          {...props}
+          onFocus={(e) => { setFocused(true); onFocus?.(e) }}
+          onBlur={(e) => { setFocused(false); onBlur?.(e) }}
+          style={style}
+        />
+      </View>
+    </Pressable>
+  )
+}
 
 // Drawn under the app's top bar and the pad chips: the chips pick which pad is sorted, and
 // the mode switcher is the way out.
@@ -71,6 +94,11 @@ export function SortView({ theme }: { theme: Theme }) {
   sendRef.current = send
   const responder = useRef(
     PanResponder.create({
+      // The card claims the touch as it starts: the screen's root is a Pressable (it puts the
+      // keyboard away), and once an ancestor holds a touch React Native never offers it to the
+      // views inside on move, so a move-only claim never fired. A touch that starts on a field
+      // is held by the field's Pressable, and the capture below takes it once it is a drag.
+      onStartShouldSetPanResponder: () => !busy.current,
       onMoveShouldSetPanResponderCapture: (_e, g) => !busy.current && Math.hypot(g.dx, g.dy) > SLOP,
       onPanResponderGrant: () => Keyboard.dismiss(),
       onPanResponderMove: (_e, g) => pan.setValue({ x: g.dx, y: g.dy }),
@@ -166,7 +194,7 @@ export function SortView({ theme }: { theme: Theme }) {
                   <HoursIcon color={theme.inkSoft} />
                 </Pressable>
               </View>
-              <TextInput
+              <CardField
                 value={row.text}
                 onChangeText={(t) => cmdSortSetText(id, t)}
                 multiline
@@ -183,7 +211,8 @@ export function SortView({ theme }: { theme: Theme }) {
                     return (
                       <View key={sub.id} style={[s.subRow, { paddingLeft: sub.depth * INDENT }]}>
                         <Text style={[s.dot, { color: theme.inkMute }]}>•</Text>
-                        <TextInput
+                        <CardField
+                          row
                           value={r.text}
                           onChangeText={(t) => cmdSortSetText(sub.id, t)}
                           onKeyPress={(e) => { if (e.nativeEvent.key === 'Backspace' && r.text === '') cmdSortRemoveSub(sub.id) }}
@@ -199,7 +228,8 @@ export function SortView({ theme }: { theme: Theme }) {
                 </ScrollView>
                 <View style={s.subRow}>
                   <Text style={[s.dot, { color: theme.inkMute }]}>+</Text>
-                  <TextInput
+                  <CardField
+                    row
                     value={draft}
                     onChangeText={setDraft}
                     onSubmitEditing={addSub}
