@@ -42,7 +42,7 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | `slot.ts` | a line in an hour of a day: the slot's key (`slotKey`, `parseSlot`), the count of done and open lines per slot (`slotCounts`), the lines of one slot in the hour's order (`lineOrder`: by pad, then down the pad), the hour's own lines and what its row counts (`slotTops`, `slotProgress`), an hour as a view of the store and the way back (`scopeSlot`, `unscopeSlot`), how a slot reads in the pad (`slotLabel`) |
 | `hours/` | the Hours mode's logic, from Oras-oras, exported as `@hissypad/core/hours`: `day.ts` (days, hour slots, the day start), `entry.ts` (an hour's plan and deed, `applyPatch`, `toggleDone`), `categories.ts`, `flags.ts`, `recurring.ts`, `chime.ts`, `summary.ts`, `store.ts` (the store interfaces, `HoursBackend`, `HoursStore`, the synced `Setting` rows) |
 | `clock.ts` | the monotonic clock every edit stamps `updated_at` with, and `newUuid` |
-| `look.ts` | the sizes a line of text is drawn in, for the web's pad, the phone's pad and the shared screens: type 17, a line of 25.5px on the web and 26pt on a phone |
+| `look.ts` | the sizes a line of text is drawn in, for the web's pad, the phone's pad and the shared screens: type 17, a line of 25.5px on the web and 26pt on a phone; and the paper, inks and accent, light and dark (`PAPER_LIGHT`, `PAPER_DARK`) |
 | `sync/store.ts` | the `LocalStore` interface, an in-memory one, `changedRows` |
 | `sync/engine.ts` | the sync loop: push dirty rows, pull by cursor, merge, status |
 | `sync/wire.ts` | a row to and from the table's snake_case columns |

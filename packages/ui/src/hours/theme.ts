@@ -1,9 +1,10 @@
 // HissyPad's paper-and-ink tokens (Kevin's call, 2026-11-19): paper ground, serif ink, one
 // pencil-red accent used only where the hand is (the current hour, the open editor, focus).
+// The colors themselves are the pad's, shared in core/look.ts.
 // Dials: ENERGY 1 / RHYTHM 1 / MOTION 1. Charter ships on Apple devices; Georgia elsewhere.
 import { createContext, useContext } from 'react';
 import { Platform, useColorScheme } from 'react-native';
-import { LINE_NATIVE, LINE_WEB, TEXT_SIZE } from '@hissypad/core';
+import { LINE_NATIVE, LINE_WEB, PAPER_DARK, PAPER_LIGHT, TEXT_SIZE, type PaperColors } from '@hissypad/core';
 
 import { PALETTES } from './palette';
 
@@ -29,33 +30,26 @@ export const serif = Platform.select({
 // those numbers. Twelve colors cannot all be far apart for a deuteranope, which is why the
 // screen never rests on color alone.
 
-// Text is 7:1 or better on the paper in both themes (ink, inkSoft, inkQuiet). `line` is
-// the border of a control or an empty box, 4:1 or better. `rule` only separates rows.
-const light = {
-  paper: '#f7f4ec',
-  paperRaised: '#fffdf8',
-  ink: '#1f1c17',
-  inkSoft: '#3b3731',
-  inkQuiet: '#57524a',
-  line: '#7a7469',
-  rule: '#bdb5a4',
-  accent: '#a83d24',
-  accentSoft: '#f0dfd9',
-  palette: PALETTES.light,
-};
+// The paper and the inks are the pad's (core/look.ts), since 2026-11-25: Hours had a
+// darker set of its own, with every text color at 7:1 on the paper, and Kevin chose the
+// pad's for both. So `inkQuiet`, the quiet text (an hour's label, a placeholder), is the
+// pad's muted ink, and so is `line`, the border of a control or of an empty box. `rule`
+// only separates rows.
+const from = (c: PaperColors, palette: (typeof PALETTES)['light']) => ({
+  paper: c.paper,
+  paperRaised: c.paperRaised,
+  ink: c.ink,
+  inkSoft: c.inkSoft,
+  inkQuiet: c.inkMute,
+  line: c.inkMute,
+  rule: c.rule,
+  accent: c.accent,
+  accentSoft: c.accentSoft,
+  palette,
+});
 
-const dark: typeof light = {
-  paper: '#1b1a17',
-  paperRaised: '#24221e',
-  ink: '#ebe6db',
-  inkSoft: '#d3cdc0',
-  inkQuiet: '#b3ad9f',
-  line: '#8f897d',
-  rule: '#524e46',
-  accent: '#e8826a',
-  accentSoft: '#3a2a26',
-  palette: PALETTES.dark,
-};
+const light = from(PAPER_LIGHT, PALETTES.light);
+const dark: typeof light = from(PAPER_DARK, PALETTES.dark);
 
 export const themes = { light, dark };
 

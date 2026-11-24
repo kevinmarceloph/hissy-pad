@@ -421,6 +421,22 @@ body.is-dragging-rows .row .category { cursor: grabbing; }
   line-height: 1.15rem;
   vertical-align: 0.1em;
 }
+/* On a desktop the top section stays put while the pad scrolls under it (Kevin, 2026-11-25):
+   the title, the modes and the pad's tabs. It sticks to the top of the page, so the page
+   itself still scrolls and its scrollbar stays at the window's edge, clear of the lines.
+   The paper behind it reaches up over the page's own top padding. A jump to a line
+   (search, a sub-pad) stops under it. Hours has its own fixed top, below. */
+@media (min-width: 641px) {
+  .app:not(.is-hours) .top {
+    position: sticky; top: 0; z-index: 4;
+    margin: -1.25rem -16px 0; padding: 1.25rem 16px 1.5rem;
+    background: var(--paper);
+  }
+  /* "Archive N completed" hangs under the top section; it stays inside the fixed part, in
+     the gap that was the margin under it, so it never sits over a line. */
+  .app:not(.is-hours) .top .clear-done { top: auto; bottom: 0.05rem; right: 16px; margin-top: 0; }
+  html { scroll-padding-top: 8rem; }
+}
 /* Hours fills the window under the header. Its screens are React Native (packages/ui),
    which lay out with flex from a parent of known height. */
 .app.is-hours { height: 100dvh; display: flex; flex-direction: column; padding-bottom: 0; }

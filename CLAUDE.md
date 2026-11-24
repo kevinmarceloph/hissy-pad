@@ -71,7 +71,7 @@ Mobile commands (Expo, EAS, env pull, update channels) are in `README.md`. The p
 - A new column on `nodes` needs `PULL_EPOCH` raised in `core/sync/engine.ts` when it ships: a device still running the old code pulls rows that carry the column, stores them without it and moves its cursor past them (2026-11-23: the phone showed no hour chips for lines given one on the web). Under a new epoch every device reads all rows once more, and the merge takes the server's row over a clean local one of the same `updated_at` that differs. The watch's own merge (`Rows.swift`) was left strictly-newer: it only keeps columns it knows.
 - The store can zoom into one line (`zoomId`, `zoomTo` in `state/store.ts`): `rows` is then what is under that line, and every command works there. The new item's card and Sort's card use it (`state/create.ts`, `state/sort.ts`). Anything that must see the pad while zoomed reads `scopePad(all, padId)` (`sortRows`), not `rows`. While zoomed, only one set of pad rows may be on screen: the web unmounts the pad behind the dialog, the phone's pad screen keeps the rows it last had, with nothing being edited. A write to the zoomed line itself goes through `applyAll`.
 - `_repro.test.*` files are scratch reproductions, not part of the suite. Delete them when the bug is fixed.
-- Keep the look: paper ground, serif, one accent. Dials in the header of `apps/web/src/styles.css`.
+- Keep the look: paper ground, serif, one accent. Dials in the header of `apps/web/src/styles.css`. The colors and text sizes are one set for the web, the phone and Hours: `packages/core/src/look.ts` (the stylesheet repeats them and `apps/web/src/look.test.ts` holds it to them), so change them there and in the stylesheet together.
 
 ## Gotchas
 

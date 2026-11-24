@@ -1,34 +1,21 @@
 // The web's paper-and-ink tokens, for React Native. Charter ships on iOS; Android falls
 // back to its serif.
 import { Platform, useColorScheme } from 'react-native'
-import { LINE_NATIVE, TEXT_SIZE } from '@hissypad/core'
+import { LINE_NATIVE, PAPER_DARK, PAPER_LIGHT, TEXT_SIZE } from '@hissypad/core'
 
 export const serif = Platform.select({ ios: 'Charter', android: 'serif', default: 'serif' })
 export const mono = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' })
 
+// The paper and the inks are the shared set (core/look.ts); the rest is the pad's own.
 const light = {
-  paper: '#f7f4ec',
-  paperRaised: '#fffdf8',
-  ink: '#1f1c17',
-  inkSoft: '#4d4842',
-  inkMute: '#8a847a',
-  rule: '#d9d3c6',
-  accent: '#b5452b',
-  accentSoft: '#f0dfd9',
+  ...PAPER_LIGHT,
   accentFaint: '#f4eae4',
   link: '#2a5a8a',
   markHl: '#e4c3b6', // ==highlight==: the accent at 26% on paper, as on the web
   codeBg: '#e8e5dd', // `code`: ink at 7% on paper
 }
 const dark: typeof light = {
-  paper: '#1b1a17',
-  paperRaised: '#24221e',
-  ink: '#ebe6db',
-  inkSoft: '#c9c3b6',
-  inkMute: '#857f74',
-  rule: '#3a3731',
-  accent: '#e0755a',
-  accentSoft: '#3a2a26',
+  ...PAPER_DARK,
   accentFaint: '#2a221e',
   link: '#8fb4d8',
   markHl: '#52332a',

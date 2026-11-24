@@ -109,4 +109,4 @@ export {
 export { createFakeRemote, type FakeRemote } from './sync/fakeRemote'
 export { resolveDrop, type LayoutRow, type DropTarget, type DropInput } from './drop'
 export { inlineSpans, URL_RE, type InlineSpan } from './inline'
-export { TEXT_SIZE, LINE_RATIO_WEB, LINE_WEB, LINE_NATIVE } from './look'
+export { TEXT_SIZE, LINE_RATIO_WEB, LINE_WEB, LINE_NATIVE, PAPER_LIGHT, PAPER_DARK, type PaperColors } from './look'

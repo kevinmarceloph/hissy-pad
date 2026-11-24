@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CHIME_CHOICES, chimesSpoken, minuteLabel, toggleChime } from '@hissypad/core/hours';
 import { dayDate, dayKey, dayOf, daySlots, dayTitle, fromDayKey, hourLabel, HOURS, shiftDay, slotState, type DayKey } from '@hissypad/core/hours';
@@ -31,6 +31,10 @@ function useNow(clock: () => Date): Date {
 }
 
 const realClock = () => new Date();
+
+// Room for the web's scrollbar, taken from the gutter beside the hours.
+const SCROLLBAR = GUTTER - 2;
+const BESIDE = Platform.OS === 'web' ? { marginRight: -SCROLLBAR } : null;
 
 // What is open over the hours: the calendar, the menu, or the settings the menu leads to.
 type Panel = 'calendar' | 'menu' | 'settings';
@@ -201,6 +205,7 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
               </View>
 
               <PullIndicator list={list} onRefresh={pulled} />
+              <View style={[styles.list, BESIDE]}>
               <ScrollView
                 ref={list}
                 role="main"
@@ -209,7 +214,10 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
                 keyboardDismissMode="interactive"
                 automaticallyAdjustKeyboardInsets
                 onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
-                contentContainerStyle={{ paddingBottom: Math.max(48, listHeight - ROW) }}>
+                // The web draws a scrollbar over the list's right edge, on top of the counts
+                // and flags there: the box around the list reaches out into the gutter, so the bar sits
+                // beside the rows and they still end where the strip does.
+                contentContainerStyle={[{ paddingBottom: Math.max(48, listHeight - ROW) }, BESIDE && { paddingRight: SCROLLBAR }]}>
                 {hours.map(({ day: on, hour, plan, top, count, entry }) => {
                   const state = slotState(on, hour, now);
                   return (
@@ -244,6 +252,7 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
                   );
                 })}
               </ScrollView>
+              </View>
             </>
           )}
 
@@ -522,6 +531,7 @@ const styles = StyleSheet.create({
   iconButton: { width: 40, height: ROW, alignItems: 'center', justifyContent: 'center', borderRadius: 4 },
   navText: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
   body: { flex: 1 },
+  list: { flex: 1 },
   status: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE, marginTop: 24 },
   problem: { alignItems: 'flex-start', gap: 12 },
   retry: { minHeight: ROW, justifyContent: 'center', paddingHorizontal: 16, borderWidth: 1, borderRadius: 4 },
