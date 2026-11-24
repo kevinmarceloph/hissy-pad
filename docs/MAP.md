@@ -86,8 +86,8 @@ Screens written once in React Native. The phone draws them natively; the web app
 | `src/hours/HourRow.tsx` | one hour: its row (box, words, the lines' count, flag marks) and its editor |
 | `src/hours/Items.tsx` | the pad's lines in an open hour: tick, take out, add, or find a line in any pad (the universal search, `slotFinds`) and put it in the hour |
 | `src/hours/SlotPicker.tsx` | the hour picker the pad's toolbar opens |
-| `src/hours/CategoryPicker.tsx` | the category picker the pad's toolbar opens ("Category…") |
-| `src/hours/CategoriesScreen.tsx`, `FlagsScreen.tsx`, `RecurringScreen.tsx` | the user's own lists |
+| `src/hours/CategoryPicker.tsx` | the category picker the pad's toolbar opens ("Category…"), with "New category" in place (the form is `NewCategory` from `CategoriesScreen.tsx`) |
+| `src/hours/CategoriesScreen.tsx`, `FlagsScreen.tsx`, `RecurringScreen.tsx` | the user's own lists; categories open from the app's top menu through `CategoriesApp` (`HoursApp.tsx`), flags and plans from Hours' menu |
 | `src/hours/provider.tsx` | the stores as React context, and `useSync` (signed in or not, the sync line) |
 | `src/hours/theme.ts` | paper and ink tokens with the 12 label colors searched for a deuteranope; `SchemeContext` lets the host force light or dark |
 | `src/hours/Mark.tsx`, `FlagMark.tsx`, `DayStrip.tsx`, `Tap.tsx`, `MoveButtons.tsx`, `ColorField.tsx`, `FlagOptions.tsx`, `PullRefresh.tsx` | the parts |

@@ -9,7 +9,7 @@ import { StoresProvider } from './provider';
 import { RecurringScreen } from './RecurringScreen';
 import { LINE, SchemeContext, serif, SIZE, useTheme } from './theme';
 
-type Screen = 'day' | 'categories' | 'flags' | 'plans';
+type Screen = 'day' | 'flags' | 'plans';
 
 type Props = {
   // The host's own Light / Dark choice; null or absent follows the device.
@@ -20,20 +20,8 @@ type Props = {
 // assigned to each hour, and the screens for the user's own lists. The web app and the
 // phone both mount this; it opens the hours' local rows on first use.
 export function HoursApp({ scheme = null }: Props) {
-  const [stores, setStores] = useState<HoursStores | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
+  const { ready: stores, failed } = useHoursStores();
   const [screen, setScreen] = useState<Screen>('day');
-
-  useEffect(() => {
-    let live = true;
-    openHours().then(
-      (opened) => live && setStores(opened),
-      (cause: unknown) => live && setFailed(cause instanceof Error ? cause.message : String(cause)),
-    );
-    return () => {
-      live = false;
-    };
-  }, []);
 
   const back = () => setScreen('day');
 
@@ -49,15 +37,12 @@ export function HoursApp({ scheme = null }: Props) {
           recurring={stores.recurring}
           sync={stores.sync}
           chimes={stores.chimes}>
-          {screen === 'categories' ? (
-            <CategoriesScreen onBack={back} />
-          ) : screen === 'flags' ? (
+          {screen === 'flags' ? (
             <FlagsScreen onBack={back} />
           ) : screen === 'plans' ? (
             <RecurringScreen onBack={back} />
           ) : (
             <DayScreen
-              onEditCategories={() => setScreen('categories')}
               onEditFlags={() => setScreen('flags')}
               onEditPlans={() => setScreen('plans')}
             />
@@ -66,6 +51,41 @@ export function HoursApp({ scheme = null }: Props) {
       )}
     </SchemeContext.Provider>
   );
+}
+
+type CategoriesProps = Props & { onClose(): void };
+
+// The category list on its own, for the top menu of both apps: categories are given to
+// hours and to lines of the pad alike, so they are edited outside Hours.
+export function CategoriesApp({ scheme = null, onClose }: CategoriesProps) {
+  const stores = useHoursStores();
+  return (
+    <SchemeContext.Provider value={scheme}>
+      {!stores.ready ? (
+        <Notice title={stores.failed ? 'Hours could not open its rows.' : 'Opening your categories.'} detail={stores.failed} />
+      ) : (
+        <StoresProvider day={stores.ready.day} categories={stores.ready.categories} flags={stores.ready.flags}>
+          <CategoriesScreen onBack={onClose} backLabel="Close" />
+        </StoresProvider>
+      )}
+    </SchemeContext.Provider>
+  );
+}
+
+function useHoursStores(): { ready: HoursStores | null; failed: string | null } {
+  const [ready, setReady] = useState<HoursStores | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    openHours().then(
+      (opened) => live && setReady(opened),
+      (cause: unknown) => live && setFailed(cause instanceof Error ? cause.message : String(cause)),
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+  return { ready, failed };
 }
 
 function Notice({ title, detail }: { title: string; detail: string | null }) {

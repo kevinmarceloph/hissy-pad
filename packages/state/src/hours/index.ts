@@ -9,7 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import {
   applyPatch, cleanDayStart, createMemoryBackend, formatChimes, HoursStore, parseChimes,
-  type ChimeOutcome, type DayKey, type HoursBackend,
+  type Category, type ChimeOutcome, type ColorKey, type DayKey, type HoursBackend,
 } from '@hissypad/core/hours';
 
 import { createCategoryStore, type CategoriesStore } from './category-store';
@@ -129,6 +129,12 @@ export function openHours(): Promise<HoursStores> {
     if (signedIn) await startEngine(stores, signedIn.remote, signedIn.userId);
     return stores;
   })());
+}
+
+// A category made from the pad's category picker, in place: the same as adding one on the
+// categories screen. Null when it could not be saved.
+export async function cmdAddCategory(label: string, icon: string, color: ColorKey): Promise<Category | null> {
+  return (await openHours()).categories.getState().add(label, icon, color);
 }
 
 // ---- sync ---------------------------------------------------------------------------------

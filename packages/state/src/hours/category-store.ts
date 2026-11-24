@@ -21,7 +21,8 @@ export type CategoryState = {
   load(): Promise<void>;
   // Re-reads the list in place, with no loading state: sync calls it after rows land.
   refresh(): Promise<void>;
-  add(label: string, icon: string, color: ColorKey): Promise<void>;
+  // The new category, or null when the store would not take it (the list is put back).
+  add(label: string, icon: string, color: ColorKey): Promise<Category | null>;
   update(id: string, patch: CategoryPatch): Promise<void>;
   // Swaps places with the active neighbor above (-1) or below (1).
   move(id: string, by: -1 | 1): Promise<void>;
@@ -73,7 +74,9 @@ export function createCategoryStore(store: CategoryStore, options: Options = {})
       },
 
       async add(label, icon, color) {
-        await write([newCategory(get().list, makeId(), label, icon, color, clock().getTime())]);
+        const made = newCategory(get().list, makeId(), label, icon, color, clock().getTime());
+        await write([made]);
+        return get().list.some((c) => c.id === made.id) ? made : null;
       },
 
       async update(id, patch) {

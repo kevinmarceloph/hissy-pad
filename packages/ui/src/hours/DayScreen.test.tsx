@@ -45,15 +45,14 @@ async function setup(store: EntryStore = new MemoryStore(seed, SAMPLE_CATEGORIES
   await categories.getState().load();
   await flags.getState().load();
   await recurring.getState().load();
-  const onEditCategories = vi.fn();
   const onEditFlags = vi.fn();
   const onEditPlans = vi.fn();
   await render(
     <StoresProvider day={day} categories={categories} flags={flags} recurring={recurring}>
-      <DayScreen clock={clock} onEditCategories={onEditCategories} onEditFlags={onEditFlags} onEditPlans={onEditPlans} />
+      <DayScreen clock={clock} onEditFlags={onEditFlags} onEditPlans={onEditPlans} />
     </StoresProvider>,
   );
-  return { store, day, categories, flags, recurring, onEditCategories, onEditFlags, onEditPlans };
+  return { store, day, categories, flags, recurring, onEditFlags, onEditPlans };
 }
 
 describe('DayScreen', () => {
@@ -122,7 +121,7 @@ describe('DayScreen', () => {
       { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
       { day: '2026-11-19', hour: 10, note: '', category: 'cnotyet001', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
     ];
-    const { categories, onEditCategories } = await setup(new MemoryStore(rows));
+    const { categories } = await setup(new MemoryStore(rows));
     await categories.getState().update('deep', { label: 'Focus' });
     await categories.getState().update('drift', { archived: true });
 
@@ -146,11 +145,10 @@ describe('DayScreen', () => {
     await fireEvent.press(screen.getByRole('option', { name: 'None' }));
     expect(screen.getByLabelText('Where it went: None')).toBeTruthy();
 
-    // The hour editor has no way out to the category list; the foot of the day does.
-    expect(screen.queryByText('Edit categories')).toBeNull();
+    // The category list is edited from the app's top menu, not from Hours.
     await fireEvent.press(screen.getByLabelText('Hours menu'));
-    await fireEvent.press(screen.getByLabelText('Edit categories'));
-    expect(onEditCategories).toHaveBeenCalled();
+    expect(screen.queryByLabelText('Edit categories')).toBeNull();
+    expect(screen.getByLabelText('Edit flags')).toBeTruthy();
   });
 
   it('shows a category by its icon in the rows and the legend, and by icon and name in the pickers', async () => {

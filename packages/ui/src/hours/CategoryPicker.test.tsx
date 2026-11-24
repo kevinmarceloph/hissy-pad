@@ -23,5 +23,34 @@ describe('the category picker', () => {
     await render(<CategoryPicker categories={[]} value={null} count={3} onPick={() => {}} onCancel={() => {}} />);
     expect(screen.getByText('Which category are these 3 lines?')).toBeTruthy();
     expect(screen.getByText(/No categories yet/)).toBeTruthy();
+    expect(screen.queryByText('New category')).toBeNull();
+  });
+
+  it('makes a new category in place, with a name, an icon and a color', async () => {
+    const onCreate = vi.fn();
+    const onPick = vi.fn();
+    await render(<CategoryPicker categories={list} value={null} onPick={onPick} onCreate={onCreate} onCancel={() => {}} />);
+    await fireEvent.press(screen.getByText('New category'));
+    expect(screen.getByRole('heading', { name: 'New category' })).toBeTruthy();
+
+    // A name it already has is refused, on screen.
+    await fireEvent.changeText(screen.getByLabelText('Name'), list[0]!.label);
+    await fireEvent.press(screen.getByText('Add'));
+    expect(screen.getByRole('alert').textContent).toMatch(/already have/);
+    expect(onCreate).not.toHaveBeenCalled();
+
+    await fireEvent.changeText(screen.getByLabelText('Name'), 'Errands');
+    await fireEvent.changeText(screen.getByLabelText('Icon'), '🛒');
+    await fireEvent.press(screen.getByRole('radio', { name: 'Teal' }));
+    await fireEvent.press(screen.getByText('Add'));
+    expect(onCreate).toHaveBeenCalledWith('Errands', '🛒', 'teal');
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it('goes back to the list when the new category is cancelled', async () => {
+    await render(<CategoryPicker categories={list} value={null} onPick={() => {}} onCreate={() => {}} onCancel={() => {}} />);
+    await fireEvent.press(screen.getByText('New category'));
+    await fireEvent.press(screen.getByText('Cancel'));
+    expect(screen.getByRole('radio', { name: list[0]!.label })).toBeTruthy();
   });
 });

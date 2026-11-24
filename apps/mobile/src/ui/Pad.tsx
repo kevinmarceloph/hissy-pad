@@ -15,9 +15,9 @@ import { FloatingButtons } from './FloatingButtons'
 import { Account } from './Account'
 import { DoneSheet, TrashSheet } from './Lists'
 import { SortView } from './Sort'
-import { CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
+import { CategoriesApp, CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
 import {
-  cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot, useCategoryChoices,
+  cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot, useCategoryChoices,
 } from '@hissypad/state/hours'
 import { SearchSheet } from './Search'
 import { PadChips } from './PadChips'
@@ -92,7 +92,7 @@ export function Pad() {
   // Pad, Hours or Sort: the switcher in the top bar. The pad stays mounted under the other
   // two, so it is where it was left on the way back.
   const [mode, setMode] = useState<Mode>('hours')
-  const [sheet, setSheet] = useState<'trash' | 'done' | 'search' | null>(null)
+  const [sheet, setSheet] = useState<'trash' | 'done' | 'search' | 'categories' | null>(null)
   // The hour picker the toolbar's "Hour…" (behind More) opens.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
   // The same for "Category…".
@@ -360,6 +360,7 @@ export function Pad() {
     Alert.alert('HissyPad', undefined, [
       { text: 'Done', onPress: () => setSheet('done') },
       { text: 'Archive', onPress: () => setSheet('trash') },
+      { text: 'Categories', onPress: () => setSheet('categories') },
       { text: usePrefs.getState().padCounts ? 'Hide pad counts' : 'Show pad counts', onPress: () => setPref('padCounts', !usePrefs.getState().padCounts) },
       ...(logEnabled() ? [{ text: 'Log', onPress: () => setLogText(dumpLog()) }] : []),
       { text: 'Cancel', style: 'cancel' as const },
@@ -376,7 +377,7 @@ export function Pad() {
         <ModeBar mode={mode} onMode={switchMode} theme={theme} />
         <View style={s.grow} />
         <Pressable onPress={() => { stopEditing(); setSheet('search') }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Search every pad"><SearchIcon color={theme.inkSoft} /></Pressable>
-        <Pressable onPress={openMenu} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="More: Done and Archive"><MenuIcon color={theme.inkSoft} /></Pressable>
+        <Pressable onPress={openMenu} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="More: Done, Archive and Categories"><MenuIcon color={theme.inkSoft} /></Pressable>
       </View>
       {/* The pad chips are the pad's only: Sort picks its pad in its own title. */}
       {mode === 'pad' && <PadChips theme={theme} />}
@@ -436,8 +437,20 @@ export function Pad() {
                 setToast(said)
                 setTimeout(() => setToast(null), 2500)
               }}
+              onCreate={(label, icon, color) => {
+                setCategorizing(null)
+                void cmdAddCategory(label, icon, color).then((made) => {
+                  setToast(made ? cmdApplyCategory(made.id) : 'That category was not saved.')
+                  setTimeout(() => setToast(null), 2500)
+                })
+              }}
             />
           )}
+        </View>
+      </Modal>
+      <Modal visible={sheet === 'categories'} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSheet(null)}>
+        <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
+          {sheet === 'categories' && <CategoriesApp onClose={() => setSheet(null)} />}
         </View>
       </Modal>
       <SearchSheet visible={sheet === 'search'} onClose={() => setSheet(null)} onOpen={() => setMode('pad')} theme={theme} />

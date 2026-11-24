@@ -130,7 +130,7 @@ describe('CategoriesScreen', () => {
   it('says so when every category is archived', async () => {
     const none = new MemoryStore([], []);
     await setup(none);
-    expect(screen.getByText('No categories. Hours can still take a note. Add a category to start tagging them.')).toBeTruthy();
+    expect(screen.getByText('No categories yet. Add one to tag hours and lines of the pad with it.')).toBeTruthy();
   });
 
   it('undoes a change the store rejects and says why', async () => {

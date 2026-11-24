@@ -22,8 +22,9 @@ import { GUTTER, LINE, MAX_WIDTH, ROW, serif, SIZE, SMALL, useTheme } from './th
 
 // Where the category list is edited: rename, pick an icon, recolor, reorder, archive, add. One editor is
 // open at a time, the same way the day screen edits one hour at a time. The order is
-// changed from the rows themselves, with the arrows at their right.
-export function CategoriesScreen({ onBack }: { onBack(): void }) {
+// changed from the rows themselves, with the arrows at their right. Opened from the top
+// menu of both apps (CategoriesApp), so its way out says Close there.
+export function CategoriesScreen({ onBack, backLabel = 'Back to the day' }: { onBack(): void; backLabel?: string }) {
   const theme = useTheme();
   const list = useCategories((s) => s.list);
   const error = useCategories((s) => s.error);
@@ -43,14 +44,14 @@ export function CategoriesScreen({ onBack }: { onBack(): void }) {
         <View role="banner" style={styles.header}>
           <View role="navigation" aria-label="Screens" style={styles.nav}>
             <Tap role="link" onPress={onBack} style={styles.navButton} activeStyle={{ backgroundColor: theme.paperRaised }}>
-              <Text style={[styles.body, { color: theme.ink }]}>Back to the day</Text>
+              <Text style={[styles.body, { color: theme.ink }]}>{backLabel}</Text>
             </Tap>
           </View>
           <Text role="heading" aria-level={1} style={[styles.title, { color: theme.ink }]}>
             Categories
           </Text>
           <Text style={[styles.small, { color: theme.inkSoft }]}>
-            The places an hour can go. Archive one to take it out of the picker: hours you already tagged keep it.
+            The places an hour or a line can go. Archive one to take it out of the pickers: what you already tagged keeps it.
           </Text>
           {error && (
             <Text role="alert" style={[styles.small, { color: theme.accent }]}>
@@ -67,7 +68,7 @@ export function CategoriesScreen({ onBack }: { onBack(): void }) {
           contentContainerStyle={styles.list}>
           {active.length === 0 && (
             <Text style={[styles.body, styles.empty, { color: theme.inkSoft }]}>
-              No categories. Hours can still take a note. Add a category to start tagging them.
+              No categories yet. Add one to tag hours and lines of the pad with it.
             </Text>
           )}
 
@@ -242,7 +243,8 @@ function RowEditor({ category, list, onClose, onUpdate }: RowProps) {
 
 type NewProps = { list: Category[]; onAdd(label: string, icon: string, color: ColorKey): void; onCancel(): void };
 
-function NewCategory({ list, onAdd, onCancel }: NewProps) {
+// Also the pad's category picker's "New category", where a line gets the one it makes.
+export function NewCategory({ list, onAdd, onCancel }: NewProps) {
   const theme = useTheme();
   const [draft, setDraft] = useState('');
   const [icon, setIcon] = useState('');

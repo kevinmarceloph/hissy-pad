@@ -9,7 +9,7 @@ import { FreshStart } from '../pads/FreshStart'
 import { Sort } from '../panels/Sort'
 import { CategoryDialog, Hours, SlotDialog } from '../panels/Hours'
 import {
-  cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot,
+  cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot,
 } from '@hissypad/state/hours'
 import { showToast } from './toast'
 
@@ -86,6 +86,12 @@ export function App() {
           onPick={(category) => {
             showToast(cmdApplyCategory(category))
             setCategorizing(null)
+          }}
+          onCreate={(label, icon, color) => {
+            setCategorizing(null)
+            void cmdAddCategory(label, icon, color).then((made) =>
+              showToast(made ? cmdApplyCategory(made.id) : 'That category was not saved.'),
+            )
           }}
         />
       )}

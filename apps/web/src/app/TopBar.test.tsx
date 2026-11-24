@@ -89,13 +89,14 @@ describe('top bar', () => {
     expect(await screen.findByRole('button', { name: 'Hours', pressed: true })).toBeInTheDocument()
   })
 
-  it('Done, Archive and Fresh start are behind More; Fresh start still counts as the pad', async () => {
+  it('Done, Archive, Categories and Fresh start are behind More; Fresh start still counts as the pad', async () => {
     const user = userEvent.setup()
     await mount('a\nb')
     expect(screen.queryByRole('menuitem', { name: 'Archive' })).toBeNull()
     await user.click(button('More'))
     expect(screen.getByRole('menuitem', { name: 'Recently done' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Archive' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Categories' })).toBeInTheDocument()
     await user.click(screen.getByRole('menuitem', { name: 'Fresh start…' }))
     expect(screen.queryByRole('menu')).toBeNull()
     expect(button('Pad')).toHaveAttribute('aria-pressed', 'true')

@@ -35,12 +35,11 @@ type Panel = 'calendar' | 'menu' | 'settings';
 
 type Props = {
   clock?: (() => Date) | undefined;
-  onEditCategories?: (() => void) | undefined;
   onEditFlags?: (() => void) | undefined;
   onEditPlans?: (() => void) | undefined;
 };
 
-export function DayScreen({ clock = realClock, onEditCategories, onEditFlags, onEditPlans }: Props) {
+export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props) {
   const theme = useTheme();
   const now = useNow(clock);
 
@@ -281,7 +280,6 @@ export function DayScreen({ clock = realClock, onEditCategories, onEditFlags, on
           )}
           {panel === 'menu' && (
             <Menu
-              onEditCategories={leave(onEditCategories)}
               onEditFlags={leave(onEditFlags)}
               onEditPlans={leave(onEditPlans)}
               onSettings={() => setPanel('settings')}
@@ -423,9 +421,9 @@ function DayPicker({ day, today, onPick }: { day: DayKey; today: DayKey; onPick(
 
 // ---- the menu: the ways out to the user's own lists, the settings, and where the log lives ----
 
-type MenuProps = Pick<Props, 'onEditCategories' | 'onEditFlags' | 'onEditPlans'> & { onSettings(): void };
+type MenuProps = Pick<Props, 'onEditFlags' | 'onEditPlans'> & { onSettings(): void };
 
-function Menu({ onEditCategories, onEditFlags, onEditPlans, onSettings }: MenuProps) {
+function Menu({ onEditFlags, onEditPlans, onSettings }: MenuProps) {
   const theme = useTheme();
   const sync = useSync();
   const item = (name: string, label: string, onPress: () => void, role: 'link' | 'button' = 'link') => (
@@ -435,7 +433,6 @@ function Menu({ onEditCategories, onEditFlags, onEditPlans, onSettings }: MenuPr
   );
   return (
     <View role="menu" aria-label="Hours menu" style={[styles.panel, styles.menu, { backgroundColor: theme.paperRaised, borderColor: theme.line }]}>
-      {onEditCategories && item('Edit categories', 'Categories', onEditCategories)}
       {onEditFlags && item('Edit flags', 'Flags', onEditFlags)}
       {onEditPlans && item('Edit recurring plans', 'Recurring plans', onEditPlans)}
       {item('Settings', 'Settings', onSettings, 'button')}

@@ -4,6 +4,7 @@ import { cmdDeleteDone } from '@hissypad/state'
 import { copyText } from '../platform/clipboard'
 import { DonePanel, TrashPanel } from '../panels/Lists'
 import { SearchPanel } from '../panels/Search'
+import { CategoriesDialog } from '../panels/Hours'
 import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
 import { PadTabs } from '../pads/PadTabs'
 import { showToast, useToast } from './toast'
@@ -45,6 +46,7 @@ export function TopBar({ view, onView }: { view: View; onView: (view: View) => v
   const searchDialog = useRef<HTMLDialogElement>(null)
   const [logText, setLogText] = useState('')
   const [menu, setMenu] = useState(false)
+  const [categories, setCategories] = useState(false)
   const padCounts = usePrefs((s) => s.padCounts)
 
   useEffect(() => {
@@ -118,13 +120,14 @@ export function TopBar({ view, onView }: { view: View; onView: (view: View) => v
           <SearchIcon />
         </button>
         <span className="more">
-          <button type="button" className="icon" aria-label="More" aria-haspopup="menu" aria-expanded={menu} title="Done, Archive, Fresh start, pad counts and the theme" onClick={() => setMenu((open) => !open)}>
+          <button type="button" className="icon" aria-label="More" aria-haspopup="menu" aria-expanded={menu} title="Done, Archive, Categories, Fresh start, pad counts and the theme" onClick={() => setMenu((open) => !open)}>
             <MenuIcon />
           </button>
           {menu && (
             <div className="more-menu" role="menu" aria-label="More">
               <button type="button" role="menuitem" aria-label="Recently done" title="Crossed-out lines, newest first" onClick={() => pick(() => doneDialog.current?.showModal())}>Done</button>
               <button type="button" role="menuitem" title="Archived lines from the last 30 days" onClick={() => pick(() => trashDialog.current?.showModal())}>Archive</button>
+              <button type="button" role="menuitem" title="The categories hours and lines can go in: add, rename, recolor, reorder, archive" onClick={() => pick(() => setCategories(true))}>Categories</button>
               {logEnabled() && (
                 <button type="button" role="menuitem" title="Debug log (?debug=1 turned this on)" onClick={() => pick(() => { setLogText(dumpLog()); logDialog.current?.showModal() })}>Log</button>
               )}
@@ -152,6 +155,7 @@ export function TopBar({ view, onView }: { view: View; onView: (view: View) => v
       {toast && <output className="toast" aria-live="polite">{toast}</output>}
       <TrashPanel dialog={trashDialog} />
       <DonePanel dialog={doneDialog} />
+      {categories && <CategoriesDialog onClose={() => setCategories(false)} />}
       <SearchPanel dialog={searchDialog} onOpen={() => onView('pad')} />
       <dialog ref={logDialog} className="import" aria-labelledby="log-title">
         <form method="dialog">

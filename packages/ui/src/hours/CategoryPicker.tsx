@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { Category } from '@hissypad/core/hours';
+import type { Category, ColorKey } from '@hissypad/core/hours';
 
+import { NewCategory } from './CategoriesScreen';
 import { Tap } from './Tap';
 import { LINE, ROW, SchemeContext, serif, SIZE, SMALL, useTheme } from './theme';
 
@@ -14,12 +16,15 @@ type Props = {
   // A category was picked, or "No category" (null).
   onPick(category: string | null): void;
   onCancel(): void;
+  // A category was made here, in place (name, icon, color): the host saves it and gives it
+  // to the lines. Without it the picker offers no "New category".
+  onCreate?(label: string, icon: string, color: ColorKey): void;
   scheme?: 'light' | 'dark' | null;
 };
 
 // Gives lines of the pad one of Hours' categories: tap one. The pad then draws its icon
 // before the line's text. Each choice shows its icon, its name and its color, so none of
-// them rests on the color alone.
+// them rests on the color alone. "New category" makes one without leaving the picker.
 export function CategoryPicker({ scheme = null, ...props }: Props) {
   return (
     <SchemeContext.Provider value={scheme}>
@@ -28,8 +33,18 @@ export function CategoryPicker({ scheme = null, ...props }: Props) {
   );
 }
 
-function Picker({ categories, value, count = 1, onPick, onCancel }: Omit<Props, 'scheme'>) {
+function Picker({ categories, value, count = 1, onPick, onCancel, onCreate }: Omit<Props, 'scheme'>) {
   const theme = useTheme();
+  const [making, setMaking] = useState(false);
+  if (making && onCreate) {
+    return (
+      <View style={[styles.sheet, { backgroundColor: theme.paper }]}>
+        <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+          <NewCategory list={categories} onCancel={() => setMaking(false)} onAdd={onCreate} />
+        </ScrollView>
+      </View>
+    );
+  }
   return (
     <View style={[styles.sheet, { backgroundColor: theme.paper }]}>
       <Text role="heading" aria-level={2} style={[styles.title, { color: theme.ink }]}>
@@ -37,7 +52,7 @@ function Picker({ categories, value, count = 1, onPick, onCancel }: Omit<Props, 
       </Text>
       {categories.length === 0 ? (
         <Text style={[styles.small, { color: theme.inkSoft }]}>
-          No categories yet. Add them in Hours, under the menu's Categories.
+          {onCreate ? 'No categories yet. Make one here.' : "No categories yet. Add them under the menu's Categories."}
         </Text>
       ) : (
         <ScrollView style={styles.scroll}>
@@ -64,6 +79,15 @@ function Picker({ categories, value, count = 1, onPick, onCancel }: Omit<Props, 
             })}
           </View>
         </ScrollView>
+      )}
+      {onCreate && (
+        <Tap
+          onPress={() => setMaking(true)}
+          style={[styles.choice, styles.newChoice, { borderColor: theme.line }]}
+          activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paperRaised }}>
+          <Text style={[styles.icon, { color: theme.ink }]}>+</Text>
+          <Text style={[styles.body, styles.label, { color: theme.ink }]}>New category</Text>
+        </Tap>
       )}
       <View style={styles.actions}>
         <Tap
@@ -92,6 +116,7 @@ const styles = StyleSheet.create({
   swatch: { width: 6, alignSelf: 'stretch', marginVertical: 8, borderRadius: 3 },
   icon: { fontSize: SIZE, lineHeight: LINE, width: 24, textAlign: 'center' },
   label: { flex: 1 },
+  newChoice: { borderStyle: 'dashed' },
   actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   action: { minHeight: ROW, justifyContent: 'center', paddingHorizontal: 16, borderWidth: 1, borderRadius: 4 },
 });
