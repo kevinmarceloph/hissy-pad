@@ -10,6 +10,7 @@ import {
   cmdMoveTo, cmdSetKind, countOf, lineAbilities, lineCount, placeList, usePad,
   LINE_ACTIONS, LINE_KINDS, type LineActionGroup,
 } from '@hissypad/state'
+import { cmdPickSlot } from '@hissypad/state/hours'
 import { serif, type Theme } from '../theme'
 
 // The 'mark' group (Done) is the floating • / × switch; it is not repeated here.
@@ -39,9 +40,11 @@ export function Toolbar({ theme }: { theme: Theme }) {
 
   // More: the pads to move to, then the tucked-away actions (iOS stacks them).
   function more() {
+    const held = ids
     Alert.alert('More', undefined, [
       ...others.map((p) => ({ text: `Move to ${p.label}`, onPress: () => void cmdMoveTo(p) })),
-      ...tucked.map((a) => ({ text: a.label, onPress: () => void a.run() })),
+      // The alert can end the edit before an option is tapped; "Hour…" keeps the lines it had.
+      ...tucked.map((a) => ({ text: a.label, onPress: () => void (a.id === 'slot' ? cmdPickSlot(held) : a.run()) })),
       { text: 'Cancel', style: 'cancel' as const },
     ])
   }

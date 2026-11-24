@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, flatten, listNumbers, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
+import { apply, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, select, setPref, stopEditing, usePad, usePrefs, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -17,7 +17,6 @@ import { DoneSheet, TrashSheet } from './Lists'
 import { SortView } from './Sort'
 import { HoursApp, SlotPicker } from '@hissypad/ui'
 import { cmdApplySlot, setSlotPickerOpener, targetSlot } from '@hissypad/state/hours'
-import { targets } from '@hissypad/state'
 import { SearchSheet } from './Search'
 import { PadChips } from './PadChips'
 import { MenuIcon, ModeBar, SearchIcon, type Mode } from './TopIcons'
@@ -84,7 +83,7 @@ export function Pad() {
   // The hour picker the toolbar's "Hour…" (behind More) opens.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
   useEffect(() => {
-    setSlotPickerOpener(() => setPicking({ value: targetSlot(), count: targets().length }))
+    setSlotPickerOpener((ids) => setPicking({ value: targetSlot(ids), count: ids.length }))
     return () => setSlotPickerOpener(null)
   }, [])
 
@@ -290,6 +289,7 @@ export function Pad() {
     Alert.alert('HissyPad', undefined, [
       { text: 'Done', onPress: () => setSheet('done') },
       { text: 'Trash', onPress: () => setSheet('trash') },
+      { text: usePrefs.getState().padCounts ? 'Hide pad counts' : 'Show pad counts', onPress: () => setPref('padCounts', !usePrefs.getState().padCounts) },
       ...(logEnabled() ? [{ text: 'Log', onPress: () => setLogText(dumpLog()) }] : []),
       { text: 'Cancel', style: 'cancel' as const },
     ])

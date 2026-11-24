@@ -3,9 +3,9 @@ import { idOf, shape, slotCounts, slotKey, slotLabel, parseSlot } from '@hissypa
 
 import { resetStore } from '../testing';
 import { loadPad, usePad } from '../store';
-import { select } from '../selection';
+import { edit, select, stopEditing } from '../selection';
 import { undo } from '../history';
-import { cmdSetSlot, cmdSlotAdd, cmdSlotClear, cmdSlotDone, linesInSlot, targetSlot } from './slots';
+import { cmdApplySlot, cmdPickSlot, cmdSetSlot, cmdSlotAdd, cmdSlotClear, cmdSlotDone, linesInSlot, setSlotPickerOpener, targetSlot } from './slots';
 
 const SLOT = slotKey('2026-11-23', 9);
 const id = (text: string) => idOf(usePad.getState().rows, text);
@@ -55,5 +55,27 @@ describe('lines in an hour', () => {
     expect(row).toMatchObject({ text: 'call the bank', slot: SLOT, parentId: null });
     expect(shape(usePad.getState().rows).split('\n')[0]).toBe('call the bank');
     expect(cmdSlotAdd('2026-11-23', 9, '   ')).toBe('');
+  });
+
+  it('counts the line being edited as selected, even after the picker ends the edit', () => {
+    const opened: (readonly string[])[] = [];
+    setSlotPickerOpener((ids) => opened.push(ids));
+    edit(id('C'));
+    cmdPickSlot();
+    expect(opened).toEqual([[id('C')]]);
+    stopEditing(); // the picker took focus
+    expect(cmdApplySlot(SLOT)).toMatch(/^Put 1 line in /);
+    expect(usePad.getState().rows[id('C')]?.slot).toBe(SLOT);
+    setSlotPickerOpener(null);
+  });
+
+  it('opens the picker on lines handed over by a menu that already ended the edit', () => {
+    const opened: (readonly string[])[] = [];
+    setSlotPickerOpener((ids) => opened.push(ids));
+    cmdPickSlot([id('D')]);
+    expect(opened).toEqual([[id('D')]]);
+    cmdApplySlot(SLOT);
+    expect(usePad.getState().rows[id('D')]?.slot).toBe(SLOT);
+    setSlotPickerOpener(null);
   });
 });

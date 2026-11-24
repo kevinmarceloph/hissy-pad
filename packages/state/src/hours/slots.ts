@@ -8,16 +8,15 @@ import { targets } from '../selection';
 
 // The pad's toolbar: put the selected lines (or the one being edited) in an hour, or take
 // them out of theirs with null. Returns how many lines it was asked about.
-export function cmdSetSlot(slot: string | null): number {
-  const ids = targets();
-  if (ids.length) apply((rows, ctx) => setSlot(rows, ctx, ids, slot), { label: 'cmdSetSlot' });
+export function cmdSetSlot(slot: string | null, ids: readonly string[] = targets()): number {
+  if (ids.length) apply((rows, ctx) => setSlot(rows, ctx, [...ids], slot), { label: 'cmdSetSlot' });
   return ids.length;
 }
 
 // The slot the targets share, null when they have none or differ: what the picker opens on.
-export function targetSlot(): string | null {
+export function targetSlot(ids: readonly string[] = targets()): string | null {
   const { rows } = usePad.getState();
-  const slots = new Set(targets().map((id) => rows[id]?.slot ?? null));
+  const slots = new Set(ids.map((id) => rows[id]?.slot ?? null));
   return slots.size === 1 ? [...slots][0]! : null;
 }
 
@@ -51,17 +50,25 @@ export function linesInSlot(day: string, hour: number): NodeRow[] {
 
 // The hour picker is a screen of each app's (the shared SlotPicker in packages/ui, in a
 // dialog on web and a modal on the phone). The toolbar's "Hour…" action only asks for it.
-let openPicker: (() => void) | null = null;
-export function setSlotPickerOpener(open: (() => void) | null) {
+// The lines are taken when the picker opens: the line being edited counts as selected, and
+// the picker taking focus ends that edit before the answer comes back.
+// A caller whose own menu may have ended the edit already (the phone's More) passes the
+// lines it had when that menu opened.
+let openPicker: ((ids: readonly string[]) => void) | null = null;
+let picked: string[] = [];
+export function setSlotPickerOpener(open: ((ids: readonly string[]) => void) | null) {
   openPicker = open;
 }
-export function cmdPickSlot() {
-  if (targets().length > 0) openPicker?.();
+export function cmdPickSlot(ids: readonly string[] = targets()) {
+  if (ids.length === 0 || !openPicker) return;
+  picked = [...ids];
+  openPicker(picked);
 }
 
 // What the picker's answer does, with the line the app shows afterwards.
 export function cmdApplySlot(slot: string | null): string {
-  const n = cmdSetSlot(slot);
+  const n = cmdSetSlot(slot, picked.length ? picked : targets());
+  picked = [];
   const lines = `${n} ${n === 1 ? 'line' : 'lines'}`;
   return slot === null ? `Took ${lines} out of ${n === 1 ? 'its' : 'their'} hour.` : `Put ${lines} in ${slotLabel(slot, todayKey())}.`;
 }

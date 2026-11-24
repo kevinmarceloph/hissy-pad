@@ -9,7 +9,6 @@ import { FreshStart } from '../pads/FreshStart'
 import { Sort } from '../panels/Sort'
 import { Hours, SlotDialog } from '../panels/Hours'
 import { cmdApplySlot, setSlotPickerOpener, targetSlot } from '@hissypad/state/hours'
-import { targets } from '@hissypad/state'
 import { showToast } from './toast'
 
 export function App() {
@@ -22,7 +21,7 @@ export function App() {
 
   useEffect(() => {
     void loadPad()
-    setSlotPickerOpener(() => setPicking({ value: targetSlot(), count: targets().length }))
+    setSlotPickerOpener((ids) => setPicking({ value: targetSlot(ids), count: ids.length }))
     return () => setSlotPickerOpener(null)
   }, [])
 
