@@ -338,6 +338,28 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
   cursor: pointer;
 }
 .row .chip:hover { color: var(--accent); }
+/* A line's category (Hours' categories): its icon in a column of its own between the
+   bullet and the text, so it stays put while the line is edited and wrapped lines hang. */
+.row.has-category { grid-template-columns: var(--gutter) auto 1fr; }
+.row.has-category .text { grid-column: 3; }
+.row .category {
+  grid-column: 2;
+  grid-row: 1;
+  margin-right: 0.3em;
+  line-height: var(--lh);
+  white-space: nowrap;
+  user-select: none;
+}
+.row .category.is-word {
+  align-self: center;
+  padding: 0 0.35rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.15rem;
+}
+.row.is-done .category { opacity: 0.55; }
 /* The hour a line is assigned to (Hours): small, after the text, in words. */
 .row .slot {
   margin-left: 0.5rem;

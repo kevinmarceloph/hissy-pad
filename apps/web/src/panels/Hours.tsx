@@ -3,9 +3,11 @@
 // phone (packages/ui) and drawn here through react-native-web; they are loaded on first
 // use so the pad itself does not carry them.
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { useCategoryChoices } from '@hissypad/state/hours'
 
 const HoursApp = lazy(() => import('@hissypad/ui').then((m) => ({ default: m.HoursApp })))
 const SlotPicker = lazy(() => import('@hissypad/ui').then((m) => ({ default: m.SlotPicker })))
+const CategoryPicker = lazy(() => import('@hissypad/ui').then((m) => ({ default: m.CategoryPicker })))
 
 // The scheme the page is drawn in: the top bar's Light / Dark choice, else the device's.
 export function useScheme(): 'light' | 'dark' {
@@ -55,6 +57,26 @@ export function SlotDialog({ value, count, onPick, onClose }: { value: string | 
     >
       <Suspense fallback={<p className="hint" aria-busy="true">Opening…</p>}>
         <SlotPicker value={value} count={count} scheme={scheme} onPick={onPick} onCancel={onClose} />
+      </Suspense>
+    </dialog>
+  )
+}
+
+// The category picker the pad's toolbar opens ("Category…"), in a dialog.
+export function CategoryDialog({ value, count, onPick, onClose }: { value: string | null; count: number; onPick: (category: string | null) => void; onClose: () => void }) {
+  const scheme = useScheme()
+  const categories = useCategoryChoices()
+  return (
+    <dialog
+      className="import slot-dialog"
+      aria-label="Pick a category"
+      ref={(d) => {
+        if (d && !d.open) d.showModal()
+      }}
+      onClose={onClose}
+    >
+      <Suspense fallback={<p className="hint" aria-busy="true">Opening…</p>}>
+        <CategoryPicker categories={categories} value={value} count={count} scheme={scheme} onPick={onPick} onCancel={onClose} />
       </Suspense>
     </dialog>
   )

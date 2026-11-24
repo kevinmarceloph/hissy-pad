@@ -10,6 +10,7 @@ import {
 } from './commands'
 import { cmdLineToPad } from './pads'
 import { cmdPickSlot } from './hours/slots'
+import { cmdPickCategory } from './hours/line-categories'
 
 // What the current targets allow, so an impossible action reads as disabled instead of
 // silently doing nothing.
@@ -101,6 +102,7 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   { id: 'pasteAbove', group: 'clip', label: 'Paste above', name: 'Paste above', hint: 'Paste the clipboard as lines above', icon: 'pasteAbove', run: () => paste('above') },
   { id: 'pasteBelow', group: 'clip', label: 'Paste below', name: 'Paste below', hint: 'Paste the clipboard as lines below', icon: 'pasteBelow', run: () => paste('below') },
   { id: 'slot', group: 'pad', label: 'Hour…', name: 'Put in an hour', hint: 'Put in an hour of a day (Hours counts what is done there)', more: true, run: cmdPickSlot },
+  { id: 'category', group: 'pad', label: 'Category…', name: 'Give a category', hint: 'Give it one of Hours\' categories (its icon shows before the text)', more: true, run: cmdPickCategory },
   {
     id: 'makePad', group: 'pad', label: 'Make pad', name: 'Make pad', hint: 'Make this line a pad: its text is the name, its sub items the lines', more: true,
     enabled: (c) => c.single,

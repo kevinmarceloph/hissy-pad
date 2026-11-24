@@ -15,8 +15,10 @@ import { FloatingButtons } from './FloatingButtons'
 import { Account } from './Account'
 import { DoneSheet, TrashSheet } from './Lists'
 import { SortView } from './Sort'
-import { HoursApp, SlotPicker } from '@hissypad/ui'
-import { cmdApplySlot, setSlotPickerOpener, targetSlot } from '@hissypad/state/hours'
+import { CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
+import {
+  cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot, useCategoryChoices,
+} from '@hissypad/state/hours'
 import { SearchSheet } from './Search'
 import { PadChips } from './PadChips'
 import { MenuIcon, ModeBar, SearchIcon, type Mode } from './TopIcons'
@@ -93,9 +95,18 @@ export function Pad() {
   const [sheet, setSheet] = useState<'trash' | 'done' | 'search' | null>(null)
   // The hour picker the toolbar's "Hour…" (behind More) opens.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
+  // The same for "Category…".
+  const [categorizing, setCategorizing] = useState<{ value: string | null; count: number } | null>(null)
+  const categoryChoices = useCategoryChoices()
   useEffect(() => {
+    // Hours' rows are opened with the pad: a line's category icon comes from its list.
+    void openHours()
     setSlotPickerOpener((ids) => setPicking({ value: targetSlot(ids), count: ids.length }))
-    return () => setSlotPickerOpener(null)
+    setCategoryPickerOpener((ids) => setCategorizing({ value: targetCategory(ids), count: ids.length }))
+    return () => {
+      setSlotPickerOpener(null)
+      setCategoryPickerOpener(null)
+    }
   }, [])
 
   const { index, visible, numbers } = useMemo(() => {
@@ -385,6 +396,24 @@ export function Pad() {
               onPick={(slot) => {
                 const said = cmdApplySlot(slot)
                 setPicking(null)
+                setToast(said)
+                setTimeout(() => setToast(null), 2500)
+              }}
+            />
+          )}
+        </View>
+      </Modal>
+      <Modal visible={categorizing !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setCategorizing(null)}>
+        <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
+          {categorizing && (
+            <CategoryPicker
+              categories={categoryChoices}
+              value={categorizing.value}
+              count={categorizing.count}
+              onCancel={() => setCategorizing(null)}
+              onPick={(category) => {
+                const said = cmdApplyCategory(category)
+                setCategorizing(null)
                 setToast(said)
                 setTimeout(() => setToast(null), 2500)
               }}

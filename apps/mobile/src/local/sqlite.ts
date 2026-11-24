@@ -16,6 +16,7 @@ interface Row {
   header: number
   pad: number
   slot: string | null
+  category: string | null
   updated_at: string
   deleted_at: string | null
 }
@@ -32,6 +33,7 @@ const toRow = (r: Row): NodeRow => ({
   header: r.header === 1,
   pad: r.pad === 1,
   slot: r.slot ?? null,
+  category: r.category ?? null,
   updatedAt: r.updated_at,
   deletedAt: r.deleted_at,
 })
@@ -47,7 +49,7 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: H
           id text primary key, parent_id text, rank text not null, text text not null,
           done integer not null default 0, collapsed integer not null default 0, numbered integer not null default 0,
           header integer not null default 0, done_at text, pad integer not null default 0,
-          updated_at text not null, deleted_at text, slot text
+          updated_at text not null, deleted_at text, slot text, category text
         );
         create table if not exists hours_rows (tbl text not null, key text not null, json text not null, dirty integer not null default 0, primary key (tbl, key));
         create table if not exists dirty (id text primary key);
@@ -59,6 +61,7 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: H
       if (!cols.some((c) => c.name === 'done_at')) await d.execAsync('alter table nodes add column done_at text')
       if (!cols.some((c) => c.name === 'pad')) await d.execAsync('alter table nodes add column pad integer not null default 0')
       if (!cols.some((c) => c.name === 'slot')) await d.execAsync('alter table nodes add column slot text')
+      if (!cols.some((c) => c.name === 'category')) await d.execAsync('alter table nodes add column category text')
       return d
     })())
 
@@ -102,12 +105,12 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: H
       await d.withTransactionAsync(async () => {
         for (const r of rows) {
           await d.runAsync(
-            `insert into nodes (id, parent_id, rank, text, done, done_at, collapsed, numbered, header, pad, updated_at, deleted_at, slot)
-             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `insert into nodes (id, parent_id, rank, text, done, done_at, collapsed, numbered, header, pad, updated_at, deleted_at, slot, category)
+             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              on conflict (id) do update set parent_id = excluded.parent_id, rank = excluded.rank, text = excluded.text,
                done = excluded.done, done_at = excluded.done_at, collapsed = excluded.collapsed, numbered = excluded.numbered, header = excluded.header,
-               pad = excluded.pad, updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, slot = excluded.slot`,
-            r.id, r.parentId, r.rank, r.text, r.done ? 1 : 0, r.doneAt ?? null, r.collapsed ? 1 : 0, r.numbered ? 1 : 0, r.header ? 1 : 0, r.pad ? 1 : 0, r.updatedAt, r.deletedAt, r.slot ?? null,
+               pad = excluded.pad, updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, slot = excluded.slot, category = excluded.category`,
+            r.id, r.parentId, r.rank, r.text, r.done ? 1 : 0, r.doneAt ?? null, r.collapsed ? 1 : 0, r.numbered ? 1 : 0, r.header ? 1 : 0, r.pad ? 1 : 0, r.updatedAt, r.deletedAt, r.slot ?? null, r.category ?? null,
           )
           if (opts.dirty) await d.runAsync('insert or ignore into dirty (id) values (?)', r.id)
         }

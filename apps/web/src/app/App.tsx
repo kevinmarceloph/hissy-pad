@@ -7,8 +7,10 @@ import { Account } from './Account'
 import { PullToRefresh } from './PullToRefresh'
 import { FreshStart } from '../pads/FreshStart'
 import { Sort } from '../panels/Sort'
-import { Hours, SlotDialog } from '../panels/Hours'
-import { cmdApplySlot, setSlotPickerOpener, targetSlot } from '@hissypad/state/hours'
+import { CategoryDialog, Hours, SlotDialog } from '../panels/Hours'
+import {
+  cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot,
+} from '@hissypad/state/hours'
 import { showToast } from './toast'
 
 const VIEWS: Record<string, View> = { '#hours': 'hours', '#pads': 'pad', '#sort': 'sort' }
@@ -38,11 +40,19 @@ export function App() {
   }, [])
   // The hour picker the toolbar's "Hour…" opens: the slot the lines share and how many they are.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
+  // The same for "Category…".
+  const [categorizing, setCategorizing] = useState<{ value: string | null; count: number } | null>(null)
 
   useEffect(() => {
     void loadPad()
+    // Hours' rows are opened with the pad: a line's category icon comes from its list.
+    void openHours()
     setSlotPickerOpener((ids) => setPicking({ value: targetSlot(ids), count: ids.length }))
-    return () => setSlotPickerOpener(null)
+    setCategoryPickerOpener((ids) => setCategorizing({ value: targetCategory(ids), count: ids.length }))
+    return () => {
+      setSlotPickerOpener(null)
+      setCategoryPickerOpener(null)
+    }
   }, [])
 
   return (
@@ -65,6 +75,17 @@ export function App() {
           onPick={(slot) => {
             showToast(cmdApplySlot(slot))
             setPicking(null)
+          }}
+        />
+      )}
+      {categorizing && (
+        <CategoryDialog
+          value={categorizing.value}
+          count={categorizing.count}
+          onClose={() => setCategorizing(null)}
+          onPick={(category) => {
+            showToast(cmdApplyCategory(category))
+            setCategorizing(null)
           }}
         />
       )}

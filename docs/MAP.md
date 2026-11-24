@@ -38,6 +38,7 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), sub-pads and places (`isSubPad`, `listSubPads`, `Place`, `moveToPlace`), Fresh start |
 | `drop.ts` | `resolveDrop`: where a dragged line lands, from pointer position and row layout |
 | `paste.ts` | text to outline and back: `parseOutline`, `insertOutline`, `toOutline`, `toOutlineHtml` |
+| `ops.ts` (again) | `setCategory`: a line's category, one of Hours' (`NodeRow.category`) |
 | `slot.ts` | a line in an hour of a day: the slot's key (`slotKey`, `parseSlot`), the count of done and open lines per slot (`slotCounts`), the lines of one slot, how a slot reads in the pad (`slotLabel`) |
 | `hours/` | the Hours mode's logic, from Oras-oras, exported as `@hissypad/core/hours`: `day.ts` (days, hour slots, the day start), `entry.ts` (an hour's plan and deed, `applyPatch`, `toggleDone`), `categories.ts`, `flags.ts`, `recurring.ts`, `chime.ts`, `summary.ts`, `store.ts` (the store interfaces, `HoursBackend`, `HoursStore`) |
 | `clock.ts` | the monotonic clock every edit stamps `updated_at` with, and `newUuid` |
@@ -70,7 +71,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `remote.ts` | the `Remote` the engine talks to, over Supabase |
 | `log.ts` | the debug log (`?debug=1`) |
 | `prefs.ts` | per-device preferences, not synced (pad counts on the tabs): `usePrefs`, `setPref`; each app hands in its storage with `initPrefs` |
-| `hours/` | the Hours mode's state, exported as `@hissypad/state/hours`: `index.ts` (opens the store, wires the stores, starts and stops hours sync, `configureHoursBackend`, `configureChimes`), the day, category, flag, recurring plan and chime stores, `engine.ts` and `remote.ts` (sync for the four hours tables), `slots.ts` (lines in an hour: assign, cross out, take out, add, find one to put in, the picker's opener) |
+| `hours/` | the Hours mode's state, exported as `@hissypad/state/hours`: `index.ts` (opens the store, wires the stores, starts and stops hours sync, `configureHoursBackend`, `configureChimes`), the day, category, flag, recurring plan and chime stores, `engine.ts` and `remote.ts` (sync for the four hours tables), `slots.ts` (lines in an hour: assign, cross out, take out, add, find one to put in, the picker's opener), `line-categories.ts` (a line's category: the list the pad draws icons from, `useLineCategory`, set it, the picker's opener) |
 | `sample.ts` | the welcome pad a new device starts with |
 | `testing.ts` | `resetStore(outline)` for tests here and in the apps |
 
@@ -85,6 +86,7 @@ Screens written once in React Native. The phone draws them natively; the web app
 | `src/hours/HourRow.tsx` | one hour: its row (box, words, the lines' count, flag marks) and its editor |
 | `src/hours/Items.tsx` | the pad's lines in an open hour: tick, take out, add, or find a line in any pad (the universal search, `slotFinds`) and put it in the hour |
 | `src/hours/SlotPicker.tsx` | the hour picker the pad's toolbar opens |
+| `src/hours/CategoryPicker.tsx` | the category picker the pad's toolbar opens ("Category…") |
 | `src/hours/CategoriesScreen.tsx`, `FlagsScreen.tsx`, `RecurringScreen.tsx` | the user's own lists |
 | `src/hours/provider.tsx` | the stores as React context, and `useSync` (signed in or not, the sync line) |
 | `src/hours/theme.ts` | paper and ink tokens with the 12 label colors searched for a deuteranope; `SchemeContext` lets the host force light or dark |

@@ -19,6 +19,7 @@ import { createSyncEngine, cursorKey, type Remote, type SyncEngine, type SyncSta
 import { createFlagStore, type FlagsStore } from './flag-store';
 import { createRecurringStore, type RecurringPlansStore } from './recurring-store';
 import { createSupabaseRemote } from './remote';
+import { adoptLineCategories } from './line-categories';
 
 export * from './category-store';
 export * from './chime-store';
@@ -26,6 +27,7 @@ export * from './day-store';
 export * from './flag-store';
 export * from './recurring-store';
 export * from './slots';
+export * from './line-categories';
 export { syncLine as hoursSyncLine, type SyncStatus as HoursSyncStatus } from './engine';
 
 // ---- what a platform provides ---------------------------------------------------------
@@ -104,6 +106,11 @@ export function openHours(): Promise<HoursStores> {
         })
       : createStaticChimeStore();
     await Promise.all([categories.getState().load(), flags.getState().load(), recurring.getState().load()]);
+    // The pad draws a line's category as its icon, so it follows the list wherever it changes.
+    adoptLineCategories(categories.getState().list);
+    categories.subscribe((s, before) => {
+      if (s.list !== before.list) adoptLineCategories(s.list);
+    });
     // The day on the screen depends on the day start, so it is read before anything draws.
     day.getState().adoptStart(cleanDayStart(await store.sync.getMeta(DAY_START_KEY).catch(() => null)));
     void store.sync

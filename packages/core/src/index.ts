@@ -50,6 +50,7 @@ export {
   removeDone,
   sweepDone,
   setSlot,
+  setCategory,
 } from './ops'
 export { slotKey, parseSlot, slotCounts, slotLines, slotLabel, todayKey, type SlotCount } from './slot'
 export {

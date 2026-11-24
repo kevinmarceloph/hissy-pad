@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, t
 import type { NodeRow } from '@hissypad/core'
 import { apply, clickSelect, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
 import { inlineSpans, slotLabel, todayKey, toggleCollapsed } from '@hissypad/core'
+import { useLineCategory } from '@hissypad/state/hours'
 import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, serif, type Theme } from '../theme'
 
 // How long after a line changes place a blur still counts as the move's doing.
@@ -28,6 +29,7 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
   const isEditing = editing?.id === row.id
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
+  const category = useLineCategory(row.category)
   const sel = useRef({ start: 0, end: 0 })
   // Moving the line (the toolbar's up arrow, say) makes the native list take its view out
   // and put it back, which blurs the input and would end editing and drop the keyboard.
@@ -116,6 +118,15 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
       style={[s.row, { paddingLeft: depth * INDENT }, selected && { backgroundColor: theme.accentSoft }, selectedChild && { backgroundColor: theme.accentFaint }, dragging && { opacity: 0.35 }, preview && { backgroundColor: theme.accentSoft, opacity: 0.75 }]}
     >
       {bullet}
+      {category && (
+        // The line's category (toolbar: More, Category…): its icon, or its name where it has none.
+        <Text
+          accessibilityLabel={`Category: ${category.label}`}
+          style={category.icon ? [s.category, row.done && { opacity: 0.55 }] : [s.categoryWord, { color: theme.inkSoft, borderColor: theme.rule }]}
+        >
+          {category.icon || category.label}
+        </Text>
+      )}
       {isEditing ? (
         <TextInput
           autoFocus
@@ -184,6 +195,8 @@ const s = StyleSheet.create({
   textWrap: { flex: 1, minHeight: LINE },
   text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, padding: 0, margin: 0, textAlignVertical: 'top' },
   input: { transform: [{ translateY: -INPUT_SHIFT }] },
+  category: { fontSize: SIZE, lineHeight: LINE, marginRight: 5 },
+  categoryWord: { fontFamily: serif, fontSize: SIZE - 5, lineHeight: LINE - 6, marginTop: 3, marginRight: 6, paddingHorizontal: 5, borderWidth: 1, borderRadius: 3, overflow: 'hidden' },
   slot: { fontSize: SIZE - 5, fontWeight: '400', fontStyle: 'normal', textDecorationLine: 'none' },
   chip: { fontSize: SIZE - 5, fontWeight: '400', textDecorationLine: 'none', fontVariant: ['tabular-nums'] },
 })

@@ -3,3 +3,4 @@
 // web (textareas, pointer drag) and stays in each app.
 export { HoursApp } from './hours/HoursApp';
 export { SlotPicker } from './hours/SlotPicker';
+export { CategoryPicker } from './hours/CategoryPicker';

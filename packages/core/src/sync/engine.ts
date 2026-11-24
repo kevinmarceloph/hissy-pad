@@ -74,7 +74,8 @@ export const CURSOR_KEY = 'sync.cursor'
 // 2: 2026-11-23. A build from before the `slot` column pulled rows that carried one, kept
 // them without it and moved its cursor past them: the phone showed no hour on lines that
 // had one on the web.
-export const PULL_EPOCH = '2'
+// 3: 2026-11-24. The `category` column, for the same reason.
+export const PULL_EPOCH = '3'
 export const EPOCH_KEY = 'sync.epoch'
 
 export function createSyncEngine(o: SyncEngineOptions): SyncEngine {

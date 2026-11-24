@@ -8,6 +8,7 @@ import {
 import { redo, undo } from '@hissypad/state'
 import { apply } from '@hissypad/state'
 import { slotLabel, todayKey, inlineSpans, toggleCollapsed, URL_RE } from '@hissypad/core'
+import { useLineCategory } from '@hissypad/state/hours'
 
 interface Props {
   row: NodeRow
@@ -167,9 +168,10 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
     edit(row.id, caretFromPoint(e.currentTarget, e.clientX, e.clientY))
   }
 
+  const category = useLineCategory(row.category)
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
-  const cls = ['row', row.done && 'is-done', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', selectedChild && 'is-selected-child', isEditing && 'is-editing', folded && 'is-collapsed']
+  const cls = ['row', row.done && 'is-done', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', selectedChild && 'is-selected-child', isEditing && 'is-editing', folded && 'is-collapsed', category && 'has-category']
     .filter(Boolean)
     .join(' ')
 
@@ -184,6 +186,12 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
         onClickCapture={onBulletClickCapture}
         onPointerDown={(e) => onBulletPointerDown(row.id, e)}
       />
+      {category && (
+        // The line's category (toolbar: Category…): its icon, or its name where it has none.
+        <span className={category.icon ? 'category' : 'category is-word'} title={category.label} aria-label={`Category: ${category.label}`}>
+          {category.icon || category.label}
+        </span>
+      )}
       {isEditing ? (
         <textarea
           ref={ref}

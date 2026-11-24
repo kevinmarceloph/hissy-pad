@@ -10,7 +10,7 @@ import {
   actionFace, cmdMoveTo, cmdSetKind, countOf, lineAbilities, lineCount, placeList, usePad,
   LINE_ACTIONS, LINE_KINDS, type LineActionGroup, type LineIcon as LineIconId,
 } from '@hissypad/state'
-import { cmdPickSlot } from '@hissypad/state/hours'
+import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
 import { serif, type Theme } from '../theme'
 import { LineIcon } from './LineIcons'
 
@@ -59,8 +59,8 @@ export function Toolbar({ theme }: { theme: Theme }) {
   function more() {
     const held = ids
     Alert.alert('More', undefined, [
-      // The alert can end the edit before an option is tapped; "Hour…" keeps the lines it had.
-      ...tucked.map((a) => ({ text: a.label, onPress: () => void (a.id === 'slot' ? cmdPickSlot(held) : a.run()) })),
+      // The alert can end the edit before an option is tapped; "Hour…" and "Category…" keep the lines it had.
+      ...tucked.map((a) => ({ text: a.label, onPress: () => void (a.id === 'slot' ? cmdPickSlot(held) : a.id === 'category' ? cmdPickCategory(held) : a.run()) })),
       { text: 'Cancel', style: 'cancel' as const },
     ])
   }

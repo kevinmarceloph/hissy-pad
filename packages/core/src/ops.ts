@@ -44,6 +44,7 @@ function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: strin
     header: false,
     pad: false,
     slot: null,
+    category: null,
     updatedAt: ctx.now(),
     deletedAt: null,
   }
@@ -122,6 +123,13 @@ export function setDone(rows: Rows, ctx: OpCtx, ids: Iterable<string>, done: boo
     const now = ctx.now()
     out = { ...out, [id]: { ...out[id]!, done, doneAt: done ? now : null, updatedAt: now } }
   }
+  return out
+}
+
+// Give lines one of Hours' categories (its id), or take theirs away with null.
+export function setCategory(rows: Rows, ctx: OpCtx, ids: Iterable<string>, category: string | null): Rows {
+  let out = rows
+  for (const id of ids) if (isLive(out[id]) && out[id]!.category !== category) out = patch(out, ctx, id, { category })
   return out
 }
 

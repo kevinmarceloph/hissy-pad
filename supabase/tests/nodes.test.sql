@@ -1,6 +1,6 @@
 -- pgTAP: RLS and last-write-wins on public.nodes. Run with `supabase test db`.
 begin;
-select plan(22);
+select plan(25);
 
 -- Two users, created directly (no GoTrue in a db test).
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
@@ -92,6 +92,14 @@ select is((select slot from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000
 select throws_ok(
   $$ update public.nodes set slot = '9am Monday', updated_at = '2026-11-23T00:00:01Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001' $$,
   '23514', null, 'a slot that is not a day and an hour is rejected');
+
+-- category: the id of one of Hours' categories; null by default, same length rule as its id.
+select is((select category from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), null, 'category defaults to null');
+update public.nodes set category = 'c-work', updated_at = '2026-11-24T00:00:00Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select is((select category from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), 'c-work', 'category round-trips');
+select throws_ok(
+  $$ update public.nodes set category = '', updated_at = '2026-11-24T00:00:01Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001' $$,
+  '23514', null, 'an empty category is rejected');
 
 select * from finish();
 rollback;
