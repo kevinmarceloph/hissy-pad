@@ -45,7 +45,7 @@ export {
   indent,
   dedent,
   ungroup,
-  moveSibling,
+  moveSibling, moveToTop,
   mergeIntoPrev,
   removeDone,
   sweepDone,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  dedent, indent, insertAfter, insertAtTop, insertBefore, mergeIntoPrev, moveNodes, moveSibling,
+  dedent, indent, insertAfter, insertAtTop, insertBefore, mergeIntoPrev, moveNodes, moveSibling, moveToTop,
   remove, removeDone, setCollapsed, setDone, setKind, setNumbered, setText, splitNode, sweepDone, toggleDone, toggleNumbered, ungroup,
 } from './ops'
 import { idOf, pad, shape, testCtx } from './testing'
@@ -159,6 +159,16 @@ describe('indent / dedent', () => {
     const ctx = testCtx()
     const rows = pad(OUTLINE, ctx)
     expect(shape(dedent(rows, ctx, [idOf(rows, 'A')]))).toBe(shape(rows))
+  })
+})
+
+describe('moveToTop', () => {
+  it('puts the targets first among their siblings, in order, and leaves a group already there', () => {
+    const ctx = testCtx()
+    const rows = pad('A\nB\n  B1\n  B2\n  B3\nC\nD', ctx)
+    expect(shape(moveToTop(rows, ctx, [idOf(rows, 'C'), idOf(rows, 'D')]))).toBe('C\nD\nA\nB\n  B1\n  B2\n  B3')
+    expect(shape(moveToTop(rows, ctx, [idOf(rows, 'B3')]))).toBe('A\nB\n  B3\n  B1\n  B2\nC\nD')
+    expect(moveToTop(rows, ctx, [idOf(rows, 'A')])).toBe(rows)
   })
 })
 

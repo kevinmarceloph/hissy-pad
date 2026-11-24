@@ -1,0 +1,48 @@
+// The app's icons, drawn in the ink of whatever holds them. Each sits in a button that
+// carries the name (aria-label and title), so none of them is read out itself. The phone
+// draws the same set with Views (apps/mobile/src/ui/LineIcons.tsx): change both together.
+import type { ReactNode } from 'react'
+import type { LineIcon as LineIconId } from '@hissypad/state'
+
+export function Icon({ d, children }: { d?: string; children?: ReactNode }) {
+  return (
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {d && <path d={d} />}
+      {children}
+    </svg>
+  )
+}
+
+const LINE_ICONS: Record<LineIconId, ReactNode> = {
+  // A new line (the plus and its stroke) over, or under, the two that are there.
+  addAbove: <Icon d="M5 3v5M2.5 5.5h5M10.5 5.5h7M3 11h14M3 15.5h14" />,
+  addBelow: <Icon d="M3 4.5h14M3 9h14M5 12v5M2.5 14.5h5M10.5 14.5h7" />,
+  // An arrow up to a bar.
+  top: <Icon d="M4 3.5h12M10 17V7.5M6 11.5l4-4 4 4" />,
+  // Two chevrons closing on each other; the same two opening.
+  fold: <Icon d="M6 3.5l4 4 4-4M6 16.5l4-4 4 4" />,
+  unfold: <Icon d="M6 7.5l4-4 4 4M6 12.5l4 4 4-4" />,
+  // A sheet over its copy.
+  copy: <Icon d="M6.5 6.5v-2a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2"><rect x="3.5" y="6.5" width="10" height="10" rx="1" /></Icon>,
+  cut: <Icon d="M7.6 12.6L14.5 3.5M12.4 12.6L5.5 3.5"><circle cx="6" cy="14.5" r="2.5" /><circle cx="14" cy="14.5" r="2.5" /></Icon>,
+  // A clipboard with an arrow up, or down.
+  pasteAbove: <Icon d="M7.5 4H5.5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1h-2M10 14.5v-5M7.5 11.5L10 9l2.5 2.5"><rect x="7.5" y="2.5" width="5" height="3" rx="0.5" /></Icon>,
+  pasteBelow: <Icon d="M7.5 4H5.5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1h-2M10 9v5M7.5 12l2.5 2.5 2.5-2.5"><rect x="7.5" y="2.5" width="5" height="3" rx="0.5" /></Icon>,
+  // An arrow into a tray: put it somewhere. Also the Sort mode.
+  move: <Icon d="M3 11v4.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V11M10 3v9M6.5 8.5L10 12l3.5-3.5" />,
+  delete: <Icon d="M3.5 5.5h13M8 5.5v-2h4v2M5.5 5.5l.7 10.1a1 1 0 0 0 1 .9h5.6a1 1 0 0 0 1-.9l.7-10.1M8.5 9v4.5M11.5 9v4.5" />,
+  more: <svg viewBox="0 0 20 20" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="4.5" cy="10" r="1.4" /><circle cx="10" cy="10" r="1.4" /><circle cx="15.5" cy="10" r="1.4" /></svg>,
+}
+
+export function LineIcon({ icon }: { icon: LineIconId }) {
+  return LINE_ICONS[icon]
+}
+
+// Pad: an outline, three lines with their bullets.
+export const PadIcon = () => <Icon d="M7.5 5h9M7.5 10h9M7.5 15h9M3.5 5h.01M3.5 10h.01M3.5 15h.01" />
+// Hours: a clock.
+export const HoursIcon = () => <Icon d="M10 5.5V10l3 2"><circle cx="10" cy="10" r="7" /></Icon>
+// Sort: a line on its way into a tray. The same icon as the toolbar's Move to….
+export const SortIcon = () => <LineIcon icon="move" />
+export const SearchIcon = () => <Icon d="M13 13l4 4"><circle cx="8.5" cy="8.5" r="5" /></Icon>
+export const MenuIcon = () => <Icon d="M3.5 5.5h13M3.5 10h13M3.5 14.5h13" />

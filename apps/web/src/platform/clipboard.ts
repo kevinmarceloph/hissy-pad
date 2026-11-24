@@ -46,3 +46,13 @@ function showCopyDialog(text: string) {
   ta.focus()
   ta.select()
 }
+
+// The toolbar's Paste. The browser decides: Safari shows its own Paste bubble first,
+// Chrome asks once, and some refuse outright (then null, and the bar says so).
+export async function readClipboard(): Promise<string | null> {
+  try {
+    return (await navigator.clipboard?.readText?.()) ?? null
+  } catch {
+    return null
+  }
+}

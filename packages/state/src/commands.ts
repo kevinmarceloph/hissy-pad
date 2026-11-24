@@ -2,8 +2,8 @@
 // handler (Pad). Each one picks its targets from the store and decides where the caret or
 // selection goes afterwards.
 import {
-  buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, remove, removeDone, ungroup,
-  setKind, setText as setTextOp, splitNode, toggleCollapsed, toggleDone, toggleNumbered, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
+  buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, moveToTop, remove, removeDone, ungroup,
+  setKind, setText as setTextOp, splitNode, toggleDone, toggleNumbered, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
 // dialog fallback; mobile: expo-clipboard). `html` is the same outline as nested lists,
@@ -12,6 +12,13 @@ export type ClipboardWriter = (text: string, html?: string) => Promise<boolean>
 let copyText: ClipboardWriter = async () => false
 export function setClipboard(fn: ClipboardWriter) {
   copyText = fn
+}
+// And how it is read back, for the toolbar's Paste (web: navigator.clipboard.readText,
+// which the browser may refuse; mobile: expo-clipboard). Null when it could not be read.
+export type ClipboardReader = () => Promise<string | null>
+let readText: ClipboardReader = async () => null
+export function setClipboardReader(fn: ClipboardReader) {
+  readText = fn
 }
 import { apply, importOutline, usePad } from './store'
 import { dropLastOp } from './history'
@@ -165,17 +172,28 @@ export function cmdMove(dir: 'up' | 'down') {
   if (ids.length) apply((rows, ctx) => moveSibling(rows, ctx, ids, dir), { label: 'cmdMove' })
 }
 
+// Move to top: first among its siblings.
+export function cmdMoveToTop() {
+  const ids = targets()
+  if (ids.length) apply((rows, ctx) => moveToTop(rows, ctx, ids), { label: 'cmdMoveToTop' })
+}
+
 export function cmdToggleDone() {
   const ids = targets()
   if (ids.length) apply((rows, ctx) => toggleDone(rows, ctx, ids), { label: 'cmdToggleDone' })
 }
 
+// Fold or unfold. With every target that has lines under it already folded, they all
+// open; otherwise they all fold. So the toolbar's button can say which one it will do.
 export function cmdToggleCollapsed() {
   const ids = targets()
   if (ids.length === 0) return
   apply((rows, ctx) => {
+    const index = buildIndex(rows)
+    const parents = ids.filter((id) => childrenOf(index, id).length > 0)
+    const fold = !parents.every((id) => rows[id]!.collapsed)
     let out = rows
-    for (const id of ids) out = toggleCollapsed(out, ctx, id)
+    for (const id of parents) out = setCollapsed(out, ctx, id, fold)
     return out
   }, { label: 'cmdToggleCollapsed' })
 }
@@ -260,6 +278,33 @@ export function cmdPasteAfterSelection(text: string) {
   const last = selection.at(-1)
   const ids = last ? importOutline(text, { afterId: last }) : importOutline(text, 'bottom')
   if (ids.length) select(ids, ids[0]!, ids.at(-1)!)
+}
+
+// The toolbar's Paste above / Paste below: the clipboard's text becomes lines before the
+// first target or after the last one, at its level, and they are left selected. Resolves
+// to how many lines came in, or null when the clipboard could not be read or was empty.
+export async function cmdPaste(where: 'above' | 'below'): Promise<number | null> {
+  const ids = targets()
+  const first = ids[0]
+  const last = ids.at(-1)
+  if (!first || !last) return null
+  const text = await readText()
+  if (!text || text.trim() === '') return null
+  const rows = usePad.getState().rows
+  if (!rows[first] || rows[first]!.deletedAt !== null || !rows[last] || rows[last]!.deletedAt !== null) return null
+  let made: string[]
+  if (where === 'below') made = importOutline(text, { afterId: last })
+  else {
+    const index = buildIndex(rows)
+    const parentId = index.parentOf.get(first) ?? null
+    const sibs = childrenOf(index, parentId)
+    const prev = sibs[sibs.findIndex((r) => r.id === first) - 1]
+    made = importOutline(text, { parentId, afterId: prev?.id ?? null })
+  }
+  if (made.length === 0) return null
+  stopEditing()
+  select(made, made[0]!, made.at(-1)!)
+  return made.length
 }
 
 export function cmdToggleNumbered() {

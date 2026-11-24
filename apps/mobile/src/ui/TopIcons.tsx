@@ -3,6 +3,7 @@
 // native build. Each sits in a Pressable that carries the name for VoiceOver.
 import { Pressable, StyleSheet, View } from 'react-native'
 import type { Theme } from '../theme'
+import { LineIcon } from './LineIcons'
 
 export type Mode = 'pad' | 'hours' | 'sort'
 
@@ -29,17 +30,6 @@ function HoursIcon({ color }: { color: string }) {
       <View style={{ width: 17, height: 17, borderRadius: 9, borderWidth: W, borderColor: color }} />
       <View style={{ position: 'absolute', left: 9.25, top: 5, width: W, height: 5.5, borderRadius: 1, backgroundColor: color }} />
       <View style={{ position: 'absolute', left: 9.25, top: 9.5, width: 4.5, height: W, borderRadius: 1, backgroundColor: color }} />
-    </View>
-  )
-}
-
-// Sort: a card on a stack. `ground` is what the icon sits on, so the top card hides the
-// corner of the one behind.
-function SortIcon({ color, ground }: { color: string; ground: string }) {
-  return (
-    <View style={i.box}>
-      <View style={{ position: 'absolute', left: 6, top: 2, width: 12, height: 12, borderRadius: 2, borderWidth: W, borderColor: color }} />
-      <View style={{ position: 'absolute', left: 2, top: 6, width: 12, height: 12, borderRadius: 2, borderWidth: W, borderColor: color, backgroundColor: ground }} />
     </View>
   )
 }
@@ -88,7 +78,8 @@ export function ModeBar({ mode, onMode, theme }: { mode: Mode; onMode: (mode: Mo
             hitSlop={{ top: 6, bottom: 6 }}
             style={[i.cell, { backgroundColor: ground, borderColor: on ? theme.rule : 'transparent', borderBottomColor: on ? theme.accent : 'transparent' }]}
           >
-            {m.mode === 'pad' ? <PadIcon color={color} /> : m.mode === 'hours' ? <HoursIcon color={color} /> : <SortIcon color={color} ground={ground} />}
+            {/* Sort is a line on its way into a tray: the toolbar's Move to… icon. */}
+            {m.mode === 'pad' ? <PadIcon color={color} /> : m.mode === 'hours' ? <HoursIcon color={color} /> : <LineIcon icon="move" color={color} ground={ground} />}
           </Pressable>
         )
       })}

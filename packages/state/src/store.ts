@@ -261,7 +261,7 @@ export function setAll(all: Rows, extra: Partial<PadState> = {}) {
 
 // Multi-line paste or the Import dialog: lines land after `afterId` at its depth, or at the
 // top/bottom of the pad. Returns the ids created.
-export function importOutline(text: string, where: { afterId: string } | 'top' | 'bottom'): string[] {
+export function importOutline(text: string, where: { afterId: string } | { parentId: string | null; afterId: string | null } | 'top' | 'bottom'): string[] {
   const lines = parseOutline(text)
   if (lines.length === 0) return []
   let ids: string[] = []
@@ -270,6 +270,7 @@ export function importOutline(text: string, where: { afterId: string } | 'top' |
     let placement
     if (where === 'top') placement = { parentId: null, afterId: null }
     else if (where === 'bottom') placement = { parentId: null, afterId: childrenOf(index, null).at(-1)?.id ?? null }
+    else if ('parentId' in where) placement = where
     else placement = { parentId: index.parentOf.get(where.afterId) ?? null, afterId: where.afterId }
     const res = insertOutline(rows, ctx, lines, placement)
     ids = res.ids

@@ -64,3 +64,54 @@ test('the Move to… menu closes on Escape and on a click elsewhere', async ({ p
   await page.locator('h1').click()
   await expect(page.getByRole('menuitem')).toHaveCount(0)
 })
+
+// At phone width the bar is the phone app's: two rows that do not scroll, with the Done
+// switch and "done editing" floating above it, and a + over the pad when nothing is open.
+test('at phone width the toolbar does not scroll, and the floating buttons are there', async ({ page }, info) => {
+  test.skip(info.project.name !== 'phone', 'phone width only')
+  await page.goto('/')
+  const add = page.getByRole('button', { name: 'Add a line at the top' })
+  await expect(add).toBeVisible()
+  await page.getByRole('button', { name: 'Select line' }).first().click()
+  await expect(add).toHaveCount(0)
+  const bar = page.getByRole('toolbar', { name: 'Selected lines' })
+  const view = page.viewportSize()!
+  expect(await bar.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+  for (const name of ['Outdent', 'Move to top', 'Add a line below', 'Fold', 'Copy', 'Cut', 'Paste above', 'Paste below', 'More actions', 'Delete']) {
+    const box = (await bar.getByRole('button', { name, exact: true }).boundingBox())!
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(view.width)
+    expect(box.width).toBeGreaterThanOrEqual(30)
+  }
+  // Done and × are the floating pair here, not buttons on the bar.
+  await expect(bar.getByRole('button', { name: 'Done', exact: true })).toBeHidden()
+  await page.getByRole('switch', { name: 'Crossed out' }).click()
+  await expect(page.locator('.row.is-done')).toHaveCount(2)
+  await page.getByRole('switch', { name: 'Crossed out' }).click()
+  await page.getByRole('button', { name: 'Clear selection', exact: true }).click()
+  await expect(bar).toHaveCount(0)
+  await expect(add).toBeVisible()
+})
+
+test('the floating + adds a line at the top on a tap, and where it is dropped on a drag', async ({ page }, info) => {
+  test.skip(info.project.name !== 'phone', 'phone width only')
+  await page.goto('/')
+  const add = page.getByRole('button', { name: 'Add a line at the top' })
+  const before = await page.locator('.row').count()
+  const from = (await add.boundingBox())!
+  const row = (await page.locator('.row', { hasText: 'Oat milk' }).boundingBox())!
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(row.x + 80, row.y + row.height + 2, { steps: 8 })
+  await expect(page.locator('.new-row')).toHaveCount(1)
+  await page.mouse.up()
+  await expect(page.locator('.row')).toHaveCount(before + 1)
+  await page.keyboard.type('Bread')
+  const texts = await page.locator('.row').evaluateAll((els) => els.map((el) => (el.querySelector('textarea')?.value ?? el.querySelector('.text')?.textContent ?? '').trim()))
+  expect(texts.indexOf('Bread')).toBe(texts.indexOf('Oat milk') + 1)
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('Escape')
+  await add.click()
+  await expect(page.locator('.row')).toHaveCount(before + 2)
+  await expect(page.locator('.row').first().locator('textarea')).toBeFocused()
+})

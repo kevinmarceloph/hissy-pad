@@ -1,20 +1,104 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { kindOf } from '@hissypad/core'
 import {
-  clearSelection, cmdMoveTo, countOf, cmdSetKind, lineAbilities, lineCount, placeList, stopEditing, usePad, type PlaceItem,
+  actionFace, clearSelection, cmdMoveTo, cmdToggleDone, countOf, cmdSetKind, lineAbilities, lineCount, placeList, stopEditing, usePad, type PlaceItem,
   LINE_ACTIONS, LINE_KINDS, type LineAction, type LineActionGroup,
 } from '@hissypad/state'
 import { showToast } from '../app/toast'
+import { LineIcon } from '../app/icons'
 import { MOD, shortcut } from '../platform/os'
 
 // A rule is drawn before the first button of these groups.
-const RULE_BEFORE: ReadonlySet<LineActionGroup> = new Set(['add', 'move', 'tree'])
+const RULE_BEFORE: ReadonlySet<LineActionGroup> = new Set(['add', 'move', 'tree', 'clip', 'remove'])
+
+interface MenuItem {
+  key: string
+  label: string
+  title?: string | undefined
+  className?: string | undefined
+  disabled?: boolean
+  run: () => void
+}
+
+// A button of the bar that opens a small menu above itself. The menu is drawn outside the
+// bar (a portal on <body>): the bar scrolls sideways on a desktop too narrow for it, and a
+// scrolling box clips anything positioned inside it. It sits above the button, kept inside
+// the window, and follows the button if the bar scrolls or the window resizes.
+function BarMenu({ name, title, menuLabel, className, items, children }: { name: string; title: string; menuLabel: string; className: string; items: MenuItem[]; children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const button = useRef<HTMLButtonElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
+  const [at, setAt] = useState<{ left: number; bottom: number } | null>(null)
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setAt(null)
+      return
+    }
+    const place = () => {
+      const r = button.current?.getBoundingClientRect()
+      if (!r) return
+      const half = 96 // half the menu's widest (16rem is the cap; most are narrower)
+      const left = Math.min(Math.max(r.left + r.width / 2, half + 8), window.innerWidth - half - 8)
+      setAt({ left, bottom: window.innerHeight - r.top + 8 })
+    }
+    place()
+    const bar = button.current?.closest('.selbar')
+    bar?.addEventListener('scroll', place)
+    window.addEventListener('resize', place)
+    window.visualViewport?.addEventListener('resize', place)
+    return () => {
+      bar?.removeEventListener('scroll', place)
+      window.removeEventListener('resize', place)
+      window.visualViewport?.removeEventListener('resize', place)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const close = (e: Event) => {
+      const t = e.target as Node
+      if (!button.current?.contains(t) && !menu.current?.contains(t)) setOpen(false)
+    }
+    // Escape closes the menu and stops there: the selection stays as it was.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      setOpen(false)
+    }
+    document.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('pointerdown', close)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [open])
+
+  return (
+    <span className={className}>
+      <button ref={button} type="button" onClick={() => setOpen((m) => !m)} aria-haspopup="menu" aria-expanded={open} aria-label={name} title={title}>{children}</button>
+      {open && at && createPortal(
+        <div ref={menu} className="bar moveto-menu" role="menu" aria-label={menuLabel} style={{ left: at.left, bottom: at.bottom }} onMouseDown={(e) => e.preventDefault()}>
+          {items.map((it) => (
+            <button key={it.key} type="button" role="menuitem" className={it.className} title={it.title ?? it.label} disabled={it.disabled} onClick={() => { setOpen(false); it.run() }}>{it.label}</button>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </span>
+  )
+}
 
 // Shows while a line is being edited or lines are selected. Same actions as the keyboard,
 // for the mouse and the phone. The buttons come from LINE_ACTIONS in the state package
-// (shared with the phone's toolbar); the line type switcher and the "Move to…" menu are
-// drawn here. Mousedown is swallowed so a tap never blurs the textarea.
+// (shared with the phone's toolbar); the line type switcher, the "Move to…" menu and the
+// dropdown of the less used actions are drawn here. Mousedown is swallowed so a tap never
+// blurs the textarea.
+//
+// On a phone-width screen it is the phone app's toolbar: two rows that do not scroll, with
+// crossing out and "done editing" as round buttons floating above its right end (.fab)
+// instead of buttons on the bar.
 export function SelectionBar() {
   const selection = usePad((s) => s.selection)
   const editing = usePad((s) => s.editing)
@@ -23,9 +107,6 @@ export function SelectionBar() {
   const padId = usePad((s) => s.padId)
   // Everywhere the lines can go: the other pads, and every sub-pad (this pad's included).
   const places = useMemo(() => placeList(all).filter((p) => p.subId !== null || p.padId !== padId), [all, padId])
-  const [menu, setMenu] = useState(false)
-  const moveBtn = useRef<HTMLButtonElement>(null)
-  const [menuAt, setMenuAt] = useState<{ left: number; bottom: number } | null>(null)
   const ids = selection.length > 0 ? selection : editing ? [editing.id] : []
   const can = useMemo(() => lineAbilities(rows, ids), [rows, ids])
   const ref = useRef<HTMLDivElement>(null)
@@ -51,68 +132,28 @@ export function SelectionBar() {
     }
   }, [visible])
 
-  // The menu is drawn outside the bar (a portal on <body>): the bar scrolls sideways, and
-  // a scrolling box clips anything positioned inside it. It sits above the button, kept
-  // inside the window, and follows the button if the bar scrolls or the window resizes.
-  useLayoutEffect(() => {
-    if (!menu) {
-      setMenuAt(null)
-      return
-    }
-    const place = () => {
-      const r = moveBtn.current?.getBoundingClientRect()
-      if (!r) return
-      const half = 96 // half the menu's widest (16rem is the cap; most are narrower)
-      const left = Math.min(Math.max(r.left + r.width / 2, half + 8), window.innerWidth - half - 8)
-      setMenuAt({ left, bottom: window.innerHeight - r.top + 8 })
-    }
-    place()
-    const bar = ref.current
-    bar?.addEventListener('scroll', place)
-    window.addEventListener('resize', place)
-    window.visualViewport?.addEventListener('resize', place)
-    return () => {
-      bar?.removeEventListener('scroll', place)
-      window.removeEventListener('resize', place)
-      window.visualViewport?.removeEventListener('resize', place)
-    }
-  }, [menu])
-
-  useEffect(() => {
-    if (!menu) return
-    const close = (e: Event) => {
-      if (!(e.target as HTMLElement).closest?.('.moveto, .moveto-menu')) setMenu(false)
-    }
-    // Escape closes the menu and stops there: the selection stays as it was.
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.stopPropagation()
-      setMenu(false)
-    }
-    document.addEventListener('pointerdown', close)
-    window.addEventListener('keydown', onKey, true)
-    return () => {
-      document.removeEventListener('pointerdown', close)
-      window.removeEventListener('keydown', onKey, true)
-    }
-  }, [menu])
-
   if (!visible) return null
   const n = selection.length
   function moveTo(place: PlaceItem) {
-    setMenu(false)
     const moved = cmdMoveTo(place)
     if (moved) showToast(`Moved ${lineCount(moved)} to “${place.label}”.`)
   }
+  // What an action says back: a plain line (Paste could not read the clipboard) is shown as
+  // it is; anything that changed the pad also says how to undo it.
   function run(a: LineAction) {
+    const say = (said: string | void) => {
+      if (said) showToast(a.group === 'clip' ? said : `${said} ${MOD}+Z undoes it.`)
+    }
     const said = a.run()
-    if (said) showToast(`${said} ${MOD}+Z undoes it.`)
+    if (said instanceof Promise) void said.then(say)
+    else say(said)
   }
   // Mixed selections show the first line's type; a tap sets them all.
   const first = rows[ids[0]!]
   const current = first ? kindOf(first) : 'plain'
   const counted = countOf(selection, rows)
   const label = n === 0 ? 'Editing' : counted > 0 ? lineCount(counted) : n === 1 ? 'Blank line' : 'Blank lines'
+  const allDone = ids.every((id) => rows[id]?.done)
   const close = () => {
     if (n > 0) clearSelection()
     else {
@@ -127,44 +168,72 @@ export function SelectionBar() {
       ))}
     </span>
   )
-  const moveMenu = places.length > 0 && (
-    <span className="moveto">
-      <button ref={moveBtn} type="button" onClick={() => setMenu((m) => !m)} aria-haspopup="menu" aria-expanded={menu} title="Move to another pad or a sub-pad">Move to…</button>
-      {menu && menuAt && createPortal(
-        <div className="bar moveto-menu" role="menu" aria-label="Move to pad" style={{ left: menuAt.left, bottom: menuAt.bottom }} onMouseDown={(e) => e.preventDefault()}>
-          {places.map((p) => (
-            <button key={p.key} type="button" role="menuitem" className={p.subId ? 'sub' : undefined} title={p.label} onClick={() => moveTo(p)}>{p.label}</button>
-          ))}
-        </div>,
-        document.body,
+  const shown = LINE_ACTIONS.filter((a) => !a.more)
+  const tucked = LINE_ACTIONS.filter((a) => a.more)
+  const menus = (
+    <>
+      {places.length > 0 && (
+        <BarMenu
+          className="moveto"
+          name="Move to…"
+          title="Move to another pad or a sub-pad"
+          menuLabel="Move to pad"
+          items={places.map((p) => ({ key: p.key, label: p.label, className: p.subId ? 'sub' : undefined, run: () => moveTo(p) }))}
+        >
+          <LineIcon icon="move" />
+        </BarMenu>
       )}
-    </span>
+      <BarMenu
+        className="moveto"
+        name="More actions"
+        title={`More: ${tucked.map((a) => a.label.replace('…', '')).join(', ')}`}
+        menuLabel="More actions"
+        items={tucked.map((a) => ({ key: a.id, label: a.label, title: a.hint, disabled: a.enabled ? !a.enabled(can) : false, run: () => run(a) }))}
+      >
+        <LineIcon icon="more" />
+      </BarMenu>
+    </>
   )
   return (
     <div ref={ref} className="bar selbar" role="toolbar" aria-label={n > 0 ? 'Selected lines' : 'Current line'} onMouseDown={(e) => e.preventDefault()}>
       <span className="count">{label}</span>
-      {LINE_ACTIONS.map((a, i) => {
-        const prev = LINE_ACTIONS[i - 1]?.group
+      {shown.map((a, i) => {
+        const prev = shown[i - 1]?.group
         const opens = prev !== a.group
+        const face = actionFace(a, can)
         return (
           <Fragment key={a.id}>
             {opens && prev === 'mark' && kinds}
             {opens && RULE_BEFORE.has(a.group) && <span className="sep" aria-hidden="true" />}
-            {opens && a.group === 'pad' && moveMenu}
+            {/* The second row of the phone-width bar starts after the arrows. */}
+            {opens && prev === 'move' && <span className="brk" aria-hidden="true" />}
+            {opens && a.group === 'remove' && menus}
             <button
               type="button"
-              className={a.danger ? 'danger' : undefined}
+              className={`g-${a.group}${a.danger ? ' danger' : ''}`}
               onClick={() => run(a)}
               disabled={a.enabled ? !a.enabled(can) : false}
-              title={a.keys ? `${a.hint} (${shortcut(a.keys)})` : a.hint}
-              aria-label={a.name === a.label ? undefined : a.name}
+              title={a.keys ? `${face.hint} (${shortcut(a.keys)})` : face.hint}
+              aria-label={face.icon || face.name !== face.label ? face.name : undefined}
             >
-              {a.label}
+              {face.icon ? <LineIcon icon={face.icon} /> : face.label}
             </button>
           </Fragment>
         )
       })}
-      <button type="button" onClick={close} aria-label={n > 0 ? 'Clear selection (Esc)' : 'Stop editing (Esc)'}>×</button>
+      <button type="button" className="close" onClick={close} aria-label={n > 0 ? 'Clear selection (Esc)' : 'Stop editing (Esc)'}>×</button>
+      {/* Phone width only (CSS): the phone app's floating buttons. A switch with two sides,
+          • (open) on the left and × (crossed out) on the right, the side the line is on
+          filled; and a chevron that ends the edit or clears the selection. */}
+      <div className="fab">
+        <button type="button" className="switch" role="switch" aria-checked={allDone} aria-label="Crossed out" onClick={() => cmdToggleDone()}>
+          <span className={allDone ? undefined : 'on'}>•</span>
+          <span className={allDone ? 'on' : undefined}>×</span>
+        </button>
+        <button type="button" className="round" onClick={close} aria-label={n > 0 ? 'Clear selection' : 'Done editing'}>
+          <span className="chevron" aria-hidden="true" />
+        </button>
+      </div>
     </div>
   )
 }

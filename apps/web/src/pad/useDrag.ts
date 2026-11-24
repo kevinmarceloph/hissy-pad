@@ -4,7 +4,7 @@
 // the rows' live boxes; this hook only measures, draws state and commits the move.
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { buildIndex, countLines, descendantIds, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, select, usePad, visibleIds } from '@hissypad/state'
+import { apply, cmdAddAt, select, usePad, visibleIds } from '@hissypad/state'
 import { log } from '@hissypad/state'
 
 export interface DragState {
@@ -15,11 +15,15 @@ export interface DragState {
   y: number
   target: DropTarget | null
   indicatorLeft: number  // px, relative to the rows container
+  add?: boolean          // the floating + being carried to where a new line should go: nothing moves
 }
 
 const MOVE_THRESHOLD = 5
 const HOLD_MS = 280
 const EDGE = 48
+// The floating +, as a thing being dragged. Let go this close to where it began and nothing is added.
+const ADD = '\u0000add'
+const ADD_CANCEL = 36
 
 export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
   const [drag, setDragState] = useState<DragState | null>(null)
@@ -29,7 +33,7 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     setDragState(dragRef.current)
   }, [])
   const pending = useRef<{ id: string; x: number; y: number; pointerId: number; touch: boolean; timer: number | null } | null>(null)
-  const live = useRef<{ ids: string[]; moving: Set<string>; indentPx: number; gutterPx: number; basePx: number } | null>(null)
+  const live = useRef<{ ids: string[]; moving: Set<string>; indentPx: number; gutterPx: number; basePx: number; add?: { x: number; y: number } } | null>(null)
   const suppressClick = useRef(false)
   const raf = useRef<number | null>(null)
 
@@ -43,9 +47,16 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     })
   }, [rowsEl])
 
-  const begin = useCallback((id: string, x: number, y: number) => {
+  const begin = useCallback((id: string, x: number, y: number, from?: { x: number; y: number }) => {
     const state = usePad.getState()
     const rows = state.rows
+    if (id === ADD) {
+      live.current = { ids: [], moving: new Set(), indentPx: 0, gutterPx: 0, basePx: 0, add: from ?? { x, y } }
+      log('drag:begin', { add: true })
+      setDrag({ ids: [], count: 0, label: 'New line', x, y, target: null, indicatorLeft: 0, add: true })
+      document.body.classList.add('is-dragging-rows')
+      return
+    }
     const index = buildIndex(rows)
     const base = state.selection.includes(id) ? state.selection : [id]
     const ids = topmost(index, base)
@@ -78,7 +89,9 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
       layout: measure(),
       moving: l.moving,
       pointerY: y - rootTop,
-      pointerDepth: (x - l.basePx) / l.indentPx,
+      // A new line lands level with the line below it (the shallowest the gap allows); a
+      // moved row follows the pointer's x.
+      pointerDepth: l.add ? 0 : (x - l.basePx) / l.indentPx,
     })
     const prevT = dragRef.current?.target
     if ((prevT?.placement.parentId ?? null) !== (target?.placement.parentId ?? null) || (prevT?.placement.afterId ?? null) !== (target?.placement.afterId ?? null) || prevT?.depth !== target?.depth) {
@@ -102,9 +115,15 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     suppressClick.current = true
     setTimeout(() => (suppressClick.current = false), 0)
     // Commit from the ref, never inside a state updater: updaters run during render.
-    const target = dragRef.current?.target ?? null
+    const last = dragRef.current
+    const target = last?.target ?? null
     setDrag(null)
     log('drag:end', { commit, target: target ? { parent: target.placement.parentId?.slice(0, 8) ?? null, after: target.placement.afterId?.slice(0, 8) ?? null, depth: target.depth } : null })
+    if (l.add) {
+      const far = last ? Math.hypot(last.x - l.add.x, last.y - l.add.y) > ADD_CANCEL : false
+      if (commit && far && target) cmdAddAt(target.placement)
+      return
+    }
     if (commit && target) {
       apply((rows, ctx) => moveNodes(rows, ctx, l.ids, target.placement), { label: 'drag' })
       const vis = new Set(visibleIds())
@@ -128,7 +147,7 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
           return
         }
         pending.current = null
-        begin(p.id, e.clientX, e.clientY)
+        begin(p.id, e.clientX, e.clientY, { x: p.x, y: p.y })
       }
       if (live.current) {
         e.preventDefault()
@@ -186,6 +205,13 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     pending.current = start
   }, [begin])
 
+  // Attach to the floating +: a press that moves carries it onto the pad (no hold: the
+  // button takes no scrolling, see touch-action in the CSS); one that does not is a click.
+  const onAddPointerDown = useCallback((e: ReactPointerEvent) => {
+    if (e.button !== 0) return
+    pending.current = { id: ADD, x: e.clientX, y: e.clientY, pointerId: e.pointerId, touch: false, timer: null }
+  }, [])
+
   // A click right after a drag must not re-select.
   const onBulletClickCapture = useCallback((e: React.MouseEvent) => {
     if (suppressClick.current) {
@@ -194,5 +220,5 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     }
   }, [])
 
-  return { drag, onBulletPointerDown, onBulletClickCapture }
+  return { drag, onBulletPointerDown, onBulletClickCapture, onAddPointerDown }
 }

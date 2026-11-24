@@ -2,7 +2,7 @@
 // via a long press on a bullet. Drop resolution is core's resolveDrop over the rows'
 // measured layouts; this file only measures and draws.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react'
-import { Alert, Keyboard, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { Alert, Animated, Keyboard, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
@@ -32,6 +32,17 @@ interface Drag {
   // placeholder shows the spot. `from` is where the finger started.
   add?: { fromX: number; fromY: number }
 }
+
+// Pull to sync, as on the web: a line of words that rides down from behind the top edge
+// with the finger, "Pull to sync" until it has come this far, then "Release to sync".
+const PULL_THRESHOLD = 64
+const PULL_MAX = 96
+const PULL_SETTLE_MS = 1200 // how long the result stays
+type PullPhase = 'idle' | 'pulling' | 'armed' | 'syncing' | 'done' | 'failed'
+const PULL_WORDS: Record<PullPhase, string> = { idle: '', pulling: 'Pull to sync', armed: 'Release to sync', syncing: 'Syncing…', done: 'Synced', failed: 'Sync failed' }
+// iOS lets a list be pulled past its top, which is what the line follows. Android does
+// not, so it keeps the platform's own spinner.
+const PULL_WORDS_OK = Platform.OS === 'ios'
 
 // The placeholder row of a + drag, in the displayed list.
 const NEW_ROW = '\u0000new'
@@ -258,11 +269,48 @@ export function Pad() {
     [beginDrag, updateDrag, endDrag],
   )
 
-  function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
-    scrollY.current = e.nativeEvent.contentOffset.y
+  // Pull to sync (iOS). The line's position follows the scroll without a render; only a
+  // change of phase renders.
+  const pullY = useRef(new Animated.Value(0)).current
+  const [pull, setPull] = useState<PullPhase>('idle')
+  const pullRef = useRef<PullPhase>('idle')
+  const touching = useRef(false)
+  const goPull = (p: PullPhase) => {
+    pullRef.current = p
+    setPull(p)
   }
 
-  // Pull down at the top to sync now. The spinner stays up until the push and pull are
+  function onScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const y = e.nativeEvent.contentOffset.y
+    scrollY.current = y
+    const p = pullRef.current
+    if (!PULL_WORDS_OK || !session || !touching.current || (p !== 'idle' && p !== 'pulling' && p !== 'armed')) return
+    const over = Math.max(0, -y)
+    pullY.setValue(Math.min(over, PULL_MAX))
+    const next: PullPhase = over <= 0 ? 'idle' : over >= PULL_THRESHOLD ? 'armed' : 'pulling'
+    if (next === p) return
+    if (next === 'armed') void Haptics.selectionAsync().catch(() => {})
+    goPull(next)
+  }
+
+  async function onPullEnd() {
+    touching.current = false
+    const p = pullRef.current
+    if (p === 'pulling') {
+      goPull('idle')
+      pullY.setValue(0)
+    }
+    if (p !== 'armed') return
+    goPull('syncing')
+    Animated.timing(pullY, { toValue: PULL_THRESHOLD, duration: 160, useNativeDriver: false }).start()
+    // At least half a second, so a fast sync is still seen to happen.
+    await Promise.all([refresh(), new Promise((r) => setTimeout(r, 500))])
+    goPull(usePad.getState().sync?.state === 'error' ? 'failed' : 'done')
+    await new Promise((r) => setTimeout(r, PULL_SETTLE_MS))
+    Animated.timing(pullY, { toValue: 0, duration: 160, useNativeDriver: false }).start(() => goPull('idle'))
+  }
+
+  // Android: pull down at the top to sync now. The spinner stays up until the push and pull are
   // done, and at least half a second so a fast sync is still seen to happen.
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -364,7 +412,9 @@ export function Pad() {
             scrollEnabled={!drag}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
-            refreshControl={session ? <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={theme.inkMute} colors={[theme.accent]} progressBackgroundColor={theme.paperRaised} /> : undefined}
+            onScrollBeginDrag={() => { touching.current = true }}
+            onScrollEndDrag={() => void onPullEnd()}
+            refreshControl={session && !PULL_WORDS_OK ? <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={theme.inkMute} colors={[theme.accent]} progressBackgroundColor={theme.paperRaised} /> : undefined}
           >
             {displayed.map(({ id, depth, preview }) => (
               <Fragment key={id}>
@@ -400,6 +450,13 @@ export function Pad() {
             <Pressable style={s.tail} onPress={cmdAppendAtEnd} accessibilityLabel="Add a line at the end" />
             <Account theme={theme} />
           </ScrollView>
+          {pull !== 'idle' && (
+            <View pointerEvents="none" style={s.pullClip} accessibilityLiveRegion="polite">
+              <Animated.View style={[s.pull, { backgroundColor: theme.paperRaised, borderColor: theme.rule, transform: [{ translateY: Animated.subtract(pullY, PULL_THRESHOLD) }] }]}>
+                <Text style={[s.pullText, { color: pull === 'armed' ? theme.accent : theme.inkSoft }]}>{PULL_WORDS[pull]}</Text>
+              </Animated.View>
+            </View>
+          )}
           <FloatingButtons theme={theme} onAdd={() => scroller.current?.scrollTo({ y: 0, animated: true })} addDrag={addDrag} dragging={!!drag?.add} />
           </View>
         </GestureDetector>
@@ -433,6 +490,10 @@ const s = StyleSheet.create({
   newBullet: { width: GUTTER, textAlign: 'center', fontFamily: serif, fontSize: 17, lineHeight: LINE },
   gap: { height: LINE }, // the line of space under a header's group
   tail: { height: 56 },
+  // The pull-to-sync line: clipped to the list, so it comes out from behind the top edge.
+  pullClip: { position: 'absolute', top: 0, left: 0, right: 0, height: 44, overflow: 'hidden', alignItems: 'center', zIndex: 6 },
+  pull: { paddingHorizontal: 13, paddingVertical: 5, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, borderWidth: StyleSheet.hairlineWidth, borderTopWidth: 0 },
+  pullText: { fontFamily: serif, fontStyle: 'italic', fontSize: 15 },
   ghost: { position: 'absolute', zIndex: 10, maxWidth: 260, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth },
   ghostText: { fontFamily: serif, fontSize: 15 },
 })

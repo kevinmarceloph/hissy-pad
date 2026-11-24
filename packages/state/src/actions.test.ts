@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { idOf, pad, shape } from '@hissypad/core'
 import { loadPad, usePad } from './store'
 import { select } from './selection'
-import { LINE_ACTIONS, LINE_KINDS, lineAbilities, lineCount } from './actions'
+import { actionFace, LINE_ACTIONS, LINE_KINDS, lineAbilities, lineCount } from './actions'
+import { setClipboard, setClipboardReader } from './commands'
 import { padList } from './pads'
 import { resetStore } from './testing'
 
@@ -13,7 +14,7 @@ describe('line abilities', () => {
   const can = (...texts: string[]) => lineAbilities(rows, texts.map((t) => idOf(rows, t)))
 
   it('says what the targets allow', () => {
-    expect(can('A')).toEqual({ indent: false, dedent: false, up: false, down: true, children: false, single: true })
+    expect(can('A')).toEqual({ indent: false, dedent: false, up: false, down: true, children: false, folded: false, single: true })
     expect(can('B')).toMatchObject({ indent: true, up: true, down: true, children: true, dedent: false })
     expect(can('B1')).toMatchObject({ indent: false, dedent: true, up: false, down: true })
     expect(can('C')).toMatchObject({ indent: true, up: true, down: false })
@@ -22,7 +23,7 @@ describe('line abilities', () => {
     expect(can('B', 'B1').single).toBe(true)
     expect(can('A', 'B').single).toBe(false)
     expect(can('A', 'B', 'C')).toMatchObject({ indent: false, up: false, down: false }) // every sibling selected
-    expect(lineAbilities(rows, [])).toEqual({ indent: false, dedent: false, up: false, down: false, children: false, single: false })
+    expect(lineAbilities(rows, [])).toEqual({ indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: false })
   })
 })
 
@@ -66,6 +67,50 @@ describe('the toolbar registry', () => {
     action('copy').run()
     action('delete').run()
     expect(shown()).toBe('\nB\nB1\n\n~C')
+  })
+
+  it('Fold reads Unfold once every target with sub items is folded, and then opens them', () => {
+    const can = () => lineAbilities(usePad.getState().rows, usePad.getState().selection)
+    pick('B')
+    expect(actionFace(action('fold'), can())).toMatchObject({ name: 'Fold', icon: 'fold' })
+    action('fold').run()
+    expect(can().folded).toBe(true)
+    expect(actionFace(action('fold'), can())).toMatchObject({ name: 'Unfold', icon: 'unfold' })
+    action('fold').run()
+    expect(can().folded).toBe(false)
+    expect(usePad.getState().rows[idOf(usePad.getState().rows, 'B')]!.collapsed).toBe(false)
+  })
+
+  it('Top puts the line first at its level; off when it is already there', () => {
+    pick('C')
+    expect(action('top').enabled!(lineAbilities(usePad.getState().rows, usePad.getState().selection))).toBe(true)
+    action('top').run()
+    expect(shown()).toBe('C\nA\nB\n  B1')
+    expect(action('top').enabled!(lineAbilities(usePad.getState().rows, usePad.getState().selection))).toBe(false)
+  })
+
+  it('Cut copies then deletes; Paste above and below bring the clipboard in as lines beside the selection', async () => {
+    let clip = ''
+    setClipboard(async (text) => { clip = text; return true })
+    setClipboardReader(async () => clip)
+    pick('B')
+    action('cut').run()
+    expect(clip).toBe('- B\n  - B1')
+    expect(shown()).toBe('A\nC')
+    pick('C')
+    expect(await action('pasteAbove').run()).toBeUndefined()
+    expect(shown()).toBe('A\nB\n  B1\nC')
+    expect(usePad.getState().selection.map((id) => usePad.getState().rows[id]!.text)).toEqual(['B', 'B1'])
+    pick('A')
+    await action('pasteBelow').run()
+    expect(shown()).toBe('A\nB\n  B1\nB\n  B1\nC')
+    // Nothing on the clipboard, or no reading it: the action says so and the pad stays.
+    setClipboardReader(async () => null)
+    pick('A')
+    expect(await action('pasteBelow').run()).toMatch(/Nothing to paste/)
+    expect(shown()).toBe('A\nB\n  B1\nB\n  B1\nC')
+    setClipboard(async () => false)
+    setClipboardReader(async () => null)
   })
 
   it('Make pad says what it did, and is off for more than one line', () => {

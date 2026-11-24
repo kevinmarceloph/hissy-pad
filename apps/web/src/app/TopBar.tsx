@@ -8,6 +8,7 @@ import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
 import { PadTabs } from '../pads/PadTabs'
 import { showToast, useToast } from './toast'
 import { MOD } from '../platform/os'
+import { HoursIcon, MenuIcon, PadIcon, SearchIcon, SortIcon } from './icons'
 
 type Theme = 'system' | 'light' | 'dark'
 export type View = 'pad' | 'fresh' | 'sort' | 'hours'
@@ -25,25 +26,6 @@ function readTheme(): Theme {
 export function applyTheme(t: Theme) {
   document.documentElement.dataset.theme = t === 'system' ? '' : t
 }
-
-// The header's icons, drawn in the ink of whatever holds them. Each sits in a button that
-// carries the name (aria-label and title), so none of them is read out itself.
-function Icon({ d, children }: { d?: string; children?: ReactNode }) {
-  return (
-    <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {d && <path d={d} />}
-      {children}
-    </svg>
-  )
-}
-// Pad: an outline, three lines with their bullets.
-const PadIcon = () => <Icon d="M7.5 5h9M7.5 10h9M7.5 15h9M3.5 5h.01M3.5 10h.01M3.5 15h.01" />
-// Hours: a clock.
-const HoursIcon = () => <Icon d="M10 5.5V10l3 2"><circle cx="10" cy="10" r="7" /></Icon>
-// Sort: a card on a stack, the one on top being dealt.
-const SortIcon = () => <Icon d="M6.5 6.5v-2a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2"><rect x="3.5" y="6.5" width="10" height="10" rx="1" /></Icon>
-const SearchIcon = () => <Icon d="M13 13l4 4"><circle cx="8.5" cy="8.5" r="5" /></Icon>
-const MenuIcon = () => <Icon d="M3.5 5.5h13M3.5 10h13M3.5 14.5h13" />
 
 const MODES: { view: 'pad' | 'hours' | 'sort'; label: string; title: string; icon: () => ReactNode }[] = [
   { view: 'hours', label: 'Hours', title: 'Hours: the day, one row per hour, with what each was for, what happened, and the lines you put in it', icon: HoursIcon },

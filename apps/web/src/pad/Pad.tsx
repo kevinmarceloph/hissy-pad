@@ -2,7 +2,7 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, listNumbers } from '@hissypad/core'
 import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
-  cmdAddUnder, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
+  cmdAddAtTop, cmdAddUnder, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
   cmdPasteAfterSelection, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
 import { Row } from './Row'
@@ -10,6 +10,8 @@ import { useDrag } from './useDrag'
 import { forceSync } from '@hissypad/state'
 import { MOD } from '../platform/os'
 
+// The placeholder row of a + drag, in the displayed list.
+const NEW_ROW = '\u0000new'
 
 export function Pad() {
   const rows = usePad((s) => s.rows)
@@ -39,7 +41,7 @@ export function Pad() {
     return set
   }, [selection, selectedSet, index])
   const rowsRef = useRef<HTMLDivElement>(null)
-  const { drag, onBulletPointerDown, onBulletClickCapture } = useDrag(rowsRef)
+  const { drag, onBulletPointerDown, onBulletClickCapture, onAddPointerDown } = useDrag(rowsRef)
   const draggingSet = useMemo(() => {
     if (!drag) return new Set<string>()
     const set = new Set(drag.ids)
@@ -52,13 +54,18 @@ export function Pad() {
   // what a release gives you.
   const displayed = useMemo(() => {
     const t = drag?.target
+    // The floating + being carried: a placeholder shows where the new line would open.
+    if (t && drag?.add) {
+      const plain = visible.map((v) => ({ ...v, preview: false }))
+      return [...plain.slice(0, t.gapIndex), { id: NEW_ROW, depth: t.depth, preview: true }, ...plain.slice(t.gapIndex)]
+    }
     if (!t || draggingSet.size === 0) return visible.map((v) => ({ ...v, preview: false }))
     const anchors = visible.filter((v) => !draggingSet.has(v.id))
     const moving = visible.filter((v) => draggingSet.has(v.id))
     const base = moving[0]?.depth ?? 0
     const placed = moving.map((v) => ({ id: v.id, depth: v.depth - base + t.depth, preview: true }))
     return [...anchors.slice(0, t.gapIndex).map((v) => ({ ...v, preview: false })), ...placed, ...anchors.slice(t.gapIndex).map((v) => ({ ...v, preview: false }))]
-  }, [visible, drag?.target, draggingSet])
+  }, [visible, drag?.target, drag?.add, draggingSet])
 
   // A jump to a sub-pad: bring its header to the top of the window and flash it once.
   const reveal = usePad((s) => s.reveal)
@@ -205,6 +212,9 @@ export function Pad() {
       <div className="rows" role="tree" aria-multiselectable="true" ref={rowsRef}>
         {displayed.map(({ id, depth, preview }) => (
           <Fragment key={id}>
+          {id === NEW_ROW ? (
+            <div className="new-row" style={{ '--depth': depth } as React.CSSProperties} aria-hidden="true">+</div>
+          ) : (
           <Row
             row={rows[id]!}
             depth={depth}
@@ -219,6 +229,7 @@ export function Pad() {
             onBulletPointerDown={onBulletPointerDown}
             onBulletClickCapture={onBulletClickCapture}
           />
+          )}
           {gaps.get(id)?.map((h) => (
             <button
               key={`gap:${h}`}
@@ -245,6 +256,26 @@ export function Pad() {
         </p>
       )}
       <button type="button" className="tail" aria-label="Add a line at the end" onClick={cmdAppendAtEnd} />
+      {/* Phone width only (CSS), like the phone app's +: a tap adds a line at the top, a drag
+          carries it onto the pad and adds the line where it is let go. Away while a line is
+          being edited or lines are selected: the toolbar's floating buttons sit there then. */}
+      {!editing && selection.length === 0 && (
+        <button
+          type="button"
+          className="fab-add"
+          aria-label="Add a line at the top"
+          title="Add a line at the top. Drag it onto the pad to add the line there."
+          style={drag?.add ? { opacity: 0.35 } : undefined}
+          onPointerDown={onAddPointerDown}
+          onClickCapture={onBulletClickCapture}
+          onClick={() => {
+            cmdAddAtTop()
+            window.scrollTo?.({ top: 0 })
+          }}
+        >
+          +
+        </button>
+      )}
     </section>
   )
 }

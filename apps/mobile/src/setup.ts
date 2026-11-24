@@ -8,7 +8,7 @@ if (!g.crypto?.randomUUID) g.crypto = { ...(g.crypto ?? {}), randomUUID }
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Clipboard from 'expo-clipboard'
-import { bindAuth, configureLocalStore, initLog, initPrefs, setClipboard, setLogEnabled, setSyncTriggers } from '@hissypad/state'
+import { bindAuth, configureLocalStore, initLog, initPrefs, setClipboard, setClipboardReader, setLogEnabled, setSyncTriggers } from '@hissypad/state'
 import { configureChimes, configureHoursBackend } from '@hissypad/state/hours'
 import { createSqliteStore } from './local/sqlite'
 import { mobileChimes } from './chimes'
@@ -38,6 +38,13 @@ export async function setupApp() {
   setClipboard(async (text) => {
     await Clipboard.setStringAsync(text)
     return true
+  })
+  setClipboardReader(async () => {
+    try {
+      return await Clipboard.getStringAsync()
+    } catch {
+      return null
+    }
   })
   setSyncTriggers((kick) => {
     const sub = AppState.addEventListener('change', (s) => {

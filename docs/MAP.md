@@ -33,7 +33,7 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | `types.ts` | `NodeRow` (one row of the `nodes` table), `normalizeRow` for rows from an older build, `ROW_KEYS` and `sameRow`, `kindOf` |
 | `tree.ts` | the tree derived from `parentId` + `rank`: `buildIndex`, `childrenOf`, `flatten`, `descendantIds`, `topmost`, list numbers, and the counting rule (`isBlank`, `countLines`: a blank line is never counted), and where the line of space under each header's group goes (`headerGaps`) |
 | `rank.ts` | fractional ranks: a rank between two others, re-ranking a run |
-| `ops.ts` | every edit to lines: insert, split, set text, done, kind, fold, remove, restore, move, indent, dedent, ungroup, merge, delete done |
+| `ops.ts` | every edit to lines: insert, split, set text, done, kind, fold, remove, restore, move, move to top, indent, dedent, ungroup, merge, delete done |
 | `inline.ts` | inline marks drawn from the text, never stored: `inlineSpans` (bold, italic, underline, strikethrough, symbols kept) and the shared `URL_RE` |
 | `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), sub-pads and places (`isSubPad`, `listSubPads`, `Place`, `moveToPlace`), Fresh start |
 | `drop.ts` | `resolveDrop`: where a dragged line lands, from pointer position and row layout |
@@ -58,7 +58,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `history.ts` | `undo` and `redo` |
 | `selection.ts` | selecting and editing: `select`, `clickSelect`, `selectRange`, `stepSelection`, `edit`, `targets`, `neighbor` |
 | `commands.ts` | the editor commands (`cmd…`): what a key or button does to lines, and where the caret or selection goes after |
-| `actions.ts` | the line toolbar as data: `LINE_ACTIONS`, `LINE_KINDS`, `lineAbilities`. Web and the phone both draw from it |
+| `actions.ts` | the line toolbar as data: `LINE_ACTIONS` (each with its icon, and `more` for the ones in the dropdown), `actionFace` (Fold reads Unfold), `LINE_KINDS`, `lineAbilities`. Web and the phone both draw from it |
 | `pads.ts` | pad commands: new, rename, delete, reorder, move to, make pad from a line, fold a pad back into a line, the list of places (`placeList`: pads and "Pad → Sub-pad"), move to a place, jump to a sub-pad, Fresh start |
 | `lists.ts` | the Trash and Recently done panels: entries, restore, un-done, day grouping |
 | `search.ts` | Search across every pad: the lines found, grouped by pad with the words marked (`search`), and the jump to one (`cmdOpenHit`) |
@@ -97,12 +97,12 @@ Vite, React 19, a PWA. `src/main.tsx` wires the platform (IndexedDB, clipboard, 
 
 | folder | what is in it |
 |---|---|
-| `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start, Sort or Hours), `TopBar.tsx` (the mode switcher, Search, the menu with Done, Trash, Log, Fresh start and the theme, the pad tabs, "Clear N completed"), `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
-| `src/pad/` | the editor: `Pad.tsx` (the list and the selection-mode keys), `Row.tsx` (one line and its keys while editing), `SelectionBar.tsx` (the toolbar), `useDrag.ts` (pointer drag) |
+| `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start, Sort or Hours), `icons.tsx` (every icon as SVG: the top bar's and the line toolbar's `LineIcon`), `TopBar.tsx` (the mode switcher, Search, the menu with Done, Trash, Log, Fresh start and the theme, the pad tabs, "Clear N completed"), `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
+| `src/pad/` | the editor: `Pad.tsx` (the list and the selection-mode keys), `Row.tsx` (one line and its keys while editing), `SelectionBar.tsx` (the toolbar: icons, the Move to… and ⋯ menus; at phone width two rows that do not scroll, with the Done switch and "done editing" floating above it), `useDrag.ts` (pointer drag, of rows and of the floating +). The floating + itself is in `Pad.tsx` |
 | `src/pads/` | `PadTabs.tsx` (tabs, the pad sheet) and `FreshStart.tsx` |
 | `src/panels/` | `Lists.tsx` (Trash, Recently done), `Search.tsx` (Cmd+K, the top bar's Search), `Sort.tsx` and `Hours.tsx` (mounts the shared Hours screens, loaded on first use; the hour picker's dialog; the page's light or dark scheme) |
 | `src/platform/` | what only a browser has: `idb.ts` (LocalStore on IndexedDB), `clipboard.ts`, `supabase.ts`, `os.ts` (Mac or not, shortcut hints), `chimes.ts` (Hours' chimes in a browser: a timer, a sound, a notification) |
-| `e2e/` | Playwright with real pointers and touches: `drag.spec.ts`, `sort.spec.ts`, `toolbar.spec.ts` (the Move to… menu is really on screen) |
+| `e2e/` | Playwright with real pointers and touches: `drag.spec.ts`, `sort.spec.ts`, `toolbar.spec.ts` (the Move to… menu is really on screen; at phone width the bar does not scroll and the floating buttons work) |
 | `test/setup.ts` | jsdom gaps filled in (dialogs) |
 
 ## apps/mobile
@@ -111,10 +111,11 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 
 | file | what is in it |
 |---|---|
-| `src/ui/Pad.tsx` | the screen: top bar (mode switcher, Search, the menu), pad chips, "Clear N completed", then the pad's list (long-press drag, pull to refresh), Sort or Hours by mode |
+| `src/ui/Pad.tsx` | the screen: top bar (mode switcher, Search, the menu), pad chips, "Clear N completed", then the pad's list (long-press drag, pull to sync: the web's line of words on iOS, the platform spinner on Android), Sort or Hours by mode |
 | `src/ui/TopIcons.tsx` | the top bar's icons, drawn with Views (no icon font, no SVG module), and the Pad, Hours, Sort switcher |
+| `src/ui/LineIcons.tsx` | the line toolbar's icons, drawn with Views: the same set as the web's `icons.tsx`, change both together |
 | `src/ui/Row.tsx` | one line |
-| `src/ui/Toolbar.tsx` | the line toolbar above the keyboard, drawn from `LINE_ACTIONS` as two rows (no sideways scroll); actions marked `more` and Move to… sit behind More |
+| `src/ui/Toolbar.tsx` | the line toolbar above the keyboard, drawn from `LINE_ACTIONS` as two rows (no sideways scroll); the tray icon lists the pads to move to, the three dots the actions marked `more` |
 | `src/ui/FloatingButtons.tsx` | the round buttons at the bottom right: + when nothing is targeted (tap for a line at the top, drag it onto the pad for a line where it is dropped; the drag itself is `addDrag` in `Pad.tsx`); a • / × switch (open on the left, crossed out on the right) and a chevron (done editing) while editing or selecting |
 | `src/ui/PadChips.tsx` | the pads as chips, with rename, reorder and delete |
 | `src/ui/Lists.tsx` | Trash and Recently done sheets |
@@ -168,7 +169,7 @@ A watch whose phone app is not signed in has no server to talk to. It falls back
 
 ## Adding things
 
-**A toolbar action.** Write the command in `packages/state/src/commands.ts` (or `pads.ts` if it is about pads). Add one entry to `LINE_ACTIONS` in `actions.ts`: id, group, label, name, hint, `run`, `enabled` if it can be impossible, and `more: true` if it is rare enough to sit behind the phone's More button. It appears on web and the phone. If "can it run" needs a new fact about the selection, add a field to `LineAbilities`. Test it in `actions.test.ts`.
+**A toolbar action.** Write the command in `packages/state/src/commands.ts` (or `pads.ts` if it is about pads). Add one entry to `LINE_ACTIONS` in `actions.ts`: id, group, label, name, hint, `run`, `enabled` if it can be impossible, an `icon` (add it to `LineIcon` in `actions.ts`, then draw it twice: `apps/web/src/app/icons.tsx` and `apps/mobile/src/ui/LineIcons.tsx`), `flip` if it reads as its opposite for some targets, and `more: true` if it is rare enough to sit in the ⋯ dropdown. It appears on web and the phone. If "can it run" needs a new fact about the selection, add a field to `LineAbilities`. Test it in `actions.test.ts`.
 
 **A new edit to lines.** A pure function in `packages/core/src/ops.ts` (rows in, rows out, `ctx.now()` on every row it changes), exported from `index.ts`, tested in `ops.test.ts` with `pad()` and `shape()`. Then a `cmd…` in state that calls it through `apply`. Anything that moves rows between pads goes through `applyAll` and lives in `pads.ts`.
 

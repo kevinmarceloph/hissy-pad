@@ -340,11 +340,53 @@ describe('Trash and Done panels', () => {
     await mount('top\n  child\n    grand\n  other\nlast')
     await startEditing('last')
     const bar = screen.getByRole('toolbar', { name: 'Current line' })
-    expect(within(bar).getByRole('button', { name: 'Ungroup' })).toBeDisabled()
+    // Ungroup sits in the bar's dropdown with the other less used actions.
+    await user.click(within(bar).getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitem', { name: 'Ungroup' })).toBeDisabled()
+    await user.keyboard('{Escape}')
     await startEditing('top')
-    await user.click(within(bar).getByRole('button', { name: 'Ungroup' }))
+    await user.click(within(bar).getByRole('button', { name: 'More actions' }))
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Ungroup', 'Hour…', 'Make pad'])
+    await user.click(screen.getByRole('menuitem', { name: 'Ungroup' }))
     expect(texts()).toBe('top\nchild\n  grand\nother\nlast')
     expect(usePad.getState().past.at(-1)?.label).toBe('cmdUngroup')
+  })
+
+  it('the toolbar draws icons with their names: Fold turns into Unfold, Top moves a line up to first, Cut takes it out', async () => {
+    const user = userEvent.setup()
+    await mount('a\nb\n  b1\nc')
+    await startEditing('b')
+    const bar = screen.getByRole('toolbar', { name: 'Current line' })
+    for (const name of ['Add a line above', 'Add a line below', 'Outdent', 'Indent', 'Move down', 'Move up', 'Move to top', 'Fold', 'Copy', 'Cut', 'Paste above', 'Paste below', 'Delete']) {
+      expect(within(bar).getByRole('button', { name })).toBeInTheDocument()
+    }
+    await user.click(within(bar).getByRole('button', { name: 'Fold' }))
+    expect(within(bar).queryByRole('button', { name: 'Fold' })).not.toBeInTheDocument()
+    await user.click(within(bar).getByRole('button', { name: 'Unfold' }))
+    expect(within(bar).getByRole('button', { name: 'Fold' })).toBeInTheDocument()
+    await user.click(within(bar).getByRole('button', { name: 'Move to top' }))
+    expect(texts()).toBe('b\n  b1\na\nc')
+    expect(within(bar).getByRole('button', { name: 'Move to top' })).toBeDisabled()
+    await user.click(within(bar).getByRole('button', { name: 'Cut' }))
+    expect(texts()).toBe('a\nc')
+  })
+
+  it('the floating buttons: + adds a line at the top; the switch crosses the line out and the chevron ends the edit', async () => {
+    const user = userEvent.setup()
+    await mount('a\nb')
+    await user.click(screen.getByRole('button', { name: 'Add a line at the top' }))
+    expect(texts()).toBe('\na\nb')
+    // While a line is open the + is away and the toolbar's own two are there.
+    expect(screen.queryByRole('button', { name: 'Add a line at the top' })).not.toBeInTheDocument()
+    await startEditing('b')
+    const done = screen.getByRole('switch', { name: 'Crossed out' })
+    expect(done).toHaveAttribute('aria-checked', 'false')
+    await user.click(done)
+    expect(done).toHaveAttribute('aria-checked', 'true')
+    expect(usePad.getState().rows[usePad.getState().editing!.id]!.done).toBe(true)
+    await user.click(screen.getByRole('button', { name: 'Done editing' }))
+    expect(usePad.getState().editing).toBeNull()
+    expect(screen.getByRole('button', { name: 'Add a line at the top' })).toBeInTheDocument()
   })
 
   it('inline marks are drawn with their symbols left in; stray symbols and the line being edited stay plain', async () => {

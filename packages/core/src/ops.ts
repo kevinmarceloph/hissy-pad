@@ -320,6 +320,25 @@ export function moveSibling(rows: Rows, ctx: OpCtx, ids: Iterable<string>, dir: 
   return out
 }
 
+// Move to top: each target goes first among its siblings (a selection keeps its order).
+// A group already at the top stays put.
+export function moveToTop(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
+  const index0 = buildIndex(rows)
+  const moving = topmost(index0, ids)
+  const movingSet = new Set(moving)
+  const byParent = new Map<string | null, string[]>()
+  for (const id of moving) {
+    const p = index0.parentOf.get(id) ?? null
+    byParent.set(p, [...(byParent.get(p) ?? []), id])
+  }
+  let out = rows
+  for (const [parentId, group] of byParent) {
+    if (!prevSiblingExcluding(index0, group[0]!, movingSet)) continue
+    out = moveNodes(out, ctx, group, { parentId, afterId: null })
+  }
+  return out
+}
+
 // Backspace at the start of a node: fold its text into the visible node above and delete
 // it. Refused when the node still has children (deleting those by accident is the worst
 // outcome for a scratchpad) or when there is nothing above.
