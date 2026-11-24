@@ -4,7 +4,7 @@
 // a card; Cycle sends it to the bottom of the pad to come round again. The card's text and sub items are live fields. Same queue, targets and commands as
 // the web (state/sort.ts); only the gesture is drawn here, with PanResponder and Animated
 // so it ships as a JS-only update.
-import { useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react'
 import { Alert, Animated, Dimensions, Keyboard, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
@@ -23,28 +23,12 @@ const SLOP = 10 // px before a touch on the card becomes a drag
 // (blurAndSubmit) and a pasted line break becomes a space.
 const oneLine = (t: string) => t.replace(/\r?\n/g, ' ')
 
-// A field on the card. On iOS a native text view keeps every touch that starts on it, so a
-// swipe begun on the card's text never reached the card. Until it is focused the field takes
-// no touches (pointerEvents on a wrapping View: iOS ignores it on the TextInput itself); a
-// plain Pressable around it holds the touch instead, focuses the field on a tap, and gives
-// the touch up to the card's pan once it turns into a drag.
-function CardField({ style, onFocus, onBlur, row, ...props }: ComponentProps<typeof TextInput> & { row?: boolean }) {
-  const ref = useRef<ComponentRef<typeof TextInput>>(null)
-  const [focused, setFocused] = useState(false)
-  return (
-    <Pressable onPress={() => ref.current?.focus()} accessible={false} style={row ? { flex: 1 } : undefined}>
-      {/* In a row the field's own style is flex: 1, which only fills the width inside a row. */}
-      <View pointerEvents={focused ? 'auto' : 'none'} style={row ? { flexDirection: 'row' } : undefined}>
-        <TextInput
-          ref={ref}
-          {...props}
-          onFocus={(e) => { setFocused(true); onFocus?.(e) }}
-          onBlur={(e) => { setFocused(false); onBlur?.(e) }}
-          style={style}
-        />
-      </View>
-    </Pressable>
-  )
+// A field on the card. On iOS a TextInput refuses to hand its touch over by default
+// (rejectResponderTermination), so a swipe begun on the card's text never reached the card.
+// With it off the field still takes a tap (focus, cursor where the finger landed) and the
+// card's pan takes the touch once it turns into a drag.
+function CardField({ row: _row, ...props }: ComponentProps<typeof TextInput> & { row?: boolean }) {
+  return <TextInput rejectResponderTermination={false} {...props} />
 }
 
 // Drawn under the app's top bar and the pad chips: the chips pick which pad is sorted, and
@@ -107,7 +91,7 @@ export function SortView({ theme }: { theme: Theme }) {
       // The card claims the touch as it starts: the screen's root is a Pressable (it puts the
       // keyboard away), and once an ancestor holds a touch React Native never offers it to the
       // views inside on move, so a move-only claim never fired. A touch that starts on a field
-      // is held by the field's Pressable, and the capture below takes it once it is a drag.
+      // is held by the field, which gives it up to the capture below once it is a drag.
       onStartShouldSetPanResponder: () => !busy.current,
       onMoveShouldSetPanResponderCapture: (_e, g) => !busy.current && Math.hypot(g.dx, g.dy) > SLOP,
       onPanResponderGrant: () => Keyboard.dismiss(),
