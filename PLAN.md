@@ -232,3 +232,81 @@ Not done, or not verified:
 - No import from Oras-oras's own Supabase project.
 
 Line categories (2026-11-24): `NodeRow.category` holds a category id from `hour_categories`, no foreign key (either row may reach the server first; a category is archived, never deleted). The pad draws it in a grid column of its own between the bullet and the text on the web (a sibling `Text` on the phone), so it does not move while the line is edited. The list the pad reads is `lineCategories` in `state/hours/line-categories.ts`, filled when Hours' store opens, which both apps now do with the pad. Archived categories still draw on the lines that have them; the picker offers only the active ones, and its "New category" adds one and gives it to the lines at once. The category list itself is edited from the app's top menu (`CategoriesApp` in `packages/ui`), not from Hours. The watch and Siri leave the column alone (they patch or insert only the columns they know).
+
+## Going public (planned 2026-11-25)
+
+Nothing here is built yet. This is the list of what a stranger needs before HissyPad is offered to anyone but Kevin, and the order to do it in.
+
+Decided (Kevin, 2026-11-25):
+
+- Web first. The App Store and Play Store are a second wave.
+- The app is free on one device with no account, as it works today. Sync is paid, on a monthly plan.
+- The domain becomes `hissypad.com`.
+- The pitch is the whole system: the pad to hold everything, Sort to decide, Hours to do. Not an outliner with extras.
+
+Open (Kevin's call):
+
+- The price, and whether there is a trial (suggested: 14 days of sync, no card).
+- The payment provider. Suggested: a merchant of record (Paddle or Lemon Squeezy), which bills, handles VAT and pays out to the Philippines. Check that Stripe itself can pay out to a Philippine account before considering it.
+- The license for the public repo. Suggested: AGPL-3.0, so the code stays open and a hosted copy has to stay open too.
+- The Supabase plan. Paying users need backups and a project that does not pause, so Pro before launch.
+
+### 1. Safe for strangers
+
+1. Move to `hissypad.com`: the domain on Render, `site_url` and the redirect list in Supabase auth, the Google OAuth origins, a redirect from `hissypad.marcelo.ph`. Browser storage is per origin, so a pad kept only in the old origin does not follow: do this before anyone else has data, and sign in first on Kevin's own devices.
+2. Mail: custom SMTP on the hosted project (Resend or the like) sending from `hissypad.com` with SPF and DKIM, and a magic-link email in the app's voice. `supabase/config.toml` has SMTP commented out; the built-in mailer allows a few mails an hour and is for testing only. Check what the hosted project is set to.
+3. Google sign-in: publish the OAuth consent screen (out of testing), with the privacy page's URL.
+4. Delete my account: an edge function that removes the user and every row of theirs (the one place rows are hard-deleted), reachable from the account menu on web and phone.
+5. Export: every pad as plain text and everything (pads and hours) as JSON.
+6. Privacy and terms pages: what is stored, where, who can read it, how to leave, the refund rule.
+7. Limits: Turnstile on sign-in, a per-user row cap in a trigger with a pgTAP test.
+8. Prove Hours sync on the hosted project with a second real account (listed as unproven under "Hours").
+9. `LICENSE`, and a README pass for an outside reader.
+
+### 2. Paid sync
+
+1. A `subscriptions` table written only by the provider's webhook (an edge function that checks the signature), one row per user: state, period end.
+2. The server decides: the RLS policies on `nodes` and the hours tables let a user write only while subscribed or in trial. Reading stays open after a lapse, so nobody is locked out of their own lines, and export always works. pgTAP for each case.
+3. The clients: "Sign in to sync" becomes "Sync across devices" with the price; a lapsed account keeps working on the device and says why sync stopped; a Manage link to the provider's portal.
+4. The phone, for now: sign in to an account paid for on the web, with no purchase in the app. Apple's rule on buying inside the app is a second-wave question.
+5. Kevin's own account is marked subscribed by hand.
+
+### 3. Lander and onboarding
+
+1. One sentence and three short sections: Pad (get it out of your head), Sort (decide what is today), Hours (give it an hour and see the day). Paper ground, serif, one accent, like the app.
+2. The lander is static HTML in `index.html`; the app mounts over it when the device has a pad or a session (a flag read before first paint, so a returning user never sees it). `/`, the installed PWA and the auth redirects stay as they are, and crawlers and link previews get real content. The button is "Start typing, no account needed".
+3. A pricing section: free on one device, the monthly price for sync, what happens on a lapse.
+4. Meta: description, Open Graph and Twitter tags, a 1200x630 image, `robots.txt`, a sitemap.
+5. Three or four screenshots and one short recording: drag, cross out, sort a card, put a line in an hour.
+6. Onboarding: a welcome pad that walks Today, Inbox and Later and points at Sort and Hours; an empty state in Hours that offers the first category (nothing is seeded, so it asks); one nudge to sync once a pad has real content; a shortcuts sheet.
+7. A way to write in: `hello@hissypad.com` and GitHub issues, both in the menu.
+
+### 4. See what happens
+
+- Error reporting on web and phone (Sentry).
+- Analytics without cookies (Plausible or GoatCounter): visit, first edit, sign-in, trial, paid.
+- An uptime check on the site and on Supabase.
+
+### 5. Channels
+
+Set up before launch:
+
+- `hello@hissypad.com`, read by Kevin.
+- A mailing list with a box on the lander ("one mail when something ships"). Buttondown or Resend's audiences.
+- A changelog page on `hissypad.com`, one dated entry per thing shipped. Every other channel links to it.
+- One social account kept alive, `@hissypad` on X or Bluesky, with the name reserved on the other and on Threads. Short screen recordings, not announcements.
+- The GitHub repo: description, topics, a social preview image, the lander's screenshots in the README.
+- The blog on kevin.marcelo.ph for the long posts.
+
+Launch, in this order, a few days apart so each can be answered:
+
+1. Show HN, led by the sync design ("Syncing a scratchpad without a server", the post planned above) and the public repo.
+2. Reddit: r/productivity, r/Workflowy, r/selfhosted (the repo), and the Outliner Software forum.
+3. Product Hunt.
+4. Listings: AlternativeTo (against Workflowy, Dynalist, Tana), Indie Hackers.
+
+Later: comparison pages ("HissyPad and Workflowy") for search, and a demo on YouTube.
+
+### 6. Second wave: the stores
+
+In-app account deletion (built in 1), the privacy page, Sign in with Apple beside Google, Apple's rule on subscriptions bought outside the app, a production EAS build, TestFlight, the listing and its screenshots. Android: a build, and pad names without the iOS-only prompt.
