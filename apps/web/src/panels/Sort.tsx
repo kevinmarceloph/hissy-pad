@@ -9,7 +9,7 @@ import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
 import { cmdPickSlot } from '@hissypad/state/hours'
 import { HoursIcon } from '../app/icons'
 import {
-  cmdSortAddSub, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
+  cmdSortAddSub, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
   sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortChoice, type SortDir,
 } from '@hissypad/state'
 
@@ -40,6 +40,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
   const choice = useSort()
+  const pads = useMemo(() => padList(all), [all])
   const [session, setSession] = useState(() => sortSessionStart())
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null)
   const [ghost, setGhost] = useState<Ghost | null>(null)
@@ -236,7 +237,19 @@ export function Sort({ onClose }: { onClose: () => void }) {
     <section className="sort" aria-labelledby="sort-title">
       <header className="sort-head">
         <div>
-          <h2 id="sort-title">Sort {padName(all, padId)}</h2>
+          {/* No pad tabs in Sort: the pad to sort is picked here, in the title. */}
+          <h2 id="sort-title">
+            Sort{' '}
+            <select
+              className="sort-pad"
+              value={padId ?? ''}
+              onChange={(e) => { openPad(e.target.value === '' ? null : e.target.value); e.target.blur() }}
+              aria-label="Pad to sort"
+            >
+              {pads.map((p) => <option key={p.id ?? ''} value={p.id ?? ''}>{p.name}</option>)}
+              {!pads.some((p) => p.id === padId) && <option value={padId ?? ''}>{padName(all, padId)}</option>}
+            </select>
+          </h2>
           <p>{id ? `${progress.left} to go. Swipe the card, or use the arrow keys.` : 'One line at a time: later, today, already done, or archive.'}</p>
         </div>
       </header>

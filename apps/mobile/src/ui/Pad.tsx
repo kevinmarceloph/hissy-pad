@@ -366,8 +366,8 @@ export function Pad() {
         <Pressable onPress={() => { stopEditing(); setSheet('search') }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Search every pad"><SearchIcon color={theme.inkSoft} /></Pressable>
         <Pressable onPress={openMenu} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="More: Done and Archive"><MenuIcon color={theme.inkSoft} /></Pressable>
       </View>
-      {/* Sort sits above the pads: the chips pick which pad's lines come next. */}
-      {mode !== 'hours' && <PadChips theme={theme} />}
+      {/* The pad chips are the pad's only: Sort picks its pad in its own title. */}
+      {mode === 'pad' && <PadChips theme={theme} />}
       {mode === 'pad' && doneCount > 0 && (
         <Pressable onPress={deleteDone} style={s.clear} accessibilityRole="button" accessibilityLabel={`Archive ${doneCount} completed`} accessibilityHint="Archives every crossed-out line in this pad. Shake to undo.">
           <Text style={[s.clearText, { color: theme.inkMute }]}>Archive {doneCount} completed</Text>

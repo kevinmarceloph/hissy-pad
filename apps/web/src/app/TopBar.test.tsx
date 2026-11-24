@@ -53,8 +53,9 @@ describe('top bar', () => {
     await user.click(button('Sort'))
     expect(button('Sort')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('textbox', { name: 'Line text' })).toHaveValue('a')
-    // Sort sits above the pads: the tabs are still there to pick what to sort next.
-    expect(screen.getByRole('tab', { name: /Main/ })).toBeInTheDocument()
+    // No pad tabs in Sort: its title picks the pad.
+    expect(screen.queryByRole('tab', { name: /Main/ })).toBeNull()
+    expect(screen.getByRole('combobox', { name: 'Pad to sort' })).toBeInTheDocument()
     await user.click(button('Hours'))
     expect(button('Hours')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByRole('tab', { name: /Main/ })).toBeNull()

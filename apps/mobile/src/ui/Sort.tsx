@@ -10,7 +10,7 @@ import * as Haptics from 'expo-haptics'
 import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
 import { cmdPickSlot } from '@hissypad/state/hours'
 import {
-  cmdSortAddSub, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
+  cmdSortAddSub, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
   sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort,
   type SortChoice, type SortDir, type SortSession,
 } from '@hissypad/state'
@@ -31,13 +31,21 @@ function CardField({ row: _row, ...props }: ComponentProps<typeof TextInput> & {
   return <TextInput rejectResponderTermination={false} {...props} />
 }
 
-// Drawn under the app's top bar and the pad chips: the chips pick which pad is sorted, and
+// Drawn under the app's top bar, with no pad chips: the title picks which pad is sorted, and
 // the mode switcher is the way out.
 export function SortView({ theme }: { theme: Theme }) {
   const rows = usePad((s) => s.rows)
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
   const choice = useSort()
+
+  // The pad to sort, from the title. The view is keyed by the pad, so a new one starts over.
+  function pickPad() {
+    Alert.alert('Sort which pad?', undefined, [
+      ...padList(all).filter((p) => p.id !== padId).map((p) => ({ text: p.name, onPress: () => openPad(p.id) })),
+      { text: 'Cancel', style: 'cancel' as const },
+    ])
+  }
   const [session, setSession] = useState(() => sortSessionStart())
   const [draft, setDraft] = useState('')
   const pan = useRef(new Animated.ValueXY()).current
@@ -168,7 +176,13 @@ export function SortView({ theme }: { theme: Theme }) {
       <Pressable style={[s.root, { backgroundColor: theme.paper }]} onPress={Keyboard.dismiss} accessible={false}>
         <View style={s.head}>
           <View style={{ flex: 1 }}>
-            <Text style={[s.title, { color: theme.ink }]} numberOfLines={1}>Sort {padName(all, padId)}</Text>
+            {/* No pad chips in Sort: tapping the pad's name in the title picks the pad to sort. */}
+            <Pressable onPress={pickPad} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Pad to sort: ${padName(all, padId)}, change`} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, alignSelf: 'flex-start' })}>
+              <Text style={[s.title, { color: theme.ink }]} numberOfLines={1}>
+                Sort <Text style={{ textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: theme.inkMute }}>{padName(all, padId)}</Text>
+                <Text style={{ color: theme.inkMute }}> ▾</Text>
+              </Text>
+            </Pressable>
             <Text style={[s.lede, { color: theme.inkSoft }]}>{id ? `${progress.left} to go. Swipe the card.` : 'One line at a time.'}</Text>
           </View>
         </View>

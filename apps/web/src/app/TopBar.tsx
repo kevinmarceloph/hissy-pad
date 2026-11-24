@@ -142,8 +142,8 @@ export function TopBar({ view, onView }: { view: View; onView: (view: View) => v
           )}
         </span>
       </nav>
-      {/* Sort sits above the pads: the tabs pick which pad's lines come next. */}
-      {mode !== 'hours' && <PadTabs />}
+      {/* The pad tabs are the pad's only: Sort picks its pad in its own title. */}
+      {mode === 'pad' && <PadTabs />}
       {view === 'pad' && doneCount > 0 && (
         <button type="button" className="clear-done" onClick={deleteDone} title="Archive every crossed-out line in this pad (undo brings them back)">
           Archive {doneCount} completed

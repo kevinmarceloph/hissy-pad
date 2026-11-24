@@ -37,6 +37,23 @@ describe('sort', () => {
     expect(screen.getByText('3 archived')).toBeInTheDocument()
   })
 
+  it('the title picks the pad to sort, with no pad tabs on screen', async () => {
+    const user = userEvent.setup()
+    resetStore('A\nB', { fixed: true })
+    render(<App />)
+    await screen.findByRole('tree')
+    await user.click(button('Sort'))
+    expect(screen.queryByRole('tablist')).toBeNull()
+    const pick = () => screen.getByRole('combobox', { name: 'Pad to sort' }) as HTMLSelectElement
+    expect([...pick().options].map((o) => o.text)).toEqual(['Today', 'Inbox', 'Later'])
+    await user.selectOptions(pick(), 'Inbox')
+    expect(pick()).toHaveDisplayValue('Inbox')
+    expect(card().value).toBe('A')
+    await user.selectOptions(pick(), 'Later')
+    expect(pick()).toHaveDisplayValue('Later')
+    expect(screen.getByText('Nothing to sort in this pad.')).toBeInTheDocument()
+  })
+
   it('arrow keys and buttons send cards left, right and up; Back takes one back; the end shows a tally', async () => {
     const user = userEvent.setup()
     await mount('A\nB\n  B1\nC\nD')
