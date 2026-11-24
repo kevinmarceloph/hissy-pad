@@ -202,23 +202,25 @@ describe('DayScreen', () => {
     expect((await store.listDay('2026-11-19'))[0]).toMatchObject({ note: '', category: null, state: 'open', updatedAt: 1 });
   });
 
-  it('marks an hour done with a tap on its bullet, and not done with another', async () => {
+  it('opens an hour from anywhere on its row, the bullet included, and marks it done from its switch', async () => {
     const { store } = await setup();
     const at = async (hour: number) => (await store.listDay('2026-11-19')).find((e) => e.hour === hour);
 
-    // The bullet is a checkbox beside the row's own button, on any hour that has started,
-    // blank ones too: done is how a past hour is confirmed. One still ahead has none.
-    expect(await screen.findByRole('checkbox', { name: '10am done', checked: false })).toBeTruthy();
-    expect(screen.getByRole('checkbox', { name: '9am done', checked: true })).toBeTruthy();
-    expect(screen.queryByRole('checkbox', { name: /^4pm/ })).toBeNull();
+    // The bullet is not a control of its own: no hour has a checkbox, and nothing on a
+    // closed row changes its state.
+    await screen.findByLabelText('10am: blank');
+    expect(screen.queryByRole('checkbox', { name: /done$/ })).toBeNull();
 
-    await fireEvent.press(screen.getByRole('checkbox', { name: '10am done' }));
+    // An hour is confirmed in the open hour: any that has started, a blank one too.
+    await fireEvent.press(screen.getByLabelText('10am: blank'));
+    await fireEvent.press(screen.getByRole('radio', { name: '10am: Done' }));
     expect(await screen.findByLabelText('10am: done')).toBeTruthy();
     expect(await at(10)).toMatchObject({ state: 'done', note: '', category: null });
     expect(screen.getByLabelText(/2 of 14 hours done\./)).toBeTruthy();
 
-    // The next tap takes it back, and what is written on the hour stays.
-    await fireEvent.press(screen.getByRole('checkbox', { name: '9am done', checked: true }));
+    // Open takes it back, and what is written on the hour stays.
+    await fireEvent.press(screen.getByLabelText('9am: Deep work: proposals, done'));
+    await fireEvent.press(screen.getByRole('radio', { name: '9am: Open' }));
     expect(await screen.findByLabelText('9am: Deep work: proposals')).toBeTruthy();
     expect(await at(9)).toMatchObject({ state: 'open', note: 'proposals', category: 'deep' });
   });
@@ -290,8 +292,9 @@ describe('DayScreen', () => {
     expect(screen.getByLabelText('10am: blank')).toBeTruthy();
     expect(await at(2)).toBeUndefined();
 
-    // One tap marks an hour done, and writes the plan it was showing into the row.
-    await fireEvent.press(screen.getByRole('checkbox', { name: '2am done' }));
+    // Marking an hour done writes the plan it was showing into the row.
+    await fireEvent.press(screen.getByLabelText('2am: Sleep: sleep'));
+    await fireEvent.press(screen.getByRole('radio', { name: '2am: Done' }));
     expect(await screen.findByLabelText('2am: Sleep: sleep, done')).toBeTruthy();
     expect(await at(2)).toMatchObject({ state: 'done', note: '', category: null, planned: 'sleep', plannedNote: 'sleep' });
     expect(screen.getByLabelText(/2 of 14 hours done\. .*Sleep 1h/)).toBeTruthy();

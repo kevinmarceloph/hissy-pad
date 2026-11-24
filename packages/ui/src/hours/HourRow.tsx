@@ -40,7 +40,7 @@ type Props = {
 };
 
 export function HourRow(props: Props) {
-  const { hour, entry, state, open, categories, flags, top, count, extra = 0, onOpen, onClose, onSave } = props;
+  const { hour, entry, state, open, categories, flags, top, count, extra = 0, onOpen, onClose } = props;
   const theme = useTheme();
   const label = hourLabel(hour);
   const isNow = state === 'now';
@@ -75,9 +75,6 @@ export function HourRow(props: Props) {
   ]
     .filter(Boolean)
     .join(', ');
-  // Only an hour that has started can be marked done: done is what confirms it.
-  const canMark = state !== 'future' || mark !== 'open';
-
   return (
     <View style={[styles.wrap, { borderBottomColor: theme.rule }, open && { backgroundColor: theme.paperRaised }]}>
       <Tap
@@ -95,7 +92,9 @@ export function HourRow(props: Props) {
           {label}
         </Text>
         {/* The hour's bullet: a dot, a dot in a ring, a cross. In its category's color; an
-            hour still ahead with nothing in it draws its dot faint. */}
+            hour still ahead with nothing in it draws its dot faint. It is part of the row's
+            button and opens the hour like the rest of it (Kevin, 2026-11-25: it used to be
+            a checkbox of its own, Oras-oras's). The switch in the open hour sets the state. */}
         <StateMark
           large
           style={styles.swatch}
@@ -137,23 +136,6 @@ export function HourRow(props: Props) {
           </View>
         )}
       </Tap>
-      {canMark && !open && (
-        // The bullet is the hour's checkbox: a tap says the hour is done, another takes it
-        // back. It sits over the row as its own control, beside the row's button and not
-        // inside it, and takes the bullet and the gaps around it.
-        <Tap
-          role="checkbox"
-          aria-checked={mark === 'done'}
-          aria-label={`${label} done`}
-          onPress={() => onSave({ state: mark === 'done' ? 'open' : 'done' })}
-          ringInside
-          style={styles.mark}
-          // A frame, not a fill: the bullet itself is drawn under this, in the row.
-          activeStyle={{ borderColor: theme.line }}>
-          {null}
-        </Tap>
-      )}
-
       {open && <Editor {...props} />}
     </View>
   );
@@ -367,8 +349,6 @@ const styles = StyleSheet.create({
   row: { minHeight: ROW, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4 },
   hour: { width: 46, textAlign: 'right', fontFamily: serif, fontSize: SMALL, lineHeight: LINE },
   swatch: { width: 18, height: 18 },
-  // Over the box: the row's padding, the hour and one gap to its left, one gap to its right.
-  mark: { position: 'absolute', top: 0, left: 4 + 46, width: 12 + 18 + 12, height: ROW, borderRadius: 4, borderWidth: 1, borderColor: 'transparent' },
   text: { flex: 1 },
   note: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
   flags: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 4 },
