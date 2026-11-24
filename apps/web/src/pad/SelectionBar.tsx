@@ -1,13 +1,18 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { kindOf } from '@hissypad/core'
+import { kindOf, statesOf, type LineState } from '@hissypad/core'
 import {
-  actionFace, clearSelection, cmdMoveTo, cmdToggleDone, countOf, cmdSetKind, lineAbilities, lineCount, placeList, stopEditing, usePad, type PlaceItem,
+  actionFace, clearSelection, cmdCycleState, cmdMoveTo, countOf, cmdSetKind, lineAbilities, lineCount, placeList, stopEditing, usePad, type PlaceItem,
   LINE_ACTIONS, LINE_KINDS, type LineAction, type LineActionGroup,
 } from '@hissypad/state'
 import { showToast } from '../app/toast'
 import { LineIcon } from '../app/icons'
 import { MOD, shortcut } from '../platform/os'
+
+const FLOATING = LINE_ACTIONS.filter((a) => a.floats && a.icon)
+const SIDES: LineState[] = ['open', 'doing', 'done']
+const STATE_NAME: Record<LineState, string> = { open: 'Open', doing: 'Doing', done: 'Done' }
+const NEXT: Record<LineState, LineState> = { open: 'doing', doing: 'done', done: 'open' }
 
 // A rule is drawn before the first button of these groups.
 const RULE_BEFORE: ReadonlySet<LineActionGroup> = new Set(['add', 'move', 'tree', 'clip', 'pad', 'remove'])
@@ -96,9 +101,9 @@ function BarMenu({ name, title, menuLabel, className, items, children }: { name:
 // dropdown of the less used actions are drawn here. Mousedown is swallowed so a tap never
 // blurs the textarea.
 //
-// On a phone-width screen it is the phone app's toolbar: two rows that do not scroll, with
-// crossing out and "done editing" as round buttons floating above its right end (.fab)
-// instead of buttons on the bar.
+// Above its right end float round buttons (.fab), as in the phone app: Hour… and Category…
+// (the actions marked `floats`), the open / doing / done switch and "done editing". On a
+// phone-width screen the bar is the phone app's toolbar: two rows that do not scroll.
 export function SelectionBar() {
   const selection = usePad((s) => s.selection)
   const editing = usePad((s) => s.editing)
@@ -153,7 +158,7 @@ export function SelectionBar() {
   const current = first ? kindOf(first) : 'plain'
   const counted = countOf(selection, rows)
   const label = n === 0 ? 'Editing' : counted > 0 ? lineCount(counted) : n === 1 ? 'Blank line' : 'Blank lines'
-  const allDone = ids.every((id) => rows[id]?.done)
+  const state = statesOf(rows, ids)
   const close = () => {
     if (n > 0) clearSelection()
     else {
@@ -168,7 +173,7 @@ export function SelectionBar() {
       ))}
     </span>
   )
-  const shown = LINE_ACTIONS.filter((a) => !a.more)
+  const shown = LINE_ACTIONS.filter((a) => !a.more && !a.floats)
   const tucked = LINE_ACTIONS.filter((a) => a.more)
   const menus = (
     <>
@@ -195,44 +200,60 @@ export function SelectionBar() {
     </>
   )
   return (
-    <div ref={ref} className="bar selbar" role="toolbar" aria-label={n > 0 ? 'Selected lines' : 'Current line'} onMouseDown={(e) => e.preventDefault()}>
-      <span className="count">{label}</span>
-      {shown.map((a, i) => {
-        const prev = shown[i - 1]?.group
-        const opens = prev !== a.group
-        const face = actionFace(a, can)
-        return (
-          <Fragment key={a.id}>
-            {opens && prev === 'mark' && kinds}
-            {opens && RULE_BEFORE.has(a.group) && <span className="sep" aria-hidden="true" />}
-            {/* The second row of the phone-width bar starts after the arrows. */}
-            {opens && prev === 'move' && <span className="brk" aria-hidden="true" />}
-            {opens && a.group === 'remove' && menus}
-            <button
-              type="button"
-              className={`g-${a.group}${a.danger ? ' danger' : ''}`}
-              onClick={() => run(a)}
-              disabled={a.enabled ? !a.enabled(can) : false}
-              title={a.keys ? `${face.hint} (${shortcut(a.keys)})` : face.hint}
-              aria-label={face.icon || face.name !== face.label ? face.name : undefined}
-            >
-              {face.icon ? <LineIcon icon={face.icon} /> : face.label}
-            </button>
-          </Fragment>
-        )
-      })}
-      <button type="button" className="close" onClick={close} aria-label={n > 0 ? 'Clear selection (Esc)' : 'Stop editing (Esc)'}>×</button>
-      {/* Phone width only (CSS): the phone app's floating buttons. A switch with two sides,
-          • (open) on the left and × (crossed out) on the right, the side the line is on
-          filled; and a chevron that ends the edit or clears the selection. */}
+    // The floating buttons and the bar move together (lifted over the on-screen keyboard as
+    // one). Mousedown is swallowed on both so a tap never blurs the textarea.
+    <div ref={ref} className="selwrap" onMouseDown={(e) => e.preventDefault()}>
       <div className="fab">
-        <button type="button" className="switch" role="switch" aria-checked={allDone} aria-label="Crossed out" onClick={() => cmdToggleDone()}>
-          <span className={allDone ? undefined : 'on'}>•</span>
-          <span className={allDone ? 'on' : undefined}>×</span>
+        {FLOATING.map((a) => (
+          <button key={a.id} type="button" className="round" onClick={() => run(a)} aria-label={a.name} title={a.hint}>
+            <LineIcon icon={a.icon!} />
+          </button>
+        ))}
+        {/* A switch with three sides: • (open), a dot in a ring (doing), × (crossed out); the
+            side the line is on is filled, and a click steps to the next. */}
+        <button
+          type="button"
+          className="switch"
+          data-state={state}
+          aria-label={`Line state: ${STATE_NAME[state]}`}
+          title={`Open, doing, done: click to mark it ${STATE_NAME[NEXT[state]].toLowerCase()} (${shortcut('⌘Enter')} crosses out)`}
+          onClick={() => cmdCycleState()}
+        >
+          {SIDES.map((side) => (
+            <span key={side} className={side === state ? `s-${side} on` : `s-${side}`} aria-hidden="true">{side === 'open' ? '•' : side === 'done' ? '×' : ''}</span>
+          ))}
         </button>
-        <button type="button" className="round" onClick={close} aria-label={n > 0 ? 'Clear selection' : 'Done editing'}>
+        <button type="button" className="round" onClick={close} aria-label={n > 0 ? 'Clear selection' : 'Done editing'} title={n > 0 ? 'Clear selection (Esc)' : 'Done editing (Esc)'}>
           <span className="chevron" aria-hidden="true" />
         </button>
+      </div>
+      <div className="bar selbar" role="toolbar" aria-label={n > 0 ? 'Selected lines' : 'Current line'}>
+        <span className="count">{label}</span>
+        {shown.map((a, i) => {
+          const prev = shown[i - 1]?.group
+          const opens = prev !== a.group
+          const face = actionFace(a, can)
+          return (
+            <Fragment key={a.id}>
+              {/* The line type switcher leads the bar (Done, before it, floats now). */}
+              {i === 0 && kinds}
+              {opens && RULE_BEFORE.has(a.group) && <span className="sep" aria-hidden="true" />}
+              {/* The second row of the phone-width bar starts after the arrows. */}
+              {opens && prev === 'move' && <span className="brk" aria-hidden="true" />}
+              {opens && a.group === 'remove' && menus}
+              <button
+                type="button"
+                className={`g-${a.group}${a.danger ? ' danger' : ''}`}
+                onClick={() => run(a)}
+                disabled={a.enabled ? !a.enabled(can) : false}
+                title={a.keys ? `${face.hint} (${shortcut(a.keys)})` : face.hint}
+                aria-label={face.icon || face.name !== face.label ? face.name : undefined}
+              >
+                {face.icon ? <LineIcon icon={face.icon} /> : face.label}
+              </button>
+            </Fragment>
+          )
+        })}
       </div>
     </div>
   )

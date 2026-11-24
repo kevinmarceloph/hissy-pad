@@ -7,7 +7,7 @@ import { setCategory } from '@hissypad/core';
 import { activeCategories, categoryName, type Category } from '@hissypad/core/hours';
 
 import { apply, usePad } from '../store';
-import { targets } from '../selection';
+import { holdEditing, targets } from '../selection';
 
 // ---- the list the pad draws from ----------------------------------------------------------
 
@@ -55,6 +55,7 @@ export function setCategoryPickerOpener(open: ((ids: readonly string[]) => void)
 }
 export function cmdPickCategory(ids: readonly string[] = targets()) {
   if (ids.length === 0 || !openPicker) return;
+  holdEditing();
   picked = [...ids];
   openPicker(picked);
 }

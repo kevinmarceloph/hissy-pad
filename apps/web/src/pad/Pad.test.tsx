@@ -263,11 +263,12 @@ describe('toolbar iteration', () => {
     expect(texts()).toBe('a\na1\na2\nb')
   })
 
-  it('toolbar Done and Archive act on the line being edited', async () => {
+  it('the floating switch and Archive act on the line being edited', async () => {
     const user = userEvent.setup()
     await mount('x\ny')
     await startEditing('x')
-    await user.click(screen.getByRole('button', { name: 'Done' }))
+    await user.click(screen.getByRole('button', { name: 'Line state: Open' }))
+    await user.click(screen.getByRole('button', { name: 'Line state: Doing' }))
     expect(texts()).toBe('~x\ny')
     await user.click(screen.getByRole('button', { name: 'Archive' }))
     expect(texts()).toBe('y')
@@ -357,9 +358,13 @@ describe('Archive and Done panels', () => {
     await mount('a\nb\n  b1\nc')
     await startEditing('b')
     const bar = screen.getByRole('toolbar', { name: 'Current line' })
-    for (const name of ['Add a line above', 'Add a line below', 'Outdent', 'Indent', 'Move down', 'Move up', 'Move to top', 'Fold', 'Copy', 'Cut', 'Paste above', 'Paste below', 'Put in an hour', 'Give a category', 'Archive']) {
+    for (const name of ['Add a line above', 'Add a line below', 'Outdent', 'Indent', 'Move down', 'Move up', 'Move to top', 'Fold', 'Copy', 'Cut', 'Paste above', 'Paste below', 'Archive']) {
       expect(within(bar).getByRole('button', { name })).toBeInTheDocument()
     }
+    // Done, Hour… and Category… float above the bar instead.
+    for (const name of ['Done', 'Put in an hour', 'Give a category']) expect(within(bar).queryByRole('button', { name })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Put in an hour' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Give a category' })).toBeInTheDocument()
     await user.click(within(bar).getByRole('button', { name: 'Fold' }))
     expect(within(bar).queryByRole('button', { name: 'Fold' })).not.toBeInTheDocument()
     await user.click(within(bar).getByRole('button', { name: 'Unfold' }))
@@ -371,7 +376,7 @@ describe('Archive and Done panels', () => {
     expect(texts()).toBe('a\nc')
   })
 
-  it('the floating buttons: + adds a line at the top; the switch crosses the line out and the chevron ends the edit', async () => {
+  it('the floating buttons: + adds a line at the top; the switch steps open, doing, done and open; the chevron ends the edit', async () => {
     const user = userEvent.setup()
     await mount('a\nb')
     await user.click(screen.getByRole('button', { name: 'Add a line at the top' }))
@@ -379,11 +384,17 @@ describe('Archive and Done panels', () => {
     // While a line is open the + is away and the toolbar's own two are there.
     expect(screen.queryByRole('button', { name: 'Add a line at the top' })).not.toBeInTheDocument()
     await startEditing('b')
-    const done = screen.getByRole('switch', { name: 'Crossed out' })
-    expect(done).toHaveAttribute('aria-checked', 'false')
-    await user.click(done)
-    expect(done).toHaveAttribute('aria-checked', 'true')
-    expect(usePad.getState().rows[usePad.getState().editing!.id]!.done).toBe(true)
+    const line = () => usePad.getState().rows[usePad.getState().editing!.id]!
+    const toggle = screen.getByRole('button', { name: 'Line state: Open' })
+    await user.click(toggle)
+    expect(toggle).toHaveAccessibleName('Line state: Doing')
+    expect(line()).toMatchObject({ doing: true, done: false })
+    expect(rowByText('b')).toHaveClass('is-doing')
+    await user.click(toggle)
+    expect(toggle).toHaveAccessibleName('Line state: Done')
+    expect(line()).toMatchObject({ doing: false, done: true })
+    await user.click(toggle)
+    expect(line()).toMatchObject({ doing: false, done: false })
     await user.click(screen.getByRole('button', { name: 'Done editing' }))
     expect(usePad.getState().editing).toBeNull()
     expect(screen.getByRole('button', { name: 'Add a line at the top' })).toBeInTheDocument()

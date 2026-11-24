@@ -237,6 +237,11 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
 .row.is-empty .bullet::before { background: transparent; }
 /* ...except while it is being typed into: a faint dot marks where the line is. */
 .row.is-empty.is-editing .bullet::before { background: var(--rule); }
+/* Doing: the dot inside a ring (outline, so the fold's and hover's halos still show). */
+.row.is-doing .bullet::before { outline: 1.5px solid var(--ink-soft); outline-offset: 2.5px; }
+.row.is-doing.is-editing .bullet::before { outline-color: var(--accent); }
+.row.is-doing.is-numbered .bullet::before, .row.is-doing.is-header .bullet::before { outline-offset: 1px; border-radius: 999px; padding: 0 0.25rem; }
+.row.is-doing.is-numbered .bullet::before { margin-right: -0.25rem; }
 /* Done: a bullet-journal cross in place of the dot. */
 .row.is-done .bullet::before {
   content: '×';
@@ -417,16 +422,23 @@ dialog.categories-dialog[open] { height: min(44rem, calc(100dvh - 3rem)); displa
 
 /* Action toolbar: one row, never wraps; on a desktop window too narrow for it, it scrolls
    sideways. At phone width it is two rows that do not scroll (below). */
+/* The bar and the round buttons floating above its right end, placed as one. */
+.selwrap {
+  position: fixed; z-index: 5;
+  left: 0; right: 0; margin: 0 auto; width: fit-content;
+  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + var(--kb, 0px));
+  max-width: calc(100vw - 32px);
+  display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
+  pointer-events: none;
+}
+.selwrap > * { pointer-events: auto; }
 .selbar {
-  position: fixed;
-  left: 50%; bottom: calc(max(1rem, env(safe-area-inset-bottom)) + var(--kb, 0px));
-  translate: -50% 0;
+  max-width: 100%;
   background: var(--paper-raised);
   border: 1px solid var(--rule);
   border-radius: 6px;
   padding: 0.3rem 0.4rem;
   box-shadow: 0 6px 24px -12px rgb(0 0 0 / 0.35); /* the one elevated surface: it floats over the text */
-  max-width: calc(100vw - 32px);
   flex-wrap: nowrap;
   white-space: nowrap;
   overflow-x: auto;
@@ -447,11 +459,11 @@ dialog.categories-dialog[open] { height: min(44rem, calc(100dvh - 3rem)); displa
 .selbar .kind button + button { border-left: 1px solid var(--rule); }
 .selbar .kind button[aria-pressed='true'] { background: var(--accent-soft); color: var(--ink); }
 
-/* The round buttons floating at the bottom right on a phone, as in the phone app: the +
-   over the pad, and the Done switch and "done editing" over the toolbar. Off on a desktop,
-   where the bar has Done and × and the keyboard does the rest. */
-.fab, .fab-add { display: none; }
+/* The round buttons floating at the bottom right, as in the phone app: the + over the pad,
+   and Hour…, Category…, the open / doing / done switch and "done editing" over the bar. */
+.fab { display: flex; gap: 10px; }
 .fab-add, .fab .round, .fab .switch {
+  display: inline-flex;
   height: 44px; border-radius: 22px;
   background: var(--paper-raised);
   border: 1px solid var(--rule);
@@ -469,13 +481,19 @@ dialog.categories-dialog[open] { height: min(44rem, calc(100dvh - 3rem)); displa
   touch-action: none; /* a drag on it carries it onto the pad instead of scrolling the page */
   user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
-.selbar .fab .round { width: 44px; min-width: 44px; padding: 0; display: inline-flex; }
-.selbar .fab .switch { width: 84px; padding: 3px; gap: 2px; display: inline-flex; }
+.fab .round { width: 44px; padding: 0; }
+.fab .switch { width: 120px; padding: 3px; gap: 2px; }
 .fab .switch span { flex: 1; align-self: stretch; display: grid; place-items: center; border-radius: 19px; border: 1px solid transparent; font-size: 1.4rem; line-height: 1; color: var(--ink-mute); }
 .fab .switch span.on { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
-.fab .switch[aria-checked='true'] span.on { color: var(--accent); }
+.fab .switch span.s-done.on { color: var(--accent); }
+/* Doing: a dot inside a ring, drawn so it does not depend on a font. */
+.fab .switch .s-doing::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor;
+  outline: 1.5px solid currentColor; outline-offset: 3px;
+}
 .fab .chevron { width: 11px; height: 11px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-3px) rotate(45deg); }
-.selbar .fab button:hover:not(:disabled) { background: var(--paper-raised); }
+.fab button:hover { border-color: var(--accent); }
+.fab button:focus-visible, .fab-add:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Where a dragged + would open its line. */
 .new-row {
   display: flex; align-items: center;
@@ -489,12 +507,13 @@ dialog.categories-dialog[open] { height: min(44rem, calc(100dvh - 3rem)); displa
 @media (max-width: 640px) {
   /* Two rows, no sideways scrolling: where the line sits, its type and a new line beside
      it on the first; everything else on the second. Each button takes an equal share. */
+  .selwrap { left: 8px; right: 8px; width: auto; max-width: none; align-items: stretch; }
+  .selwrap .fab { align-self: flex-end; }
   .selbar {
-    left: 8px; right: 8px; translate: 0 0; max-width: none;
     flex-wrap: wrap; overflow: visible; white-space: normal;
     gap: 0.15rem 0; padding: 0.2rem 0.25rem;
   }
-  .selbar .count, .selbar .sep, .selbar .g-mark, .selbar .close { display: none; }
+  .selbar .count, .selbar .sep { display: none; }
   .selbar .brk { display: block; flex: 0 0 100%; height: 0; order: 0; }
   .selbar button { flex: 1 1 0; min-width: 30px; min-height: 40px; padding: 0; }
   .selbar .g-move { order: -2; }
@@ -502,9 +521,6 @@ dialog.categories-dialog[open] { height: min(44rem, calc(100dvh - 3rem)); displa
   .selbar .kind button { min-width: 0; min-height: 34px; }
   .selbar .g-add { order: -1; }
   .selbar .moveto { flex: 1 1 0; display: flex; }
-  .fab-add { display: inline-flex; }
-  .fab { display: flex; gap: 10px; position: absolute; right: 8px; bottom: calc(100% + 12px); }
-  .selbar .fab button { flex: none; }
 }
 
 .toast {

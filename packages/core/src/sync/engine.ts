@@ -75,7 +75,8 @@ export const CURSOR_KEY = 'sync.cursor'
 // them without it and moved its cursor past them: the phone showed no hour on lines that
 // had one on the web.
 // 3: 2026-11-24. The `category` column, for the same reason.
-export const PULL_EPOCH = '3'
+// 4: 2026-11-24. The `doing` column (a line's middle state), again the same.
+export const PULL_EPOCH = '4'
 export const EPOCH_KEY = 'sync.epoch'
 
 export function createSyncEngine(o: SyncEngineOptions): SyncEngine {

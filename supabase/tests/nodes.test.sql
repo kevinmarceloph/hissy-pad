@@ -1,6 +1,6 @@
 -- pgTAP: RLS and last-write-wins on public.nodes. Run with `supabase test db`.
 begin;
-select plan(27);
+select plan(29);
 
 -- Two users, created directly (no GoTrue in a db test).
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
@@ -105,6 +105,11 @@ select is((select category from public.nodes where id = 'aaaaaaaa-0000-0000-0000
 select throws_ok(
   $$ update public.nodes set category = '', updated_at = '2026-11-24T00:00:01Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001' $$,
   '23514', null, 'an empty category is rejected');
+
+-- doing: the middle state, false by default.
+select is((select doing from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), false, 'doing defaults to false');
+update public.nodes set doing = true, updated_at = '2026-11-24T01:00:00Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select is((select doing from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), true, 'doing round-trips');
 
 select * from finish();
 rollback;

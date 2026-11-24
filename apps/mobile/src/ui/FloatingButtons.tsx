@@ -1,13 +1,16 @@
 // The round buttons floating at the bottom right of the pad, above the toolbar and the
-// keyboard. With nothing targeted: + adds a line at the top when tapped, or where it is
+// keyboard. While editing, Hour… and Category… (LINE_ACTIONS marked `floats`) come first. With nothing targeted: + adds a line at the top when tapped, or where it is
 // dropped when dragged onto the pad (like the + in Things). While a line is being edited
-// (or lines are selected): a left/right switch crosses it out (• on the left for open, ×
-// on the right for crossed out; the side the line is on is filled), and a chevron ends editing and puts the keyboard away (or clears the selection).
+// (or lines are selected): a three-sided switch steps it open, doing, done (• for open, a
+// dot in a ring for doing, × for crossed out; the side the line is on is filled), and a
+// chevron ends editing and puts the keyboard away (or clears the selection).
 import { useMemo } from 'react'
 import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
-import { clearSelection, cmdAddAtTop, cmdToggleDone, stopEditing, usePad } from '@hissypad/state'
+import { statesOf, type LineState } from '@hissypad/core'
+import { clearSelection, cmdAddAtTop, cmdCycleState, stopEditing, usePad, LINE_ACTIONS } from '@hissypad/state'
+import { LineIcon } from './LineIcons'
 import { serif, type Theme } from '../theme'
 
 function Round({ label, onPress, theme, children, accent }: { label: string; onPress: () => void; theme: Theme; children: React.ReactNode; accent?: boolean }) {
@@ -78,7 +81,7 @@ export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Th
     )
   }
 
-  const allDone = targets.every((id) => rows[id]?.done)
+  const state = statesOf(rows, targets)
   const finish = () => {
     if (selection.length > 0) clearSelection()
     stopEditing()
@@ -86,25 +89,43 @@ export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Th
   }
   return (
     <View style={s.wrap} pointerEvents="box-none">
-      {/* A switch with two sides: • (open) on the left, × (crossed out) on the right. The
-          side the line is on is filled; a tap anywhere on it flips it. */}
+      {/* Hour… and Category…: the actions marked `floats` that have an icon. */}
+      {FLOATING.map((a) => (
+        <Round key={a.id} theme={theme} label={a.name} onPress={() => {
+          void Haptics.selectionAsync().catch(() => {})
+          void a.run()
+        }}>
+          <LineIcon icon={a.icon!} color={theme.ink} ground={theme.paperRaised} />
+        </Round>
+      ))}
+      {/* A switch with three sides: • (open), a dot in a ring (doing), × (crossed out). The
+          side the line is on is filled; a tap anywhere on it steps to the next. */}
       <Pressable
-        accessibilityRole="switch"
-        accessibilityLabel="Crossed out"
-        accessibilityState={{ checked: allDone }}
+        accessibilityRole="button"
+        accessibilityLabel={`Line state: ${STATE_NAME[state]}`}
+        accessibilityHint={`Marks it ${STATE_NAME[NEXT[state]].toLowerCase()}`}
         hitSlop={6}
         onPress={() => {
           void Haptics.selectionAsync().catch(() => {})
-          cmdToggleDone()
+          cmdCycleState()
         }}
         style={[s.round, s.switch, { backgroundColor: theme.paperRaised, borderColor: theme.rule }]}
       >
-        <View style={[s.side, !allDone && { backgroundColor: theme.accentSoft, borderColor: theme.accent }]}>
-          <Text style={[s.glyph, s.mark, { color: allDone ? theme.inkMute : theme.ink }]}>•</Text>
-        </View>
-        <View style={[s.side, allDone && { backgroundColor: theme.accentSoft, borderColor: theme.accent }]}>
-          <Text style={[s.glyph, s.mark, { color: allDone ? theme.accent : theme.inkMute }]}>×</Text>
-        </View>
+        {SIDES.map((side) => {
+          const on = side === state
+          const ink = on ? (side === 'done' ? theme.accent : theme.ink) : theme.inkMute
+          return (
+            <View key={side} style={[s.side, on && { backgroundColor: theme.accentSoft, borderColor: theme.accent }]}>
+              {side === 'open' ? (
+                <Text style={[s.glyph, s.mark, { color: ink }]}>•</Text>
+              ) : side === 'doing' ? (
+                <View style={[s.ring, { borderColor: ink }]}><View style={[s.dot, { backgroundColor: ink }]} /></View>
+              ) : (
+                <Text style={[s.glyph, s.mark, { color: ink }]}>×</Text>
+              )}
+            </View>
+          )
+        })}
       </Pressable>
       <Round theme={theme} label={selection.length > 0 ? 'Clear selection' : 'Done editing'} onPress={finish}>
         {/* A chevron pointing down, drawn so it does not depend on a font having the glyph. */}
@@ -114,6 +135,11 @@ export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Th
   )
 }
 
+const FLOATING = LINE_ACTIONS.filter((a) => a.floats && a.icon)
+const SIDES: LineState[] = ['open', 'doing', 'done']
+const STATE_NAME: Record<LineState, string> = { open: 'Open', doing: 'Doing', done: 'Done' }
+const NEXT: Record<LineState, LineState> = { open: 'doing', doing: 'done', done: 'open' }
+
 const s = StyleSheet.create({
   wrap: { position: 'absolute', bottom: 12, right: 12, zIndex: 5, flexDirection: 'row', gap: 10 },
   round: {
@@ -122,7 +148,9 @@ const s = StyleSheet.create({
   },
   glyph: { fontFamily: serif, fontSize: 21, lineHeight: 26 },
   mark: { fontSize: 24, lineHeight: 26 },
-  switch: { width: 84, flexDirection: 'row', padding: 3, gap: 2 },
+  switch: { width: 120, flexDirection: 'row', padding: 3, gap: 2 },
+  ring: { width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  dot: { width: 5, height: 5, borderRadius: 2.5 },
   side: { flex: 1, alignSelf: 'stretch', borderRadius: 19, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   plus: { fontSize: 28, lineHeight: 30 },
   chevron: { width: 11, height: 11, borderRightWidth: 2, borderBottomWidth: 2, transform: [{ rotate: '45deg' }], marginTop: -5 },

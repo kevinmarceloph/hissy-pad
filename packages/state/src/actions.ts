@@ -4,6 +4,8 @@
 // type switcher (drawn after the 'mark' group) and the "Move to…" pad menu (drawn before
 // the 'remove' group, with the 'move' icon). Actions marked `more` sit in a dropdown (⋯)
 // on both. An action with an `icon` is drawn as that icon, by each app's own icon set.
+// Actions marked `floats` (Done, Hour…, Category…) are not on the bar: both apps draw them
+// as round buttons floating above it, Done as the open / doing / done switch.
 import { buildIndex, childrenOf, topmost, type NodeKind, type Rows } from '@hissypad/core'
 import {
   cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdMoveToTop, cmdPaste, cmdToggleCollapsed, cmdSplitOpen, cmdToggleDone, cmdUngroup,
@@ -66,6 +68,8 @@ export interface LineAction {
   danger?: boolean
   // Less used: these sit in the toolbar's dropdown (⋯) instead of on the bar.
   more?: boolean
+  // Drawn floating above the bar instead of on it (see the header).
+  floats?: boolean
   enabled?: (can: LineAbilities) => boolean
   // What the button reads instead when the targets call for the opposite (Fold: Unfold).
   flip?: { when: (can: LineAbilities) => boolean; label: string; name: string; hint: string; icon?: LineIcon }
@@ -87,7 +91,7 @@ async function paste(where: 'above' | 'below'): Promise<string | void> {
 }
 
 export const LINE_ACTIONS: readonly LineAction[] = [
-  { id: 'done', group: 'mark', label: 'Done', name: 'Done', hint: 'Cross out', keys: '⌘Enter', run: cmdToggleDone },
+  { id: 'done', group: 'mark', label: 'Done', name: 'Done', hint: 'Cross out', keys: '⌘Enter', floats: true, run: cmdToggleDone },
   { id: 'addAbove', group: 'add', label: '+ above', name: 'Add a line above', hint: 'New line above', icon: 'addAbove', run: cmdAddAbove },
   { id: 'addBelow', group: 'add', label: '+ below', name: 'Add a line below', hint: 'New line below', icon: 'addBelow', run: cmdAddBelow },
   { id: 'dedent', group: 'move', label: '←', name: 'Outdent', hint: 'Outdent', icon: 'dedent', keys: 'Shift+Tab', enabled: (c) => c.dedent, run: cmdDedent },
@@ -112,8 +116,8 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   { id: 'cut', group: 'clip', label: 'Cut', name: 'Cut', hint: 'Cut: copy as outline, then delete', icon: 'cut', keys: '⌘X', run: cmdCutSelection },
   { id: 'pasteAbove', group: 'clip', label: 'Paste above', name: 'Paste above', hint: 'Paste the clipboard as lines above', icon: 'pasteAbove', run: () => paste('above') },
   { id: 'pasteBelow', group: 'clip', label: 'Paste below', name: 'Paste below', hint: 'Paste the clipboard as lines below', icon: 'pasteBelow', run: () => paste('below') },
-  { id: 'slot', group: 'pad', label: 'Hour…', name: 'Put in an hour', hint: 'Put in an hour of a day (Hours counts what is done there)', icon: 'hour', run: cmdPickSlot },
-  { id: 'category', group: 'pad', label: 'Category…', name: 'Give a category', hint: 'Give it one of Hours\' categories (its icon shows before the text)', icon: 'category', run: cmdPickCategory },
+  { id: 'slot', group: 'pad', label: 'Hour…', name: 'Put in an hour', hint: 'Put in an hour of a day (Hours counts what is done there)', icon: 'hour', floats: true, run: cmdPickSlot },
+  { id: 'category', group: 'pad', label: 'Category…', name: 'Give a category', hint: 'Give it one of Hours\' categories (its icon shows before the text)', icon: 'category', floats: true, run: cmdPickCategory },
   {
     id: 'makePad', group: 'pad', label: 'Make pad', name: 'Make pad', hint: 'Make this line a pad: its text is the name, its sub items the lines', more: true,
     enabled: (c) => c.single,

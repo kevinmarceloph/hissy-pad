@@ -136,7 +136,7 @@ export function lineToPad(all: Rows, ctx: OpCtx, id: string): { rows: Rows; name
   const moved = moveNodes(all, ctx, [id], { parentId: null, afterId: last?.id ?? null })
   const name = row.text.replace(/\s*\n\s*/g, ' ').trim() || 'Untitled pad'
   const node = moved[id]!
-  const pad: NodeRow = { ...node, parentId: null, text: name, pad: true, done: false, doneAt: null, numbered: false, header: false, collapsed: false, updatedAt: ctx.now() }
+  const pad: NodeRow = { ...node, parentId: null, text: name, pad: true, done: false, doneAt: null, doing: false, numbered: false, header: false, collapsed: false, updatedAt: ctx.now() }
   return { rows: { ...moved, [id]: pad }, name }
 }
 

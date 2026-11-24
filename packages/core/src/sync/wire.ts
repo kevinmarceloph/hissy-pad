@@ -10,6 +10,7 @@ export interface WireNode {
   text: string
   done: boolean
   done_at?: string | null // optional on the wire: rows written before the column existed
+  doing?: boolean  // same: added 2026-11-24
   collapsed: boolean
   numbered: boolean
   header?: boolean // optional on the wire: rows written before the column existed
@@ -30,6 +31,7 @@ export function toWire(raw: NodeRow): WireNode {
     text: r.text,
     done: r.done,
     done_at: r.doneAt,
+    doing: r.doing,
     collapsed: r.collapsed,
     numbered: r.numbered,
     header: r.header,
@@ -50,6 +52,8 @@ export function fromWire(w: WireNode): { row: NodeRow; syncedAt: string } {
       text: w.text,
       done: w.done,
       doneAt: w.done && w.done_at ? new Date(w.done_at).toISOString() : null,
+      // The watch crosses a line out without knowing this column, so done wins over doing.
+      doing: w.doing === true && !w.done,
       collapsed: w.collapsed,
       numbered: w.numbered,
       header: w.header === true && !w.numbered,

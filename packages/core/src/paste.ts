@@ -112,6 +112,7 @@ export function insertOutline(
       text: l.text,
       done: false,
       doneAt: null,
+      doing: false,
       collapsed: false,
       numbered: l.numbered === true,
       header: l.header === true && l.numbered !== true,

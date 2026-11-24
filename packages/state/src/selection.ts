@@ -1,7 +1,7 @@
 // What is selected and what is being edited, in the pad shown. Selection is a list of
 // row ids in visible order with an anchor (where a shift-range starts) and a focus (where
 // it ends); editing is one row id with a caret.
-import { buildIndex, flatten } from '@hissypad/core'
+import { buildIndex, flatten, isLive } from '@hissypad/core'
 import { log } from './log'
 import { usePad, type Caret, type PadState } from './store'
 
@@ -12,6 +12,21 @@ export function edit(id: string, caret: Caret = 'end') {
   const cur = get().editing
   log('edit', { id: id.slice(0, 8), caret })
   set({ editing: { id, caret, rev: (cur?.rev ?? 0) + 1 }, selection: [], anchorId: null, focusId: null })
+}
+
+// A picker (Hour…, Category…) takes focus, and that ends the edit. holdEditing notes the
+// line being edited as the picker opens; resumeEditing, called when the picker has closed,
+// puts the caret back in it, unless something else got edited or selected meanwhile.
+let held: string | null = null
+export function holdEditing() {
+  held = get().editing?.id ?? null
+}
+export function resumeEditing() {
+  const id = held
+  held = null
+  const s = get()
+  if (!id || s.editing || s.selection.length > 0 || !isLive(s.rows[id])) return
+  edit(id, 'end')
 }
 
 export function stopEditing() {

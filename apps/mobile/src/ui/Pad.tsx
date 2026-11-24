@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, flatten, listNumbers, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, countKey, countShown, refresh, select, stopEditing, toggleCount, usePad, usePrefs, visibleIds } from '@hissypad/state'
+import { apply, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, countKey, countShown, refresh, resumeEditing, select, stopEditing, toggleCount, usePad, usePrefs, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -411,7 +411,7 @@ export function Pad() {
         </View>
       </Modal>
       <TrashSheet visible={sheet === 'trash'} onClose={() => setSheet(null)} theme={theme} />
-      <Modal visible={picking !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPicking(null)}>
+      <Modal visible={picking !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPicking(null)} onDismiss={resumeEditing}>
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
           {picking && (
             <SlotPicker
@@ -428,7 +428,7 @@ export function Pad() {
           )}
         </View>
       </Modal>
-      <Modal visible={categorizing !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setCategorizing(null)}>
+      <Modal visible={categorizing !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setCategorizing(null)} onDismiss={resumeEditing}>
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
           {categorizing && (
             <CategoryPicker

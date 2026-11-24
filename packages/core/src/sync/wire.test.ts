@@ -29,6 +29,12 @@ describe('wire format', () => {
     expect(r).toMatchObject({ header: false, pad: false, doneAt: null, numbered: true })
     // A header that is also numbered (two devices disagreeing) reads as numbered.
     expect(fromWire({ ...old, header: true }).row.header).toBe(false)
+    expect(r.doing).toBe(false)
+  })
+  it('a doing line crossed out by a client that does not know doing reads as done only', () => {
+    const w = { ...toWire(normalizeRow({ id: 'd', doing: true })), done: true, done_at: '2026-11-24T00:00:00Z' }
+    expect(toWire(normalizeRow({ id: 'd', doing: true })).doing).toBe(true)
+    expect(fromWire(w).row).toMatchObject({ done: true, doing: false })
   })
   it('sameRow notices a difference in any one column', () => {
     for (const k of ROW_KEYS) expect(sameRow(row, { ...row, [k]: 'different' })).toBe(false)

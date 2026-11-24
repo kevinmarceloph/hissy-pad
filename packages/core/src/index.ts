@@ -1,4 +1,4 @@
-export { normalizeRow, sameRow, ROW_KEYS, kindOf, type NodeKind, type NodeRow, type Rows, type OpCtx } from './types'
+export { normalizeRow, sameRow, ROW_KEYS, kindOf, stateOf, type LineState, type NodeKind, type NodeRow, type Rows, type OpCtx } from './types'
 export { createClock, newUuid, type Clock } from './clock'
 export { between, ranksBetween, compareRank, isValidRank, DIGITS } from './rank'
 export {
@@ -34,6 +34,9 @@ export {
   setText,
   setDone,
   toggleDone,
+  setState,
+  statesOf,
+  cycleState,
   setNumbered,
   toggleNumbered,
   setKind,

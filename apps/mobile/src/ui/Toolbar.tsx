@@ -1,7 +1,7 @@
 // The line toolbar above the keyboard. Its buttons come from LINE_ACTIONS in the state
 // package, the same list the web's SelectionBar draws. On the phone it is two rows
-// (as it is on the web at phone width), and crossing out and "done editing" are the
-// floating buttons at the bottom right (FloatingButtons.tsx). The tray icon opens the list
+// (as it is on the web at phone width), and Hour…, Category…, the open / doing / done
+// switch and "done editing" are the floating buttons at the bottom right (FloatingButtons.tsx). The tray icon opens the list
 // of pads to move to; the three dots open the less used actions (those marked `more`).
 import { useMemo } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
@@ -14,8 +14,6 @@ import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
 import { serif, type Theme } from '../theme'
 import { LineIcon } from './LineIcons'
 
-// The 'mark' group (Done) is the floating • / × switch; it is not repeated here.
-const HIDDEN: ReadonlySet<LineActionGroup> = new Set(['mark'])
 
 function Btn({ label, icon, onPress, disabled, a11y, theme, on, style }: { label: string; icon?: LineIconId | undefined; onPress: () => void; disabled?: boolean; a11y?: string; theme: Theme; on?: boolean; style?: object | undefined }) {
   return (
@@ -40,7 +38,8 @@ export function Toolbar({ theme }: { theme: Theme }) {
   // Everywhere the lines can go: the other pads, and every sub-pad (this pad's included).
   const others = useMemo(() => placeList(all).filter((p) => p.subId !== null || p.padId !== padId), [all, padId])
   if (ids.length === 0) return null
-  const shown = LINE_ACTIONS.filter((a) => !HIDDEN.has(a.group) && !a.more)
+  // Done, Hour… and Category… float above the bar (FloatingButtons.tsx).
+  const shown = LINE_ACTIONS.filter((a) => !a.floats && !a.more)
   const tucked = LINE_ACTIONS.filter((a) => a.more && (a.enabled ? a.enabled(can) : true))
 
   // What an action says back (Paste could not read the clipboard) is shown as an alert.

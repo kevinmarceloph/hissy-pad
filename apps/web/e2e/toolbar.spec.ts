@@ -66,8 +66,9 @@ test('the Move to… menu closes on Escape and on a click elsewhere', async ({ p
   await expect(page.getByRole('menuitem')).toHaveCount(0)
 })
 
-// At phone width the bar is the phone app's: two rows that do not scroll, with the Done
-// switch and "done editing" floating above it, and a + over the pad when nothing is open.
+// At phone width the bar is the phone app's: two rows that do not scroll, with Hour…,
+// Category…, the open / doing / done switch and "done editing" floating above it, and a +
+// over the pad when nothing is open.
 test('at phone width the toolbar does not scroll, and the floating buttons are there', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone', 'phone width only')
   await page.goto('/#pads')
@@ -84,11 +85,13 @@ test('at phone width the toolbar does not scroll, and the floating buttons are t
     expect(box.x + box.width).toBeLessThanOrEqual(view.width)
     expect(box.width).toBeGreaterThanOrEqual(30)
   }
-  // Done and × are the floating pair here, not buttons on the bar.
-  await expect(bar.getByRole('button', { name: 'Done', exact: true })).toBeHidden()
-  await page.getByRole('switch', { name: 'Crossed out' }).click()
+  // Done floats as a switch with three sides, not a button on the bar.
+  await expect(bar.getByRole('button', { name: 'Done', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Line state: Open' }).click()
+  await expect(page.locator('.row.is-doing')).toHaveCount(1)
+  await page.getByRole('button', { name: 'Line state: Doing' }).click()
   await expect(page.locator('.row.is-done')).toHaveCount(2)
-  await page.getByRole('switch', { name: 'Crossed out' }).click()
+  await page.getByRole('button', { name: 'Line state: Done' }).click()
   await page.getByRole('button', { name: 'Clear selection', exact: true }).click()
   await expect(bar).toHaveCount(0)
   await expect(add).toBeVisible()
@@ -117,4 +120,22 @@ test('the floating + adds a line at the top on a tap, and where it is dropped on
   await add.click()
   await expect(page.locator('.row')).toHaveCount(before + 2)
   await expect(page.locator('.row').first().locator('textarea')).toBeFocused()
+})
+
+// On a desktop the floating buttons sit above the right end of the bar too, and the + over
+// the pad when nothing is open.
+test('on a desktop the floating buttons sit above the bar, on screen', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'desktop only')
+  await page.goto('/#pads')
+  await expect(page.getByRole('button', { name: 'Add a line at the top' })).toBeVisible()
+  await page.getByRole('button', { name: 'Select line' }).first().click()
+  const bar = (await page.getByRole('toolbar', { name: 'Selected lines' }).boundingBox())!
+  const view = page.viewportSize()!
+  for (const name of ['Put in an hour', 'Give a category', 'Line state: Open', 'Clear selection']) {
+    const box = (await page.getByRole('button', { name, exact: true }).boundingBox())!
+    expect(box.y + box.height).toBeLessThanOrEqual(bar.y)
+    expect(box.x + box.width).toBeLessThanOrEqual(Math.min(view.width, bar.x + bar.width + 1))
+  }
+  await page.getByRole('button', { name: 'Line state: Open' }).click()
+  await expect(page.locator('.row.is-doing')).toHaveCount(1)
 })

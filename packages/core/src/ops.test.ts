@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   dedent, indent, insertAfter, insertAtTop, insertBefore, mergeIntoPrev, moveNodes, moveSibling, moveToTop,
   remove, removeDone, setCollapsed, setDone, setKind, setNumbered, setText, splitNode, sweepDone, toggleDone, toggleNumbered, ungroup, splitOpen,
+  cycleState, setState, statesOf,
 } from './ops'
 import { idOf, pad, shape, testCtx } from './testing'
 import type { Rows } from './types'
@@ -78,6 +79,42 @@ describe('text, done, collapse', () => {
     expect(shape(rows)).toBe('~A\n~B\n  B1\n  B2\n~C')
     rows = toggleDone(rows, ctx, ids)
     expect(shape(rows)).toBe('A\n~B\n  B1\n  B2\nC')
+  })
+
+  it('cycleState steps a line open, doing, done and open again', () => {
+    const ctx = testCtx()
+    let rows = pad(OUTLINE, ctx)
+    const a = idOf(rows, 'A')
+    rows = cycleState(rows, ctx, [a])
+    expect(rows[a]).toMatchObject({ done: false, doing: true })
+    rows = cycleState(rows, ctx, [a])
+    expect(rows[a]).toMatchObject({ done: true, doing: false })
+    expect(rows[a]!.doneAt).not.toBeNull()
+    rows = cycleState(rows, ctx, [a])
+    expect(rows[a]).toMatchObject({ done: false, doing: false, doneAt: null })
+  })
+
+  it('a mixed set reads as its earliest state and steps forward together', () => {
+    const ctx = testCtx()
+    let rows = pad(OUTLINE, ctx)
+    const [a, c] = [idOf(rows, 'A'), idOf(rows, 'C')]
+    rows = setState(rows, ctx, [a], 'doing')
+    rows = setState(rows, ctx, [c], 'done')
+    expect(statesOf(rows, [a, c])).toBe('doing')
+    rows = cycleState(rows, ctx, [a, c])
+    expect(statesOf(rows, [a, c])).toBe('done')
+    expect(statesOf(rows, [a, idOf(rows, 'B')])).toBe('open')
+  })
+
+  it('crossing out a doing line clears doing, and setState leaves an unchanged line alone', () => {
+    const ctx = testCtx()
+    let rows = pad(OUTLINE, ctx)
+    const a = idOf(rows, 'A')
+    rows = setState(rows, ctx, [a], 'doing')
+    rows = toggleDone(rows, ctx, [a])
+    expect(rows[a]).toMatchObject({ done: true, doing: false })
+    const same = setState(rows, ctx, [a], 'done')
+    expect(same).toBe(rows)
   })
 })
 
@@ -288,7 +325,7 @@ describe('colliding ranks', () => {
   // Two devices created "the first line" offline: both picked rank a0. Inserting between
   // them must re-rank instead of throwing, and keep their id order.
   function twins(): Rows {
-    const base = { parentId: null, text: '', done: false, doneAt: null, collapsed: false, numbered: false, header: false, pad: false, slot: null, category: null, updatedAt: '2026-10-28T00:00:00.000Z', deletedAt: null }
+    const base = { parentId: null, text: '', done: false, doneAt: null, doing: false, collapsed: false, numbered: false, header: false, pad: false, slot: null, category: null, updatedAt: '2026-10-28T00:00:00.000Z', deletedAt: null }
     return {
       a: { ...base, id: 'a', rank: 'a0', text: 'A' },
       b: { ...base, id: 'b', rank: 'a0', text: 'B' },

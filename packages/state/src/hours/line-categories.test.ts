@@ -5,7 +5,7 @@ import { patchCategory, SAMPLE_CATEGORIES } from '@hissypad/core/hours';
 
 import { resetStore } from '../testing';
 import { loadPad, usePad } from '../store';
-import { select } from '../selection';
+import { edit, resumeEditing, select, stopEditing } from '../selection';
 import { undo } from '../history';
 import {
   adoptLineCategories, cmdApplyCategory, cmdPickCategory, cmdSetCategory, lineCategories, setCategoryPickerOpener, targetCategory,
@@ -20,6 +20,26 @@ describe('a line with a category', () => {
     resetStore('A\nB\nC');
     await loadPad();
     adoptLineCategories([WORK, BODY]);
+  });
+
+  it('the picker ending the edit does not end it for good: closing it puts the caret back in the line', () => {
+    let opened: readonly string[] = [];
+    setCategoryPickerOpener((ids) => { opened = ids; });
+    edit(id('B'), 3);
+    cmdPickCategory();
+    stopEditing(); // the picker took focus
+    cmdApplyCategory(WORK.id);
+    resumeEditing();
+    expect(opened).toEqual([id('B')]);
+    expect(cat('B')).toBe(WORK.id);
+    expect(usePad.getState().editing?.id).toBe(id('B'));
+    // Something else picked in the meantime wins, and a second resume does nothing.
+    edit(id('A'));
+    cmdPickCategory();
+    select([id('C')]);
+    resumeEditing();
+    expect(usePad.getState().editing).toBeNull();
+    setCategoryPickerOpener(null);
   });
 
   it('gives the selected lines a category, reads it back, and undoes in one step', () => {

@@ -95,11 +95,16 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
       style={s.bullet}
     >
       {number !== null ? (
-        <Text style={[s.num, { color: isEditing ? theme.accent : theme.inkSoft }, row.done && { color: theme.inkMute, textDecorationLine: 'line-through' }]}>{number}.</Text>
+        <Text style={[s.num, { color: isEditing ? theme.accent : theme.inkSoft }, row.done && { color: theme.inkMute, textDecorationLine: 'line-through' }, row.doing && [s.ringed, { borderColor: theme.inkSoft }]]}>{number}.</Text>
       ) : row.header ? (
-        <Text style={[s.hash, { color: isEditing ? theme.accent : row.done ? theme.inkMute : theme.inkSoft }, row.done && { textDecorationLine: 'line-through' }]}>#</Text>
+        <Text style={[s.hash, { color: isEditing ? theme.accent : row.done ? theme.inkMute : theme.inkSoft }, row.done && { textDecorationLine: 'line-through' }, row.doing && [s.ringed, { borderColor: theme.inkSoft }]]}>#</Text>
       ) : row.done ? (
         <Text style={[s.cross, { color: theme.inkMute }]}>×</Text>
+      ) : row.doing ? (
+        // Doing: the dot inside a ring (a folded one fills the ring with the fold's grey).
+        <View style={[s.ring, { borderColor: isEditing ? theme.accent : theme.inkSoft }, folded && { backgroundColor: theme.rule }]}>
+          <View style={[s.dot, { backgroundColor: isEditing ? theme.accent : theme.inkSoft }]} />
+        </View>
       ) : (
         <View
           style={[
@@ -184,6 +189,8 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: 4, paddingRight: 8 },
   bullet: { width: GUTTER, minHeight: LINE, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 6, height: 6, borderRadius: 3 },
+  ring: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  ringed: { borderWidth: 1.5, borderRadius: 11, paddingHorizontal: 4, lineHeight: LINE - 4, overflow: 'hidden' },
   cross: { fontFamily: serif, fontSize: SIZE + 2, lineHeight: LINE },
   hash: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE, fontWeight: '700' },
   bold: { fontWeight: '700' },

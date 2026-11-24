@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { dismissStorageError, loadPad, usePad } from '@hissypad/state'
+import { dismissStorageError, loadPad, resumeEditing, usePad } from '@hissypad/state'
 import { Pad } from '../pad/Pad'
 import { SelectionBar } from '../pad/SelectionBar'
 import { TopBar, type View } from './TopBar'
@@ -71,10 +71,14 @@ export function App() {
         <SlotDialog
           value={picking.value}
           count={picking.count}
-          onClose={() => setPicking(null)}
+          onClose={() => {
+            setPicking(null)
+            resumeEditing()
+          }}
           onPick={(slot) => {
             showToast(cmdApplySlot(slot))
             setPicking(null)
+            resumeEditing()
           }}
         />
       )}
@@ -82,16 +86,21 @@ export function App() {
         <CategoryDialog
           value={categorizing.value}
           count={categorizing.count}
-          onClose={() => setCategorizing(null)}
+          onClose={() => {
+            setCategorizing(null)
+            resumeEditing()
+          }}
           onPick={(category) => {
             showToast(cmdApplyCategory(category))
             setCategorizing(null)
+            resumeEditing()
           }}
           onCreate={(label, icon, color) => {
             setCategorizing(null)
-            void cmdAddCategory(label, icon, color).then((made) =>
-              showToast(made ? cmdApplyCategory(made.id) : 'That category was not saved.'),
-            )
+            void cmdAddCategory(label, icon, color).then((made) => {
+              showToast(made ? cmdApplyCategory(made.id) : 'That category was not saved.')
+              resumeEditing()
+            })
           }}
         />
       )}

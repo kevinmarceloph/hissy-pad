@@ -5,7 +5,7 @@ import { insertAt, isLive, setDone, setSlot, slotCovers, slotKey, slotLabel, slo
 
 import { apply, applyAll, usePad } from '../store';
 import { search, type SearchPart } from '../search';
-import { targets } from '../selection';
+import { holdEditing, targets } from '../selection';
 
 // The pad's toolbar: put the selected lines (or the one being edited) in an hour, or take
 // them out of theirs with null. Returns how many lines it was asked about.
@@ -93,6 +93,7 @@ export function setSlotPickerOpener(open: ((ids: readonly string[]) => void) | n
 }
 export function cmdPickSlot(ids: readonly string[] = targets()) {
   if (ids.length === 0 || !openPicker) return;
+  holdEditing();
   picked = [...ids];
   openPicker(picked);
 }

@@ -1,7 +1,7 @@
 // Editing operations. Every op is pure: (rows, ctx, ...) => new rows, with only the touched
 // rows replaced. Nothing here knows about React, the DOM, or sync; the sync engine just sees
 // rows whose updatedAt advanced.
-import { kindOf, type NodeKind, type NodeRow, type OpCtx, type Rows } from './types'
+import { kindOf, stateOf, type LineState, type NodeKind, type NodeRow, type OpCtx, type Rows } from './types'
 import { between } from './rank'
 import {
   allocateRanks,
@@ -39,6 +39,7 @@ function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: strin
     text,
     done: false,
     doneAt: null,
+    doing: false,
     collapsed: false,
     numbered,
     header: false,
@@ -123,9 +124,34 @@ export function setDone(rows: Rows, ctx: OpCtx, ids: Iterable<string>, done: boo
     const r = out[id]
     if (!r || (!archived && !isLive(r)) || r.done === done) continue
     const now = ctx.now()
-    out = { ...out, [id]: { ...out[id]!, done, doneAt: done ? now : null, updatedAt: now } }
+    out = { ...out, [id]: { ...out[id]!, done, doneAt: done ? now : null, doing: false, updatedAt: now } }
   }
   return out
+}
+
+// Put lines in one of the three states. Done goes through setDone (doneAt, doing cleared).
+export function setState(rows: Rows, ctx: OpCtx, ids: Iterable<string>, state: LineState): Rows {
+  const list = [...ids].filter((id) => isLive(rows[id]))
+  if (state === 'done') return setDone(rows, ctx, list, true)
+  let out = setDone(rows, ctx, list, false)
+  const doing = state === 'doing'
+  for (const id of list) if (out[id]!.doing !== doing) out = patch(out, ctx, id, { doing })
+  return out
+}
+
+// What a set of lines reads as: their state when they all share one, else the earliest of
+// theirs (open before doing before done), so a mixed set steps forward together.
+export function statesOf(rows: Rows, ids: Iterable<string>): LineState {
+  const seen = new Set([...ids].filter((id) => isLive(rows[id])).map((id) => stateOf(rows[id]!)))
+  return seen.has('open') || seen.size === 0 ? 'open' : seen.has('doing') ? 'doing' : 'done'
+}
+
+const NEXT_STATE: Record<LineState, LineState> = { open: 'doing', doing: 'done', done: 'open' }
+
+// The floating switch: open, then doing, then done, then open again.
+export function cycleState(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
+  const list = [...ids]
+  return setState(rows, ctx, list, NEXT_STATE[statesOf(rows, list)])
 }
 
 // Give lines one of Hours' categories (its id), or take theirs away with null.

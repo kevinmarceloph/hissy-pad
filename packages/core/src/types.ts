@@ -8,6 +8,7 @@ export interface NodeRow {
   text: string              // plain text, may contain newlines
   done: boolean
   doneAt: string | null     // when `done` last flipped on; null when not done or done before the column existed
+  doing: boolean            // being worked on: the middle of open, doing, done; never true on a done line
   collapsed: boolean        // synced across devices on purpose
   numbered: boolean         // shown as "1." within its run of consecutive numbered siblings
   header: boolean           // bold, with a "#" for a bullet; never numbered at the same time
@@ -28,6 +29,7 @@ export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
     text: r.text ?? '',
     done: r.done === true,
     doneAt: r.done === true ? (r.doneAt ?? null) : null,
+    doing: r.doing === true && r.done !== true,
     collapsed: r.collapsed === true,
     numbered: r.numbered === true,
     header: r.header === true && r.numbered !== true,
@@ -42,7 +44,7 @@ export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
 // Every column of a row, listed once. The Record type makes the compiler insist that a
 // new NodeRow field is added here too, which is what keeps sameRow honest.
 const ROW_FIELDS: Record<keyof NodeRow, true> = {
-  id: true, parentId: true, rank: true, text: true, done: true, doneAt: true, collapsed: true,
+  id: true, parentId: true, rank: true, text: true, done: true, doneAt: true, doing: true, collapsed: true,
   numbered: true, header: true, pad: true, slot: true, category: true, updatedAt: true, deletedAt: true,
 }
 export const ROW_KEYS = Object.keys(ROW_FIELDS) as (keyof NodeRow)[]
@@ -55,6 +57,14 @@ export function sameRow(a: Partial<NodeRow>, b: Partial<NodeRow>): boolean {
 // The three ways a line can look. Stored as two booleans (numbered, header) so the column
 // set only ever grows; kindOf/setKind keep them exclusive.
 export type NodeKind = 'plain' | 'numbered' | 'header'
+
+// The three states a line goes through: open (•), doing (a dot in a ring), done (×). Stored
+// as two booleans (done, doing) so `done` keeps meaning what it always has everywhere else.
+export type LineState = 'open' | 'doing' | 'done'
+
+export function stateOf(r: Pick<NodeRow, 'done' | 'doing'>): LineState {
+  return r.done ? 'done' : r.doing ? 'doing' : 'open'
+}
 
 export function kindOf(r: Pick<NodeRow, 'numbered' | 'header'>): NodeKind {
   return r.numbered ? 'numbered' : r.header ? 'header' : 'plain'
