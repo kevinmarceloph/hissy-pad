@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import { SAMPLE_CATEGORIES, SAMPLE_FLAGS } from '@hissypad/core/hours';
-import { fireEvent, render, screen } from '../testing/rntl';
+import { fireEvent, render, screen, within } from '../testing/rntl';
 
 import { MemoryStore } from '@hissypad/core/hours';
 import { createCategoryStore } from '@hissypad/state/hours';
@@ -108,7 +108,7 @@ describe('CategoriesScreen', () => {
 
     expect(await screen.findByLabelText('Errands, Olive')).toBeTruthy();
     // The icon is cut to its one emoji and shown in front of the name.
-    expect(screen.getByText('\u{1F6D2} Errands')).toBeTruthy();
+    expect(within(screen.getByLabelText('Errands, Olive')).getByText('\u{1F6D2}')).toBeTruthy();
     expect(await saved('cnew000001')).toMatchObject({ label: 'Errands', icon: '\u{1F6D2}', color: 'olive', position: 8 });
     expect(screen.getByText('Add a category')).toBeTruthy();
   });
@@ -119,12 +119,13 @@ describe('CategoriesScreen', () => {
     await fireEvent.changeText(screen.getByLabelText('Icon'), '\u{1F3C3}');
     await fireEvent.press(screen.getByText('Done'));
     expect((await saved('body')).icon).toBe('\u{1F3C3}');
-    expect(screen.getByText('\u{1F3C3} Body')).toBeTruthy();
+    expect(within(screen.getByLabelText('Body, Moss')).getByText('\u{1F3C3}')).toBeTruthy();
 
     await fireEvent.press(screen.getByLabelText('Body, Moss'));
     await fireEvent.changeText(screen.getByLabelText('Icon'), '');
     await fireEvent.press(screen.getByText('Done'));
     expect((await saved('body')).icon).toBe('');
+    expect(within(screen.getByLabelText('Body, Moss')).queryByText('\u{1F3C3}')).toBeNull();
   });
 
   it('says so when every category is archived', async () => {

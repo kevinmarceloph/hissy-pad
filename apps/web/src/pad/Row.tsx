@@ -9,6 +9,9 @@ import { redo, undo } from '@hissypad/state'
 import { apply } from '@hissypad/state'
 import { slotLabel, todayKey, inlineSpans, toggleCollapsed, URL_RE } from '@hissypad/core'
 import { useLineCategory } from '@hissypad/state/hours'
+import { addCategoryCss } from './categoryColors'
+
+addCategoryCss()
 
 interface Props {
   row: NodeRow
@@ -187,8 +190,9 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
         onPointerDown={(e) => onBulletPointerDown(row.id, e)}
       />
       {category && (
-        // The line's category (toolbar: Category…): its icon, or its name where it has none.
-        <span className={category.icon ? 'category' : 'category is-word'} title={category.label} aria-label={`Category: ${category.label}`}>
+        // The line's category (toolbar: Category…): its icon in a squircle of its color, or
+        // its name where it has none.
+        <span className={`category cat-${category.color}${category.icon ? '' : ' is-word'}`} title={category.label} role="img" aria-label={`Category: ${category.label}`}>
           {category.icon || category.label}
         </span>
       )}

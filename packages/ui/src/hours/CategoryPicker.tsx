@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Category, ColorKey } from '@hissypad/core/hours';
 
+import { CategoryBadge } from './CategoryBadge';
 import { NewCategory } from './CategoriesScreen';
 import { Tap } from './Tap';
 import { LINE, ROW, SchemeContext, serif, SIZE, SMALL, useTheme } from './theme';
@@ -68,8 +69,7 @@ function Picker({ categories, value, count = 1, onPick, onCancel, onCreate }: Om
                   onPress={() => onPick(c.id)}
                   style={[styles.choice, { borderColor: on ? theme.ink : theme.line }, on && { backgroundColor: theme.paperRaised }]}
                   activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paperRaised }}>
-                  <View style={[styles.swatch, { backgroundColor: theme.palette[c.color] }]} />
-                  <Text style={[styles.icon, { color: theme.ink }]}>{c.icon || ' '}</Text>
+                  <CategoryBadge category={c} size={26} />
                   <Text numberOfLines={1} style={[styles.body, styles.label, { color: theme.ink }, on && { fontWeight: '700' }]}>
                     {c.label}
                   </Text>
@@ -113,8 +113,7 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 0, flexShrink: 1 },
   list: { gap: 6 },
   choice: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: ROW, paddingHorizontal: 12, borderWidth: 1, borderRadius: 4 },
-  swatch: { width: 6, alignSelf: 'stretch', marginVertical: 8, borderRadius: 3 },
-  icon: { fontSize: SIZE, lineHeight: LINE, width: 24, textAlign: 'center' },
+  icon: { fontSize: SIZE, lineHeight: LINE, width: 26, textAlign: 'center' },
   label: { flex: 1 },
   newChoice: { borderStyle: 'dashed' },
   actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },

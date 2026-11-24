@@ -4,6 +4,7 @@ import type { NodeRow } from '@hissypad/core'
 import { apply, clickSelect, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
 import { inlineSpans, slotLabel, todayKey, toggleCollapsed } from '@hissypad/core'
 import { useLineCategory } from '@hissypad/state/hours'
+import { CategoryBadge } from '@hissypad/ui'
 import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, serif, type Theme } from '../theme'
 
 // How long after a line changes place a blur still counts as the move's doing.
@@ -119,13 +120,9 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
     >
       {bullet}
       {category && (
-        // The line's category (toolbar: More, Category…): its icon, or its name where it has none.
-        <Text
-          accessibilityLabel={`Category: ${category.label}`}
-          style={category.icon ? [s.category, row.done && { opacity: 0.55 }] : [s.categoryWord, { color: theme.inkSoft, borderColor: theme.rule }]}
-        >
-          {category.icon || category.label}
-        </Text>
+        // The line's category (toolbar: More, Category…): its icon in a squircle of its color,
+        // or its name where it has none.
+        <CategoryBadge category={category} wordWhenBare a11yLabel={`Category: ${category.label}`} style={[s.category, row.done && { opacity: 0.55 }]} />
       )}
       {isEditing ? (
         <TextInput
@@ -195,8 +192,7 @@ const s = StyleSheet.create({
   textWrap: { flex: 1, minHeight: LINE },
   text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, padding: 0, margin: 0, textAlignVertical: 'top' },
   input: { transform: [{ translateY: -INPUT_SHIFT }] },
-  category: { fontSize: SIZE, lineHeight: LINE, marginRight: 5 },
-  categoryWord: { fontFamily: serif, fontSize: SIZE - 5, lineHeight: LINE - 6, marginTop: 3, marginRight: 6, paddingHorizontal: 5, borderWidth: 1, borderRadius: 3, overflow: 'hidden' },
+  category: { marginTop: (LINE - 22) / 2, marginRight: 6 },
   slot: { fontSize: SIZE - 5, fontWeight: '400', fontStyle: 'normal', textDecorationLine: 'none' },
   chip: { fontSize: SIZE - 5, fontWeight: '400', textDecorationLine: 'none', fontVariant: ['tabular-nums'] },
 })

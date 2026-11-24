@@ -90,6 +90,8 @@ Screens written once in React Native. The phone draws them natively; the web app
 | `src/hours/CategoriesScreen.tsx`, `FlagsScreen.tsx`, `RecurringScreen.tsx` | the user's own lists; categories open from the app's top menu through `CategoriesApp` (`HoursApp.tsx`), flags and plans from Hours' menu |
 | `src/hours/provider.tsx` | the stores as React context, and `useSync` (signed in or not, the sync line) |
 | `src/hours/theme.ts` | paper and ink tokens with the 12 label colors searched for a deuteranope; `SchemeContext` lets the host force light or dark |
+| `src/hours/palette.ts` | the 12 label colors' values per scheme and `inkOn` (black or white text on one), with no React Native: the web pad imports it as `@hissypad/ui/palette` |
+| `src/hours/CategoryBadge.tsx` | a category as its icon in a squircle of its color (its name in a pill where it has no icon): the picker, the Categories screen and the phone's row prefix |
 | `src/hours/Mark.tsx`, `FlagMark.tsx`, `DayStrip.tsx`, `Tap.tsx`, `MoveButtons.tsx`, `ColorField.tsx`, `FlagOptions.tsx`, `PullRefresh.tsx` | the parts |
 | `src/testing/` | `rntl.ts` (the tests' events over React Testing Library), `setup.ts` |
 
@@ -100,7 +102,7 @@ Vite, React 19, a PWA. `src/main.tsx` wires the platform (IndexedDB, clipboard, 
 | folder | what is in it |
 |---|---|
 | `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start, Sort or Hours), `icons.tsx` (every icon as SVG: the top bar's and the line toolbar's `LineIcon`), `TopBar.tsx` (the mode switcher, Search, the menu with Done, Archive, Log, Fresh start and the theme, the pad tabs, "Archive N completed"), `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
-| `src/pad/` | the editor: `Pad.tsx` (the list and the selection-mode keys), `Row.tsx` (one line and its keys while editing), `SelectionBar.tsx` (the toolbar: icons, the Move to… and ⋯ menus; at phone width two rows that do not scroll, with the Done switch and "done editing" floating above it), `useDrag.ts` (pointer drag, of rows and of the floating +). The floating + itself is in `Pad.tsx` |
+| `src/pad/` | the editor: `Pad.tsx` (the list and the selection-mode keys), `Row.tsx` (one line and its keys while editing), `SelectionBar.tsx` (the toolbar: icons, the Move to… and ⋯ menus; at phone width two rows that do not scroll, with the Done switch and "done editing" floating above it), `useDrag.ts` (pointer drag, of rows and of the floating +), `categoryColors.ts` (the label palette as `.cat-<key>` CSS variables for the category badge before a line). The floating + itself is in `Pad.tsx` |
 | `src/pads/` | `PadTabs.tsx` (tabs, the pad sheet) and `FreshStart.tsx` |
 | `src/panels/` | `Lists.tsx` (Archive, Recently done), `Search.tsx` (Cmd+K, the top bar's Search), `Sort.tsx` and `Hours.tsx` (mounts the shared Hours screens, loaded on first use; the hour picker's dialog; the page's light or dark scheme) |
 | `src/platform/` | what only a browser has: `idb.ts` (LocalStore on IndexedDB), `clipboard.ts`, `supabase.ts`, `os.ts` (Mac or not, shortcut hints), `chimes.ts` (Hours' chimes in a browser: a timer, a sound, a notification) |

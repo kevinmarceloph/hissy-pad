@@ -4,7 +4,7 @@
 import { createContext, useContext } from 'react';
 import { Platform, useColorScheme } from 'react-native';
 
-import type { ColorKey } from '@hissypad/core/hours';
+import { PALETTES } from './palette';
 
 export const serif = Platform.select({
   ios: 'Charter',
@@ -12,6 +12,9 @@ export const serif = Platform.select({
   default: "Charter, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif",
 });
 
+// The palette's values live in ./palette.ts (no React Native, so the web pad can draw
+// a line's category without loading Hours).
+//
 // Category colors are data, like the series colors of a chart, not decoration. A category
 // stores a key from this palette, never a hex, and a swatch always sits next to its label.
 //
@@ -24,7 +27,6 @@ export const serif = Platform.select({
 // a narrower band of lightness and closer together. src/ui/__tests__/theme.test.ts holds
 // those numbers. Twelve colors cannot all be far apart for a deuteranope, which is why the
 // screen never rests on color alone.
-type Palette = Record<ColorKey, string>;
 
 // Text is 7:1 or better on the paper in both themes (ink, inkSoft, inkQuiet). `line` is
 // the border of a control or an empty box, 4:1 or better. `rule` only separates rows.
@@ -38,20 +40,7 @@ const light = {
   rule: '#bdb5a4',
   accent: '#a83d24',
   accentSoft: '#f0dfd9',
-  palette: {
-    blue: '#5589e0',
-    sky: '#135377',
-    teal: '#067a83',
-    moss: '#4fa002',
-    olive: '#332f00',
-    ochre: '#755b00',
-    brown: '#8e7364',
-    rose: '#f93aa6',
-    plum: '#781db9',
-    indigo: '#2103a2',
-    night: '#2a1f67',
-    stone: '#44403d',
-  } as Palette,
+  palette: PALETTES.light,
 };
 
 const dark: typeof light = {
@@ -64,20 +53,7 @@ const dark: typeof light = {
   rule: '#524e46',
   accent: '#e8826a',
   accentSoft: '#3a2a26',
-  palette: {
-    blue: '#145dff',
-    sky: '#aed7ef',
-    teal: '#007c60',
-    moss: '#c9ff4c',
-    olive: '#c0d995',
-    ochre: '#ff9900',
-    brown: '#a25a29',
-    rose: '#f13350',
-    plum: '#d889ff',
-    indigo: '#8f7aff',
-    night: '#5587c2',
-    stone: '#c3b4ac',
-  } as Palette,
+  palette: PALETTES.dark,
 };
 
 export const themes = { light, dark };

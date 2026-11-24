@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
-  categoryName,
   cleanIcon,
   cleanLabel,
   colorLabel,
@@ -15,6 +14,7 @@ import {
 } from '@hissypad/core/hours';
 import { useCategories } from './provider';
 
+import { CategoryBadge } from './CategoryBadge';
 import { ColorField } from './ColorField';
 import { MoveButtons } from './MoveButtons';
 import { Tap } from './Tap';
@@ -114,9 +114,9 @@ export function CategoriesScreen({ onBack, backLabel = 'Back to the day' }: { on
               </Text>
               {archived.map((category) => (
                 <View key={category.id} style={[styles.wrap, styles.row, { borderBottomColor: theme.rule }]}>
-                  <View style={[styles.swatch, { backgroundColor: theme.palette[category.color] }]} />
+                  <CategoryBadge category={category} />
                   <Text numberOfLines={1} style={[styles.body, styles.name, { color: theme.inkSoft }]}>
-                    {categoryName(category)}
+                    {category.label}
                   </Text>
                   <Tap
                     aria-label={`Restore ${category.label}`}
@@ -159,9 +159,9 @@ function CategoryRow(props: RowProps) {
           aria-label={`${category.label}, ${colorLabel(category.color)}`}
           style={[styles.row, styles.name]}
           activeStyle={{ backgroundColor: theme.paperRaised }}>
-          <View style={[styles.swatch, { backgroundColor: theme.palette[category.color] }]} />
+          <CategoryBadge category={category} />
           <Text numberOfLines={1} style={[styles.body, styles.name, { color: theme.ink }]}>
-            {categoryName(category)}
+            {category.label}
           </Text>
         </Tap>
         {/* Beside the row's button, not inside it: the order changes without opening anything. */}
@@ -388,7 +388,6 @@ const styles = StyleSheet.create({
   wrap: { borderBottomWidth: StyleSheet.hairlineWidth },
   line: { flexDirection: 'row', alignItems: 'center' },
   row: { minHeight: ROW, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4 },
-  swatch: { width: 14, height: 14, borderRadius: 3 },
   name: { flex: 1 },
   editor: { paddingLeft: 30, paddingRight: 4, paddingBottom: 16, gap: 16 },
   newEditor: { paddingLeft: 12, paddingRight: 12, paddingTop: 12, marginTop: 16, borderRadius: 4 },
