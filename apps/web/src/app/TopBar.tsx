@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { usePad } from '@hissypad/state'
 import { cmdDeleteDone } from '@hissypad/state'
 import { copyText } from '../platform/clipboard'
-import { DonePanel, TrashPanel } from '../panels/Lists'
+import { DonePanel } from '../panels/Lists'
 import { SearchPanel } from '../panels/Search'
 import { CategoriesDialog } from '../panels/Hours'
 import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
@@ -12,7 +12,7 @@ import { MOD } from '../platform/os'
 import { HoursIcon, MenuIcon, PadIcon, PlusIcon, SearchIcon, SortIcon } from './icons'
 
 type Theme = 'system' | 'light' | 'dark'
-export type View = 'pad' | 'fresh' | 'sort' | 'hours'
+export type View = 'pad' | 'fresh' | 'sort' | 'hours' | 'archive'
 
 
 function readTheme(): Theme {
@@ -34,15 +34,15 @@ const MODES: { view: 'pad' | 'hours' | 'sort'; label: string; title: string; ico
   { view: 'sort', label: 'Sort', title: 'Sort: one line of the open pad at a time. Left for later, right for today, up for done, down to archive', icon: SortIcon },
 ]
 
-// `onCreate` opens the new item's card (the + beside Search).
-export function TopBar({ view, onView, onCreate }: { view: View; onView: (view: View) => void; onCreate: () => void }) {
+// `onCreate` opens the new item's card (the + beside Search). `onArchived` opens the Archive
+// screen at one line: an archived line found in Search.
+export function TopBar({ view, onView, onCreate, onArchived }: { view: View; onView: (view: View) => void; onCreate: () => void; onArchived: (id: string) => void }) {
   const rows = usePad((s) => s.rows)
   const [theme, setTheme] = useState<Theme>(readTheme)
   const toast = useToast((s) => s.text)
   const toastAt = useToast((s) => s.at)
   const setToast = showToast
   const logDialog = useRef<HTMLDialogElement>(null)
-  const trashDialog = useRef<HTMLDialogElement>(null)
   const doneDialog = useRef<HTMLDialogElement>(null)
   const searchDialog = useRef<HTMLDialogElement>(null)
   const [logText, setLogText] = useState('')
@@ -94,7 +94,8 @@ export function TopBar({ view, onView, onCreate }: { view: View; onView: (view: 
 
   const liveCount = Object.values(rows).filter((r) => r.deletedAt === null).length
   const doneCount = Object.values(rows).filter((r) => r.deletedAt === null && r.done).length
-  // Fresh start is a way of looking at the pad, so the switcher still says Pad.
+  // Fresh start is a way of looking at the pad, so the switcher still says Pad. The Archive
+  // is no mode: nothing in the switcher is lit there.
   const mode = view === 'fresh' ? 'pad' : view
 
   function deleteDone() {
@@ -131,7 +132,7 @@ export function TopBar({ view, onView, onCreate }: { view: View; onView: (view: 
           {menu && (
             <div className="more-menu" role="menu" aria-label="More">
               <button type="button" role="menuitem" aria-label="Recently done" title="Crossed-out lines, newest first" onClick={() => pick(() => doneDialog.current?.showModal())}>Done</button>
-              <button type="button" role="menuitem" title="Archived lines from the last 30 days" onClick={() => pick(() => trashDialog.current?.showModal())}>Archive</button>
+              <button type="button" role="menuitem" title="Every archived line, the newest first, each with the pad it was in" onClick={() => pick(() => onView('archive'))}>Archive</button>
               <button type="button" role="menuitem" title="The categories hours and lines can go in: add, rename, recolor, reorder, archive" onClick={() => pick(() => setCategories(true))}>Categories</button>
               {logEnabled() && (
                 <button type="button" role="menuitem" title="Debug log (?debug=1 turned this on)" onClick={() => pick(() => { setLogText(dumpLog()); logDialog.current?.showModal() })}>Log</button>
@@ -157,10 +158,9 @@ export function TopBar({ view, onView, onCreate }: { view: View; onView: (view: 
         </button>
       )}
       {toast && <output className="toast" aria-live="polite">{toast}</output>}
-      <TrashPanel dialog={trashDialog} />
       <DonePanel dialog={doneDialog} />
       {categories && <CategoriesDialog onClose={() => setCategories(false)} />}
-      <SearchPanel dialog={searchDialog} onOpen={() => onView('pad')} />
+      <SearchPanel dialog={searchDialog} onOpen={() => onView('pad')} onArchived={onArchived} />
       <dialog ref={logDialog} className="import" aria-labelledby="log-title">
         <form method="dialog">
           <h2 id="log-title">Debug log</h2>

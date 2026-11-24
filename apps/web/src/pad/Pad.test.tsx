@@ -309,28 +309,9 @@ describe('toolbar iteration', () => {
   })
 })
 
-describe('Archive and Done panels', () => {
+describe('Done panel', () => {
   beforeEach(() => {
     Element.prototype.scrollIntoView = () => {}
-  })
-
-  it('a deleted line shows up in Archive and Restore puts it back, selected', async () => {
-    const user = userEvent.setup()
-    await mount('keep\ngone\n  gone child')
-    await user.click(within(rowByText('gone')).getByRole('button', { name: /Select line/ }))
-    await user.keyboard('{Delete}')
-    expect(texts()).toBe('keep')
-    await user.click(screen.getByRole('button', { name: 'More' }))
-    await user.click(screen.getByRole('menuitem', { name: 'Archive' }))
-    const dlg = screen.getByRole('dialog', { name: 'Archive' })
-    expect(dlg).toHaveTextContent('Today')
-    expect(dlg).toHaveTextContent('gone')
-    expect(dlg).toHaveTextContent('+1 line under it')
-    expect(dlg).toHaveTextContent('Archived lines stay here for 30 days.')
-    await user.click(within(dlg).getByRole('button', { name: 'Restore' }))
-    expect(texts()).toBe('keep\ngone\n  gone child')
-    expect(usePad.getState().selection).toEqual([rowByText('gone').dataset.id])
-    expect((dlg as HTMLDialogElement).open).toBe(false)
   })
 
   it('a crossed-out line shows up under Done and Undone clears it', async () => {

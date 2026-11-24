@@ -91,7 +91,7 @@ describe('search', () => {
     expect(panel()).toHaveAttribute('open')
   })
 
-  it('the toggle adds archived lines, and Enter on one brings it back', async () => {
+  it('the toggle adds archived lines, and Enter on one opens the Archive at it, still archived', async () => {
     const user = userEvent.setup()
     await mount()
     const gone = idOf(usePad.getState().rows, 'Buy milk')
@@ -106,7 +106,11 @@ describe('search', () => {
     expect(screen.getByRole('group', { name: 'Archive', hidden: true })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Leave out archived lines', hidden: true })).toHaveAttribute('aria-pressed', 'true')
     await user.keyboard('{Enter}')
-    expect(usePad.getState().all[gone]!.deletedAt).toBeNull()
-    expect(selectedText()).toEqual(['Buy milk'])
+    expect(panel()).not.toHaveAttribute('open')
+    expect(usePad.getState().all[gone]!.deletedAt).not.toBeNull()
+    const line = within(screen.getByRole('tree', { name: 'Archived lines' })).getByRole('treeitem')
+    expect(line).toHaveTextContent('Buy milk')
+    expect(line).toHaveClass('is-found')
+    expect(location.hash).toBe('#archive')
   })
 })

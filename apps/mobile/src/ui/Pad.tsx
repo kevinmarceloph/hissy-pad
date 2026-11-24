@@ -7,13 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, flatten, listNumbers, pinDivider, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, resumeEditing, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
+import { apply, clearSelection, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, resumeEditing, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
 import { FloatingButtons } from './FloatingButtons'
 import { Account } from './Account'
-import { DoneSheet, TrashSheet } from './Lists'
+import { DoneSheet } from './Lists'
+import { ArchiveView } from './Archive'
 import { SortView } from './Sort'
 import { SubRows } from './SubRows'
 import { CategoriesApp, CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
@@ -95,7 +96,11 @@ export function Pad() {
   // Pad, Hours or Sort: the switcher in the top bar. The pad stays mounted under the other
   // two, so it is where it was left on the way back.
   const [mode, setMode] = useState<Mode>('hours')
-  const [sheet, setSheet] = useState<'trash' | 'done' | 'search' | 'categories' | null>(null)
+  const [sheet, setSheet] = useState<'done' | 'search' | 'categories' | null>(null)
+  // The Archive: a screen that is no mode, over whichever mode is open. `id` is the line it
+  // opens at (an archived line picked in Search); `rev` makes a second trip scroll again.
+  const [archive, setArchive] = useState<{ id: string | null; rev: number } | null>(null)
+  const screen = archive ? 'archive' : mode
   // The hour picker the toolbar's "Hour…" (behind More) opens.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
   // The same for "Category…".
@@ -353,10 +358,20 @@ export function Pad() {
   }
 
   function switchMode(next: Mode) {
+    // From the Archive, a tap on any mode goes there, the one it was opened over included.
+    setArchive(null)
     if (next === mode) return
     stopEditing()
     Keyboard.dismiss()
     setMode(next)
+  }
+
+  // The pad's selection is dropped on the way: its toolbar is not the Archive's.
+  function openArchive(id: string | null) {
+    stopEditing()
+    clearSelection()
+    Keyboard.dismiss()
+    setArchive((was) => ({ id, rev: (was?.rev ?? 0) + 1 }))
   }
 
   // The hamburger: the lists that are looked at now and then.
@@ -364,7 +379,7 @@ export function Pad() {
     stopEditing()
     Alert.alert('HissyPad', undefined, [
       { text: 'Done', onPress: () => setSheet('done') },
-      { text: 'Archive', onPress: () => setSheet('trash') },
+      { text: 'Archive', onPress: () => openArchive(null) },
       { text: 'Categories', onPress: () => setSheet('categories') },
       ...(logEnabled() ? [{ text: 'Log', onPress: () => setLogText(dumpLog()) }] : []),
       { text: 'Cancel', style: 'cancel' as const },
@@ -427,17 +442,17 @@ export function Pad() {
     <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: kb > 0 ? kb : insets.bottom }]}>
       <View style={s.top}>
         <Text style={[s.title, { color: theme.inkSoft }]}>HissyPad</Text>
-        <ModeBar mode={mode} onMode={switchMode} theme={theme} />
+        <ModeBar mode={archive ? null : mode} onMode={switchMode} theme={theme} />
         <View style={s.grow} />
         <Pressable onPress={() => { stopEditing(); openCreate() }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="New item"><PlusIcon color={theme.inkSoft} /></Pressable>
         <Pressable onPress={() => { stopEditing(); setSheet('search') }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Search every pad"><SearchIcon color={theme.inkSoft} /></Pressable>
         <Pressable onPress={openMenu} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="More: Done, Archive and Categories"><MenuIcon color={theme.inkSoft} /></Pressable>
       </View>
       {/* The pad chips are the pad's only: Sort picks its pad in its own title. */}
-      {mode === 'pad' && <PadChips theme={theme} />}
+      {screen === 'pad' && <PadChips theme={theme} />}
       {/* The pad's status line: the toast on the left, Archive x completed flush right. It keeps
           its height when both are empty, so neither one pushes the pad down when it shows up. */}
-      {mode === 'pad' && (
+      {screen === 'pad' && (
         <View style={s.status}>
           <Text style={[s.statusToast, { color: theme.inkSoft }]} numberOfLines={1} accessibilityLiveRegion="polite">{toast ?? ''}</Text>
           {doneCount > 0 && (
@@ -459,19 +474,19 @@ export function Pad() {
           </ScrollView>
         </View>
       </Modal>
-      <TrashSheet visible={sheet === 'trash'} onClose={() => setSheet(null)} theme={theme} />
       {!creating && pickers}
-      <CreateSheet theme={theme} onOpen={() => setMode('pad')}>{pickers}</CreateSheet>
+      <CreateSheet theme={theme} onOpen={() => { setArchive(null); setMode('pad') }}>{pickers}</CreateSheet>
       <Modal visible={sheet === 'categories'} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSheet(null)}>
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
           {sheet === 'categories' && <CategoriesApp onClose={() => setSheet(null)} />}
         </View>
       </Modal>
-      <SearchSheet visible={sheet === 'search'} onClose={() => setSheet(null)} onOpen={() => setMode('pad')} theme={theme} />
+      <SearchSheet visible={sheet === 'search'} onClose={() => setSheet(null)} onOpen={() => { setArchive(null); setMode('pad') }} onArchived={openArchive} theme={theme} />
       <DoneSheet visible={sheet === 'done'} onClose={() => setSheet(null)} theme={theme} />
-      {toast && mode !== 'pad' && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
+      {toast && screen !== 'pad' && screen !== 'archive' && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
       {/* Hours: the shared screens (packages/ui). Sort starts over when the pad changes. */}
-      {mode === 'hours' && (
+      {screen === 'archive' && archive && <ArchiveView at={archive.id ? { id: archive.id, rev: archive.rev } : null} onClose={() => setArchive(null)} theme={theme} bottom={0} />}
+      {screen === 'hours' && (
         <View style={s.scroll}>
           {/* An open hour's lines are the pad's own rows (the store shows that hour), so
               the toolbar and the floating buttons below act on them. */}
@@ -479,12 +494,12 @@ export function Pad() {
           {hourOpen && !creating && (liveEditing !== null || liveSelection.length > 0) && <FloatingButtons theme={theme} />}
         </View>
       )}
-      {mode === 'sort' && <SortView key={padId ?? 'main'} theme={theme} paused={creating} onOpen={() => setMode('pad')} />}
+      {screen === 'sort' && <SortView key={padId ?? 'main'} theme={theme} paused={creating} onOpen={() => setMode('pad')} />}
       {load === 'loading' ? (
-        mode === 'pad' && <Text style={[s.hint, { color: theme.inkMute }]}>Opening your pad…</Text>
+        screen === 'pad' && <Text style={[s.hint, { color: theme.inkMute }]}>Opening your pad…</Text>
       ) : (
         <GestureDetector gesture={pan}>
-          <View ref={container} style={mode === 'pad' ? s.scroll : s.hidden} onLayout={() => container.current?.measureInWindow((x, y) => (origin.current = { x, y }))}>
+          <View ref={container} style={screen === 'pad' ? s.scroll : s.hidden} onLayout={() => container.current?.measureInWindow((x, y) => (origin.current = { x, y }))}>
           <ScrollView
             ref={scroller}
             style={s.scroll}

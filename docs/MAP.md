@@ -63,8 +63,9 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `commands.ts` | the editor commands (`cmd…`): what a key or button does to lines, and where the caret or selection goes after |
 | `actions.ts` | the line toolbar as data: `LINE_ACTIONS` (each with its icon, `offered` for the ones that belong only in an open hour or only outside one: the toolbars draw `lineActions(can)`, `more` for the ones in the dropdown, `floats` for the ones drawn as floating buttons), `actionFace` (Fold reads Unfold), `LINE_KINDS`, `lineAbilities`. Web and the phone both draw from it |
 | `pads.ts` | pad commands: new, rename, delete, reorder, move to, make pad from a line, fold a pad back into a line, the list of places (`placeList`: pads and "Pad → Sub-pad"), move to a place, jump to a sub-pad, Fresh start; `padList` puts Today, Inbox (the root) and Later first (the store's `settleFixed` keeps Today and Later there and folds a pad named Inbox into the root; tested in `fixed.test.ts`) |
-| `lists.ts` | the Archive and Recently done panels: entries, restore, un-done, day grouping |
-| `search.ts` | Search across every pad: the lines found, grouped by pad with the words marked (`search`), archived lines last in a group of their own when asked, and the jump to one (`cmdOpenHit`, which brings an archived line back first) |
+| `lists.ts` | the Recently done panel: entries, un-done; day grouping and a row's pad for the other lists |
+| `archive.ts` | the Archive screen: every archived line, newest archive first, with its depth, its number and the pad it was in (`archiveLines`, `sourcePad`), the screen's own selection (`archiveTap`, `archiveCovered`), and `cmdUnarchive` (each line to the top of its pad, with what was archived under it; a pad back as a tab) |
+| `search.ts` | Search across every pad: the lines found, grouped by pad with the words marked (`search`), archived lines last in a group of their own when asked, and the jump to a live one (`cmdOpenHit`); an archived hit is opened on the Archive screen by each app |
 | `create.ts` | a new item on its card: make the line at the top of a place and zoom into it, set its text, move it to another place, and close the card keeping it or taking it all back |
 | `sort.ts` | Sort: the pad being sorted whatever the zoom (`sortRows`), the queue, the two targets, sending a card, the session a sort screen holds, the swipe rule |
 | `shake.ts` | shake detection from accelerometer samples |
@@ -107,10 +108,10 @@ Vite, React 19, a PWA. `src/main.tsx` wires the platform (IndexedDB, clipboard, 
 
 | folder | what is in it |
 |---|---|
-| `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start, Sort or Hours), `icons.tsx` (every icon as SVG: the top bar's and the line toolbar's `LineIcon`), `TopBar.tsx` (the mode switcher, the + for a new item, Search, the menu with Done, Archive, Log, Fresh start and the theme, the pad tabs, "Archive N completed"), `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
+| `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start, Sort, Hours or the Archive), `icons.tsx` (every icon as SVG: the top bar's and the line toolbar's `LineIcon`), `TopBar.tsx` (the mode switcher, the + for a new item, Search, the menu with Done, Archive, Log, Fresh start and the theme, the pad tabs, "Archive N completed"), `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
 | `src/pad/` | the editor: `Pad.tsx` (the list and the selection-mode keys), `Row.tsx` (one line and its keys while editing), `SelectionBar.tsx` (the toolbar: icons, the Move to… and ⋯ menus, and floating above its right end Hour…, Category…, the open / doing / done switch and "done editing"; at phone width two rows that do not scroll), `useDrag.ts` (pointer drag, of rows and of the floating +), `categoryColors.ts` (the label palette as `.cat-<key>` CSS variables for the category badge before a line). The floating + itself is in `Pad.tsx` |
 | `src/pads/` | `PadTabs.tsx` (tabs, the pad sheet) and `FreshStart.tsx` |
-| `src/panels/` | `Lists.tsx` (Archive, Recently done), `Search.tsx` (Cmd+K, the top bar's Search, a text toggle for archived lines), `Sort.tsx`, `Create.tsx` (the new item's card: Sort's card in a dialog over the page, with the pad's rows and toolbar for its sub items) and `Hours.tsx` (mounts the shared Hours screens, loaded on first use; the hour picker's dialog; the page's light or dark scheme) |
+| `src/panels/` | `Lists.tsx` (Recently done), `Archive.tsx` (the Archive screen, `#archive`: archived lines drawn with the pad's row styles, a chip for the pad each was in, click to select, Unarchive), `Search.tsx` (Cmd+K, the top bar's Search, a text toggle for archived lines; an archived hit opens the Archive at it), `Sort.tsx`, `Create.tsx` (the new item's card: Sort's card in a dialog over the page, with the pad's rows and toolbar for its sub items) and `Hours.tsx` (mounts the shared Hours screens, loaded on first use; the hour picker's dialog; the page's light or dark scheme) |
 | `src/platform/` | what only a browser has: `idb.ts` (LocalStore on IndexedDB), `clipboard.ts`, `supabase.ts`, `os.ts` (Mac or not, shortcut hints), `chimes.ts` (Hours' chimes in a browser: a timer, a sound, a notification) |
 | `e2e/` | Playwright with real pointers and touches: `drag.spec.ts`, `sort.spec.ts`, `toolbar.spec.ts` (the Move to… menu is really on screen; at phone width the bar does not scroll and the floating buttons work) |
 | `test/setup.ts` | jsdom gaps filled in (dialogs) |
@@ -128,7 +129,8 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 | `src/ui/Toolbar.tsx` | the line toolbar above the keyboard, drawn from `LINE_ACTIONS` as two rows (no sideways scroll); the tray icon lists the pads to move to, the three dots the actions marked `more` |
 | `src/ui/FloatingButtons.tsx` | the round buttons at the bottom right: + when nothing is targeted (tap for a line at the top, drag it onto the pad for a line where it is dropped; the drag itself is `addDrag` in `Pad.tsx`); while editing or selecting, Hour… and Category… (the actions marked `floats`), a switch of three sides, each a button for its state (• open, a dot in a ring for doing, × crossed out) and a chevron (done editing) |
 | `src/ui/PadChips.tsx` | the pads as chips, with rename, reorder and delete |
-| `src/ui/Lists.tsx` | Archive and Recently done sheets |
+| `src/ui/Lists.tsx` | the Recently done sheet |
+| `src/ui/Archive.tsx` | the Archive screen (no mode lit in the switcher): archived lines as the pad draws them, a chip for the pad each was in, tap to select, Unarchive |
 | `src/ui/Search.tsx` | the Search sheet, with the same archived-lines toggle |
 | `src/ui/Sort.tsx` | the Sort screen (PanResponder swipe); the card's sub items are `SubRows` |
 | `src/ui/SubRows.tsx` | the sub items of one line as the pad's own rows, while the store is zoomed into it: Sort's card and the new item's sheet |
@@ -220,8 +222,8 @@ supabase test db                    # pgTAP against the local stack
 | where | what it covers | lines covered (2026-11-17) |
 |---|---|---|
 | `packages/core/src/*.test.ts` | every op, ranks, the tree, paste, pads, the sync engine against a fake server, property tests | 98% |
-| `packages/state/src/*.test.ts` | commands, the toolbar registry, selection, undo, pads, sort, search, lists, sync wiring, the remote, the log | 96% |
-| `apps/web/src/**/*.test.tsx` | the app in jsdom: editing, keys, toolbar, pads, Fresh start, Sort, Search, top bar, clipboard | 76% |
+| `packages/state/src/*.test.ts` | commands, the toolbar registry, selection, undo, pads, sort, search, lists, the archive, sync wiring, the remote, the log | 96% |
+| `apps/web/src/**/*.test.tsx` | the app in jsdom: editing, keys, toolbar, pads, Fresh start, Sort, Search, the Archive, top bar, clipboard | 76% |
 | `packages/ui/src/**/*.test.tsx` | the Hours screens in jsdom through react-native-web: the day, the lists, lines in an hour, the hour picker, the palette's contrast numbers | not measured |
 | `apps/web/e2e` | drag and swipe with real pointer and touch input | not counted |
 

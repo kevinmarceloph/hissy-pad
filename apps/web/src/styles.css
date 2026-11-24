@@ -488,6 +488,35 @@ dialog.categories-dialog[open] { height: min(44rem, calc(100dvh - 3rem)); displa
 .tail:hover { background: var(--paper-raised); }
 
 .hint { color: var(--ink-mute); font-style: italic; margin: 0.75rem 0 0 var(--gutter); font-size: 0.95rem; }
+
+/* The Archive screen: the pad's rows, not editable, each with the pad it was in at the
+   right. A click anywhere on a line selects it. Room at the bottom for the floating bar. */
+.archive { padding-bottom: 5rem; }
+.archive-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; margin: 0 0 0.25rem var(--gutter); }
+.archive-top h2 { margin: 0; font-size: 1.15rem; font-weight: 400; font-style: italic; }
+.archive .day { margin: 0.9rem 0 0.25rem var(--gutter); font-size: 0.8rem; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mute); }
+.archive .rows > :first-child .day { margin-top: 0.5rem; }
+.archive .row { grid-template-columns: var(--gutter) 1fr auto; cursor: pointer; }
+.archive .row.has-category { grid-template-columns: var(--gutter) auto 1fr auto; }
+.archive .row .bullet, .archive .row .text { cursor: pointer; }
+.archive .row .category { cursor: pointer; }
+.archive .row:hover:not(.is-selected):not(.is-selected-child) { background: var(--paper-raised); }
+/* The line Search sent here: a rule down its left edge, so it does not rest on color alone. */
+.archive .row.is-found { box-shadow: inset 3px 0 0 var(--accent); }
+.archive .row .src {
+  grid-row: 1; grid-column: 3;
+  align-self: start;
+  margin: calc((var(--size) * var(--lh) - 1.25rem) / 2) 0.35rem 0 0.75rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--rule); border-radius: 3px;
+  color: var(--ink-soft); font-size: 0.72rem; line-height: 1.15rem; white-space: nowrap;
+  max-width: 10rem; overflow: hidden; text-overflow: ellipsis;
+}
+.archive .row.has-category .src { grid-column: 4; }
+/* Its pad is archived too. */
+.archive .row .src.is-gone { border-style: dashed; color: var(--ink-mute); }
+.archive .older { margin: 0.75rem 0 0 var(--gutter); }
+.archive .selbar button { padding: 0 0.75rem; }
 .foot { color: var(--ink-mute); font-size: 0.82rem; margin-top: 3rem; }
 
 /* Action toolbar: one row, never wraps; on a desktop window too narrow for it, it scrolls

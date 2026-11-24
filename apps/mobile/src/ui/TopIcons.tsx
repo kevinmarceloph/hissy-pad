@@ -77,7 +77,8 @@ const MODES: { mode: Mode; label: string }[] = [
 
 // The open mode is a raised cell with a line of the accent under it and full ink, so
 // which one is open does not rest on color alone.
-export function ModeBar({ mode, onMode, theme }: { mode: Mode; onMode: (mode: Mode) => void; theme: Theme }) {
+// `mode` is null on a screen that is no mode (the Archive): nothing is lit.
+export function ModeBar({ mode, onMode, theme }: { mode: Mode | null; onMode: (mode: Mode) => void; theme: Theme }) {
   return (
     <View accessibilityRole="tablist" style={[i.modes, { borderColor: theme.rule }]}>
       {MODES.map((m) => {

@@ -59,7 +59,7 @@ function Linkified({ text }: { text: string }) {
 // The line as it reads when not being edited: **bold**, *italic*, __underline__,
 // ~~strikethrough~~, ==highlight== and `code` drawn as such with their symbols left in,
 // links clickable (but not inside code).
-function Styled({ text }: { text: string }) {
+export function Styled({ text }: { text: string }) {
   return (
     <>
       {inlineSpans(text).map((sp, i) => {

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { slotKey, slotLines, stateOf } from '@hissypad/core';
-import { closeSlot, cmdRestore, openSlot, usePad } from '@hissypad/state';
+import { closeSlot, cmdUnarchive, openSlot, usePad } from '@hissypad/state';
 
 import { SlotAdder } from './SlotAdder';
 import { StateMark } from './StateMark';
@@ -57,7 +57,7 @@ export function HostedLines({ day, hour, onClose }: Props) {
       {archived.length > 0 && (
         // Drawn like the pad's lines, under a heading of their own: a bullet that says the
         // line's state, its words, and the way back (Kevin, 2026-11-25). Unarchiving puts
-        // the line back in its pad, and so back among the hour's lines above.
+        // the line at the top of its pad (cmdUnarchive), and so back among the hour's lines above.
         <View>
           <Text role="heading" aria-level={3} style={[styles.heading, { color: theme.inkSoft }]}>
             Archived
@@ -71,7 +71,7 @@ export function HostedLines({ day, hour, onClose }: Props) {
                 <Text style={[styles.text, { color: r.done ? theme.inkQuiet : theme.ink }, r.done && styles.struck]}>{r.text}</Text>
                 <Tap
                   aria-label={`Unarchive “${r.text}”`}
-                  onPress={() => cmdRestore([r.id], { show: false })}
+                  onPress={() => cmdUnarchive([r.id])}
                   style={[styles.back, { borderColor: theme.line }]}
                   activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paper }}>
                   <Text style={[styles.small, { color: theme.ink }]}>Unarchive</Text>

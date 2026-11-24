@@ -1,12 +1,13 @@
 // Search every pad: a <dialog> with one field and the matching lines under it, grouped by
 // pad. Up and Down walk the list without leaving the field, Enter (or a click) goes to the
 // line: its pad opens, anything folded over it unfolds, and the line is selected. A text
-// toggle under the field adds the archived lines; going to one brings it back.
+// toggle under the field adds the archived lines; going to one opens the Archive at it.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
-import { cmdOpenHit, search, searchCount, usePad } from '@hissypad/state'
+import { cmdOpenHit, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
 
 // `onOpen` runs when a line found is gone to: the app comes back to the pad from Hours or Sort.
-export function SearchPanel({ dialog, onOpen }: { dialog: RefObject<HTMLDialogElement | null>; onOpen?: () => void }) {
+// `onArchived` is handed an archived line that was picked: the app shows it in the Archive.
+export function SearchPanel({ dialog, onOpen, onArchived }: { dialog: RefObject<HTMLDialogElement | null>; onOpen?: () => void; onArchived?: (id: string) => void }) {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
   const [query, setQuery] = useState('')
@@ -23,10 +24,11 @@ export function SearchPanel({ dialog, onOpen }: { dialog: RefObject<HTMLDialogEl
     list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest' })
   }, [at, result])
 
-  function open(id: string | undefined) {
-    if (!id) return
+  function open(hit: SearchHit | undefined) {
+    if (!hit) return
     dialog.current?.close()
-    cmdOpenHit(id)
+    if (hit.archived) return onArchived?.(hit.id)
+    cmdOpenHit(hit.id)
     onOpen?.()
   }
 
@@ -42,7 +44,7 @@ export function SearchPanel({ dialog, onOpen }: { dialog: RefObject<HTMLDialogEl
 
   return (
     <dialog ref={dialog} className="import search" aria-label="Search" onClose={() => { setQuery(''); setActive(0) }}>
-      <form method="dialog" onSubmit={(e) => { e.preventDefault(); open(hits[at]?.id) }}>
+      <form method="dialog" onSubmit={(e) => { e.preventDefault(); open(hits[at]) }}>
         <div className="bar">
         <input
           ref={field}
@@ -78,7 +80,7 @@ export function SearchPanel({ dialog, onOpen }: { dialog: RefObject<HTMLDialogEl
                     role="option"
                     aria-selected={i === at}
                     className={['hit', h.done && 'is-done', h.archived && 'is-archived'].filter(Boolean).join(' ')}
-                    onClick={() => open(h.id)}
+                    onClick={() => open(h)}
                     onMouseMove={() => { if (i !== at) setActive(i) }}
                   >
                     <span className="txt">
@@ -92,7 +94,7 @@ export function SearchPanel({ dialog, onOpen }: { dialog: RefObject<HTMLDialogEl
           ))}
         </div>
         <p className="note" role="status">
-          {!typed ? `Lines from every pad, crossed-out ones${archived ? ' and archived ones' : ''} too. Enter goes to the line${archived ? ', and brings an archived one back' : ''}.` : hits.length === 0 ? 'Nothing found.' : `${searchCount(result)}.`}
+          {!typed ? `Lines from every pad, crossed-out ones${archived ? ' and archived ones' : ''} too. Enter goes to the line${archived ? ', or to an archived one in the Archive' : ''}.` : hits.length === 0 ? 'Nothing found.' : `${searchCount(result)}.`}
         </p>
       </form>
     </dialog>

@@ -1,12 +1,11 @@
 import { resetStore } from './testing'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createPad, idOf, moveToPad, remove, scopePad, shape } from '@hissypad/core'
-import { apply, applyAll, clock, loadPad, setAll, usePad } from './store'
+import { idOf, remove } from '@hissypad/core'
+import { apply, loadPad, setAll, usePad } from './store'
 import { undo } from './history'
 import { select } from './selection'
-import { cmdDeleteSelection, cmdToggleDone } from './commands'
-import { cmdDeletePad } from './pads'
-import { cmdRestore, cmdUndone, dayLabel, doneEntries, firstLine, groupByDay, timeLabel, trashEntries, underLabel } from './lists'
+import { cmdToggleDone } from './commands'
+import { cmdUndone, dayLabel, doneEntries, firstLine, groupByDay, timeLabel, underLabel } from './lists'
 
 async function reset(outline: string) {
   const mem = resetStore(outline)
@@ -16,142 +15,8 @@ async function reset(outline: string) {
 
 // The whole table, tombstones included; the pad being shown is usePad.getState().rows.
 const rows = () => usePad.getState().all
-const inbox = () => scopePad(rows(), null) // the Inbox (the root level), without Today and Later
-// By text, deleted rows included (core's idOf only sees live ones).
+// By text (core's idOf only sees live rows).
 const id = (t: string) => Object.values(rows()).find((r) => r.text === t)?.id ?? idOf(rows(), t)
-// Move the shared clock on, so the next delete is its own batch.
-const skip = (ms: number) => clock.observe(new Date(Date.parse(clock.last()) + ms).toISOString())
-const del = (...texts: string[]) => {
-  const ids = texts.map(id)
-  select(ids, ids[0]!)
-  cmdDeleteSelection()
-}
-
-describe('trashEntries', () => {
-  beforeEach(() => reset('A\nB\n  B1\n  B2\n    B2a\nC\nD'))
-
-  it('groups one delete into one batch with its top-level rows and a count', () => {
-    del('B', 'D')
-    const batches = trashEntries()
-    expect(batches).toHaveLength(1)
-    const [b] = batches
-    expect(b!.entries.map((e) => e.text)).toEqual(['B', 'D'])
-    expect(b!.entries[0]!.childCount).toBe(3)
-    expect(b!.count).toBe(5)
-    // Every row of the delete shares the stamp.
-    const stamps = new Set(['B', 'B1', 'B2', 'B2a', 'D'].map((t) => rows()[id(t)]!.deletedAt))
-    expect(stamps.size).toBe(1)
-  })
-
-  it('lists newer batches first and keeps separate deletes apart', () => {
-    del('A')
-    skip(5000)
-    del('C')
-    const batches = trashEntries()
-    expect(batches.map((b) => b.entries.map((e) => e.text))).toEqual([['C'], ['A']])
-  })
-
-  it('drops batches older than 30 days and blank spacers', () => {
-    del('A')
-    const stale = new Date(Date.now() - 31 * 86_400_000).toISOString()
-    setAll({ ...rows(), [id('A')]: { ...rows()[id('A')]!, deletedAt: stale } })
-    expect(trashEntries()).toEqual([])
-    // A blank line on its own is not listed; a blank line with children is.
-    const d = id('D')
-    apply((r, ctx) => ({ ...r, [d]: { ...r[d]!, text: '', updatedAt: ctx.now() } }))
-    select([d], d)
-    cmdDeleteSelection()
-    expect(trashEntries()).toEqual([])
-    const b = id('B')
-    apply((r, ctx) => ({ ...r, [b]: { ...r[b]!, text: '  ', updatedAt: ctx.now() } }))
-    select([b], b)
-    cmdDeleteSelection()
-    expect(trashEntries()[0]!.entries[0]).toMatchObject({ text: '  ', childCount: 3 })
-  })
-
-  it('a child deleted on its own earlier is not part of the parent\'s batch', () => {
-    del('B2a')
-    skip(5000)
-    del('B')
-    const [newest, older] = trashEntries()
-    expect(newest!.entries[0]).toMatchObject({ text: 'B', childCount: 2 })
-    expect(older!.entries[0]).toMatchObject({ text: 'B2a', childCount: 0 })
-  })
-})
-
-describe('cmdRestore', () => {
-  beforeEach(() => reset('A\nB\n  B1\n  B2\n    B2a\nC'))
-
-  it('brings a subtree back where it was, re-stamped, and selects it; undo re-deletes', async () => {
-    const mem = await reset('A\nB\n  B1\n  B2\n    B2a\nC')
-    del('B')
-    expect(shape(inbox())).toBe('A\nC')
-    const before = rows()[id('B1')]!.updatedAt
-    await mem.markClean([...mem.rows.keys()])
-    cmdRestore([id('B')])
-    expect(shape(inbox())).toBe('A\nB\n  B1\n  B2\n    B2a\nC')
-    expect(rows()[id('B1')]!.updatedAt > before).toBe(true)
-    expect(usePad.getState().selection).toEqual([id('B')])
-    await Promise.resolve()
-    expect((await mem.dirtyIds()).sort()).toEqual(['B', 'B1', 'B2', 'B2a'].map(id).sort())
-    expect(trashEntries()).toEqual([])
-    undo()
-    expect(shape(inbox())).toBe('A\nC')
-  })
-
-  it('a restored child whose parent is still deleted lands at the root', () => {
-    del('B2a')
-    skip(5000)
-    del('B')
-    cmdRestore([id('B2a')])
-    // At the root (its parent is still gone), placed by its own rank among the root lines.
-    expect(shape(inbox())).toBe('A\nB2a\nC')
-    expect(rows()[id('B')]!.deletedAt).not.toBeNull()
-  })
-
-  it('a line deleted in another pad comes back there, and that pad opens', () => {
-    applyAll((all, ctx) => {
-      const res = createPad(all, ctx, 'Work')
-      return moveToPad(res.rows, ctx, [id('C')], res.padId)
-    })
-    const work = id('Work')
-    expect(shape(usePad.getState().rows)).toBe('A\nB\n  B1\n  B2\n    B2a')
-    del('A')
-    skip(5000)
-    applyAll((all, ctx) => remove(all, ctx, [id('C')]))
-    expect(trashEntries().map((b) => b.entries.map((e) => e.text))).toEqual([['C'], ['A']])
-    cmdRestore([id('C')])
-    expect(usePad.getState().padId).toBe(work)
-    expect(shape(usePad.getState().rows)).toBe('C')
-    expect(usePad.getState().selection).toEqual([id('C')])
-    // Back in the main pad, a restore there switches back.
-    cmdRestore([id('A')])
-    expect(usePad.getState().padId).toBeNull()
-    expect(shape(usePad.getState().rows)).toBe('A\nB\n  B1\n  B2\n    B2a')
-  })
-
-  it('an archived pad is one entry with its lines under it; Restore brings it all back and opens it', () => {
-    applyAll((all, ctx) => {
-      const res = createPad(all, ctx, 'Work')
-      return moveToPad(res.rows, ctx, [id('B')], res.padId)
-    })
-    const work = id('Work')
-    expect(cmdDeletePad(work)).toBe(4)
-    expect(trashEntries().map((b) => b.entries.map((e) => [e.text, e.childCount]))).toEqual([[['Work', 4]]])
-    cmdRestore([work])
-    expect(usePad.getState().padId).toBe(work)
-    expect(shape(usePad.getState().rows)).toBe('B\n  B1\n  B2\n    B2a')
-  })
-
-  it('unfolds a collapsed parent so the restored line is on screen', () => {
-    del('B1')
-    apply((r, ctx) => ({ ...r, [id('B')]: { ...r[id('B')]!, collapsed: true, updatedAt: ctx.now() } }))
-    expect(shape(inbox(), true)).toBe('A\nB\nC')
-    cmdRestore([id('B1')])
-    expect(shape(inbox(), true)).toBe('A\nB\n  B1\n  B2\n    B2a\nC')
-    expect(usePad.getState().selection).toEqual([id('B1')])
-  })
-})
 
 describe('doneEntries / cmdUndone', () => {
   beforeEach(() => reset('A\nB\n  B1\nC'))

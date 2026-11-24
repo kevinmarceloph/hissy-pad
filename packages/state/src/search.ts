@@ -1,11 +1,13 @@
 // Search across every pad: the live lines whose text holds every word of the query, in the
 // order the pads show them, grouped by pad with the pad on screen first. A pad's name is
-// searched too. Asked for, archived lines come last, in a group of their own, newest first. Plain selectors plus the one command that jumps to a hit; both platforms
+// searched too. Asked for, archived lines come last, in a group of their own, newest first;
+// those are gone to on the Archive screen, which each app opens itself (cmdOpenHit is for
+// live lines). Plain selectors plus the one command that jumps to a hit; both platforms
 // draw from this, and nothing here knows about the DOM or React Native.
 import { buildIndex, childrenOf, isLive, isPadNode, setCollapsed, type NodeRow, type PadId, type Rows } from '@hissypad/core'
 import { applyAll, openPad, revealRow, usePad, zoomTo } from './store'
 import { select, stopEditing } from './selection'
-import { BATCH_GAP_MS, cmdRestore, foldedAncestors, padOf } from './lists'
+import { foldedAncestors, padOf } from './lists'
 import { MAIN_PAD_NAME } from './pads'
 import { log } from './log'
 
@@ -24,7 +26,7 @@ export interface SearchHit {
   id: string
   padId: PadId
   isPad: boolean      // the hit is a pad's name, not a line
-  archived: boolean   // the line is archived; going to it brings it back
+  archived: boolean   // the line is archived; going to it opens the Archive at it
   done: boolean
   path: string[]      // the lines it sits under, outermost first, the pad itself not included
   parts: SearchPart[] // the line of its text that matched
@@ -197,18 +199,6 @@ function archivedHits(all: Rows, terms: readonly string[]): SearchHit[] {
   })
 }
 
-// The top of the archive a row went in with: the highest archived ancestor removed in the
-// same archive. Bringing that back brings the row back where it was.
-function archiveTop(all: Rows, id: string): string {
-  let top = all[id]!
-  const at = Date.parse(top.deletedAt!)
-  for (;;) {
-    const p = top.parentId === null ? undefined : all[top.parentId]
-    if (!p || p.deletedAt === null || Math.abs(Date.parse(p.deletedAt) - at) > BATCH_GAP_MS) return top.id
-    top = p
-  }
-}
-
 // "3 lines", "1 line", or "the first 60 of 214 lines" when the list was cut short.
 export function searchCount(result: SearchResult): string {
   const shown = result.groups.reduce((n, g) => n + g.hits.length, 0)
@@ -218,16 +208,11 @@ export function searchCount(result: SearchResult): string {
 
 // Go to a hit: open its pad if another one is shown, unfold whatever hides it (one undo
 // step, and only when something was folded), select the line and scroll to it. A pad's
-// name just opens that pad. An archived line comes back first, with what was archived with
-// it, as the Archive's Restore does. Returns false when the row is gone.
+// name just opens that pad. Returns false when the row is gone or archived: an archived
+// hit is shown on the Archive screen instead.
 export function cmdOpenHit(id: string): boolean {
   const { all } = usePad.getState()
   const row = all[id]
-  if (row && row.deletedAt !== null) {
-    log('search:restore', { id: id.slice(0, 8) })
-    if (cmdRestore([archiveTop(all, id)]).length === 0) return false
-    return cmdOpenHit(id)
-  }
   if (!isLive(row)) return false
   log('search:open', { id: id.slice(0, 8) })
   stopEditing()

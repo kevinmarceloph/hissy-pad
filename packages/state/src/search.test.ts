@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { idOf, setCollapsed, shape } from '@hissypad/core'
+import { idOf, setCollapsed } from '@hissypad/core'
 import { resetStore } from './testing'
 import { applyAll, loadPad, openPad, usePad } from './store'
 import { undo } from './history'
@@ -150,23 +150,17 @@ describe('search with archived lines', () => {
     expect(hits.map((h) => [h.archived, h.path])).toEqual([[true, ['Inbox', 'Trip to Cebu', 'Book flights']]])
   })
 
-  it('going to an archived line brings back what was archived with it and selects the line', () => {
-    const line = (() => { const l = id('Call the airline'); archive('Trip to Cebu'); return l })()
-    openPad(work)
-    expect(cmdOpenHit(line)).toBe(true)
-    expect(usePad.getState().padId).toBeNull()
-    expect(usePad.getState().selection).toEqual([line])
-    expect(shape(usePad.getState().rows)).toContain('Trip to Cebu\n  Book flights\n    Call the airline')
-    expect(search(all(), 'airline', null, undefined, true).groups.map((g) => g.archived)).toEqual([false])
-  })
-
-  it('an archived pad comes back as a tab and opens', () => {
+  it('an archived pad is found by its name, and its lines under its name', () => {
     openPad(null)
     cmdDeletePad(work)
-    const hit = search(all(), 'work', null, undefined, true).groups.find((g) => g.archived)?.hits.find((h) => h.isPad)
-    expect(hit?.id).toBe(work)
-    expect(cmdOpenHit(work)).toBe(true)
-    expect(usePad.getState().padId).toBe(work)
-    expect(all()[work]!.deletedAt).toBeNull()
+    const hits = search(all(), 'work', null, undefined, true).groups.find((g) => g.archived)!.hits
+    expect(hits.find((h) => h.isPad)?.id).toBe(work)
+    expect(hits.filter((h) => !h.isPad).map((h) => h.path)).toEqual([['Work'], ['Work']])
+  })
+
+  it('cmdOpenHit leaves an archived line alone: the Archive screen shows those', () => {
+    const line = archive('Buy milk')
+    expect(cmdOpenHit(line)).toBe(false)
+    expect(all()[line]!.deletedAt).not.toBeNull()
   })
 })

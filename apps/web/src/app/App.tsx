@@ -7,6 +7,7 @@ import { Account } from './Account'
 import { PullToRefresh } from './PullToRefresh'
 import { FreshStart } from '../pads/FreshStart'
 import { Sort } from '../panels/Sort'
+import { Archive } from '../panels/Archive'
 import { CreateDialog } from '../panels/Create'
 import { CategoryDialog, Hours, preloadHours, SlotDialog } from '../panels/Hours'
 import {
@@ -14,8 +15,8 @@ import {
 } from '@hissypad/state/hours'
 import { showToast } from './toast'
 
-const VIEWS: Record<string, View> = { '#hours': 'hours', '#pads': 'pad', '#sort': 'sort' }
-const HASHES: Record<View, string> = { hours: '#hours', pad: '#pads', fresh: '#pads', sort: '#sort' }
+const VIEWS: Record<string, View> = { '#hours': 'hours', '#pads': 'pad', '#sort': 'sort', '#archive': 'archive' }
+const HASHES: Record<View, string> = { hours: '#hours', pad: '#pads', fresh: '#pads', sort: '#sort', archive: '#archive' }
 const viewFromHash = (): View => VIEWS[location.hash] ?? 'hours'
 
 export function App() {
@@ -39,6 +40,9 @@ export function App() {
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
+  // The archived line the Archive screen opens at (one found in Search). `rev` makes a second
+  // trip to the same line scroll to it again.
+  const [archiveAt, setArchiveAt] = useState<{ id: string; rev: number } | null>(null)
   // The hour picker the toolbar's "Hour…" opens: the slot the lines share and how many they are.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
   // The same for "Category…".
@@ -68,14 +72,22 @@ export function App() {
   return (
     <main className={view === 'fresh' ? 'app is-wide' : view === 'hours' ? 'app is-hours' : 'app'}>
       <PullToRefresh />
-      <TopBar view={view} onView={setView} onCreate={() => setCreating(cmdCreateBegin())} />
+      <TopBar
+        view={view}
+        onView={setView}
+        onCreate={() => setCreating(cmdCreateBegin())}
+        onArchived={(id) => {
+          setArchiveAt((at) => ({ id, rev: (at?.rev ?? 0) + 1 }))
+          setView('archive')
+        }}
+      />
       {storageError && (
         <div className="banner" role="alert">
           <span>{storageError}</span>
           <button type="button" onClick={dismissStorageError} aria-label="Dismiss">×</button>
         </div>
       )}
-      {load === 'loading' ? <p className="hint" aria-busy="true">Opening your pad…</p> : view === 'fresh' ? <FreshStart onClose={() => setView('pad')} /> : view === 'sort' ? <Sort key={padId ?? 'main'} paused={creating !== null} onClose={() => setView('pad')} /> : view === 'hours' ? <Hours /> : creating !== null ? null : <Pad />}
+      {load === 'loading' ? <p className="hint" aria-busy="true">Opening your pad…</p> : view === 'fresh' ? <FreshStart onClose={() => setView('pad')} /> : view === 'sort' ? <Sort key={padId ?? 'main'} paused={creating !== null} onClose={() => setView('pad')} /> : view === 'hours' ? <Hours /> : view === 'archive' ? <Archive at={archiveAt} onClose={() => setView('pad')} /> : creating !== null ? null : <Pad />}
       {/* In Hours too: an open hour's lines are the pad's own rows (panels/Hours.tsx). */}
       {(view === 'pad' || view === 'hours') && creating === null && <SelectionBar />}
       {creating !== null && <CreateDialog depth={creating} onClose={() => setCreating(null)} onOpen={() => { setCreating(null); setView('pad') }} />}

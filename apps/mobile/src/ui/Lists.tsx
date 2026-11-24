@@ -1,11 +1,9 @@
-// Archive and Recently done as full-screen modals: the same selectors and commands as the
-// web panels, drawn with the app's paper-and-serif tokens.
+// Recently done as a full-screen modal: the same selectors and commands as the web panel,
+// drawn with the app's paper-and-serif tokens. The Archive is a screen: Archive.tsx.
 import type { ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import {
-  cmdRestore, cmdUndone, doneEntries, firstLine, groupByDay, timeLabel, trashEntries, usePad, TRASH_DAYS, underLabel,
-} from '@hissypad/state'
+import { cmdUndone, doneEntries, firstLine, groupByDay, usePad, underLabel } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 
 function Sheet({ visible, title, note, onClose, theme, children }: { visible: boolean; title: string; note: string; onClose: () => void; theme: Theme; children: ReactNode }) {
@@ -46,41 +44,6 @@ function Line({ text, sub, done, action, onPress, theme }: { text: string; sub: 
   )
 }
 
-export function TrashSheet({ visible, onClose, theme }: { visible: boolean; onClose: () => void; theme: Theme }) {
-  const rows = usePad((s) => s.all)
-  const batches = visible ? trashEntries(rows) : []
-  const groups = groupByDay(batches, (b) => b.deletedAt)
-  const restore = (ids: string[]) => {
-    cmdRestore(ids)
-    onClose()
-  }
-  return (
-    <Sheet visible={visible} title="Archive" note={`Archived lines stay here for ${TRASH_DAYS} days.`} onClose={onClose} theme={theme}>
-      {batches.length === 0 && <Text style={[s.empty, { color: theme.inkMute }]}>Nothing archived in the last {TRASH_DAYS} days.</Text>}
-      {groups.map((g) => (
-        <View key={g.label}>
-          <Day label={g.label} theme={theme} />
-          {g.items.map((b) => (
-            <View key={b.deletedAt} style={s.batch}>
-              <View style={s.when}>
-                <Text style={[s.whenText, { color: theme.inkMute }]}>{timeLabel(b.deletedAt)}</Text>
-                {b.entries.length > 1 && (
-                  <Pressable onPress={() => restore(b.entries.map((e) => e.id))} accessibilityRole="button">
-                    <Text style={[s.whenText, { color: theme.link }]}>Restore all {b.count}</Text>
-                  </Pressable>
-                )}
-              </View>
-              {b.entries.map((e) => (
-                <Line key={e.id} text={firstLine(e.text)} sub={underLabel(e.childCount)} action="Restore" onPress={() => restore([e.id])} theme={theme} />
-              ))}
-            </View>
-          ))}
-        </View>
-      ))}
-    </Sheet>
-  )
-}
-
 export function DoneSheet({ visible, onClose, theme }: { visible: boolean; onClose: () => void; theme: Theme }) {
   const rows = usePad((s) => s.all)
   const entries = visible ? doneEntries(rows) : []
@@ -107,9 +70,6 @@ const s = StyleSheet.create({
   closeBtn: { minHeight: 44, paddingHorizontal: 12, marginRight: -12, justifyContent: 'center' },
   close: { fontFamily: serif, fontSize: 16 },
   day: { fontFamily: serif, fontSize: 12, letterSpacing: 1, marginTop: 16, marginBottom: 4 },
-  batch: { marginBottom: 8 },
-  when: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingVertical: 2 },
-  whenText: { fontFamily: serif, fontSize: 13 },
   line: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth },
   lineText: { flex: 1, minWidth: 0 },
   txt: { fontFamily: serif, fontSize: 17, lineHeight: 24 },

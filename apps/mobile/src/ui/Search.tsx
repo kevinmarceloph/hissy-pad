@@ -1,15 +1,16 @@
 // Search every pad, as a sheet: a field at the top and the lines found under it, grouped
 // by pad. A tap goes to the line (its pad opens, folds over it open, the line is selected).
 // The matching and the jump are the state package's search.ts, the same as the web panel.
-// A text toggle under the field adds the archived lines; going to one brings it back.
+// A text toggle under the field adds the archived lines; going to one opens the Archive at it.
 import { useEffect, useMemo, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { cmdOpenHit, search, searchCount, usePad } from '@hissypad/state'
+import { cmdOpenHit, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 
 // `onOpen` runs when a line found is gone to: the app comes back to the pad from Hours or Sort.
-export function SearchSheet({ visible, onClose, onOpen, theme }: { visible: boolean; onClose: () => void; onOpen?: () => void; theme: Theme }) {
+// `onArchived` is handed an archived line that was picked: the app shows it in the Archive.
+export function SearchSheet({ visible, onClose, onOpen, onArchived, theme }: { visible: boolean; onClose: () => void; onOpen?: () => void; onArchived?: (id: string) => void; theme: Theme }) {
   const insets = useSafeAreaInsets()
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
@@ -21,9 +22,10 @@ export function SearchSheet({ visible, onClose, onOpen, theme }: { visible: bool
     if (!visible) setQuery('')
   }, [visible])
 
-  const open = (id: string) => {
+  const open = (hit: SearchHit) => {
     onClose()
-    cmdOpenHit(id)
+    if (hit.archived) return onArchived?.(hit.id)
+    cmdOpenHit(hit.id)
     onOpen?.()
   }
 
@@ -70,7 +72,7 @@ export function SearchSheet({ visible, onClose, onOpen, theme }: { visible: bool
               {g.hits.map((h) => (
                 <Pressable
                   key={h.id}
-                  onPress={() => open(h.id)}
+                  onPress={() => open(h)}
                   accessibilityRole="button"
                   style={({ pressed }) => [s.hit, { borderTopColor: theme.rule }, pressed && { backgroundColor: theme.accentSoft }]}
                 >
@@ -85,7 +87,7 @@ export function SearchSheet({ visible, onClose, onOpen, theme }: { visible: bool
             </View>
           ))}
           <Text style={[s.note, { color: theme.inkMute }]}>
-            {!typed ? `Lines from every pad, crossed-out ones${archived ? ' and archived ones' : ''} too. Tap one to go to it${archived ? ', and an archived one comes back' : ''}.` : result.total === 0 ? 'Nothing found.' : `${searchCount(result)}.`}
+            {!typed ? `Lines from every pad, crossed-out ones${archived ? ' and archived ones' : ''} too. Tap one to go to it${archived ? ', or to an archived one in the Archive' : ''}.` : result.total === 0 ? 'Nothing found.' : `${searchCount(result)}.`}
           </Text>
         </ScrollView>
       </View>
