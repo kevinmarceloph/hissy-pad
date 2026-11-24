@@ -141,16 +141,28 @@ export function Pad() {
   // The line of space under each header's group; a tap adds a sub item to the header.
   const gaps = useMemo(() => headerGaps(displayed, rows), [displayed, rows])
 
-  // A jump to a sub-pad: scroll its header to the top. The pad may have just been switched,
-  // so wait a beat for the rows to be laid out.
+  // A jump to a line (a sub-pad, a search hit, Sort's pad icon): scroll it to the top. The pad
+  // may have just been switched, so wait a beat for the rows to be laid out. `room` is space
+  // under the last line, so a line near the end can still reach the top; another pad drops it.
   const reveal = usePad((st) => st.reveal)
+  const [room, setRoom] = useState(0)
+  const roomRef = useRef(0)
+  const viewH = useRef(0)
+  const contentH = useRef(0)
+  useEffect(() => { roomRef.current = 0; setRoom(0) }, [padId])
   useEffect(() => {
     if (!reveal) return
+    let t2: ReturnType<typeof setTimeout> | undefined
     const t = setTimeout(() => {
       const box = layouts.current.get(reveal.id)
-      if (box) scroller.current?.scrollTo({ y: Math.max(0, box.y - 8), animated: true })
+      if (!box) return
+      const y = Math.max(0, box.y - 8)
+      const need = Math.max(0, Math.ceil(viewH.current - (contentH.current - roomRef.current - y)))
+      roomRef.current = need
+      setRoom(need)
+      t2 = setTimeout(() => scroller.current?.scrollTo({ y, animated: true }), 50)
     }, 120)
-    return () => clearTimeout(t)
+    return () => { clearTimeout(t); clearTimeout(t2) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reveal?.n])
 
@@ -433,7 +445,7 @@ export function Pad() {
       {toast && mode !== 'pad' && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
       {/* Hours: the shared screens (packages/ui). Sort starts over when the pad changes. */}
       {mode === 'hours' && <View style={s.scroll}><HoursApp /></View>}
-      {mode === 'sort' && <SortView key={padId ?? 'main'} theme={theme} />}
+      {mode === 'sort' && <SortView key={padId ?? 'main'} theme={theme} onOpen={() => setMode('pad')} />}
       {load === 'loading' ? (
         mode === 'pad' && <Text style={[s.hint, { color: theme.inkMute }]}>Opening your pad…</Text>
       ) : (
@@ -442,7 +454,9 @@ export function Pad() {
           <ScrollView
             ref={scroller}
             style={s.scroll}
-            contentContainerStyle={s.content}
+            contentContainerStyle={[s.content, room > 0 && { paddingBottom: 24 + room }]}
+            onLayout={(e) => { viewH.current = e.nativeEvent.layout.height }}
+            onContentSizeChange={(_, h) => { contentH.current = h }}
             onScroll={onScroll}
             scrollEventThrottle={16}
             scrollEnabled={!drag}

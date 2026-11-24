@@ -37,6 +37,22 @@ describe('sort', () => {
     expect(screen.getByText('3 archived')).toBeInTheDocument()
   })
 
+  it("the card's pad icon leaves Sort for the pad, with the line selected and scrolled to the top", async () => {
+    const user = userEvent.setup()
+    const scrolled: string[] = []
+    Element.prototype.scrollIntoView = function (this: Element) { const id = (this as HTMLElement).dataset?.id; if (id) scrolled.push(id) }
+    await mount('A\nB\nC')
+    await user.click(button('Sort'))
+    await user.keyboard('s')
+    expect(card().value).toBe('B')
+    await user.click(button('See it in the pad'))
+    expect(screen.queryByRole('textbox', { name: 'Line text' })).toBeNull()
+    const s = usePad.getState()
+    const b = Object.values(s.rows).find((r) => r.text === 'B')!
+    expect(s.selection).toEqual([b.id])
+    expect(scrolled).toContain(b.id)
+  })
+
   it('the title picks the pad to sort, with no pad tabs on screen', async () => {
     const user = userEvent.setup()
     resetStore('A\n  A1\n  A2\nB')

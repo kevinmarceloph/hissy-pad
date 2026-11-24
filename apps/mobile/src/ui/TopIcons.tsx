@@ -10,7 +10,7 @@ export type Mode = 'pad' | 'hours' | 'sort'
 const W = 1.5 // stroke
 
 // Pad: an outline, three lines with their bullets.
-function PadIcon({ color }: { color: string }) {
+export function PadIcon({ color }: { color: string }) {
   return (
     <View style={i.box}>
       {[0, 1, 2].map((n) => (

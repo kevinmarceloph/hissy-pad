@@ -67,12 +67,20 @@ export function Pad() {
     return [...anchors.slice(0, t.gapIndex).map((v) => ({ ...v, preview: false })), ...placed, ...anchors.slice(t.gapIndex).map((v) => ({ ...v, preview: false }))]
   }, [visible, drag?.target, drag?.add, draggingSet])
 
-  // A jump to a sub-pad: bring its header to the top of the window and flash it once.
+  // A jump to a line (a sub-pad, a search hit, Sort's pad icon): bring it to the top of the window and flash it once.
   const reveal = usePad((s) => s.reveal)
+  const padId = usePad((s) => s.padId)
+  // Another pad drops the room a jump left (a jump that opens a pad sets it again after this).
+  useEffect(() => { if (rowsRef.current) rowsRef.current.style.paddingBottom = '' }, [padId])
   useEffect(() => {
     if (!reveal) return
     const el = rowsRef.current?.querySelector<HTMLElement>(`.row[data-id="${reveal.id}"]`)
     if (!el) return
+    // Room under the last line, so a line near the end can still reach the top.
+    const box = rowsRef.current!
+    box.style.paddingBottom = ''
+    const room = window.innerHeight - (box.getBoundingClientRect().bottom - el.getBoundingClientRect().top)
+    if (room > 0) box.style.paddingBottom = `${Math.ceil(room)}px`
     el.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
     el.animate?.([{ background: 'var(--accent-soft)' }, { background: 'transparent' }], { duration: 1200, easing: 'ease-out' })
     // eslint-disable-next-line react-hooks/exhaustive-deps

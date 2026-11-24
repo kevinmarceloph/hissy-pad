@@ -3,13 +3,14 @@
 // for Today, up for Today and crossed out, down to cycle it: to the bottom of the pad, to
 // come round again. Skip leaves a card; Archive deletes it. The card is live: its
 // text and sub items edit the real rows, so a line can be fixed up before it goes. Every
-// send is one undo step; Back takes the last card back.
+// send is one undo step; Back takes the last card back. The pad icon on the card leaves Sort
+// for the pad, scrolled so the line is at the top.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from 'react'
 import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
 import { cmdPickSlot } from '@hissypad/state/hours'
-import { HoursIcon } from '../app/icons'
+import { HoursIcon, PadIcon } from '../app/icons'
 import {
-  cmdSortAddSub, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
+  cmdOpenHit, cmdSortAddSub, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
   sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortChoice, type SortDir,
 } from '@hissypad/state'
 
@@ -286,6 +287,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
               <p className="sort-count">{progress.at} of {progress.total}</p>
               {row.slot && <span className="slot" title="The hour this line is in">{slotLabel(row.slot, todayKey())}</span>}
               <button type="button" className="sort-hour" onClick={() => cmdPickSlot([id])} title="Put in an hour" aria-label={row.slot ? `Hour: ${slotLabel(row.slot, todayKey())}, change` : 'Put in an hour'}><HoursIcon /></button>
+              <button type="button" className="sort-hour" onClick={() => { if (cmdOpenHit(id)) onClose() }} title="See it in the pad" aria-label="See it in the pad"><PadIcon /></button>
             </div>
             <AutoText
               className="sort-text"

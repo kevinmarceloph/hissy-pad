@@ -3,19 +3,19 @@
 // too), right for Today, up for Today and crossed out, down to cycle it to the bottom of the
 // pad to come round again; the buttons do the same. Skip leaves a card; Archive deletes it. The card's text and sub items are live fields. Same queue, targets and commands as
 // the web (state/sort.ts); only the gesture is drawn here, with PanResponder and Animated
-// so it ships as a JS-only update.
+// so it ships as a JS-only update. The pad icon on the card goes to the line in the pad.
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react'
 import { Alert, Animated, Dimensions, Keyboard, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
 import { cmdPickSlot } from '@hissypad/state/hours'
 import {
-  cmdSortAddSub, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
+  cmdOpenHit, cmdSortAddSub, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
   sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort,
   type SortChoice, type SortDir, type SortSession,
 } from '@hissypad/state'
 import { INDENT, serif, type Theme } from '../theme'
-import { HoursIcon } from './TopIcons'
+import { HoursIcon, PadIcon } from './TopIcons'
 
 const SLOP = 10 // px before a touch on the card becomes a drag
 
@@ -33,7 +33,7 @@ function CardField({ row: _row, ...props }: ComponentProps<typeof TextInput> & {
 
 // Drawn under the app's top bar, with no pad chips: the title picks which pad is sorted, and
 // the mode switcher is the way out.
-export function SortView({ theme }: { theme: Theme }) {
+export function SortView({ theme, onOpen }: { theme: Theme; onOpen?: () => void }) {
   const rows = usePad((s) => s.rows)
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
@@ -211,6 +211,15 @@ export function SortView({ theme }: { theme: Theme }) {
                   style={({ pressed }) => [s.hour, { opacity: pressed ? 0.5 : 1 }]}
                 >
                   <HoursIcon color={theme.inkSoft} />
+                </Pressable>
+                <Pressable
+                  onPress={() => { if (cmdOpenHit(id)) onOpen?.() }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="See it in the pad"
+                  style={({ pressed }) => [s.hour, { opacity: pressed ? 0.5 : 1 }]}
+                >
+                  <PadIcon color={theme.inkSoft} />
                 </Pressable>
               </View>
               <CardField
