@@ -126,8 +126,15 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
       {bullet}
       {category && (
         // The line's category (toolbar: More, Category…): its icon in a squircle of its color,
-        // or its name where it has none.
-        <CategoryBadge category={category} wordWhenBare a11yLabel={`Category: ${category.label}`} style={[s.category, row.done && { opacity: 0.55 }]} />
+        // or its name where it has none. A tap on it selects the line, as the bullet does.
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Category: ${category.label}`}
+          onPress={() => clickSelect(row.id, { shift: false, meta: false })}
+          style={[s.category, row.done && { opacity: 0.55 }]}
+        >
+          <CategoryBadge category={category} wordWhenBare />
+        </Pressable>
       )}
       {isEditing ? (
         <TextInput

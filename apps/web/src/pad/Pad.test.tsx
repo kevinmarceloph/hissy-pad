@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { shape } from '@hissypad/core'
 import { App } from '../app/App'
 import { configureLocalStore, resetStore, usePad } from '@hissypad/state'
+import { adoptLineCategories, cmdSetCategory } from '@hissypad/state/hours'
+import { SAMPLE_CATEGORIES } from '@hissypad/core/hours'
 
 async function mount(outline?: string) {
   resetStore(outline)
@@ -163,6 +165,22 @@ describe('Pad', () => {
     await user.click(gap)
     await user.keyboard('a2')
     expect(texts()).toBe('#a\n  a1\n  a2\nb')
+  })
+
+  it('a tap on a line\'s category selects the line, as its bullet does', async () => {
+    const user = userEvent.setup()
+    await mount('a\nb')
+    adoptLineCategories(SAMPLE_CATEGORIES)
+    const a = Object.values(usePad.getState().rows).find((r) => r.text === 'a')!
+    act(() => void cmdSetCategory('deep', [a.id]))
+    const badge = await screen.findByRole('button', { name: 'Category: Deep work' })
+    const row = badge.closest('[role="treeitem"]')!
+    expect(row).toHaveAttribute('aria-selected', 'false')
+    await user.click(badge)
+    expect(row).toHaveAttribute('aria-selected', 'true')
+    await user.click(badge)
+    expect(row).toHaveAttribute('aria-selected', 'false')
+    act(() => adoptLineCategories([]))
   })
 
   it('the type switcher turns a line into a header and back to a bullet', async () => {

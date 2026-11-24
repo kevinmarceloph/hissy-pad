@@ -381,6 +381,12 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
   line-height: 1;
   white-space: nowrap;
   user-select: none;
+  /* A button: a tap on it selects the line, as the bullet does. */
+  padding: 0;
+  border: 0;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
 }
 /* A true squircle where the browser can draw one (corner-shape); a rounded square elsewhere. */
 @supports (corner-shape: squircle) {
