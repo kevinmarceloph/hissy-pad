@@ -11,19 +11,19 @@
 // where autoFocus inside a modal fires before the sheet is up: the keyboard showed with
 // no field behind it and the typing went nowhere. So the sheet opens once the app is
 // active, each ask gets a modal of its own, and the field is focused in onShow.
-import { useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react'
 import { Alert, AppState, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { buildIndex, childrenOf, countLines, descendantIds, flatten, isLive, listNumbers, MAIN_PLACE, slotLabel, todayKey, type Place } from '@hissypad/core'
+import { isLive, MAIN_PLACE, slotLabel, todayKey, type Place } from '@hissypad/core'
 import {
   cmdAppendAtEnd, cmdCreateBegin, cmdCreateEnd, cmdCreateItem, cmdCreateMove, cmdCreateOpen, cmdCreateSetText, createDefaultPlace, placeFromKey, placeList, placeName, usePad,
-  visibleIds, WIDGET_INBOX, WIDGET_MAIN,
+  WIDGET_INBOX, WIDGET_MAIN,
 } from '@hissypad/state'
 import { cmdPickSlot } from '@hissypad/state/hours'
 import { useKeyboardHeight } from '../keyboard'
 import { serif, type Theme } from '../theme'
 import { FloatingButtons } from './FloatingButtons'
-import { Row } from './Row'
 import { card, CardField } from './Sort'
+import { SubRows } from './SubRows'
 import { Toolbar } from './Toolbar'
 import { HoursIcon, PadIcon } from './TopIcons'
 
@@ -67,7 +67,6 @@ export function useCreating(): boolean {
 }
 
 const oneLine = (t: string) => t.replace(/\r?\n/g, ' ')
-const noop = () => {}
 
 // `children` are the pad's hour and category pickers, drawn inside the sheet while it is
 // up so they open over it. `onOpen` runs after the pad icon: the app shows the pad.
@@ -112,20 +111,8 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
     }
   }, [id, row])
 
-  // The sub items: the pad's rows while the store is zoomed into the new line.
-  const subs = zoomed && row ? rows : null
-  const { index, visible, numbers } = useMemo(() => {
-    const index = buildIndex(subs ?? {})
-    const depthOf = new Map(flatten(index, true).map((r) => [r.id, r.depth]))
-    const ids = subs ? visibleIds({ ...usePad.getState(), rows: subs }) : []
-    return { index, visible: ids.map((v) => ({ id: v, depth: depthOf.get(v) ?? 0 })), numbers: listNumbers(index) }
-  }, [subs])
-  const selectedSet = useMemo(() => new Set(selection), [selection])
-  const selectedChildSet = useMemo(() => {
-    const out = new Set<string>()
-    for (const s of selection) for (const d of descendantIds(index, s)) if (!selectedSet.has(d)) out.add(d)
-    return out
-  }, [selection, selectedSet, index])
+  // Whether the line has sub items: the pad's rows while the store is zoomed into it.
+  const hasSubs = zoomed && row !== null && Object.keys(rows).length > 0
 
   // The line, made now if it was not yet (the hour or a sub item before a word is typed).
   function ensure(): string {
@@ -176,7 +163,7 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
 
   const text = row ? row.text : draft
   const slot = row?.slot ?? null
-  const can = text.trim() !== '' || visible.length > 0
+  const can = text.trim() !== '' || hasSubs
   const where = placeName(all, place)
 
   return (
@@ -237,7 +224,7 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
               onSubmitEditing={(e) => {
                 const last = oneLine(e.nativeEvent.text)
                 if (last !== text) onText(last)
-                if (last.trim() !== '' || visible.length > 0) finish(true)
+                if (last.trim() !== '' || hasSubs) finish(true)
               }}
               placeholder="A new line"
               placeholderTextColor={theme.inkMute}
@@ -245,28 +232,7 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
               style={[card.text, { color: theme.ink }]}
             />
             <View style={[card.subs, { borderTopColor: theme.rule }]}>
-              {subs && visible.map(({ id: sub, depth: d }) => (
-                <Row
-                  key={sub}
-                  row={subs[sub]!}
-                  depth={d}
-                  childCount={childrenOf(index, sub).length}
-                  foldCount={countLines(childrenOf(index, sub))}
-                  editing={editing}
-                  selected={selectedSet.has(sub)}
-                  selectedChild={selectedChildSet.has(sub)}
-                  number={numbers.get(sub) ?? null}
-                  dragging={false}
-                  preview={false}
-                  theme={theme}
-                  onLayout={noop}
-                  onBulletLongPress={noop}
-                />
-              ))}
-              <Pressable onPress={() => { ensure(); cmdAppendAtEnd() }} accessibilityRole="button" accessibilityLabel="Add a sub item" style={({ pressed }) => [s.add, { opacity: pressed ? 0.5 : 1 }]}>
-                <Text style={[s.addPlus, { color: theme.inkMute }]}>+</Text>
-                <Text style={[s.addWords, { color: theme.inkMute }]}>Add a sub item</Text>
-              </Pressable>
+              <SubRows id={row?.id ?? null} theme={theme} onAdd={() => { ensure(); cmdAppendAtEnd() }} />
             </View>
           </View>
         </ScrollView>
@@ -292,7 +258,4 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 96 },
   place: { flexShrink: 1, marginRight: 'auto' },
   placeText: { fontFamily: serif, fontSize: 14 },
-  add: { flexDirection: 'row', alignItems: 'center', minHeight: 36 },
-  addPlus: { width: 36, textAlign: 'center', fontFamily: serif, fontSize: 17 },
-  addWords: { fontFamily: serif, fontStyle: 'italic', fontSize: 16 },
 })

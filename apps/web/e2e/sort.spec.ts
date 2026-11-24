@@ -72,11 +72,11 @@ test('swipe cards left, right and up; edit one first', async ({ page }, info) =>
   await expect(text).toHaveValue('plan the trip')
 
   // Fix the card up before it goes: a new sub item, typed into the live row.
-  const add = page.getByRole('textbox', { name: 'Add a sub item' })
-  await add.click()
-  await add.fill('renew passport')
-  await add.press('Enter')
-  await expect(page.getByRole('textbox', { name: 'Sub item', exact: true })).toHaveCount(2)
+  await page.getByRole('button', { name: 'Add a sub item' }).click()
+  await page.keyboard.type('renew passport')
+  await expect(page.getByRole('treeitem')).toHaveCount(2)
+  // Escape leaves the line selected, a second one clears it: the card is the pad's rows.
+  await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
   await shot('3-edited')
   await swipe(page, 170, -10, touch)

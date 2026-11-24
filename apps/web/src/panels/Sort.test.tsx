@@ -79,7 +79,7 @@ describe('sort', () => {
     expect(screen.getByText(/4 to go/)).toBeInTheDocument()
     await user.keyboard('{ArrowLeft}')
     expect(card().value).toBe('B')
-    expect(screen.getByRole('textbox', { name: 'Sub item' })).toHaveValue('B1')
+    expect(screen.getByRole('tree')).toHaveTextContent('B1') // its sub items, as the pad's rows
     await user.click(button('Right: Today'))
     await user.keyboard('{ArrowUp}')
     expect(whole()).toBe('D\n@Today\n  ~C\n  B\n    B1\n@Later\n  A')
@@ -101,13 +101,19 @@ describe('sort', () => {
     await user.click(card())
     await user.keyboard('{ArrowLeft}!')
     expect(card().value).toBe('!A')
-    await user.type(screen.getByRole('textbox', { name: 'Add a sub item' }), 'first step{Enter}second{Enter}')
-    expect(whole()).toBe('!A\n  first step\n  second\nB')
+    await user.click(button('Add a sub item'))
+    await user.keyboard('first step{Enter}second{Enter}deep{Tab}')
+    expect(screen.getByRole('toolbar', { name: 'Current line' })).toBeInTheDocument()
+    expect(whole()).toBe('!A\n  first step\n  second\n    deep\nB')
+    // Escape leaves the field with the line selected: the arrows are the selection's, not the cards'.
+    await user.keyboard('{Escape}{ArrowUp}')
+    expect(card().value).toBe('!A')
     await user.keyboard('{Escape}{ArrowRight}')
-    expect(whole()).toBe('B\n@Today\n  !A\n    first step\n    second')
+    expect(whole()).toBe('B\n@Today\n  !A\n    first step\n    second\n      deep')
+    expect(card().value).toBe('B')
   })
 
-  it('the card fields are one line: Return closes the text field, Shift+Return in a sub item adds no break, a pasted break becomes a space', async () => {
+  it('the card\'s line is one line: Return closes the field and a pasted break becomes a space', async () => {
     const user = userEvent.setup()
     await mount('A\n  A1\nB')
     await user.click(button('Sort'))
@@ -115,10 +121,6 @@ describe('sort', () => {
     await user.keyboard('{End}x{Enter}')
     expect(card().value).toBe('Ax')
     expect(document.activeElement).not.toBe(card())
-    const sub = screen.getByRole('textbox', { name: 'Sub item' })
-    await user.click(sub)
-    await user.keyboard('{End}{Shift>}{Enter}{/Shift}')
-    expect(sub).toHaveValue('A1')
     fireEvent.change(card(), { target: { value: 'one\ntwo' } })
     expect(card().value).toBe('one two')
     expect(whole()).toBe('one two\n  A1\nB')

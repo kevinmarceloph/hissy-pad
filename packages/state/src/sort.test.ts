@@ -1,10 +1,11 @@
 import { resetStore, tableShape } from './testing'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { idOf, listPads } from '@hissypad/core'
-import { loadPad, openPad, usePad } from './store'
+import { loadPad, openPad, usePad, zoomTo } from './store'
 import { undo } from './history'
 import { cmdNewPad } from './pads'
-import { cmdSetKind } from './commands'
+import { cmdAppendAtEnd, cmdSetKind, cmdSetText } from './commands'
+import { cmdOpenHit } from './search'
 import {
   cmdSortAddSub, cmdSortBack, cmdSortNewTarget, sortSessionBack, sortSessionProgress, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionCard, sortSessionSend, sortSessionStart, sortSummary, swipeDir, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, setSortTarget, sortQueue, sortTarget, useSort,
 } from './sort'
@@ -113,6 +114,29 @@ describe('sort', () => {
     expect(whole()).toBe('A\nBee\n  B1\n\nC\nD')
     cmdSortSend(id('Bee'), 'right')
     expect(whole()).toBe('A\n\nC\nD\n@Today\n  Bee\n    B1')
+  })
+
+  it('the card on screen is zoomed into: its sub items are the pad\'s rows, and the sort goes on from the pad', () => {
+    let session = sortSessionStart()
+    zoomTo(sortSessionCard(session).id) // A
+    expect(usePad.getState().rows).toEqual({})
+    cmdAppendAtEnd()
+    cmdSetText(usePad.getState().editing!.id, 'A1')
+    cmdSortSetText(id('A'), 'Ay')
+    expect(whole()).toBe('Ay\n  A1\nB\n  B1\n\nC\nD')
+    expect(sortSessionProgress(session)).toEqual({ at: 1, total: 4, left: 4 })
+    session = sortSessionSend(session, 'right')
+    expect(usePad.getState().zoomId).toBeNull()
+    expect(sortSessionCard(session).id).toBe(id('B'))
+    zoomTo(id('B'))
+    session = sortSessionBack(session)
+    expect(usePad.getState().zoomId).toBeNull()
+    expect(whole()).toBe('Ay\n  A1\nB\n  B1\n\nC\nD') // the send is taken back, the edits before it stay
+    expect(sortSessionCard(session).id).toBe(id('Ay'))
+    zoomTo(id('B'))
+    expect(cmdOpenHit(id('B1'))).toBe(true)
+    expect(usePad.getState().zoomId).toBeNull()
+    expect(usePad.getState().selection).toEqual([id('B1')])
   })
 
   it('a new pad made from the sort screen becomes the target and the pad being sorted stays open', () => {

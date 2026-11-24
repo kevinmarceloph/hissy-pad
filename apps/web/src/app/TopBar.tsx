@@ -50,6 +50,8 @@ export function TopBar({ view, onView, onCreate }: { view: View; onView: (view: 
   const [categories, setCategories] = useState(false)
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
+  // Sort's card or the new item's: `rows` is only what is under one line then.
+  const zoomed = usePad((s) => s.zoomId !== null)
   const hidden = usePrefs((s) => s.hiddenCounts)
   const thisCount = countKey(all, padId)
 
@@ -138,7 +140,7 @@ export function TopBar({ view, onView, onCreate }: { view: View; onView: (view: 
               {logEnabled() && (
                 <button type="button" role="menuitem" title="Debug log (?debug=1 turned this on)" onClick={() => pick(() => { setLogText(dumpLog()); logDialog.current?.showModal() })}>Log</button>
               )}
-              <button type="button" role="menuitem" disabled={liveCount === 0 || view === 'fresh'} title="Pick what stays in the open pad; the rest moves to a new pad" onClick={() => pick(() => onView('fresh'))}>Fresh start…</button>
+              <button type="button" role="menuitem" disabled={(liveCount === 0 && !zoomed) || view === 'fresh'} title="Pick what stays in the open pad; the rest moves to a new pad" onClick={() => pick(() => onView('fresh'))}>Fresh start…</button>
               <button type="button" role="menuitemcheckbox" aria-checked={countShown(hidden, thisCount)} className="check" title="The number of open lines beside this pad's name in the tabs" onClick={() => toggleCount(thisCount)}>Pad count</button>
               <label className="select">
                 <span>Theme</span>

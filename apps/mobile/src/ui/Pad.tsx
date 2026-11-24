@@ -48,6 +48,8 @@ const PULL_WORDS: Record<PullPhase, string> = { idle: '', pulling: 'Pull to sync
 // not, so it keeps the platform's own spinner.
 const PULL_WORDS_OK = Platform.OS === 'ios'
 
+const NONE: string[] = []
+
 // The placeholder row of a + drag, in the displayed list.
 const NEW_ROW = '\u0000new'
 // A + drag let go this close to where it began adds nothing.
@@ -57,15 +59,26 @@ export function Pad() {
   const theme = useTheme()
   const kb = useKeyboardHeight()
   const insets = useSafeAreaInsets()
-  const rows = usePad((s) => s.rows)
-  const editing = usePad((s) => s.editing)
-  const selection = usePad((s) => s.selection)
+  const liveRows = usePad((s) => s.rows)
+  const liveEditing = usePad((s) => s.editing)
+  const liveSelection = usePad((s) => s.selection)
+  const zoomed = usePad((s) => s.zoomId !== null)
   const load = usePad((s) => s.load)
   const session = usePad((s) => s.session)
   const padId = usePad((s) => s.padId)
   // The new item's sheet is up: it draws the pad's rows and toolbar itself (zoomed into the
   // new line), so this screen draws neither behind it.
   const creating = useCreating()
+  // While the store is zoomed into one line (Sort's card, the new item's), `rows` is what is
+  // under that line and the editing belongs to the card. This list, behind the sheet or
+  // hidden under Sort, keeps the pad as it last was, with nothing being edited: a second
+  // field for the same line would fight the card's for the keyboard, and the list keeps its place.
+  const quiet = creating || zoomed
+  const kept = useRef(liveRows)
+  if (!quiet) kept.current = liveRows
+  const rows = quiet ? kept.current : liveRows
+  const editing = quiet ? null : liveEditing
+  const selection = quiet ? NONE : liveSelection
   const [refreshing, setRefreshing] = useState(false)
   const [drag, setDrag] = useState<Drag | null>(null)
   const dragRef = useRef<Drag | null>(null)
@@ -412,7 +425,7 @@ export function Pad() {
   )
 
   return (
-    <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: mode === 'pad' && kb > 0 ? kb : insets.bottom }]}>
+    <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: (mode === 'pad' || mode === 'sort') && kb > 0 ? kb : insets.bottom }]}>
       <View style={s.top}>
         <Text style={[s.title, { color: theme.inkSoft }]}>HissyPad</Text>
         <ModeBar mode={mode} onMode={switchMode} theme={theme} />
@@ -460,7 +473,7 @@ export function Pad() {
       {toast && mode !== 'pad' && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
       {/* Hours: the shared screens (packages/ui). Sort starts over when the pad changes. */}
       {mode === 'hours' && <View style={s.scroll}><HoursApp /></View>}
-      {mode === 'sort' && <SortView key={padId ?? 'main'} theme={theme} onOpen={() => setMode('pad')} />}
+      {mode === 'sort' && <SortView key={padId ?? 'main'} theme={theme} paused={creating} onOpen={() => setMode('pad')} />}
       {load === 'loading' ? (
         mode === 'pad' && <Text style={[s.hint, { color: theme.inkMute }]}>Opening your pad…</Text>
       ) : (
@@ -481,7 +494,7 @@ export function Pad() {
             onScrollEndDrag={() => void onPullEnd()}
             refreshControl={session && !PULL_WORDS_OK ? <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={theme.inkMute} colors={[theme.accent]} progressBackgroundColor={theme.paperRaised} /> : undefined}
           >
-            {!creating && displayed.map(({ id, depth, preview }) => (
+            {displayed.map(({ id, depth, preview }) => (
               <Fragment key={id}>
               {id === NEW_ROW ? (
                 <View style={[s.newRow, { marginLeft: depth * INDENT, backgroundColor: theme.accentSoft }]}>
@@ -509,7 +522,7 @@ export function Pad() {
               ))}
               </Fragment>
             ))}
-            {lone && !creating && (
+            {lone && !quiet && (
               <Text style={[s.hint, { color: theme.inkMute }]}>Type anything. Return for a new line, the toolbar for nesting and crossing out. Press and hold a bullet to drag.</Text>
             )}
             <Pressable style={s.tail} onPress={cmdAppendAtEnd} accessibilityLabel="Add a line at the end" />
@@ -522,7 +535,7 @@ export function Pad() {
               </Animated.View>
             </View>
           )}
-          {!creating && <FloatingButtons theme={theme} onAdd={() => scroller.current?.scrollTo({ y: 0, animated: true })} addDrag={addDrag} dragging={!!drag?.add} />}
+          {!quiet && <FloatingButtons theme={theme} onAdd={() => scroller.current?.scrollTo({ y: 0, animated: true })} addDrag={addDrag} dragging={!!drag?.add} />}
           </View>
         </GestureDetector>
       )}
@@ -531,7 +544,8 @@ export function Pad() {
           <Text numberOfLines={1} style={[s.ghostText, { color: theme.ink }]}>{drag.label}</Text>
         </View>
       )}
-      {mode === 'pad' && !creating && <Toolbar theme={theme} />}
+      {/* The line toolbar: the pad's, and Sort's for the sub items on its card. */}
+      {(mode === 'pad' || mode === 'sort') && !creating && <Toolbar theme={theme} />}
     </View>
   )
 }

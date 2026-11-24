@@ -804,9 +804,9 @@ dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-f
 }
 .sort-pad:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sort-head p { margin: 0; color: var(--ink-soft); font-size: 0.92rem; }
-.sort button { min-height: 40px; padding: 0 0.9rem; border-radius: 4px; border: 1px solid var(--rule); background: var(--paper-raised); }
-.sort button:disabled { opacity: 0.45; cursor: default; }
-.sort button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); flex: none; }
+.sort :where(.sort-actions, .sort-minor, .sort-target) button { min-height: 40px; padding: 0 0.9rem; border-radius: 4px; border: 1px solid var(--rule); background: var(--paper-raised); }
+.sort :where(.sort-actions, .sort-minor, .sort-target) button:disabled { opacity: 0.45; cursor: default; }
+.sort :where(.sort-actions, .sort-minor, .sort-target) button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); flex: none; }
 .sort kbd { font: inherit; color: var(--ink-mute); }
 .sort-stage { position: relative; display: grid; min-height: 15rem; margin: 0 auto; max-width: 30rem; }
 .sort-card {
@@ -820,30 +820,22 @@ dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-f
   animation: sort-in 180ms ease-out;
 }
 .sort-card.is-dragging { cursor: grabbing; user-select: none; -webkit-user-select: none; }
-.sort-card.is-dragging > textarea, .sort-card.is-dragging .sort-subs textarea, .sort-card.is-dragging .sort-subs input { pointer-events: none; }
+.sort-card.is-dragging > textarea, .sort-card.is-dragging .pad { pointer-events: none; }
+.sort-card .pad { cursor: auto; }
 .sort-card.leans-left, .sort-card.leans-right, .sort-card.leans-up, .sort-card.leans-down { border-color: var(--accent); }
 .sort-top { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.5rem; }
 .sort-count { margin: 0 auto 0 0; color: var(--ink-mute); font-size: 0.82rem; }
 .sort-top .slot { padding: 0 0.35rem; border: 1px solid var(--rule); border-radius: 3px; color: var(--ink-soft); font-size: 0.72rem; white-space: nowrap; }
 .sort .sort-hour, .create .sort-hour { display: grid; min-height: 0; place-items: center; width: 2rem; height: 2rem; margin: -0.35rem -0.6rem -0.35rem 0; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-soft); cursor: pointer; }
 .sort .sort-hour:hover, .create .sort-hour:hover:not(:disabled) { color: var(--accent); background: var(--accent-faint); }
-.sort-card > textarea, .sort-subs textarea, .sort-subs input {
+.sort-card > textarea {
   display: block; width: 100%; padding: 0; margin: 0;
   border: 0; outline: 0; background: transparent; resize: none; overflow: hidden;
   touch-action: none;
 }
-.sort-card > textarea:focus, .sort-subs textarea:focus, .sort-subs input:focus { background: var(--accent-faint); box-shadow: 0 0 0 4px var(--accent-faint); border-radius: 2px; }
+.sort-card > textarea:focus { background: var(--accent-faint); box-shadow: 0 0 0 4px var(--accent-faint); border-radius: 2px; }
 .sort-card .sort-text { font-size: 1.25rem; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
-.sort-subs { list-style: none; margin: 0.75rem 0 0; padding: 0.6rem 0 0; border-top: 1px solid var(--rule); }
-.sort-subs li { position: relative; padding-left: calc(1.1rem + var(--depth, 0) * var(--indent)); }
-.sort-subs li::before {
-  content: ''; position: absolute; top: 0.62em;
-  left: calc(0.2rem + var(--depth, 0) * var(--indent));
-  width: 5px; height: 5px; border-radius: 50%; background: var(--ink-mute);
-}
-.sort-subs li.is-done textarea { text-decoration: line-through; color: var(--ink-mute); }
-.sort-subs li.add::before { background: none; content: '+'; top: 0; left: 0.05rem; width: auto; height: auto; color: var(--ink-mute); }
-.sort-subs li.add input::placeholder, .sort-card textarea::placeholder { color: var(--ink-mute); font-style: italic; }
+.sort-card textarea::placeholder { color: var(--ink-mute); font-style: italic; }
 .stamp {
   position: absolute; top: 0.7rem; z-index: 1;
   padding: 0.05rem 0.5rem;

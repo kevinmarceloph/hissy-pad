@@ -1,20 +1,24 @@
 // Sort on the phone: the pad's top-level lines one card at a time, under the top bar. Swipe the
 // card left for Later (or the pad picked at the bottom: picking one sends the card there
 // too), right for Today, up for Today and crossed out, down to cycle it to the bottom of the
-// pad to come round again; the buttons do the same. Skip leaves a card; Archive deletes it. The card's text and sub items are live fields. Same queue, targets and commands as
+// pad to come round again; the buttons do the same. Skip leaves a card; Archive deletes it. The card's text is a live field, and its sub items are the pad's own rows: the store zooms
+// into the card's line, so the toolbar and the floating buttons work on them (SubRows.tsx). Same queue, targets and commands as
 // the web (state/sort.ts); only the gesture is drawn here, with PanResponder and Animated
 // so it ships as a JS-only update. The pad icon on the card goes to the line in the pad.
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef, type Ref } from 'react'
 import { Alert, Animated, Dimensions, Keyboard, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
+import { scopePad, slotLabel, todayKey } from '@hissypad/core'
 import { cmdPickSlot } from '@hissypad/state/hours'
 import {
-  cmdOpenHit, cmdSortAddSub, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
-  sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort,
+  cmdAppendAtEnd, cmdOpenHit, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
+  sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, zoomTo,
   type SortChoice, type SortDir, type SortSession,
 } from '@hissypad/state'
-import { INDENT, serif, type Theme } from '../theme'
+import { useKeyboardHeight } from '../keyboard'
+import { serif, type Theme } from '../theme'
+import { FloatingButtons } from './FloatingButtons'
+import { SubRows } from './SubRows'
 import { HoursIcon, PadIcon } from './TopIcons'
 
 const SLOP = 10 // px before a touch on the card becomes a drag
@@ -33,10 +37,18 @@ export function CardField({ row: _row, ref, ...props }: ComponentProps<typeof Te
 
 // Drawn under the app's top bar, with no pad chips: the title picks which pad is sorted, and
 // the mode switcher is the way out.
-export function SortView({ theme, onOpen }: { theme: Theme; onOpen?: () => void }) {
-  const rows = usePad((s) => s.rows)
+// `paused`: something else has the store's zoom (the new item's sheet is up), so the card
+// draws no sub items and leaves the zoom alone until it is back.
+export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOpen?: () => void; paused?: boolean }) {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
+  const zoomId = usePad((s) => s.zoomId)
+  const targeted = usePad((s) => s.editing !== null || s.selection.length > 0)
+  // The keyboard and the line toolbar take most of the screen: while either is up the card
+  // has the room and the buttons under it wait.
+  const compact = useKeyboardHeight() > 0 || targeted
+  // The pad being sorted. The store's own `rows` is what is under the card while it is zoomed into.
+  const rows = useMemo(() => scopePad(all, padId), [all, padId])
   const choice = useSort()
 
   // The pad to sort, from the title, each with its open top-level lines (the cards it would
@@ -48,7 +60,6 @@ export function SortView({ theme, onOpen }: { theme: Theme; onOpen?: () => void 
     ])
   }
   const [session, setSession] = useState(() => sortSessionStart())
-  const [draft, setDraft] = useState('')
   const pan = useRef(new Animated.ValueXY()).current
   const busy = useRef(false)
 
@@ -58,7 +69,15 @@ export function SortView({ theme, onOpen }: { theme: Theme; onOpen?: () => void 
   const { id } = sortSessionCard(session, rows)
   const progress = sortSessionProgress(session, rows)
   const row = id ? rows[id]! : null
-  const subs = useMemo(() => (id ? flatten(buildIndex(rows), false, id) : []), [rows, id])
+
+  // The card on screen is zoomed into, so the pad's rows and toolbar edit what is under it.
+  // A send or Back leaves the zoom (state/sort.ts); the next card takes it here.
+  useEffect(() => {
+    if (!paused && id && zoomId !== id) zoomTo(id)
+  }, [id, zoomId, paused])
+  useEffect(() => () => {
+    if (usePad.getState().zoomId !== null) zoomTo(null)
+  }, [])
   const left = sortTarget(all, 'left', choice.left)
   const right = sortTarget(all, 'right')
 
@@ -66,9 +85,7 @@ export function SortView({ theme, onOpen }: { theme: Theme; onOpen?: () => void 
   // was just picked.
   function commit(run: () => SortSession) {
     if (!id) return
-    if (draft.trim()) cmdSortAddSub(id, draft)
     setSession(run())
-    setDraft('')
   }
 
   // Fly the card off its edge, then deal the next one from the middle.
@@ -89,7 +106,6 @@ export function SortView({ theme, onOpen }: { theme: Theme; onOpen?: () => void 
   function back() {
     if (busy.current) return
     setSession(sortSessionBack(session))
-    setDraft('')
   }
 
   // The responder is made once; it reaches the current card through this ref.
@@ -116,10 +132,6 @@ export function SortView({ theme, onOpen }: { theme: Theme; onOpen?: () => void 
       onPanResponderTerminationRequest: () => false,
     }),
   ).current
-
-  function addSub() {
-    if (id && cmdSortAddSub(id, draft)) setDraft('')
-  }
 
   // The left side's pad. Right is always Today. With a card up, picking a pad sends it there.
   function pickLeft(next: SortChoice) {
@@ -235,44 +247,9 @@ export function SortView({ theme, onOpen }: { theme: Theme; onOpen?: () => void 
                 style={[s.text, { color: theme.ink }]}
               />
               <View style={[s.subs, { borderTopColor: theme.rule }]}>
-                <ScrollView style={s.subScroll} keyboardShouldPersistTaps="handled">
-                  {subs.map((sub) => {
-                    const r = rows[sub.id]!
-                    return (
-                      <View key={sub.id} style={[s.subRow, { paddingLeft: sub.depth * INDENT }]}>
-                        <Text style={[s.dot, { color: theme.inkMute }]}>•</Text>
-                        <CardField
-                          row
-                          value={r.text}
-                          onChangeText={(t) => cmdSortSetText(sub.id, oneLine(t))}
-                          onKeyPress={(e) => { if (e.nativeEvent.key === 'Backspace' && r.text === '') cmdSortRemoveSub(sub.id) }}
-                          multiline
-                          scrollEnabled={false}
-                          submitBehavior="blurAndSubmit"
-                          returnKeyType="done"
-                          accessibilityLabel="Sub item"
-                          style={[s.subText, { color: r.done ? theme.inkMute : theme.ink }, r.done && { textDecorationLine: 'line-through' }]}
-                        />
-                      </View>
-                    )
-                  })}
+                <ScrollView style={[s.subScroll, compact && s.subScrollCompact]} keyboardShouldPersistTaps="handled">
+                  {!paused && <SubRows id={id} theme={theme} onAdd={() => { if (usePad.getState().zoomId !== id) zoomTo(id); cmdAppendAtEnd() }} />}
                 </ScrollView>
-                <View style={s.subRow}>
-                  <Text style={[s.dot, { color: theme.inkMute }]}>+</Text>
-                  <CardField
-                    row
-                    value={draft}
-                    onChangeText={setDraft}
-                    onSubmitEditing={addSub}
-                    onBlur={addSub}
-                    submitBehavior="submit"
-                    returnKeyType="done"
-                    placeholder="Add a sub item"
-                    placeholderTextColor={theme.inkMute}
-                    accessibilityLabel="Add a sub item"
-                    style={[s.subText, { color: theme.ink }]}
-                  />
-                </View>
               </View>
             </Animated.View>
           ) : (
@@ -283,30 +260,36 @@ export function SortView({ theme, onOpen }: { theme: Theme; onOpen?: () => void 
           )}
         </View>
 
-        <View style={s.actions}>
-          {action(`← ${left.name}`, `Left: ${left.name}`, () => send('left'), !id)}
-          {action('↑ Done', `Up: ${right.name}, done`, () => send('up'), !id)}
-          {action(`${right.name} →`, `Right: ${right.name}`, () => send('right'), !id)}
-        </View>
-        <View style={[s.actions, s.actionsDown]}>
-          {action('↓ Cycle', 'Down: cycle, to the bottom of the pad to come round again', () => send('cycle'), !id)}
-        </View>
-        <View style={s.minor}>
-          <Pressable onPress={back} disabled={sent.length === 0} accessibilityRole="button" style={s.minorBtn}>
-            <Text style={[s.minorText, { color: sent.length ? theme.inkSoft : theme.inkMute, opacity: sent.length ? 1 : 0.5 }]}>Back</Text>
-          </Pressable>
-          <Pressable onPress={() => send('skip')} disabled={!id} accessibilityRole="button" style={s.minorBtn}>
-            <Text style={[s.minorText, { color: id ? theme.inkSoft : theme.inkMute, opacity: id ? 1 : 0.5 }]}>Skip</Text>
-          </Pressable>
-          <Pressable onPress={() => send('archive')} disabled={!id} accessibilityRole="button" accessibilityHint="Deletes it; the Archive keeps it" style={s.minorBtn}>
-            <Text style={[s.minorText, { color: id ? theme.inkSoft : theme.inkMute, opacity: id ? 1 : 0.5 }]}>Archive</Text>
-          </Pressable>
-        </View>
-        <View style={[s.targets, { borderTopColor: theme.rule }]}>
-          <Pressable onPress={pickTarget} accessibilityRole="button" accessibilityLabel={`Pad for a left swipe: ${left.name}`} style={s.minorBtn}>
-            <Text style={[s.targetText, { color: theme.inkSoft }]} numberOfLines={1}>← goes to <Text style={{ color: theme.link }}>{left.name}</Text></Text>
-          </Pressable>
-        </View>
+        {!compact && (
+          <>
+          <View style={s.actions}>
+            {action(`← ${left.name}`, `Left: ${left.name}`, () => send('left'), !id)}
+            {action('↑ Done', `Up: ${right.name}, done`, () => send('up'), !id)}
+            {action(`${right.name} →`, `Right: ${right.name}`, () => send('right'), !id)}
+          </View>
+          <View style={[s.actions, s.actionsDown]}>
+            {action('↓ Cycle', 'Down: cycle, to the bottom of the pad to come round again', () => send('cycle'), !id)}
+          </View>
+          <View style={s.minor}>
+            <Pressable onPress={back} disabled={sent.length === 0} accessibilityRole="button" style={s.minorBtn}>
+              <Text style={[s.minorText, { color: sent.length ? theme.inkSoft : theme.inkMute, opacity: sent.length ? 1 : 0.5 }]}>Back</Text>
+            </Pressable>
+            <Pressable onPress={() => send('skip')} disabled={!id} accessibilityRole="button" style={s.minorBtn}>
+              <Text style={[s.minorText, { color: id ? theme.inkSoft : theme.inkMute, opacity: id ? 1 : 0.5 }]}>Skip</Text>
+            </Pressable>
+            <Pressable onPress={() => send('archive')} disabled={!id} accessibilityRole="button" accessibilityHint="Deletes it; the Archive keeps it" style={s.minorBtn}>
+              <Text style={[s.minorText, { color: id ? theme.inkSoft : theme.inkMute, opacity: id ? 1 : 0.5 }]}>Archive</Text>
+            </Pressable>
+          </View>
+          <View style={[s.targets, { borderTopColor: theme.rule }]}>
+            <Pressable onPress={pickTarget} accessibilityRole="button" accessibilityLabel={`Pad for a left swipe: ${left.name}`} style={s.minorBtn}>
+              <Text style={[s.targetText, { color: theme.inkSoft }]} numberOfLines={1}>← goes to <Text style={{ color: theme.link }}>{left.name}</Text></Text>
+            </Pressable>
+          </View>
+          </>
+        )}
+        {/* The pad's floating buttons, for the sub item being typed or the ones selected. */}
+        {!paused && targeted && <FloatingButtons theme={theme} />}
       </Pressable>
   )
 }
@@ -327,15 +310,13 @@ const s = StyleSheet.create({
   hour: { padding: 4, margin: -4 },
   text: { fontFamily: serif, fontSize: 21, lineHeight: 29, padding: 0 },
   subs: { marginTop: 12, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
-  subScroll: { maxHeight: 220, flexGrow: 0 },
-  subRow: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 30 },
-  dot: { fontFamily: serif, fontSize: 17, lineHeight: 26, width: 18 },
-  subText: { flex: 1, fontFamily: serif, fontSize: 17, lineHeight: 26, padding: 0 },
   stamp: { position: 'absolute', top: 10, zIndex: 1, paddingHorizontal: 8, paddingVertical: 1, borderWidth: 1.5, borderRadius: 4 },
   stampLeft: { right: 12, transform: [{ rotate: '6deg' }] },
   stampRight: { left: 12, transform: [{ rotate: '-6deg' }] },
   stampUp: { alignSelf: 'center' },
   stampDown: { alignSelf: 'center', top: undefined, bottom: 10 },
+  subScroll: { maxHeight: 220, flexGrow: 0 },
+  subScrollCompact: { maxHeight: 130 },
   stampText: { fontFamily: serif, fontSize: 14, letterSpacing: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { fontFamily: serif, fontSize: 20 },

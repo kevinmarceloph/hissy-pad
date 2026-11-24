@@ -64,7 +64,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `lists.ts` | the Archive and Recently done panels: entries, restore, un-done, day grouping |
 | `search.ts` | Search across every pad: the lines found, grouped by pad with the words marked (`search`), and the jump to one (`cmdOpenHit`) |
 | `create.ts` | a new item on its card: make the line at the top of a place and zoom into it, set its text, move it to another place, and close the card keeping it or taking it all back |
-| `sort.ts` | Sort: the queue, the two targets, sending a card, the session a sort screen holds, the swipe rule |
+| `sort.ts` | Sort: the pad being sorted whatever the zoom (`sortRows`), the queue, the two targets, sending a card, the session a sort screen holds, the swipe rule |
 | `shake.ts` | shake detection from accelerometer samples |
 | `widget.ts` | the home-screen widget's data: the snapshot it draws from, applying the buttons pressed on it, adding a line to a pad |
 | `watch.ts` | when the phone should hand the Apple Watch a sign-in, and how long to wait before trying again |
@@ -127,13 +127,14 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 | `src/ui/PadChips.tsx` | the pads as chips, with rename, reorder and delete |
 | `src/ui/Lists.tsx` | Archive and Recently done sheets |
 | `src/ui/Search.tsx` | the Search sheet |
-| `src/ui/Sort.tsx` | the Sort screen (PanResponder swipe) |
+| `src/ui/Sort.tsx` | the Sort screen (PanResponder swipe); the card's sub items are `SubRows` |
+| `src/ui/SubRows.tsx` | the sub items of one line as the pad's own rows, while the store is zoomed into it: Sort's card and the new item's sheet |
 | `src/ui/Create.tsx` | the new item's sheet: Sort's card with the place, the hour and the pad icon, and the pad's rows, toolbar and floating buttons for its sub items. The top bar's + opens it, and so do the widget's + and the Add control (`openCreate`) |
 | `src/keyboard.ts` | the keyboard's height, for a toolbar that sits right above it |
 | `src/ui/Account.tsx` | sign in and the sync line |
 | `src/chimes.ts` | Hours' chimes on the phone: local notifications with a text reply (needs a build with `expo-notifications`) |
 | `src/shake.ts` | shake to undo (needs a build with `expo-sensors`) |
-| `src/local/sqlite.ts` | LocalStore on expo-sqlite; adds new columns on open; also the Hours rows (`hours_rows`, JSON) |
+| `src/local/sqlite.ts` | LocalStore on expo-sqlite, one transaction at a time; adds new columns on open; also the Hours rows (`hours_rows`, JSON) |
 | `src/theme.ts` | the paper and ink tokens |
 | `src/widget.ts` | the app's end of the widget: writes the snapshot, applies queued presses, handles the widget's links; also signs the watch in and out (`signInWatch`, `signOutWatch`) |
 | `targets/widget/` | the iOS widget itself, in Swift (WidgetKit + App Intents): `Shared.swift` (the shared storage and the queue), `Intents.swift` (the pad setting, the send and done buttons), `InboxWidget.swift` (the Inbox widget, the Add control, the bundle), `TodayWidget.swift` (the Today list), `AddControlIntent.swift` (what the Add control runs; also compiled into the app), `expo-target.config.js` (target settings and colors) |

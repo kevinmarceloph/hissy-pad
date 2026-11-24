@@ -6,10 +6,10 @@
 // the swipe itself is the app's.
 import { create } from 'zustand'
 import {
-  buildIndex, childrenOf, createPad, insertAt, isLive, isPadNode, isSubPad, listPads, moveNodes, remove, setDone, setText,
+  buildIndex, childrenOf, createPad, insertAt, isLive, isPadNode, isSubPad, listPads, moveNodes, remove, scopePad, setDone, setText,
   type OpCtx, type PadId, type Rows,
 } from '@hissypad/core'
-import { apply, applyAll, getLocalStore, usePad } from './store'
+import { apply, applyAll, getLocalStore, usePad, zoomTo } from './store'
 import { undo } from './history'
 import { stopEditing } from './selection'
 import { MAIN_PAD_NAME, ensureLine, placeName } from './pads'
@@ -89,9 +89,16 @@ export function sortTarget(all: Rows, side: SortSide, leftChoice: SortChoice = u
   return hit ? { padId: hit.id, subId: null, name: hit.text.trim(), exists: true, isDefault: true } : { padId: null, subId: null, name: want, exists: false, isDefault: true }
 }
 
+// The pad being sorted as a pad of its own, whatever the store is zoomed into: the sort
+// screen zooms into the card on screen (its sub items are the pad's own rows there), so
+// `rows` in the store is then only what is under that card.
+export function sortRows(state: { all: Rows; padId: PadId } = usePad.getState()): Rows {
+  return scopePad(state.all, state.padId)
+}
+
 // What there is to sort in the pad shown: its top-level lines, top to bottom, leaving out
 // crossed-out ones and blank spacers with nothing under them.
-export function sortQueue(rows: Rows = usePad.getState().rows): string[] {
+export function sortQueue(rows: Rows = sortRows()): string[] {
   const index = buildIndex(rows)
   return childrenOf(index, null)
     .filter((r) => !r.done && (r.text.trim() !== '' || childrenOf(index, r.id).length > 0))
@@ -131,6 +138,8 @@ export function sendToTarget(all: Rows, ctx: OpCtx, id: string, dir: Exclude<Sor
 // Send one card on its way: one undo step, the default pad made on the spot if needed.
 // The line goes to the top of its new pad, so the card sorted last is the first line there.
 export function cmdSortSend(id: string, dir: SortDir): SortResult | null {
+  // The card on screen is zoomed into: back to the pad, where the line itself is.
+  if (usePad.getState().zoomId !== null) zoomTo(null)
   const state = usePad.getState()
   if (!isLive(state.rows[id])) return null
   const undoDepth = state.past.length
@@ -177,6 +186,7 @@ export function cmdSortSend(id: string, dir: SortDir): SortResult | null {
 // Take back the last card: undo everything since it came up (the send, and any edits made
 // to the card after it).
 export function cmdSortBack(result: SortResult) {
+  if (usePad.getState().zoomId !== null) zoomTo(null)
   let guard = 0
   while (usePad.getState().past.length > result.undoDepth && guard++ < 500) undo()
   usePad.setState({ selection: [], anchorId: null, focusId: null })
@@ -185,7 +195,8 @@ export function cmdSortBack(result: SortResult) {
 // ---- editing the card ---------------------------------------------------------------
 
 export function cmdSortSetText(id: string, text: string) {
-  apply((rows, ctx) => (isLive(rows[id]) ? setText(rows, ctx, id, text) : rows), { label: 'cmdSortSetText', coalesce: `text:${id}` })
+  // On the whole table: the card's own line is outside the view while it is zoomed into.
+  applyAll((rows, ctx) => (isLive(rows[id]) ? setText(rows, ctx, id, text) : rows), { label: 'cmdSortSetText', coalesce: `text:${id}` })
 }
 
 // A new sub item at the bottom of `parentId`'s children. Returns its id ('' when the
@@ -194,7 +205,7 @@ export function cmdSortAddSub(parentId: string, text: string): string {
   const clean = text.trim()
   if (!clean) return ''
   let id = ''
-  apply((rows, ctx) => {
+  applyAll((rows, ctx) => {
     if (!isLive(rows[parentId])) return rows
     const last = childrenOf(buildIndex(rows), parentId).at(-1)
     const res = insertAt(rows, ctx, { parentId, afterId: last?.id ?? null }, clean)
@@ -206,7 +217,7 @@ export function cmdSortAddSub(parentId: string, text: string): string {
 }
 
 export function cmdSortRemoveSub(id: string) {
-  apply((rows, ctx) => (isLive(rows[id]) ? remove(rows, ctx, [id]) : rows), { label: 'cmdSortRemoveSub' })
+  applyAll((rows, ctx) => (isLive(rows[id]) ? remove(rows, ctx, [id]) : rows), { label: 'cmdSortRemoveSub' })
 }
 
 // ---- a sort session -----------------------------------------------------------------
@@ -224,14 +235,14 @@ export interface SortSession {
   sent: readonly SortSent[]
 }
 
-export function sortSessionStart(rows: Rows = usePad.getState().rows): SortSession {
+export function sortSessionStart(rows: Rows = sortRows()): SortSession {
   return { queue: sortQueue(rows), pos: 0, sent: [] }
 }
 
 // The card to show: the next queued line that is still a top-level line of this pad (a
 // sync or an undo can take one away mid-sort). `index` is its place in the queue, which
 // is queue.length when nothing is left.
-export function sortSessionCard(session: SortSession, rows: Rows = usePad.getState().rows): { id: string | null; index: number } {
+export function sortSessionCard(session: SortSession, rows: Rows = sortRows()): { id: string | null; index: number } {
   let i = session.pos
   while (i < session.queue.length) {
     const r = rows[session.queue[i]!]
@@ -278,7 +289,7 @@ export function sortSessionBack(session: SortSession): SortSession {
 // Where the sort stands, counted in lines rather than queue places: a cycled line is in the
 // queue twice but is one line still to go. `at` is the card's number ("2 of 5"), `total`
 // the lines dealt, `left` the lines not yet sent, skipped or deleted.
-export function sortSessionProgress(session: SortSession, rows: Rows = usePad.getState().rows): { at: number; total: number; left: number } {
+export function sortSessionProgress(session: SortSession, rows: Rows = sortRows()): { at: number; total: number; left: number } {
   const { index } = sortSessionCard(session, rows)
   const total = new Set(session.queue).size
   const left = new Set(session.queue.slice(index)).size

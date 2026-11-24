@@ -70,6 +70,16 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: H
 
   // The Hours mode's rows (entries, categories, flags, recurring plans) as JSON in one table;
   // its settings and cursors share `meta` under their own prefix.
+  // One transaction at a time: they share a connection, and two that overlap (keys typed
+  // faster than a write lands) fail or roll each other back, which lost the later text of a
+  // line (2026-11-25).
+  let chain: Promise<unknown> = Promise.resolve()
+  const oneAtATime = <T,>(job: () => Promise<T>): Promise<T> => {
+    const run = chain.then(job)
+    chain = run.catch(() => {})
+    return run
+  }
+
   const hours: HoursBackend = {
     async load() {
       const list = await (await db()).getAllAsync<{ tbl: string; key: string; json: string; dirty: number }>('select * from hours_rows')
@@ -77,14 +87,14 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: H
     },
     async save(rows) {
       const d = await db()
-      await d.withTransactionAsync(async () => {
+      await oneAtATime(() => d.withTransactionAsync(async () => {
         for (const r of rows) {
           await d.runAsync(
             'insert into hours_rows (tbl, key, json, dirty) values (?, ?, ?, ?) on conflict (tbl, key) do update set json = excluded.json, dirty = excluded.dirty',
             r.table, r.key, JSON.stringify(r.row), r.dirty ? 1 : 0,
           )
         }
-      })
+      }))
     },
     async getMeta(key) {
       const r = await (await db()).getFirstAsync<{ value: string }>('select value from meta where key = ?', `hours.${key}`)
@@ -105,7 +115,7 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: H
     },
     async upsertMany(rows, opts) {
       const d = await db()
-      await d.withTransactionAsync(async () => {
+      await oneAtATime(() => d.withTransactionAsync(async () => {
         for (const r of rows) {
           await d.runAsync(
             `insert into nodes (id, parent_id, rank, text, done, done_at, collapsed, numbered, header, pad, updated_at, deleted_at, slot, category, doing)
@@ -117,7 +127,7 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: H
           )
           if (opts.dirty) await d.runAsync('insert or ignore into dirty (id) values (?)', r.id)
         }
-      })
+      }))
     },
     async dirtyIds() {
       const list = await (await db()).getAllAsync<{ id: string }>('select id from dirty')
@@ -125,9 +135,9 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: H
     },
     async markClean(ids) {
       const d = await db()
-      await d.withTransactionAsync(async () => {
+      await oneAtATime(() => d.withTransactionAsync(async () => {
         for (const id of ids) await d.runAsync('delete from dirty where id = ?', id)
-      })
+      }))
     },
     async getMeta(key) {
       const r = await (await db()).getFirstAsync<{ value: string }>('select value from meta where key = ?', key)

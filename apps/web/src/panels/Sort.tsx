@@ -2,16 +2,19 @@
 // left for Later (or the pad picked below: picking one sends the card there too), right
 // for Today, up for Today and crossed out, down to cycle it: to the bottom of the pad, to
 // come round again. Skip leaves a card; Archive deletes it. The card is live: its
-// text and sub items edit the real rows, so a line can be fixed up before it goes. Every
+// text edits the real row, and its sub items are the pad itself, zoomed into the card's
+// line (the store's zoom): the same rows, keys and toolbar as in the pad. Every
 // send is one undo step; Back takes the last card back. The pad icon on the card leaves Sort
 // for the pad, scrolled so the line is at the top.
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from 'react'
-import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import { scopePad, slotLabel, todayKey } from '@hissypad/core'
 import { cmdPickSlot } from '@hissypad/state/hours'
 import { HoursIcon, PadIcon } from '../app/icons'
+import { Pad } from '../pad/Pad'
+import { SelectionBar } from '../pad/SelectionBar'
 import {
-  cmdOpenHit, cmdSortAddSub, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
-  sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortChoice, type SortDir,
+  cmdAppendAtEnd, cmdOpenHit, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
+  sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, zoomTo, type SortChoice, type SortDir,
 } from '@hissypad/state'
 
 const SWIPE = SWIPE_DISTANCE // px of travel that commits a swipe
@@ -36,26 +39,36 @@ export function AutoText(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return <textarea ref={ref} rows={1} {...props} />
 }
 
-export function Sort({ onClose }: { onClose: () => void }) {
-  const rows = usePad((s) => s.rows)
+// `paused`: something else has the store's zoom (the new item's card is open over Sort), so
+// the card draws no sub items and leaves the zoom alone until it is back.
+export function Sort({ onClose, paused = false }: { onClose: () => void; paused?: boolean }) {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
+  const zoomId = usePad((s) => s.zoomId)
+  // The pad being sorted. The store's own `rows` is what is under the card while it is zoomed into.
+  const rows = useMemo(() => scopePad(all, padId), [all, padId])
   const choice = useSort()
   const pads = useMemo(() => padList(all), [all])
   const [session, setSession] = useState(() => sortSessionStart())
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null)
   const [ghost, setGhost] = useState<Ghost | null>(null)
-  const [draft, setDraft] = useState('')
   const [naming, setNaming] = useState<string | null>(null)
   const press = useRef<{ x: number; y: number; pointer: number; inFocusedField: boolean; dragging: boolean } | null>(null)
-  const addRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { void loadSortTargets() }, [])
 
   const { queue, sent } = session
   const { id } = sortSessionCard(session, rows)
   const row = id ? rows[id]! : null
-  const subs = useMemo(() => (id ? flatten(buildIndex(rows), false, id) : []), [rows, id])
+
+  // The card on screen is zoomed into, so the pad's rows and toolbar edit what is under it.
+  // A send or Back leaves the zoom (state/sort.ts); the next card takes it here.
+  useEffect(() => {
+    if (!paused && id && zoomId !== id) zoomTo(id)
+  }, [id, zoomId, paused])
+  useEffect(() => () => {
+    if (usePad.getState().zoomId !== null) zoomTo(null)
+  }, [])
   const left = sortTarget(all, 'left', choice.left)
   const right = sortTarget(all, 'right')
   const progress = sortSessionProgress(session, rows)
@@ -66,7 +79,6 @@ export function Sort({ onClose }: { onClose: () => void }) {
     if (row) setGhost({ key: Date.now(), text: row.text, dir, ...from })
     setSession(next)
     setDrag(null)
-    setDraft('')
   }
 
   function send(dir: SortDir, from = { dx: 0, dy: 0 }) {
@@ -85,20 +97,22 @@ export function Sort({ onClose }: { onClose: () => void }) {
     if (next === session) return
     setSession(next)
     setGhost(null)
-    setDraft('')
   }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const t = e.target as HTMLElement | null
       if (t?.closest?.('dialog')) return // the hour picker has its own keys
+      // The card's sub items are the pad's rows: a key they took (Escape out of a selection,
+      // the arrows through one) is not a key for the cards.
+      if (e.defaultPrevented) return
       const inField = !!t?.closest?.('textarea, input, select')
       if (e.key === 'Escape') {
         if (inField) t!.blur()
         else onClose()
         return
       }
-      if (inField || e.altKey) return
+      if (inField || e.altKey || usePad.getState().selection.length > 0) return
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); back(); return }
       if (e.metaKey || e.ctrlKey) return
       const dir: SortDir | null = e.key === 'ArrowLeft' ? 'left' : e.key === 'ArrowRight' ? 'right' : e.key === 'ArrowUp' ? 'up' : e.key === 'ArrowDown' || e.key.toLowerCase() === 'c' ? 'cycle' : e.key.toLowerCase() === 's' ? 'skip' : e.key.toLowerCase() === 'a' ? 'archive' : null
@@ -149,24 +163,6 @@ export function Sort({ onClose }: { onClose: () => void }) {
   function onPointerCancel() {
     press.current = null
     setDrag(null)
-  }
-
-  // ---- the card's fields -------------------------------------------------------------
-
-  function addSub() {
-    if (!id) return
-    if (cmdSortAddSub(id, draft)) setDraft('')
-  }
-
-  function onSubKey(e: ReactKeyboardEvent<HTMLTextAreaElement>, subId: string) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      addRef.current?.focus()
-    } else if (e.key === 'Backspace' && e.currentTarget.value === '') {
-      e.preventDefault()
-      cmdSortRemoveSub(subId)
-      addRef.current?.focus()
-    }
   }
 
   const leaning = drag ? swipeDir(drag.dx, drag.dy) : null
@@ -235,6 +231,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
   }
 
   return (
+    <>
     <section className="sort" aria-labelledby="sort-title">
       <header className="sort-head">
         <div>
@@ -297,33 +294,10 @@ export function Sort({ onClose }: { onClose: () => void }) {
               aria-label="Line text"
               placeholder="Empty line"
             />
-            <ul className="sort-subs" aria-label="Sub items">
-              {subs.map((s) => {
-                const sub = rows[s.id]!
-                return (
-                  <li key={s.id} style={{ '--depth': s.depth } as CSSProperties} className={sub.done ? 'is-done' : undefined}>
-                    <AutoText
-                      value={sub.text}
-                      onChange={(e) => cmdSortSetText(s.id, oneLine(e.target.value))}
-                      onKeyDown={(e) => onSubKey(e, s.id)}
-                      aria-label="Sub item"
-                    />
-                  </li>
-                )
-              })}
-              <li className="add">
-                <input
-                  ref={addRef}
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSub() } }}
-                  onBlur={addSub}
-                  placeholder="Add a sub item"
-                  aria-label="Add a sub item"
-                  enterKeyHint="done"
-                />
-              </li>
-            </ul>
+            <div className="create-subs">
+              {!paused && zoomId === id && <Pad embedded undo={false} />}
+              <button type="button" className="create-add" onClick={() => { if (usePad.getState().zoomId !== id) zoomTo(id); cmdAppendAtEnd() }}>Add a sub item</button>
+            </div>
           </article>
         ) : (
           <div className="sort-empty" role="status">
@@ -356,5 +330,8 @@ export function Sort({ onClose }: { onClose: () => void }) {
         {targetSelect()}
       </div>
     </section>
+    {/* The pad's toolbar, for the sub item being typed or the ones selected. */}
+    {!paused && <SelectionBar />}
+    </>
   )
 }

@@ -15,7 +15,8 @@ const NEW_ROW = '\u0000new'
 
 // `embedded`: drawn inside the new item's card, over the lines under that item (the store is
 // zoomed into it). No hint, no tail and no floating +: the card has its own way to add one.
-export function Pad({ embedded = false }: { embedded?: boolean }) {
+// `undo` off: the screen it is in has its own Undo (Sort's Back) for Cmd+Z outside a field.
+export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boolean; undo?: boolean }) {
   const rows = usePad((s) => s.rows)
   const editing = usePad((s) => s.editing)
   const selection = usePad((s) => s.selection)
@@ -123,7 +124,7 @@ export function Pad({ embedded = false }: { embedded?: boolean }) {
         forceSync()
         return
       }
-      if (!inField && mod && e.key.toLowerCase() === 'z') {
+      if (!inField && mod && e.key.toLowerCase() === 'z' && ownUndo) {
         e.preventDefault()
         if (e.shiftKey) redo()
         else undo()
@@ -131,7 +132,7 @@ export function Pad({ embedded = false }: { embedded?: boolean }) {
       }
       if (inField) return
       const { selection, focusId } = usePad.getState()
-      if (mod && e.key.toLowerCase() === 'a') {
+      if (mod && e.key.toLowerCase() === 'a' && !embedded) {
         e.preventDefault()
         selectAll()
         return
