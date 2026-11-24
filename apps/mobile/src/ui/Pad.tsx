@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, flatten, listNumbers, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, select, setPref, stopEditing, usePad, usePrefs, visibleIds } from '@hissypad/state'
+import { apply, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -289,7 +289,6 @@ export function Pad() {
     Alert.alert('HissyPad', undefined, [
       { text: 'Done', onPress: () => setSheet('done') },
       { text: 'Trash', onPress: () => setSheet('trash') },
-      { text: usePrefs.getState().padCounts ? 'Hide pad counts' : 'Show pad counts', onPress: () => setPref('padCounts', !usePrefs.getState().padCounts) },
       ...(logEnabled() ? [{ text: 'Log', onPress: () => setLogText(dumpLog()) }] : []),
       { text: 'Cancel', style: 'cancel' as const },
     ])
