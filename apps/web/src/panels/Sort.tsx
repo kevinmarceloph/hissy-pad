@@ -3,7 +3,8 @@
 // text and sub items edit the real rows, so a line can be fixed up before it goes. Every
 // send is one undo step; Back takes the last card back.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from 'react'
-import { buildIndex, flatten } from '@hissypad/core'
+import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
+import { cmdPickSlot } from '@hissypad/state/hours'
 import {
   cmdSortAddSub, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard,
   sortSessionSend, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortDir, type SortSide,
@@ -71,6 +72,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const t = e.target as HTMLElement | null
+      if (t?.closest?.('dialog')) return // the hour picker has its own keys
       const inField = !!t?.closest?.('textarea, input, select')
       if (e.key === 'Escape') {
         if (inField) t!.blur()
@@ -246,7 +248,11 @@ export function Sort({ onClose }: { onClose: () => void }) {
             <span className="stamp stamp-right" style={{ opacity: pull('right') }} aria-hidden="true">{right.name}</span>
             <span className="stamp stamp-up" style={{ opacity: pull('up') }} aria-hidden="true">Done</span>
             <span className="stamp stamp-down" style={{ opacity: pull('down') }} aria-hidden="true">Delete</span>
-            <p className="sort-count">{at + 1} of {queue.length}</p>
+            <div className="sort-top">
+              <p className="sort-count">{at + 1} of {queue.length}</p>
+              {row.slot && <span className="slot" title="The hour this line is in">{slotLabel(row.slot, todayKey())}</span>}
+              <button type="button" className="sort-hour" onClick={() => cmdPickSlot([id])} aria-label={row.slot ? `Hour: ${slotLabel(row.slot, todayKey())}, change` : 'Put in an hour'}>Hour…</button>
+            </div>
             <AutoText
               className="sort-text"
               value={row.text}

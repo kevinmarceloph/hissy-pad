@@ -6,7 +6,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Animated, Dimensions, Keyboard, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { buildIndex, flatten } from '@hissypad/core'
+import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
+import { cmdPickSlot } from '@hissypad/state/hours'
 import {
   cmdSortAddSub, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard,
   sortSessionSend, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortDir, type SortSide,
@@ -151,7 +152,19 @@ export function SortView({ theme }: { theme: Theme }) {
               {stamp(right.name, stampRight, s.stampRight)}
               {stamp('Done', stampUp, s.stampUp)}
               {stamp('Delete', stampDown, s.stampDown)}
-              <Text style={[s.count, { color: theme.inkMute }]}>{at + 1} of {queue.length}</Text>
+              <View style={s.top}>
+                <Text style={[s.count, { color: theme.inkMute }]}>{at + 1} of {queue.length}</Text>
+                {row.slot && <Text style={[s.slot, { color: theme.inkSoft, borderColor: theme.rule }]}>{slotLabel(row.slot, todayKey())}</Text>}
+                <Pressable
+                  onPress={() => cmdPickSlot([id])}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={row.slot ? `Hour: ${slotLabel(row.slot, todayKey())}, change` : 'Put in an hour'}
+                  style={({ pressed }) => [s.hour, { borderColor: theme.rule, opacity: pressed ? 0.5 : 1 }]}
+                >
+                  <Text style={[s.hourText, { color: theme.inkSoft }]}>Hour…</Text>
+                </Pressable>
+              </View>
               <TextInput
                 value={row.text}
                 onChangeText={(t) => cmdSortSetText(id, t)}
@@ -246,7 +259,11 @@ const s = StyleSheet.create({
     paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth,
     shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 4,
   },
-  count: { fontFamily: serif, fontSize: 13, marginBottom: 6 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  count: { fontFamily: serif, fontSize: 13, marginRight: 'auto' },
+  slot: { fontFamily: serif, fontSize: 12, paddingHorizontal: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 3, overflow: 'hidden' },
+  hour: { paddingHorizontal: 8, paddingVertical: 2, borderWidth: StyleSheet.hairlineWidth, borderRadius: 4 },
+  hourText: { fontFamily: serif, fontSize: 13 },
   text: { fontFamily: serif, fontSize: 21, lineHeight: 29, padding: 0 },
   subs: { marginTop: 12, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
   subScroll: { maxHeight: 220, flexGrow: 0 },

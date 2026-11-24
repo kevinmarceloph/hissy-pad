@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { shape } from '@hissypad/core'
 import { App } from '../app/App'
 import { resetStore, usePad } from '@hissypad/state'
+import { cmdSetSlot, setSlotPickerOpener } from '@hissypad/state/hours'
+import { slotKey, slotLabel, todayKey } from '@hissypad/core'
 
 async function mount(outline: string) {
   resetStore(outline)
@@ -119,5 +121,22 @@ describe('sort', () => {
     await user.selectOptions(screen.getByLabelText('Pad for a right or up swipe'), 'New pad…')
     await user.click(button('Cancel'))
     expect(button('Right: Today')).toBeInTheDocument()
+  })
+
+  it("the card's top right shows the hour it is in and an Hour… button that opens the picker for that line", async () => {
+    const user = userEvent.setup()
+    await mount('A\nB')
+    const a = Object.values(usePad.getState().rows).find((r) => r.text === 'A')!
+    const slot = slotKey(todayKey(), 15)
+    cmdSetSlot(slot, [a.id])
+    await user.click(button('Sort'))
+    expect(screen.getByText(slotLabel(slot, todayKey()))).toBeInTheDocument()
+    const asked: string[][] = []
+    setSlotPickerOpener((ids) => asked.push([...ids]))
+    await user.click(button(/^Hour: .*, change$/))
+    expect(asked).toEqual([[a.id]])
+    await user.keyboard('{ArrowLeft}')
+    expect(card().value).toBe('B')
+    expect(button('Put in an hour')).toBeInTheDocument()
   })
 })
