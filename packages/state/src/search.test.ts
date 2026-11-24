@@ -5,7 +5,7 @@ import { applyAll, loadPad, openPad, usePad } from './store'
 import { undo } from './history'
 import { select } from './selection'
 import { cmdDeleteSelection, cmdToggleDone } from './commands'
-import { cmdMoveToPad, cmdNewPad } from './pads'
+import { cmdDeletePad, cmdMoveToPad, cmdNewPad } from './pads'
 import { cmdOpenHit, foldText, search, searchCount, searchParts, searchTerms } from './search'
 
 const all = () => usePad.getState().all
@@ -109,16 +109,64 @@ describe('cmdOpenHit', () => {
     expect(all()[id('Book flights')]!.collapsed).toBe(true)
   })
 
-  it('a pad name opens that pad; a deleted or unknown line does nothing', () => {
+  it('a pad name opens that pad; an unknown line does nothing', () => {
     expect(cmdOpenHit(work)).toBe(true)
     expect(usePad.getState().padId).toBe(work)
     expect(usePad.getState().selection).toEqual([])
-    openPad(null)
-    const gone = id('Buy milk')
-    select([gone], gone)
-    cmdDeleteSelection()
-    expect(cmdOpenHit(gone)).toBe(false)
     expect(cmdOpenHit('nope')).toBe(false)
-    expect(shape(usePad.getState().rows).startsWith('Trip to Cebu')).toBe(true)
+  })
+})
+
+describe('search with archived lines', () => {
+  let work: string
+  beforeEach(async () => {
+    work = await reset()
+  })
+
+  const archive = (text: string) => {
+    const at = id(text)
+    select([at], at)
+    cmdDeleteSelection()
+    return at
+  }
+
+  it('leaves archived lines out unless asked, then lists them last in their own group', () => {
+    openPad(work)
+    archive('work milk run')
+    openPad(null)
+    expect(found('milk')).toEqual(['Inbox: Buy [milk]'])
+    const r = search(all(), 'milk', null, undefined, true)
+    expect(r.groups.map((g) => [g.name, g.archived])).toEqual([['Inbox', false], ['Archive', true]])
+    const hit = r.groups[1]!.hits[0]!
+    expect(marked(hit.parts)).toBe('work [milk] run')
+    expect(hit.archived).toBe(true)
+    expect(hit.path).toEqual(['Work'])
+    expect(r.total).toBe(2)
+  })
+
+  it('finds a line archived with its parent, under the path it had', () => {
+    archive('Trip to Cebu')
+    const hits = search(all(), 'airline', null, undefined, true).groups.flatMap((g) => g.hits)
+    expect(hits.map((h) => [h.archived, h.path])).toEqual([[true, ['Inbox', 'Trip to Cebu', 'Book flights']]])
+  })
+
+  it('going to an archived line brings back what was archived with it and selects the line', () => {
+    const line = (() => { const l = id('Call the airline'); archive('Trip to Cebu'); return l })()
+    openPad(work)
+    expect(cmdOpenHit(line)).toBe(true)
+    expect(usePad.getState().padId).toBeNull()
+    expect(usePad.getState().selection).toEqual([line])
+    expect(shape(usePad.getState().rows)).toContain('Trip to Cebu\n  Book flights\n    Call the airline')
+    expect(search(all(), 'airline', null, undefined, true).groups.map((g) => g.archived)).toEqual([false])
+  })
+
+  it('an archived pad comes back as a tab and opens', () => {
+    openPad(null)
+    cmdDeletePad(work)
+    const hit = search(all(), 'work', null, undefined, true).groups.find((g) => g.archived)?.hits.find((h) => h.isPad)
+    expect(hit?.id).toBe(work)
+    expect(cmdOpenHit(work)).toBe(true)
+    expect(usePad.getState().padId).toBe(work)
+    expect(all()[work]!.deletedAt).toBeNull()
   })
 })

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { idOf } from '@hissypad/core'
-import { cmdMoveToPad, cmdNewPad, cmdToggleCollapsed, openPad, resetStore, select, usePad } from '@hissypad/state'
+import { cmdDeleteSelection, cmdMoveToPad, cmdNewPad, cmdToggleCollapsed, openPad, resetStore, select, usePad } from '@hissypad/state'
 import { App } from '../app/App'
 
 // Main: milk and a folded Trip; a second pad, Work, with one line. Main is on screen.
@@ -89,5 +89,24 @@ describe('search', () => {
     await user.click(screen.getByRole('button', { name: 'Sort' }))
     fireEvent.keyDown(document.body, { key: 'k', ctrlKey: true })
     expect(panel()).toHaveAttribute('open')
+  })
+
+  it('the toggle adds archived lines, and Enter on one brings it back', async () => {
+    const user = userEvent.setup()
+    await mount()
+    const gone = idOf(usePad.getState().rows, 'Buy milk')
+    select([gone], gone)
+    cmdDeleteSelection()
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    await user.type(field(), 'buy')
+    expect(screen.getByText('Nothing found.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Search archived lines too', hidden: true }))
+    expect(field()).toHaveFocus()
+    expect(options()).toEqual(['Buy milk'])
+    expect(screen.getByRole('group', { name: 'Archive', hidden: true })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Leave out archived lines', hidden: true })).toHaveAttribute('aria-pressed', 'true')
+    await user.keyboard('{Enter}')
+    expect(usePad.getState().all[gone]!.deletedAt).toBeNull()
+    expect(selectedText()).toEqual(['Buy milk'])
   })
 })

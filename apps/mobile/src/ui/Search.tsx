@@ -1,6 +1,7 @@
 // Search every pad, as a sheet: a field at the top and the lines found under it, grouped
 // by pad. A tap goes to the line (its pad opens, folds over it open, the line is selected).
 // The matching and the jump are the state package's search.ts, the same as the web panel.
+// A text toggle under the field adds the archived lines; going to one brings it back.
 import { useEffect, useMemo, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -13,7 +14,8 @@ export function SearchSheet({ visible, onClose, onOpen, theme }: { visible: bool
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
   const [query, setQuery] = useState('')
-  const result = useMemo(() => (visible ? search(all, query, padId) : { groups: [], total: 0 }), [visible, all, query, padId])
+  const [archived, setArchived] = useState(false)
+  const result = useMemo(() => (visible ? search(all, query, padId, undefined, archived) : { groups: [], total: 0 }), [visible, all, query, padId, archived])
 
   useEffect(() => {
     if (!visible) setQuery('')
@@ -47,6 +49,15 @@ export function SearchSheet({ visible, onClose, onOpen, theme }: { visible: bool
             <Text style={[s.close, { color: theme.inkSoft }]}>Close</Text>
           </Pressable>
         </View>
+        <Pressable
+          onPress={() => setArchived(!archived)}
+          style={s.toggle}
+          hitSlop={{ top: 8, bottom: 8 }}
+          accessibilityRole="button"
+          accessibilityState={{ selected: archived }}
+        >
+          <Text style={[s.toggleText, { color: theme.accent }]}>{archived ? 'Leave out archived lines' : 'Search archived lines too'}</Text>
+        </Pressable>
         <ScrollView
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -54,7 +65,7 @@ export function SearchSheet({ visible, onClose, onOpen, theme }: { visible: bool
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 24 }}
         >
           {result.groups.map((g) => (
-            <View key={g.padId ?? 'main'}>
+            <View key={g.archived ? 'archive' : g.padId ?? 'main'}>
               <Text style={[s.pad, { color: theme.inkMute }]}>{g.name.toUpperCase()}</Text>
               {g.hits.map((h) => (
                 <Pressable
@@ -63,18 +74,18 @@ export function SearchSheet({ visible, onClose, onOpen, theme }: { visible: bool
                   accessibilityRole="button"
                   style={({ pressed }) => [s.hit, { borderTopColor: theme.rule }, pressed && { backgroundColor: theme.accentSoft }]}
                 >
-                  <Text numberOfLines={2} style={[s.txt, { color: h.done ? theme.inkMute : theme.ink }, h.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
+                  <Text numberOfLines={2} style={[s.txt, { color: h.done ? theme.inkMute : h.archived ? theme.inkSoft : theme.ink }, h.archived && { fontStyle: 'italic' }, h.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
                     {h.parts.map((p, k) => (p.hit ? <Text key={k} style={{ color: theme.accent, fontWeight: '600' }}>{p.text}</Text> : p.text))}
                   </Text>
                   {(h.isPad || h.path.length > 0) && (
-                    <Text numberOfLines={1} style={[s.sub, { color: theme.inkMute }]}>{h.isPad ? 'Pad' : h.path.join(' › ')}</Text>
+                    <Text numberOfLines={1} style={[s.sub, { color: theme.inkMute }]}>{[h.isPad && 'Pad', ...h.path].filter(Boolean).join(' › ')}</Text>
                   )}
                 </Pressable>
               ))}
             </View>
           ))}
           <Text style={[s.note, { color: theme.inkMute }]}>
-            {!typed ? 'Lines from every pad, crossed-out ones too. Tap one to go to it.' : result.total === 0 ? 'Nothing found.' : `${searchCount(result)}.`}
+            {!typed ? `Lines from every pad, crossed-out ones${archived ? ' and archived ones' : ''} too. Tap one to go to it${archived ? ', and an archived one comes back' : ''}.` : result.total === 0 ? 'Nothing found.' : `${searchCount(result)}.`}
           </Text>
         </ScrollView>
       </View>
@@ -88,6 +99,8 @@ const s = StyleSheet.create({
   field: { flex: 1, minHeight: 44, paddingHorizontal: 12, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth, fontFamily: serif, fontSize: 17 },
   closeBtn: { minHeight: 44, justifyContent: 'center' },
   close: { fontFamily: serif, fontSize: 16 },
+  toggle: { alignSelf: 'flex-start', paddingHorizontal: 16, minHeight: 32, justifyContent: 'center' },
+  toggleText: { fontFamily: serif, fontSize: 15, textDecorationLine: 'underline' },
   pad: { fontFamily: serif, fontSize: 12, letterSpacing: 1, marginTop: 16, marginBottom: 4 },
   hit: { paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth },
   txt: { fontFamily: serif, fontSize: 17, lineHeight: 24 },

@@ -10,7 +10,7 @@ import { select } from './selection'
 export const TRASH_DAYS = 30
 // Rows deleted this close together count as one delete. `remove` stamps a whole call
 // with one timestamp; rows from builds before that are a millisecond or so apart.
-const BATCH_GAP_MS = 1000
+export const BATCH_GAP_MS = 1000
 
 export interface TrashEntry {
   id: string

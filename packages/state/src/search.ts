@@ -1,11 +1,11 @@
 // Search across every pad: the live lines whose text holds every word of the query, in the
 // order the pads show them, grouped by pad with the pad on screen first. A pad's name is
-// searched too. Plain selectors plus the one command that jumps to a hit; both platforms
+// searched too. Asked for, archived lines come last, in a group of their own, newest first. Plain selectors plus the one command that jumps to a hit; both platforms
 // draw from this, and nothing here knows about the DOM or React Native.
-import { buildIndex, childrenOf, isLive, isPadNode, setCollapsed, type PadId, type Rows } from '@hissypad/core'
+import { buildIndex, childrenOf, isLive, isPadNode, setCollapsed, type NodeRow, type PadId, type Rows } from '@hissypad/core'
 import { applyAll, openPad, revealRow, usePad, zoomTo } from './store'
 import { select, stopEditing } from './selection'
-import { foldedAncestors, padOf } from './lists'
+import { BATCH_GAP_MS, cmdRestore, foldedAncestors, padOf } from './lists'
 import { MAIN_PAD_NAME } from './pads'
 import { log } from './log'
 
@@ -24,6 +24,7 @@ export interface SearchHit {
   id: string
   padId: PadId
   isPad: boolean      // the hit is a pad's name, not a line
+  archived: boolean   // the line is archived; going to it brings it back
   done: boolean
   path: string[]      // the lines it sits under, outermost first, the pad itself not included
   parts: SearchPart[] // the line of its text that matched
@@ -32,6 +33,7 @@ export interface SearchHit {
 export interface SearchGroup {
   padId: PadId
   name: string
+  archived: boolean // the group of archived lines, whichever pads they left
   hits: SearchHit[]
 }
 
@@ -111,8 +113,10 @@ const firstLineOf = (text: string) => text.split('\n').find((l) => l.trim() !== 
 
 // Every live line, in every pad, whose text holds all the words of the query (any order,
 // case and accents ignored). `current` is the pad on screen: its hits come first, then the
-// other pads in tab order. Lines under a folded line are found too.
-export function search(all: Rows, query: string, current: PadId = null, limit = SEARCH_LIMIT): SearchResult {
+// other pads in tab order. Lines under a folded line are found too. With `archived`, the
+// archived lines that match follow in one group, newest archive first; their path starts
+// with the pad they left.
+export function search(all: Rows, query: string, current: PadId = null, limit = SEARCH_LIMIT, archived = false): SearchResult {
   const terms = searchTerms(query)
   if (terms.length === 0) return { groups: [], total: 0 }
   const index = buildIndex(all)
@@ -129,7 +133,7 @@ export function search(all: Rows, query: string, current: PadId = null, limit = 
   }
   const walk = (parentId: string, padId: PadId, path: string[]) => {
     for (const r of childrenOf(index, parentId)) {
-      if (matches(r.text)) add({ id: r.id, padId, isPad: false, done: r.done, path, parts: searchParts(r.text, terms) })
+      if (matches(r.text)) add({ id: r.id, padId, isPad: false, archived: false, done: r.done, path, parts: searchParts(r.text, terms) })
       if (childrenOf(index, r.id).length > 0) walk(r.id, padId, [...path, firstLineOf(r.text) || '(blank line)'])
     }
   }
@@ -138,10 +142,10 @@ export function search(all: Rows, query: string, current: PadId = null, limit = 
     const isPad: boolean = isPadNode(r)
     if (isPad) {
       order.push(r.id)
-      if (matches(r.text)) add({ id: r.id, padId: r.id, isPad: true, done: false, path: [], parts: searchParts(r.text, terms) })
+      if (matches(r.text)) add({ id: r.id, padId: r.id, isPad: true, archived: false, done: false, path: [], parts: searchParts(r.text, terms) })
       walk(r.id, r.id, [])
     } else {
-      if (matches(r.text)) add({ id: r.id, padId: null, isPad: false, done: r.done, path: [], parts: searchParts(r.text, terms) })
+      if (matches(r.text)) add({ id: r.id, padId: null, isPad: false, archived: false, done: r.done, path: [], parts: searchParts(r.text, terms) })
       if (childrenOf(index, r.id).length > 0) walk(r.id, null, [firstLineOf(r.text) || '(blank line)'])
     }
   }
@@ -154,10 +158,55 @@ export function search(all: Rows, query: string, current: PadId = null, limit = 
     if (!hits) continue
     total += hits.length
     if (room <= 0) continue
-    groups.push({ padId, name: padId === null ? MAIN_PAD_NAME : all[padId]?.text || 'Untitled pad', hits: hits.slice(0, room) })
+    groups.push({ padId, name: padId === null ? MAIN_PAD_NAME : all[padId]?.text || 'Untitled pad', archived: false, hits: hits.slice(0, room) })
     room -= hits.length
   }
+  if (archived) {
+    const hits = archivedHits(all, terms)
+    total += hits.length
+    if (hits.length > 0 && room > 0) groups.push({ padId: null, name: 'Archive', archived: true, hits: hits.slice(0, room) })
+  }
   return { groups, total }
+}
+
+// Archived rows whose text holds every term, newest archive first. The path is every line
+// above the row, live or archived, under the name of the pad it was in.
+// isPadNode is for live rows only; an archived pad is still a root row with `pad` set.
+const padRow = (r: NodeRow) => r.pad && r.parentId === null
+
+function archivedHits(all: Rows, terms: readonly string[]): SearchHit[] {
+  const dead = Object.values(all)
+    .filter((r): r is typeof r & { deletedAt: string } => r.deletedAt !== null && r.text.trim() !== '')
+    .filter((r) => {
+      const f = foldText(r.text)
+      return terms.every((t) => f.includes(t))
+    })
+    .sort((a, b) => Date.parse(b.deletedAt) - Date.parse(a.deletedAt) || a.rank.localeCompare(b.rank) || (a.id < b.id ? -1 : 1))
+  return dead.map((r) => {
+    const isPad = padRow(r)
+    const path: string[] = []
+    let pad = MAIN_PAD_NAME
+    for (let p = r.parentId === null ? undefined : all[r.parentId]; p; p = p.parentId === null ? undefined : all[p.parentId]) {
+      if (padRow(p)) {
+        pad = p.text || 'Untitled pad'
+        break
+      }
+      path.unshift(firstLineOf(p.text) || '(blank line)')
+    }
+    return { id: r.id, padId: null, isPad, archived: true, done: r.done, path: isPad ? [] : [pad, ...path], parts: searchParts(r.text, terms) }
+  })
+}
+
+// The top of the archive a row went in with: the highest archived ancestor removed in the
+// same archive. Bringing that back brings the row back where it was.
+function archiveTop(all: Rows, id: string): string {
+  let top = all[id]!
+  const at = Date.parse(top.deletedAt!)
+  for (;;) {
+    const p = top.parentId === null ? undefined : all[top.parentId]
+    if (!p || p.deletedAt === null || Math.abs(Date.parse(p.deletedAt) - at) > BATCH_GAP_MS) return top.id
+    top = p
+  }
 }
 
 // "3 lines", "1 line", or "the first 60 of 214 lines" when the list was cut short.
@@ -169,10 +218,16 @@ export function searchCount(result: SearchResult): string {
 
 // Go to a hit: open its pad if another one is shown, unfold whatever hides it (one undo
 // step, and only when something was folded), select the line and scroll to it. A pad's
-// name just opens that pad. Returns false when the row is gone.
+// name just opens that pad. An archived line comes back first, with what was archived with
+// it, as the Archive's Restore does. Returns false when the row is gone.
 export function cmdOpenHit(id: string): boolean {
   const { all } = usePad.getState()
   const row = all[id]
+  if (row && row.deletedAt !== null) {
+    log('search:restore', { id: id.slice(0, 8) })
+    if (cmdRestore([archiveTop(all, id)]).length === 0) return false
+    return cmdOpenHit(id)
+  }
   if (!isLive(row)) return false
   log('search:open', { id: id.slice(0, 8) })
   stopEditing()
