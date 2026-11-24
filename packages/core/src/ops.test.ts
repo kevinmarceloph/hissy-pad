@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   dedent, indent, insertAfter, insertAtTop, insertBefore, mergeIntoPrev, moveNodes, moveSibling, moveToTop,
-  remove, removeDone, setCollapsed, setDone, setKind, setNumbered, setText, splitNode, sweepDone, toggleDone, toggleNumbered, ungroup,
+  remove, removeDone, setCollapsed, setDone, setKind, setNumbered, setText, splitNode, sweepDone, toggleDone, toggleNumbered, ungroup, splitOpen,
 } from './ops'
 import { idOf, pad, shape, testCtx } from './testing'
 import type { Rows } from './types'
@@ -326,5 +326,34 @@ describe('ungroup', () => {
     const r = rows()
     expect(shape(ungroup(r, testCtx(), [idOf(r, 'B1')]))).toBe('A\nB\n  B1\n  B1a\n  B2\nC\n  C1')
     expect(shape(ungroup(r, testCtx(), [idOf(r, 'B'), idOf(r, 'B1'), idOf(r, 'C')]))).toBe('A\nB\nB1\nB1a\nB2\nC\nC1')
+  })
+})
+
+describe('splitOpen', () => {
+  const rows = () => {
+    const ctx = testCtx()
+    const r = pad('A\nB\n  B1\n    B1a\n  B2\n  B3\n    B3a\nC', ctx)
+    return { ctx, r: setDone(r, ctx, [idOf(r, 'B2'), idOf(r, 'B3a')], true) }
+  }
+  it('a copy right below takes the open sub items with all they hold; the done ones stay', () => {
+    const { ctx, r } = rows()
+    const done = setDone(r, ctx, [idOf(r, 'B')], true)
+    const { rows: out, newIds } = splitOpen(done, ctx, [idOf(r, 'B')])
+    expect(shape(out)).toBe('A\n~B\n  ~B2\nB\n  B1\n    B1a\n  B3\n    ~B3a\nC')
+    expect(newIds).toHaveLength(1)
+    expect(out[newIds[0]!]!.done).toBe(false)
+    expect(out[newIds[0]!]!.slot).toBeNull()
+  })
+  it('keeps the kind and category, not the hour', () => {
+    const { ctx, r } = rows()
+    let s = setKind(r, ctx, [idOf(r, 'B')], 'header')
+    s = { ...s, [idOf(r, 'B')]: { ...s[idOf(r, 'B')]!, category: 'cat1', slot: '2026-11-24T15' } }
+    const { rows: out, newIds } = splitOpen(s, ctx, [idOf(r, 'B')])
+    const copy = out[newIds[0]!]!
+    expect([copy.header, copy.category, copy.slot]).toEqual([true, 'cat1', null])
+  })
+  it('leaves a line alone without both done and open sub items', () => {
+    const { ctx, r } = rows()
+    expect(splitOpen(r, ctx, [idOf(r, 'A'), idOf(r, 'B1'), idOf(r, 'B3')]).rows).toBe(r)
   })
 })

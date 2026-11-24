@@ -6,7 +6,7 @@
 // on both. An action with an `icon` is drawn as that icon, by each app's own icon set.
 import { buildIndex, childrenOf, topmost, type NodeKind, type Rows } from '@hissypad/core'
 import {
-  cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdMoveToTop, cmdPaste, cmdToggleCollapsed, cmdToggleDone, cmdUngroup,
+  cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdMoveToTop, cmdPaste, cmdToggleCollapsed, cmdSplitOpen, cmdToggleDone, cmdUngroup,
 } from './commands'
 import { cmdLineToPad } from './pads'
 import { cmdPickSlot } from './hours/slots'
@@ -22,13 +22,14 @@ export interface LineAbilities {
   children: boolean // some target has lines under it (fold, ungroup)
   folded: boolean   // every target with lines under it is folded (so Fold reads Unfold)
   single: boolean   // the targets come down to one line with its subtree (make pad)
+  mixed: boolean    // some target has both done and open sub items (split off open)
 }
 
 export function lineAbilities(rows: Rows, ids: readonly string[]): LineAbilities {
   const index = buildIndex(rows)
   const tops = topmost(index, ids)
   const set = new Set(tops)
-  const can: LineAbilities = { indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: tops.length === 1 }
+  const can: LineAbilities = { indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: tops.length === 1, mixed: false }
   let open = false
   for (const id of tops) {
     const parent = index.parentOf.get(id) ?? null
@@ -37,8 +38,10 @@ export function lineAbilities(rows: Rows, ids: readonly string[]): LineAbilities
     if (sibs.slice(0, i).some((s) => !set.has(s.id))) { can.indent = true; can.up = true }
     if (sibs.slice(i + 1).some((s) => !set.has(s.id))) can.down = true
     if (parent !== null) can.dedent = true
-    if (childrenOf(index, id).length > 0) {
+    const kids = childrenOf(index, id)
+    if (kids.length > 0) {
       can.children = true
+      if (kids.some((k) => k.done) && kids.some((k) => !k.done)) can.mixed = true
       if (!rows[id]?.collapsed) open = true
     }
   }
@@ -97,6 +100,14 @@ export const LINE_ACTIONS: readonly LineAction[] = [
     flip: { when: (c) => c.folded, label: 'Unfold', name: 'Unfold', hint: 'Unfold: show its sub items', icon: 'unfold' },
   },
   { id: 'ungroup', group: 'tree', label: 'Ungroup', name: 'Ungroup', hint: 'Ungroup: its sub items come out to its own level', more: true, enabled: (c) => c.children, run: cmdUngroup },
+  {
+    id: 'splitOpen', group: 'tree', label: 'Split off open', name: 'Split off open', hint: 'Split off open: a copy of the line right below takes its open sub items, the done ones stay', more: true,
+    enabled: (c) => c.mixed,
+    run: () => {
+      const n = cmdSplitOpen()
+      return n ? undefined : 'Nothing to split: it needs both done and open sub items.'
+    },
+  },
   { id: 'copy', group: 'clip', label: 'Copy', name: 'Copy', hint: 'Copy as outline', icon: 'copy', keys: '⌘C', run: () => void cmdCopySelection() },
   { id: 'cut', group: 'clip', label: 'Cut', name: 'Cut', hint: 'Cut: copy as outline, then delete', icon: 'cut', keys: '⌘X', run: cmdCutSelection },
   { id: 'pasteAbove', group: 'clip', label: 'Paste above', name: 'Paste above', hint: 'Paste the clipboard as lines above', icon: 'pasteAbove', run: () => paste('above') },

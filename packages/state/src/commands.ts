@@ -2,7 +2,7 @@
 // handler (Pad). Each one picks its targets from the store and decides where the caret or
 // selection goes afterwards.
 import {
-  buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, moveToTop, remove, removeDone, ungroup,
+  buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, moveToTop, remove, removeDone, ungroup, splitOpen,
   setKind, setText as setTextOp, splitNode, toggleDone, toggleNumbered, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
@@ -165,6 +165,20 @@ export function cmdDedent() {
 export function cmdUngroup() {
   const ids = targets()
   if (ids.length) apply((rows, ctx) => ungroup(rows, ctx, ids), { label: 'cmdUngroup' })
+}
+
+// Split off open: each target's open sub items move to a copy of it right below, the done
+// ones stay. The copies are selected. Returns how many lines were split.
+export function cmdSplitOpen(): number {
+  const ids = targets()
+  let made: string[] = []
+  if (ids.length) apply((rows, ctx) => {
+    const res = splitOpen(rows, ctx, ids)
+    made = res.newIds
+    return res.rows
+  }, { label: 'cmdSplitOpen' })
+  if (made.length) select(made, made[0]!)
+  return made.length
 }
 
 export function cmdMove(dir: 'up' | 'down') {

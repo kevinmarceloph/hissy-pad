@@ -14,7 +14,7 @@ describe('line abilities', () => {
   const can = (...texts: string[]) => lineAbilities(rows, texts.map((t) => idOf(rows, t)))
 
   it('says what the targets allow', () => {
-    expect(can('A')).toEqual({ indent: false, dedent: false, up: false, down: true, children: false, folded: false, single: true })
+    expect(can('A')).toEqual({ indent: false, dedent: false, up: false, down: true, children: false, folded: false, single: true, mixed: false })
     expect(can('B')).toMatchObject({ indent: true, up: true, down: true, children: true, dedent: false })
     expect(can('B1')).toMatchObject({ indent: false, dedent: true, up: false, down: true })
     expect(can('C')).toMatchObject({ indent: true, up: true, down: false })
@@ -23,7 +23,29 @@ describe('line abilities', () => {
     expect(can('B', 'B1').single).toBe(true)
     expect(can('A', 'B').single).toBe(false)
     expect(can('A', 'B', 'C')).toMatchObject({ indent: false, up: false, down: false }) // every sibling selected
-    expect(lineAbilities(rows, [])).toEqual({ indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: false })
+    expect(lineAbilities(rows, [])).toEqual({ indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: false, mixed: false })
+  })
+})
+
+describe('split off open', () => {
+  it('moves the open sub items to a copy below and selects it; only enabled with both kinds', async () => {
+    resetStore('A\nB\n  B1\n  B2\nC')
+    await loadPad()
+    const rows = () => usePad.getState().rows
+    const can = () => lineAbilities(rows(), usePad.getState().selection)
+    select([idOf(rows(), 'B')], idOf(rows(), 'B'))
+    expect(action('splitOpen').enabled!(can())).toBe(false)
+    select([idOf(rows(), 'B1')], idOf(rows(), 'B1'))
+    action('done').run()
+    select([idOf(rows(), 'B')], idOf(rows(), 'B'))
+    expect(action('splitOpen').enabled!(can())).toBe(true)
+    expect(action('splitOpen').run()).toBeUndefined()
+    expect(shape(rows())).toBe('A\nB\n  ~B1\nB\n  B2\nC')
+    const sel = usePad.getState().selection
+    expect(sel).toHaveLength(1)
+    expect(rows()[sel[0]!]!.parentId).toBeNull()
+    expect(sel[0]).not.toBe(idOf(rows(), 'B'))
+    expect(action('splitOpen').run()).toMatch(/Nothing to split/)
   })
 })
 

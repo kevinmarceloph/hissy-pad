@@ -308,6 +308,29 @@ export function ungroup(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
   return out
 }
 
+// Split off open: a copy of the line (same text, kind and category, not done, no hour)
+// goes right after it and takes the open sub items, each with all it holds; the done sub
+// items stay on the old line. A line without both done and open sub items is left alone.
+// Returns the new lines' ids, one per line split.
+export function splitOpen(rows: Rows, ctx: OpCtx, ids: Iterable<string>): { rows: Rows; newIds: string[] } {
+  const index0 = buildIndex(rows)
+  const order = flatten(index0, false).map((r) => r.id).filter((id) => new Set(ids).has(id)).reverse()
+  let out = rows
+  const newIds: string[] = []
+  for (const id of order) {
+    const index = buildIndex(out)
+    const kids = childrenOf(index, id)
+    const open = kids.filter((k) => !k.done).map((k) => k.id)
+    if (open.length === 0 || open.length === kids.length) continue
+    const row = live(out, id)
+    const made = insertAt(out, ctx, { parentId: index.parentOf.get(id) ?? null, afterId: id }, row.text, row.numbered)
+    out = patch(made.rows, ctx, made.newId, { header: row.header, category: row.category })
+    out = moveNodes(out, ctx, open, { parentId: made.newId, afterId: null })
+    newIds.unshift(made.newId)
+  }
+  return { rows: out, newIds }
+}
+
 // Alt+Up / Alt+Down: a selection moves as a block past the nearest unselected sibling.
 // Nodes under different parents move within their own parent independently.
 export function moveSibling(rows: Rows, ctx: OpCtx, ids: Iterable<string>, dir: 'up' | 'down'): Rows {

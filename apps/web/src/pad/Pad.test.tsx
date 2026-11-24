@@ -346,7 +346,7 @@ describe('Archive and Done panels', () => {
     await user.keyboard('{Escape}')
     await startEditing('top')
     await user.click(within(bar).getByRole('button', { name: 'More actions' }))
-    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Ungroup', 'Make pad'])
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Ungroup', 'Split off open', 'Make pad'])
     await user.click(screen.getByRole('menuitem', { name: 'Ungroup' }))
     expect(texts()).toBe('top\nchild\n  grand\nother\nlast')
     expect(usePad.getState().past.at(-1)?.label).toBe('cmdUngroup')
