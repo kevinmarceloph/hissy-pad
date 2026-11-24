@@ -20,14 +20,15 @@
 // On a build from before the widget, the storage module is missing and its JS falls back
 // to no-ops, so all of this quietly does nothing.
 import { useEffect } from 'react'
-import { Alert, AppState, Platform } from 'react-native'
+import { AppState, Platform } from 'react-native'
 import { ExtensionStorage } from '@bacons/apple-targets'
 import {
-  cmdAddToPad, cmdWidgetActions, loadSortTargets, log, openPad, usePad, useSort, watchHandoffDue, watchSignedIn, widgetPadName,
+  cmdWidgetActions, loadSortTargets, log, openPad, usePad, useSort, watchHandoffDue, watchSignedIn, widgetPadName,
   widgetSnapshot, WIDGET_MAIN,
   type WidgetAction,
 } from '@hissypad/state'
 import { supabase } from './supabase'
+import { openAddSheet } from './ui/AddSheet'
 
 export const APP_GROUP = 'group.ph.marcelo.hissypad'
 const SNAPSHOT_KEY = 'widget.snapshot'
@@ -171,12 +172,7 @@ export function handleWidgetUrl(url: string): boolean {
     openPad(pad === WIDGET_MAIN || !all[pad] ? null : pad)
     return true
   }
-  if (Platform.OS === 'ios') {
-    Alert.prompt(`Add to ${name}`, undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Add', onPress: (text?: string) => { if (text) cmdAddToPad(pad, text) } },
-    ], 'plain-text')
-  }
+  openAddSheet(pad, name)
   return true
 }
 
