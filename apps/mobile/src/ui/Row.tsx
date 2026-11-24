@@ -5,7 +5,7 @@ import { apply, clickSelect, edit, usePad, type Editing, cmdBackspaceAtStart, cm
 import { inlineSpans, slotLabel, todayKey, toggleCollapsed } from '@hissypad/core'
 import { useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
-import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, serif, type Theme } from '../theme'
+import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, mono, serif, type Theme } from '../theme'
 
 // How long after a line changes place a blur still counts as the move's doing.
 const MOVE_BLUR_MS = 400
@@ -155,12 +155,26 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
         <Pressable style={s.textWrap} onPress={() => edit(row.id, 'end')}>
           <Text style={[s.text, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
             {row.text === '' ? ' ' : inlineSpans(row.text).map((sp, i) => {
-              // **bold**, *italic*, __underline__, ~~strikethrough~~, symbols left in. A nested
-              // Text replaces the decoration it inherits, so a done line's strike is repeated.
+              // **bold**, *italic*, __underline__, ~~strikethrough~~, ==highlight==, `code`,
+              // symbols left in. A nested Text replaces the decoration it inherits, so a done
+              // line's strike is repeated.
               const strike = sp.strike || row.done
               const line = sp.underline ? (strike ? 'underline line-through' : 'underline') : sp.strike ? 'line-through' : undefined
-              if (!sp.bold && !sp.italic && !line) return sp.text
-              return <Text key={i} style={[sp.bold && s.bold, sp.italic && s.italic, line && { textDecorationLine: line }]}>{sp.text}</Text>
+              if (!sp.bold && !sp.italic && !line && !sp.highlight && !sp.code) return sp.text
+              return (
+                <Text
+                  key={i}
+                  style={[
+                    sp.bold && s.bold,
+                    sp.italic && s.italic,
+                    line && { textDecorationLine: line },
+                    sp.code && [s.code, { backgroundColor: theme.codeBg }],
+                    sp.highlight && { backgroundColor: theme.markHl },
+                  ]}
+                >
+                  {sp.text}
+                </Text>
+              )
             })}
             {row.slot && (
               // The hour this line is in (Hours), in words, small, after the text.
@@ -195,6 +209,7 @@ const s = StyleSheet.create({
   hash: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE, fontWeight: '700' },
   bold: { fontWeight: '700' },
   italic: { fontStyle: 'italic' },
+  code: { fontFamily: mono, fontSize: SIZE - 2 },
   num: { fontFamily: serif, fontSize: SIZE - 1, lineHeight: LINE, fontVariant: ['tabular-nums'] },
   textWrap: { flex: 1, minHeight: LINE },
   text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, padding: 0, margin: 0, textAlignVertical: 'top' },

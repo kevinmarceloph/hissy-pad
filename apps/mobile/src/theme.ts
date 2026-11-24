@@ -3,6 +3,7 @@
 import { Platform, useColorScheme } from 'react-native'
 
 export const serif = Platform.select({ ios: 'Charter', android: 'serif', default: 'serif' })
+export const mono = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' })
 
 const light = {
   paper: '#f7f4ec',
@@ -15,6 +16,8 @@ const light = {
   accentSoft: '#f0dfd9',
   accentFaint: '#f4eae4',
   link: '#2a5a8a',
+  markHl: '#e4c3b6', // ==highlight==: the accent at 26% on paper, as on the web
+  codeBg: '#e8e5dd', // `code`: ink at 7% on paper
 }
 const dark: typeof light = {
   paper: '#1b1a17',
@@ -27,6 +30,8 @@ const dark: typeof light = {
   accentSoft: '#3a2a26',
   accentFaint: '#2a221e',
   link: '#8fb4d8',
+  markHl: '#52332a',
+  codeBg: '#2a2825',
 }
 export type Theme = typeof light
 

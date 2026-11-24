@@ -56,14 +56,18 @@ function Linkified({ text }: { text: string }) {
   )
 }
 
-// The line as it reads when not being edited: **bold**, *italic*, __underline__ and
-// ~~strikethrough~~ drawn as such with their symbols left in, links clickable.
+// The line as it reads when not being edited: **bold**, *italic*, __underline__,
+// ~~strikethrough~~, ==highlight== and `code` drawn as such with their symbols left in,
+// links clickable (but not inside code).
 function Styled({ text }: { text: string }) {
   return (
     <>
       {inlineSpans(text).map((sp, i) => {
-        const cls = [sp.bold && 'b', sp.italic && 'i', sp.underline && 'u', sp.strike && 's'].filter(Boolean).join(' ')
-        return cls ? <span key={i} className={`mark ${cls}`}><Linkified text={sp.text} /></span> : <Linkified key={i} text={sp.text} />
+        const cls = [sp.bold && 'b', sp.italic && 'i', sp.underline && 'u', sp.strike && 's', sp.highlight && 'h', sp.code && 'c']
+          .filter(Boolean)
+          .join(' ')
+        const inner = sp.code ? sp.text : <Linkified text={sp.text} />
+        return cls ? <span key={i} className={`mark ${cls}`}>{inner}</span> : <Linkified key={i} text={sp.text} />
       })}
     </>
   )

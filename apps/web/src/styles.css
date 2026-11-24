@@ -13,6 +13,9 @@
   --accent-soft: color-mix(in oklab, var(--accent) 12%, var(--paper));
   --accent-faint: color-mix(in oklab, var(--accent) 5%, var(--paper));
   --link: #2a5a8a;
+  --mark-hl: color-mix(in oklab, var(--accent) 26%, var(--paper));
+  --code-bg: color-mix(in oklab, var(--ink) 7%, var(--paper));
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --font: Charter, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
   --size: 17px;
   --lh: 1.5;
@@ -321,6 +324,20 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
 .mark.u { text-decoration: underline; text-underline-offset: 0.15em; text-decoration-thickness: 1px; }
 .mark.s { text-decoration: line-through; text-decoration-thickness: 1px; }
 .mark.u.s { text-decoration: underline line-through; text-underline-offset: 0.15em; text-decoration-thickness: 1px; }
+/* Highlight is a marker stroke over the lower part of the line, unlike a selected row's
+   full wash; its == stays visible, so it never rests on color alone. */
+.mark.h { background: linear-gradient(transparent 45%, var(--mark-hl) 45%, var(--mark-hl) 92%, transparent 92%); }
+/* Code: monospace a size down on a faint tint. Inline only, so the line stays 25.5px. */
+.mark.c {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  background: var(--code-bg);
+  border-radius: 3px;
+  padding: 0 0.15em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.mark.c.h { background: var(--mark-hl); }
 .placeholder { display: inline-block; min-width: 1px; }
 /* Folded: a count of the hidden children, inline right after the text. Tapping it unfolds. */
 .row .chip {
