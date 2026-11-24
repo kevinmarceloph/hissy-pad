@@ -15,6 +15,7 @@ import { FloatingButtons } from './FloatingButtons'
 import { Account } from './Account'
 import { DoneSheet, TrashSheet } from './Lists'
 import { SortView } from './Sort'
+import { SubRows } from './SubRows'
 import { CategoriesApp, CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
 import {
   cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot, useCategoryChoices,
@@ -63,6 +64,8 @@ export function Pad() {
   const liveEditing = usePad((s) => s.editing)
   const liveSelection = usePad((s) => s.selection)
   const zoomed = usePad((s) => s.zoomId !== null)
+  // An hour is open in Hours: `rows` is that hour's lines, drawn there by SubRows.
+  const hourOpen = usePad((s) => s.slotId !== null)
   const load = usePad((s) => s.load)
   const session = usePad((s) => s.session)
   const padId = usePad((s) => s.padId)
@@ -70,10 +73,10 @@ export function Pad() {
   // new line), so this screen draws neither behind it.
   const creating = useCreating()
   // While the store is zoomed into one line (Sort's card, the new item's), `rows` is what is
-  // under that line and the editing belongs to the card. This list, behind the sheet or
+  // under that line and the editing belongs to the card. The same while Hours has an hour open. This list, behind the sheet or
   // hidden under Sort, keeps the pad as it last was, with nothing being edited: a second
   // field for the same line would fight the card's for the keyboard, and the list keeps its place.
-  const quiet = creating || zoomed
+  const quiet = creating || zoomed || hourOpen
   const kept = useRef(liveRows)
   if (!quiet) kept.current = liveRows
   const rows = quiet ? kept.current : liveRows
@@ -425,7 +428,7 @@ export function Pad() {
   )
 
   return (
-    <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: (mode === 'pad' || mode === 'sort') && kb > 0 ? kb : insets.bottom }]}>
+    <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: kb > 0 ? kb : insets.bottom }]}>
       <View style={s.top}>
         <Text style={[s.title, { color: theme.inkSoft }]}>HissyPad</Text>
         <ModeBar mode={mode} onMode={switchMode} theme={theme} />
@@ -472,7 +475,14 @@ export function Pad() {
       <DoneSheet visible={sheet === 'done'} onClose={() => setSheet(null)} theme={theme} />
       {toast && mode !== 'pad' && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
       {/* Hours: the shared screens (packages/ui). Sort starts over when the pad changes. */}
-      {mode === 'hours' && <View style={s.scroll}><HoursApp /></View>}
+      {mode === 'hours' && (
+        <View style={s.scroll}>
+          {/* An open hour's lines are the pad's own rows (the store shows that hour), so
+              the toolbar and the floating buttons below act on them. */}
+          <HoursApp renderLines={({ slot }) => <SubRows slot={slot} theme={theme} />} />
+          {hourOpen && !creating && (liveEditing !== null || liveSelection.length > 0) && <FloatingButtons theme={theme} />}
+        </View>
+      )}
       {mode === 'sort' && <SortView key={padId ?? 'main'} theme={theme} paused={creating} onOpen={() => setMode('pad')} />}
       {load === 'loading' ? (
         mode === 'pad' && <Text style={[s.hint, { color: theme.inkMute }]}>Opening your pad…</Text>
@@ -544,8 +554,9 @@ export function Pad() {
           <Text numberOfLines={1} style={[s.ghostText, { color: theme.ink }]}>{drag.label}</Text>
         </View>
       )}
-      {/* The line toolbar: the pad's, and Sort's for the sub items on its card. */}
-      {(mode === 'pad' || mode === 'sort') && !creating && <Toolbar theme={theme} />}
+      {/* The line toolbar: the pad's, Sort's for the sub items on its card, and Hours' for
+          the lines of the open hour. */}
+      {!creating && <Toolbar theme={theme} />}
     </View>
   )
 }

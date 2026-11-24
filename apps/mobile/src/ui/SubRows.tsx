@@ -1,6 +1,8 @@
 // The sub items of one line, as the pad's own rows: the store is zoomed into that line
 // (`zoomTo`), so `rows` is what is under it and the pad's commands, toolbar and floating
 // buttons work on it. Sort's card and the new item's sheet both draw this under the line.
+// An open hour in Hours draws it too (`slot`): the store shows that hour (`openSlot`), so
+// `rows` is the lines put in it and what is under them.
 // No drag here: the toolbar's arrows move a line.
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
@@ -11,11 +13,12 @@ import { Row } from './Row'
 
 const noop = () => {}
 
-// `id` is the line whose sub items these are, or null when it is not made yet. `onAdd`
-// opens a new blank sub item at the end (the caller makes or zooms into the line first).
-export function SubRows({ id, theme, onAdd }: { id: string | null; theme: Theme; onAdd: () => void }) {
+// `id` is the line whose sub items these are, or null when it is not made yet; `slot` is
+// the hour whose lines these are instead. `onAdd` opens a new blank sub item at the end
+// (the caller makes or zooms into the line first); without it there is no button for one.
+export function SubRows({ id = null, slot = null, theme, onAdd }: { id?: string | null; slot?: string | null; theme: Theme; onAdd?: () => void }) {
   const rows = usePad((st) => st.rows)
-  const zoomed = usePad((st) => id !== null && st.zoomId === id)
+  const zoomed = usePad((st) => (slot !== null ? st.slotId === slot : id !== null && st.zoomId === id))
   const editing = usePad((st) => st.editing)
   const selection = usePad((st) => st.selection)
   const subs = zoomed ? rows : null
@@ -50,12 +53,15 @@ export function SubRows({ id, theme, onAdd }: { id: string | null; theme: Theme;
           theme={theme}
           onLayout={noop}
           onBulletLongPress={noop}
+          inSlot={slot}
         />
       ))}
-      <Pressable onPress={onAdd} accessibilityRole="button" accessibilityLabel="Add a sub item" style={({ pressed }) => [s.add, { opacity: pressed ? 0.5 : 1 }]}>
-        <Text style={[s.addPlus, { color: theme.inkMute }]}>+</Text>
-        <Text style={[s.addWords, { color: theme.inkMute }]}>Add a sub item</Text>
-      </Pressable>
+      {onAdd && (
+        <Pressable onPress={onAdd} accessibilityRole="button" accessibilityLabel="Add a sub item" style={({ pressed }) => [s.add, { opacity: pressed ? 0.5 : 1 }]}>
+          <Text style={[s.addPlus, { color: theme.inkMute }]}>+</Text>
+          <Text style={[s.addWords, { color: theme.inkMute }]}>Add a sub item</Text>
+        </Pressable>
+      )}
     </View>
   )
 }

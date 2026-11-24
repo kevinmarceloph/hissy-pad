@@ -24,9 +24,12 @@ interface Props {
   theme: Theme
   onLayout: (id: string, e: LayoutChangeEvent) => void
   onBulletLongPress: (id: string, x: number, y: number) => void
+  // The hour these rows are drawn in (an open hour in Hours): a line's chip for that very
+  // hour says nothing there and is left out.
+  inSlot?: string | null
 }
 
-export const Row = memo(function Row({ row, depth, childCount, foldCount, editing, selected, selectedChild, number, dragging, preview, theme, onLayout, onBulletLongPress }: Props) {
+export const Row = memo(function Row({ row, depth, childCount, foldCount, editing, selected, selectedChild, number, dragging, preview, theme, onLayout, onBulletLongPress, inSlot = null }: Props) {
   const isEditing = editing?.id === row.id
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
@@ -187,7 +190,7 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
                 </Text>
               )
             })}
-            {row.slot && (
+            {row.slot && row.slot !== inSlot && (
               // The hour this line is in (Hours), in words, small, after the text.
               <Text style={[s.slot, { color: theme.inkSoft }]}>{'\u2002'}{slotLabel(row.slot, todayKey())}</Text>
             )}
