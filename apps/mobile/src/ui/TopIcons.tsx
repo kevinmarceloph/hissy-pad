@@ -1,4 +1,4 @@
-// The top bar's icons and the mode switcher (Pad, Hours, Sort). The icons are drawn with
+// The top bar's icons and the mode switcher (Hours, Pad, Sort). The icons are drawn with
 // plain Views: no icon font and no SVG module, so they ship in an update without a new
 // native build. Each sits in a Pressable that carries the name for VoiceOver.
 import { Pressable, StyleSheet, View } from 'react-native'
@@ -64,8 +64,8 @@ export function MenuIcon({ color }: { color: string }) {
 }
 
 const MODES: { mode: Mode; label: string }[] = [
-  { mode: 'pad', label: 'Pad: the outline' },
   { mode: 'hours', label: 'Hours: the day, one row per hour' },
+  { mode: 'pad', label: 'Pad: the outline' },
   { mode: 'sort', label: 'Sort: the open pad, one line at a time' },
 ]
 

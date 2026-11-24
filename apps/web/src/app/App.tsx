@@ -11,11 +11,31 @@ import { Hours, SlotDialog } from '../panels/Hours'
 import { cmdApplySlot, setSlotPickerOpener, targetSlot } from '@hissypad/state/hours'
 import { showToast } from './toast'
 
+const VIEWS: Record<string, View> = { '#hours': 'hours', '#pads': 'pad', '#sort': 'sort' }
+const HASHES: Record<View, string> = { hours: '#hours', pad: '#pads', fresh: '#pads', sort: '#sort' }
+const viewFromHash = (): View => VIEWS[location.hash] ?? 'pad'
+
 export function App() {
   const load = usePad((s) => s.load)
   const storageError = usePad((s) => s.storageError)
   const padId = usePad((s) => s.padId)
-  const [view, setView] = useState<View>('pad')
+  const [view, setViewState] = useState<View>(viewFromHash)
+  // The address carries the mode (#hours, #pads, #sort), so a link or a bookmark opens it
+  // straight away. Written only when the mode changes, so a sign-in's #access_token is left
+  // for Supabase to read on load.
+  const setView = (next: View) => {
+    setViewState(next)
+    const hash = HASHES[next]
+    if (location.hash !== hash) history.replaceState(null, '', hash)
+  }
+  useEffect(() => {
+    const onHash = () => {
+      const next = VIEWS[location.hash]
+      if (next) setViewState(next)
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
   // The hour picker the toolbar's "Hour…" opens: the slot the lines share and how many they are.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
 

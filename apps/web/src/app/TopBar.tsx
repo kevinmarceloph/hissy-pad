@@ -46,8 +46,8 @@ const SearchIcon = () => <Icon d="M13 13l4 4"><circle cx="8.5" cy="8.5" r="5" />
 const MenuIcon = () => <Icon d="M3.5 5.5h13M3.5 10h13M3.5 14.5h13" />
 
 const MODES: { view: 'pad' | 'hours' | 'sort'; label: string; title: string; icon: () => ReactNode }[] = [
-  { view: 'pad', label: 'Pad', title: 'Pad: the outline', icon: PadIcon },
   { view: 'hours', label: 'Hours', title: 'Hours: the day, one row per hour, with what each was for, what happened, and the lines you put in it', icon: HoursIcon },
+  { view: 'pad', label: 'Pad', title: 'Pad: the outline', icon: PadIcon },
   { view: 'sort', label: 'Sort', title: 'Sort: one line of the open pad at a time. Left for later, right for today, up for done, down to delete', icon: SortIcon },
 ]
 

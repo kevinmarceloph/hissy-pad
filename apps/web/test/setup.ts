@@ -2,7 +2,11 @@ import '@testing-library/jest-dom/vitest'
 import { afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
 
-afterEach(() => cleanup())
+afterEach(() => {
+  cleanup()
+  // The app writes its mode into the hash (#sort); start every test back on the pad.
+  history.replaceState(null, '', '/')
+})
 
 // jsdom has no <dialog> behaviour: the open attribute stands in for showModal/close.
 const dlg = globalThis.HTMLDialogElement?.prototype

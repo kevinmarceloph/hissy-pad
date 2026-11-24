@@ -62,6 +62,24 @@ describe('top bar', () => {
     expect(screen.getByRole('tree')).toBeInTheDocument()
   })
 
+  it('Hours comes first, and #hours, #pads and #sort open each mode and follow the switcher', async () => {
+    const user = userEvent.setup()
+    history.replaceState(null, '', '/#sort')
+    resetStore('a\nb')
+    render(<App />)
+    await screen.findByRole('textbox', { name: 'Line text' })
+    expect(button('Sort')).toHaveAttribute('aria-pressed', 'true')
+    const modes = screen.getAllByRole('button', { name: /^(Hours|Pad|Sort)$/ }).map((b) => b.getAttribute('aria-label'))
+    expect(modes).toEqual(['Hours', 'Pad', 'Sort'])
+    await user.click(button('Hours'))
+    expect(location.hash).toBe('#hours')
+    await user.click(button('Pad'))
+    expect(location.hash).toBe('#pads')
+    location.hash = '#hours'
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+    expect(await screen.findByRole('button', { name: 'Hours', pressed: true })).toBeInTheDocument()
+  })
+
   it('Done, Trash and Fresh start are behind More; Fresh start still counts as the pad', async () => {
     const user = userEvent.setup()
     await mount('a\nb')
