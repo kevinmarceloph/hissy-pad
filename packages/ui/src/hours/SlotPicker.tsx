@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
-import { PanResponder, Platform, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { PanResponder, Platform, StyleSheet, Text, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import { parseSlot, slotCovers, slotKey, slotLabel } from '@hissypad/core';
 import { dayDate, dayKey, dayOf, daySlots, dayTitle, hourLabel, shiftDay, type Entry } from '@hissypad/core/hours';
 import { usePad } from '@hissypad/state';
@@ -25,6 +25,13 @@ type Props = {
 
 // The gap between two hours' boxes. The boxes share the width that is left.
 const GAP = 2;
+// A window narrower than this draws the hours as four rows of six, each box with its hour
+// on it: 24 boxes in one line are about 13pt wide on a phone, too narrow for a finger
+// (Kevin, 2026-11-25). The rows are the quarters the line's four ticks mark.
+const NARROW = 560;
+// How tall one hour is in each layout, and the gap between two rows of them.
+const TALL = { line: 48, rows: 66 };
+const ROW_GAP = 4;
 // How far a press moves on the phone before the grid takes it from the cell as a swipe.
 const SLOP = 8;
 // Web: the swipe is ours, not the page's scroll.
@@ -106,19 +113,31 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
     [slots, stored, day, stores, all, theme.palette],
   );
 
+  // Six boxes to a row on a narrow window, all 24 in one line otherwise.
+  // (A width of 0 is a window that has not been measured.)
+  const wide = useWindowDimensions().width;
+  const cols = wide > 0 && wide < NARROW ? 6 : 24;
+  // What was picked here, shown and not yet confirmed: the button under the hours puts
+  // the lines in it (Kevin, 2026-11-25: a pick no longer closes the picker).
+  const [chosen, setChosen] = useState<string | null>(null);
+
   // Read inside the responder, which is made once: the latest values through refs.
-  const live = useRef({ slots, onPick });
+  const live = useRef({ slots, cols });
   live.current.slots = slots;
-  live.current.onPick = onPick;
+  live.current.cols = cols;
   const grid = useRef<ComponentRef<typeof View>>(null);
   // Where the line sits on the page and how wide it is, taken as a press starts.
-  const box = useRef<{ x: number; width: number } | null>(null);
+  const box = useRef<{ x: number; y: number; width: number } | null>(null);
   const swipe = useRef<{ from: number; to: number; moved: boolean } | null>(null);
 
-  // The place in the line under a point on the page: the boxes share the width evenly.
-  const placeAt = (pageX: number) => {
+  // The place in the day under a point on the page: the boxes of a row share its width
+  // evenly, and the rows are all one height.
+  const placeAt = (pageX: number, pageY: number) => {
     const b = box.current!;
-    return Math.min(23, Math.max(0, Math.floor(((pageX - b.x) / Math.max(1, b.width)) * 24)));
+    const n = live.current.cols;
+    const col = Math.min(n - 1, Math.max(0, Math.floor(((pageX - b.x) / Math.max(1, b.width)) * n)));
+    const row = n === 24 ? 0 : Math.min(24 / n - 1, Math.max(0, Math.floor((pageY - b.y) / (TALL.rows + ROW_GAP))));
+    return row * n + col;
   };
   const end = () => {
     swipe.current = null;
@@ -133,7 +152,8 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
   };
 
   // A tap is the box's own: one hour. A press that moves is the line's: a run of hours, or
-  // on the phone one hour too, since a finger slides to find a box this narrow.
+  // on the phone one hour too, since a finger slides to find its box. Either way the pick
+  // is only shown; the button under the hours confirms it.
   // On the phone the line claims a press once it moves. react-native-web only lets a parent
   // claim a moving press after it leaves the box, so there the line takes every press as it
   // starts and leaves a tap to the box's click (react-native-web presses on click, which a
@@ -146,10 +166,12 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
         // Where the press is as the line takes it: where it went down on the web, a few
         // points on from there on the phone, still on the hour it started on.
         const pageX = g.x0;
-        grid.current?.measure((_x, _y, width, _h, x) => {
+        const pageY = g.y0;
+        grid.current?.measure((_x, _y, width, _h, x, y) => {
           // react-native-web measures in the window but reports a touch on the page.
-          box.current = { x: x + (Platform.OS === 'web' ? window.scrollX : 0), width };
-          const from = placeAt(pageX);
+          const scroll = Platform.OS === 'web' ? { x: window.scrollX, y: window.scrollY } : { x: 0, y: 0 };
+          box.current = { x: x + scroll.x, y: y + scroll.y, width };
+          const from = placeAt(pageX, pageY);
           swipe.current = { from, to: from, moved: Platform.OS !== 'web' };
           // The phone says which hour is under the finger from the start.
           if (Platform.OS !== 'web') setRun({ from, to: from });
@@ -157,7 +179,7 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
       },
       onPanResponderMove: (_, g) => {
         if (!swipe.current || !box.current) return;
-        const to = placeAt(g.moveX);
+        const to = placeAt(g.moveX, g.moveY);
         if (to === swipe.current.to) return;
         swipe.current = { ...swipe.current, to, moved: true };
         setRun({ from: swipe.current.from, to });
@@ -167,7 +189,7 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
         end();
         // The web leaves a press that ends on the box it started on to that box's click.
         if (!s || !s.moved || (Platform.OS === 'web' && s.from === s.to)) return;
-        live.current.onPick(slotOf(s.from, s.to));
+        setChosen(slotOf(s.from, s.to));
       },
       onPanResponderTerminationRequest: () => false,
       onPanResponderTerminate: end,
@@ -192,9 +214,11 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
           ? `${slotLabel(slotOf(run.from, run.to), today)}: let go to pick.`
           : over !== null
             ? `${slotLabel(slotOf(over, over), today)}.`
-            : value && current
-            ? `Now in ${slotLabel(value, today)}. Tap an hour, or swipe across several.`
-            : 'Tap an hour, or swipe across several.'}
+            : chosen
+              ? `Picked ${slotLabel(chosen, today)}. Pick again to change it.`
+              : value && current
+                ? `Now in ${slotLabel(value, today)}. Tap an hour, or swipe across several.`
+                : 'Tap an hour, or swipe across several.'}
       </Text>
       {/* One line, as on the Hours screen: earlier, the day, the calendar, later. */}
       <View role="navigation" aria-label="Days" style={styles.days}>
@@ -239,39 +263,53 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
           style={[styles.hours, NO_SCROLL]}
           {...(KEEP_FOCUS as object)}
           {...responder.panHandlers}>
-          {hours.map((h, i) => {
-            const on = run
-              ? i >= Math.min(run.from, run.to) && i <= Math.max(run.from, run.to)
-              : slotCovers(value, slotKey(h.day, h.hour));
-            const isNow = h.day === dayKey(now) && h.hour === now.getHours();
-            return (
-              <Tap
-                key={h.hour}
-                role="radio"
-                aria-checked={on}
-                aria-label={`${hourLabel(h.hour)}${isNow ? ', now' : ''}`}
-                onPress={() => onPick(slotKey(h.day, h.hour))}
-                onHoverIn={() => setOver(i)}
-                onHoverOut={() => setOver((was) => (was === i ? null : was))}
-                ringInside
-                style={styles.hour}
-                activeStyle={{ backgroundColor: theme.paperRaised }}>
-                {/* A bar over a box marks the hours picked; a bar under one, the hour in
-                    progress. The box between them is the hour as the day screen draws it. */}
-                <View style={[styles.bar, on && { backgroundColor: theme.ink }]} />
-                <Mark style={styles.cell} {...hourBox(h.cell, theme.ink)} />
-                <View style={[styles.bar, isNow && { backgroundColor: theme.accent }]} />
-              </Tap>
-            );
-          })}
-        </View>
-        <View style={styles.ticks}>
-          {[0, 6, 12, 18].map((i) => hourLabel((start + i) % 24)).map((label) => (
-            <Text key={label} style={[styles.tick, { color: theme.inkQuiet }]}>
-              {label}
-            </Text>
+          {Array.from({ length: 24 / cols }, (_, r) => (
+            <View key={r} style={styles.hourRow}>
+              {hours.slice(r * cols, (r + 1) * cols).map((h, c) => {
+                const i = r * cols + c;
+                // The run under the finger, or else what was picked here, or else where the lines are.
+                const on = run
+                  ? i >= Math.min(run.from, run.to) && i <= Math.max(run.from, run.to)
+                  : slotCovers(chosen ?? value, slotKey(h.day, h.hour));
+                const isNow = h.day === dayKey(now) && h.hour === now.getHours();
+                return (
+                  <Tap
+                    key={h.hour}
+                    role="radio"
+                    aria-checked={on}
+                    aria-label={`${hourLabel(h.hour)}${isNow ? ', now' : ''}`}
+                    onPress={() => setChosen(slotKey(h.day, h.hour))}
+                    onHoverIn={() => setOver(i)}
+                    onHoverOut={() => setOver((was) => (was === i ? null : was))}
+                    ringInside
+                    style={[styles.hour, { height: cols === 24 ? TALL.line : TALL.rows }]}
+                    activeStyle={{ backgroundColor: theme.paperRaised }}>
+                    {/* A bar over a box marks the hours picked; a bar under one, the hour in
+                        progress. The box between them is the hour as the day screen draws it.
+                        In rows each box has room for its hour over it. */}
+                    <View style={[styles.bar, on && { backgroundColor: theme.ink }]} />
+                    {cols !== 24 && (
+                      <Text aria-hidden numberOfLines={1} style={[styles.name, { color: on || isNow ? theme.ink : theme.inkQuiet }, (on || isNow) && { fontWeight: '700' }]}>
+                        {hourLabel(h.hour)}
+                      </Text>
+                    )}
+                    <Mark style={styles.cell} {...hourBox(h.cell, theme.ink)} />
+                    <View style={[styles.bar, isNow && { backgroundColor: theme.accent }]} />
+                  </Tap>
+                );
+              })}
+            </View>
           ))}
         </View>
+        {cols === 24 && (
+          <View style={styles.ticks}>
+            {[0, 6, 12, 18].map((i) => hourLabel((start + i) % 24)).map((label) => (
+              <Text key={label} style={[styles.tick, { color: theme.inkQuiet }]}>
+                {label}
+              </Text>
+            ))}
+          </View>
+        )}
       </View>
       <View style={styles.actions}>
         <Tap
@@ -281,8 +319,18 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
           activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paperRaised }}>
           <Text style={[styles.body, { color: theme.ink }]}>No hour</Text>
         </Tap>
-        <Tap onPress={onCancel} style={[styles.action, { borderColor: theme.ink }]} activeStyle={{ backgroundColor: theme.paperRaised }}>
+        <Tap onPress={onCancel} style={[styles.action, { borderColor: theme.line }]} activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paperRaised }}>
           <Text style={[styles.body, { color: theme.ink }]}>Cancel</Text>
+        </Tap>
+        {/* The pick, in words, on the button that makes it so. */}
+        <Tap
+          disabled={chosen === null}
+          onPress={() => chosen && onPick(chosen)}
+          style={[styles.action, styles.confirm, { borderColor: theme.ink, backgroundColor: chosen ? theme.ink : 'transparent' }]}
+          activeStyle={{ opacity: 0.85 }}>
+          <Text numberOfLines={1} style={[styles.body, { color: chosen ? theme.paper : theme.ink, fontWeight: '700' }]}>
+            {chosen ? `Put in ${slotLabel(chosen, today)}` : 'Pick an hour'}
+          </Text>
         </Tap>
       </View>
     </View>
@@ -300,13 +348,17 @@ const styles = StyleSheet.create({
   date: { flexShrink: 1 },
   iconButton: { width: 40, height: ROW, alignItems: 'center', justifyContent: 'center', borderRadius: 4 },
   calendar: { alignSelf: 'flex-start', width: 300, maxWidth: '100%', padding: 6, borderWidth: 1, borderRadius: 6 },
-  hours: { flexDirection: 'row', gap: GAP },
+  hours: { gap: ROW_GAP },
+  hourRow: { flexDirection: 'row', gap: GAP },
   // A column per hour: the picked bar, the box, the now bar. Tall enough for a finger.
   hour: { flex: 1, gap: 2, paddingVertical: 4, borderRadius: 2 },
+  name: { fontFamily: serif, fontSize: 12, lineHeight: 16, textAlign: 'center' },
   cell: { height: 30 },
   bar: { height: 3, borderRadius: 1.5 },
   ticks: { flexDirection: 'row', marginTop: 2 },
   tick: { flex: 1, fontFamily: serif, fontSize: 12, lineHeight: 16 },
-  actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  // The button that confirms takes the room that is left, or a line of its own.
+  confirm: { flexGrow: 1, alignItems: 'center' },
   action: { minHeight: ROW, justifyContent: 'center', paddingHorizontal: 16, borderWidth: 1, borderRadius: 4 },
 });
