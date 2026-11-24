@@ -100,7 +100,7 @@ export function DonePanel({ dialog }: { dialog: RefObject<HTMLDialogElement | nu
           ))
         )}
         <div className="actions">
-          <p className="note">Crossed-out lines stay in the pad until you delete them.</p>
+          <p className="note">Crossed-out lines stay in the pad until you archive them.</p>
         </div>
       </form>
     </dialog>

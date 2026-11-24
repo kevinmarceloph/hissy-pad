@@ -5,6 +5,7 @@ import { apply, applyAll, clock, loadPad, setAll, usePad } from './store'
 import { undo } from './history'
 import { select } from './selection'
 import { cmdDeleteSelection, cmdToggleDone } from './commands'
+import { cmdDeletePad } from './pads'
 import { cmdRestore, cmdUndone, dayLabel, doneEntries, firstLine, groupByDay, timeLabel, trashEntries, underLabel } from './lists'
 
 async function reset(outline: string) {
@@ -126,6 +127,19 @@ describe('cmdRestore', () => {
     cmdRestore([id('A')])
     expect(usePad.getState().padId).toBeNull()
     expect(shape(usePad.getState().rows)).toBe('A\nB\n  B1\n  B2\n    B2a')
+  })
+
+  it('an archived pad is one entry with its lines under it; Restore brings it all back and opens it', () => {
+    applyAll((all, ctx) => {
+      const res = createPad(all, ctx, 'Work')
+      return moveToPad(res.rows, ctx, [id('B')], res.padId)
+    })
+    const work = id('Work')
+    expect(cmdDeletePad(work)).toBe(4)
+    expect(trashEntries().map((b) => b.entries.map((e) => [e.text, e.childCount]))).toEqual([[['Work', 4]]])
+    cmdRestore([work])
+    expect(usePad.getState().padId).toBe(work)
+    expect(shape(usePad.getState().rows)).toBe('B\n  B1\n  B2\n    B2a')
   })
 
   it('unfolds a collapsed parent so the restored line is on screen', () => {

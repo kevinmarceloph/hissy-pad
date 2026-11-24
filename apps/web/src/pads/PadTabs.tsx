@@ -63,7 +63,7 @@ export function PadTabs() {
     const label = all[sheet.padId]?.text || 'Untitled pad'
     const n = cmdDeletePad(sheet.padId)
     dialog.current?.close()
-    showToast(`Deleted “${label}”${n ? ` and its ${n} ${n === 1 ? 'line' : 'lines'}` : ''}. ${MOD}+Z brings it back.`)
+    showToast(`Archived “${label}”${n ? ` and its ${n} ${n === 1 ? 'line' : 'lines'}` : ''}. ${MOD}+Z brings it back.`)
   }
 
   // The opposite of Make pad: the pad becomes a line at the top of the pad picked.
@@ -186,14 +186,14 @@ export function PadTabs() {
             </div>
           )}
           {confirming && (
-            <p role="status">Delete this pad{lines ? ` and the ${lines} ${lines === 1 ? 'line' : 'lines'} at its top level, with everything under them` : ''}? Undo brings it back.</p>
+            <p role="status">Archive this pad{lines ? ` and the ${lines} ${lines === 1 ? 'line' : 'lines'} at its top level, with everything under them` : ''}? Undo or the Archive brings it back.</p>
           )}
           <div className="actions">
             {sheet?.mode === 'edit' && !confirming && (
-              <button type="button" className="danger" onClick={() => setConfirming(true)}>Delete pad…</button>
+              <button type="button" className="danger" onClick={() => setConfirming(true)}>Archive pad…</button>
             )}
             {sheet?.mode === 'edit' && confirming && (
-              <button type="button" className="danger" onClick={remove}>Delete</button>
+              <button type="button" className="danger" onClick={remove}>Archive</button>
             )}
             <span className="grow" />
             <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>

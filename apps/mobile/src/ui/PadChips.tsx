@@ -54,12 +54,12 @@ export function PadChips({ theme }: { theme: Theme }) {
           ]),
       },
       {
-        text: 'Delete pad',
+        text: 'Archive pad',
         style: 'destructive',
         onPress: () =>
-          Alert.alert(`Delete “${name}”?`, lines ? `Its ${lines} top-level ${lines === 1 ? 'line goes' : 'lines go'} too, with everything under them.` : 'It is empty.', [
+          Alert.alert(`Archive “${name}”?`, lines ? `Its ${lines} top-level ${lines === 1 ? 'line goes' : 'lines go'} too, with everything under them.` : 'It is empty.', [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Delete', style: 'destructive', onPress: () => cmdDeletePad(id) },
+            { text: 'Archive', style: 'destructive', onPress: () => cmdDeletePad(id) },
           ]),
       },
       { text: 'Cancel', style: 'cancel' },

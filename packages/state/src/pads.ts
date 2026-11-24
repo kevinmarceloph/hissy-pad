@@ -98,7 +98,7 @@ export function openSubPad(subId: string): boolean {
 }
 
 // How many top-level lines a pad holds, crossed-out ones included and blank ones not: what
-// "Delete pad" says goes with it.
+// "Archive pad" says goes with it.
 export function padTopLines(all: Rows, padId: PadId): number {
   return padLines(buildIndex(all), padId).length
 }
@@ -150,7 +150,7 @@ export function cmdMovePad(padId: string, dir: -1 | 1): boolean {
   return applyAll((all, ctx) => (isPadNode(all[padId]) ? movePad(all, ctx, padId, dir) : all), { label: 'cmdMovePad' }) !== before
 }
 
-// Delete a pad with everything in it (undo brings it all back). Returns how many lines
+// Archive a pad with everything in it (undo or the Archive panel brings it all back). Returns how many lines
 // went with it (blank ones not counted). The main pad cannot be deleted.
 export function cmdDeletePad(padId: string): number {
   const { all, padId: current } = usePad.getState()

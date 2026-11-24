@@ -86,7 +86,7 @@ export function DoneSheet({ visible, onClose, theme }: { visible: boolean; onClo
   const entries = visible ? doneEntries(rows) : []
   const groups = groupByDay(entries, (e) => e.doneAt)
   return (
-    <Sheet visible={visible} title="Recently done" note="Crossed-out lines stay in the pad until you delete them." onClose={onClose} theme={theme}>
+    <Sheet visible={visible} title="Recently done" note="Crossed-out lines stay in the pad until you archive them." onClose={onClose} theme={theme}>
       {entries.length === 0 && <Text style={[s.empty, { color: theme.inkMute }]}>Nothing is crossed out.</Text>}
       {groups.map((g) => (
         <View key={g.label}>

@@ -58,7 +58,7 @@ describe('pads', () => {
     expect(texts()).toBe('first thing')
   })
 
-  it('clicking the open tab renames or deletes the pad; Main has no such sheet', async () => {
+  it('clicking the open tab renames or archives the pad; Main has no such sheet', async () => {
     const user = userEvent.setup()
     await mount('a')
     await user.click(screen.getByRole('button', { name: 'New pad' }))
@@ -72,11 +72,11 @@ describe('pads', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(tab('Werk')).toBeInTheDocument()
     await user.click(tab('Werk'))
-    await user.click(screen.getByRole('button', { name: 'Delete pad…' }))
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Archive pad…' }))
+    await user.click(screen.getByRole('button', { name: 'Archive' }))
     expect(screen.getAllByRole('tab')).toHaveLength(1)
     expect(tab('Main')).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('status')).toHaveTextContent(/Deleted “Werk”/)
+    expect(screen.getByRole('status')).toHaveTextContent(/Archived “Werk”/)
     await user.click(tab('Main'))
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
   })

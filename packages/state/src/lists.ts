@@ -1,5 +1,5 @@
 // The two list views over the table: Archive (tombstoned rows from the last 30 days, grouped
-// by the delete that removed them) and Recently done (live crossed-out rows, newest
+// by the archive that removed them, a whole pad included) and Recently done (live crossed-out rows, newest
 // first). Both read `all` (every pad, tombstones included), so a line deleted in another
 // pad is still found. Pure selectors plus the two commands the panels need; both
 // platforms render these, and nothing here knows about the DOM or React Native.
@@ -152,6 +152,11 @@ export function cmdRestore(ids: readonly string[]): string[] {
     return out
   }, { label: 'cmdRestore' })
   const after = usePad.getState()
+  // An archived pad comes back as a tab: open it rather than the root, where it is no line.
+  if (isPadNode(after.all[tops[0]!])) {
+    openPad(tops[0]!)
+    return tops
+  }
   const target = padOf(after.all, tops[0]!)
   if (target !== after.padId) openPad(target)
   select(tops, tops[0]!, tops.at(-1)!)
