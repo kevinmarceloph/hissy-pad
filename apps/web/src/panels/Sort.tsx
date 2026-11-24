@@ -246,7 +246,8 @@ export function Sort({ onClose }: { onClose: () => void }) {
               onChange={(e) => { openPad(e.target.value === '' ? null : e.target.value); e.target.blur() }}
               aria-label="Pad to sort"
             >
-              {pads.map((p) => <option key={p.id ?? ''} value={p.id ?? ''}>{p.name}</option>)}
+              {/* Each pad with its open top-level lines: the cards Sort would deal. */}
+              {pads.map((p) => <option key={p.id ?? ''} value={p.id ?? ''}>{p.name} ({p.count})</option>)}
               {!pads.some((p) => p.id === padId) && <option value={padId ?? ''}>{padName(all, padId)}</option>}
             </select>
           </h2>

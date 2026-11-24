@@ -39,10 +39,11 @@ export function SortView({ theme }: { theme: Theme }) {
   const padId = usePad((s) => s.padId)
   const choice = useSort()
 
-  // The pad to sort, from the title. The view is keyed by the pad, so a new one starts over.
+  // The pad to sort, from the title, each with its open top-level lines (the cards it would
+  // deal). The view is keyed by the pad, so a new one starts over.
   function pickPad() {
     Alert.alert('Sort which pad?', undefined, [
-      ...padList(all).filter((p) => p.id !== padId).map((p) => ({ text: p.name, onPress: () => openPad(p.id) })),
+      ...padList(all).filter((p) => p.id !== padId).map((p) => ({ text: `${p.name} (${p.count})`, onPress: () => openPad(p.id) })),
       { text: 'Cancel', style: 'cancel' as const },
     ])
   }
