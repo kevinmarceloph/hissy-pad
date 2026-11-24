@@ -54,6 +54,7 @@ Mobile commands (Expo, EAS, env pull, update channels) are in `README.md`. The p
 
 ## Rules
 
+- Work in a worktree, never in the checkout at the repo root. Sessions started from the phone over Remote Control open in `/Users/kevin/Personal/hissy-pad` itself, on `main`, with no worktree, and several of them at once would edit the same files. So if the working directory is that root (not under `.claude/worktrees/`), call `EnterWorktree` with a short name for the task before editing any file; a read-only question needs none. Shipping from the worktree then follows the steps below.
 - A change counts as done when `pnpm test` and `pnpm typecheck` pass and, for anything visible, it was checked in the browser (or the simulator for mobile).
 - Ship every done change without asking, in this order:
   1. Commit on `main` with a one-line message that says what changed, and push. Render rebuilds the web app from `main` on its own.
