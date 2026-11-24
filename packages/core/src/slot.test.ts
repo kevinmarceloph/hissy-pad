@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSlot, slotCounts, slotCovers, slotDoneExtra, slotHours, slotKey, slotLabel, slotLines, slotOutline, slotProgress, slotTops } from './slot'
+import { parseSlot, slotCounts, slotCovers, slotDoneExtra, slotHours, slotKey, lineOrder, scopeSlot, slotLabel, slotLines, slotOutline, slotProgress, slotTops } from './slot'
 import type { NodeRow, Rows } from './types'
 
 const row = (id: string, slot: string | null, done = false): NodeRow => ({
@@ -102,5 +102,38 @@ describe('an hour as a pad of its own', () => {
     // A line under another line of the same hour is listed under it, not counted beside it.
     expect(slotProgress(table(row('a', H), under('a1', 'a', { slot: H, done: true })), H).count).toEqual({ done: 0, open: 1 })
     expect(slotProgress(table(), H)).toEqual({ top: undefined, count: { done: 0, open: 0 } })
+  })
+})
+
+describe('the order of an hour\'s lines', () => {
+  const H = '2026-11-24T14'
+  const pad = (id: string, name: string, rank: string): NodeRow => ({ ...row(id, null), text: name, rank, pad: true })
+  const inPad = (id: string, padId: string, rank: string): NodeRow => ({ ...row(id, H), parentId: padId, rank })
+
+  it('goes by pad (Today, the Inbox, Later, then the rest), then down the pad', () => {
+    const all = table(
+      pad('pl', 'Later', 'a1'), pad('pt', 'Today', 'a2'), pad('pw', 'Work', 'a3'),
+      inPad('w1', 'pw', 'a0'), inPad('l1', 'pl', 'a0'), inPad('t2', 'pt', 'b0'), inPad('t1', 'pt', 'a0'),
+      { ...row('i1', H), rank: 'z9' }, { ...row('i0', H, true), rank: 'a0' },
+    )
+    // A crossed-out line keeps its place: i0 is done and still comes before i1.
+    expect(slotLines(all, H).map((r) => r.id)).toEqual(['t1', 't2', 'i0', 'i1', 'l1', 'w1'])
+    // The same table gives the same map, without walking it again.
+    expect(lineOrder(all)).toBe(lineOrder(all))
+  })
+
+  it('makes a view of the hour: its lines at the root in that order, each with what is under it', () => {
+    const all = table(
+      pad('pt', 'Today', 'a2'), inPad('t1', 'pt', 'a0'), { ...row('t1a', null), parentId: 't1' },
+      { ...row('i1', H), rank: 'a0' }, { ...row('gone', H), deletedAt: '2026-11-24T10:00:00.000Z' }, { ...row('empty', H), text: '', rank: 'b0' },
+    )
+    const view = scopeSlot(all, H)
+    const roots = Object.values(view.rows).filter((r) => r.parentId === null).sort((a, b) => (a.rank < b.rank ? -1 : 1))
+    // An empty line is in the view (it may be about to be typed in); an archived one is not.
+    expect(roots.map((r) => r.id)).toEqual(['t1', 'i1', 'empty'])
+    expect(view.rows['t1a']!.parentId).toBe('t1')
+    expect(view.homes.get('t1')).toEqual({ parentId: 'pt', rank: 'a0' })
+    // An unchanged hour gives the same row objects back.
+    expect(scopeSlot(all, H).rows['t1']).toBe(view.rows['t1'])
   })
 })

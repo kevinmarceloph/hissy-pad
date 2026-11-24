@@ -4,8 +4,10 @@
 // stored under: never a day as drawn on a screen whose day starts at 6am. A run of hours
 // adds how many: 'YYYY-MM-DDTHH+3' is that hour and the two after it, and may run past
 // midnight into the next day. A single hour never carries '+1'.
-import type { NodeRow, Rows } from './types'
+import { sameRow, type NodeRow, type Rows } from './types'
 import { buildIndex, childrenOf, isBlank, isLive } from './tree'
+import { findFixedPad, listPads } from './pads'
+import { between, ranksBetween } from './rank'
 
 export const MAX_SLOT_HOURS = 24
 
@@ -98,25 +100,57 @@ export function slotDoneExtra(all: Rows): Record<string, number> {
   return out
 }
 
-// The lines in one hour (a single-hour key), a run of hours that takes it in included: open ones first, then crossed out, each group by rank
-// (a line's place among its siblings), which is steady enough across pads. Archived lines stay
-// listed, as in slotCounts.
-export function slotLines(all: Rows, slot: string): NodeRow[] {
+// Where every live line stands in the whole table, as one number: pad order first (Today,
+// the Inbox, Later, then the other pads as their tabs run), then down the pad as it reads.
+// It is how an hour orders its lines, which may come from several pads (Kevin, 2026-11-25:
+// an hour keeps no order of its own). Kept per table: the same rows give the same map.
+const orders = new WeakMap<Rows, Map<string, number>>()
+export function lineOrder(all: Rows): Map<string, number> {
+  let order = orders.get(all)
+  if (order) return order
+  order = new Map()
+  const index = buildIndex(all)
+  let n = 0
+  const walk = (parentId: string | null, root: boolean) => {
+    for (const r of childrenOf(index, parentId)) {
+      // The root holds the Inbox's lines and the pads' own rows, which are walked as pads.
+      if (root && r.pad) continue
+      order!.set(r.id, n++)
+      walk(r.id, false)
+    }
+  }
+  const today = findFixedPad(all, 'Today')
+  const later = findFixedPad(all, 'Later')
+  const fixed = new Set([today?.id, later?.id])
+  if (today) walk(today.id, false)
+  walk(null, true)
+  if (later) walk(later.id, false)
+  for (const p of listPads(all)) if (!fixed.has(p.id)) walk(p.id, false)
+  orders.set(all, order)
+  return order
+}
+
+// The lines in one hour (a single-hour key), a run of hours that takes it in included, in
+// the order above. An archived line stays listed, as in slotCounts, after the live ones.
+// `blank` keeps the empty ones too: the hour's view needs the line that is about to be typed.
+export function slotLines(all: Rows, slot: string, blank = false): NodeRow[] {
   const list: NodeRow[] = []
   for (const id in all) {
     const r = all[id]!
-    if (slotCovers(r.slot, slot) && !isBlank(r) && !r.pad) list.push(r)
+    if (slotCovers(r.slot, slot) && (blank || !isBlank(r)) && !r.pad) list.push(r)
   }
-  return list.sort((a, b) => Number(a.done) - Number(b.done) || (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0) || (a.id < b.id ? -1 : 1))
+  const order = lineOrder(all)
+  const at = (r: NodeRow) => order.get(r.id) ?? Infinity
+  return list.sort((a, b) => at(a) - at(b) || (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0) || (a.id < b.id ? -1 : 1))
 }
 
 // The lines an hour lists at its top level: the ones put in it, less any that sits under
 // another line of the same hour, which shows it as one of its children instead.
-export function slotTops(all: Rows, slot: string): NodeRow[] {
-  return slotLines(all, slot).filter((r) => {
+export function slotTops(all: Rows, slot: string, blank = false): NodeRow[] {
+  return slotLines(all, slot, blank).filter((r) => {
     let up = r.parentId ? all[r.parentId] : undefined
     for (let n = 0; up && n < 64; n++) {
-      if (isLive(up) && !up.pad && !isBlank(up) && slotCovers(up.slot, slot)) return false
+      if (isLive(up) && !up.pad && (blank || !isBlank(up)) && slotCovers(up.slot, slot)) return false
       up = up.parentId ? all[up.parentId] : undefined
     }
     return true
@@ -140,6 +174,117 @@ export function slotOutline(all: Rows, slot: string): SlotRow[] {
     for (const child of childrenOf(index, row.id)) walk(child, depth + 1)
   }
   for (const top of tops) walk(top, 0)
+  return out
+}
+
+// ---- an hour as a view of the store ----------------------------------------------------------
+// The live lines of one hour as a pad of their own, the way scopePad and scopeNode make one
+// (pads.ts): the hour's own lines (slotTops) at the root, each with everything under it.
+// The store shows this while an hour is open, so the pad's own ops, keys and toolbar edit
+// it (PLAN.md, "Hours joins the pad"). An archived line is not in a view; slotLines still
+// lists it.
+//
+// The hour's lines come from different pads, so at the root each gets a rank made up for
+// the view, in the hour's order. `homes` remembers where each one really is.
+export interface SlotHome {
+  parentId: string | null
+  rank: string
+}
+export interface SlotView {
+  rows: Rows
+  homes: ReadonlyMap<string, SlotHome>
+}
+
+// A lifted line is the same object for as long as its row and its place in the hour are,
+// so an unchanged hour redraws nothing.
+const raised = new WeakMap<NodeRow, NodeRow>()
+function raise(r: NodeRow, rank: string): NodeRow {
+  let l = raised.get(r)
+  if (!l || l.rank !== rank) raised.set(r, (l = { ...r, parentId: null, rank }))
+  return l
+}
+
+export function scopeSlot(all: Rows, slot: string): SlotView {
+  // Empty lines too: one just made is empty until it is typed in.
+  const tops = slotTops(all, slot, true).filter((r) => isLive(r))
+  const out: Record<string, NodeRow> = {}
+  const homes = new Map<string, SlotHome>()
+  if (tops.length === 0) return { rows: out, homes }
+  const index = buildIndex(all)
+  const ranks = ranksBetween(null, null, tops.length)
+  tops.forEach((top, i) => {
+    homes.set(top.id, { parentId: top.parentId, rank: top.rank })
+    out[top.id] = raise(top, ranks[i]!)
+    const take = (parentId: string) => {
+      for (const child of childrenOf(index, parentId)) {
+        // A row whose stored parent was repaired by buildIndex keeps its effective parent.
+        out[child.id] = child.parentId === parentId ? child : { ...child, parentId }
+        take(child.id)
+      }
+    }
+    take(top.id)
+  })
+  return { rows: out, homes }
+}
+
+// The rows an op changed in an hour's view (`view`, as scopeSlot gave it), back in table terms:
+//   - one of the hour's own lines still at the root goes back to its pad, where it was. A
+//     move among them writes nothing: an hour keeps no order.
+//   - a line moved out to the root joins the hour, and in its pad becomes the line after
+//     the one it came out from under (the hour's line above it in the view).
+//   - a line made at the root is new: it goes to the top of Today, in this hour. With no
+//     Today yet, to the top of the pad given.
+// Anything else (a line under another, one of the hour's own moved in under a line) is
+// stored as the op left it. A row that ends up as the table has it is left out.
+export function unscopeSlot(all: Rows, slot: string, view: SlotView, changed: readonly NodeRow[], fallbackPad: string | null = null): NodeRow[] {
+  const { homes, rows } = view
+  // The lowest rank among the live lines right under `parentId` that is above `after`.
+  const nextRank = (parentId: string | null, after: string | null) => {
+    let found: string | null = null
+    for (const id in all) {
+      const r = all[id]!
+      if (isLive(r) && r.parentId === parentId && (after === null || r.rank > after) && (found === null || r.rank < found)) found = r.rank
+    }
+    return found
+  }
+  // New lines keep the order the view had them in, above what Today already holds.
+  const made = changed.filter((r) => r.parentId === null && !homes.has(r.id) && !all[r.id])
+  const into = findFixedPad(all, 'Today')?.id ?? fallbackPad
+  let first = nextRank(into, null)
+  const fresh = new Map<string, string>()
+  for (const r of [...made].sort((a, b) => (a.rank < b.rank ? 1 : a.rank > b.rank ? -1 : 0))) {
+    first = between(null, first)
+    fresh.set(r.id, first)
+  }
+  // The hour's own line right above a rank at the root of the view.
+  const above = (rank: string) => {
+    let best: NodeRow | undefined
+    for (const id of homes.keys()) {
+      const top = rows[id]
+      if (top && top.rank < rank && (!best || top.rank > best.rank)) best = top
+    }
+    return best
+  }
+  const out: NodeRow[] = []
+  for (const r of changed) {
+    let back = r
+    if (r.parentId === null) {
+      const home = homes.get(r.id)
+      const stored = all[r.id]
+      if (home) back = { ...r, parentId: home.parentId, rank: home.rank }
+      else if (!stored) back = { ...r, parentId: into, rank: fresh.get(r.id)!, slot }
+      else {
+        const from = above(r.rank)
+        const at = from && homes.get(from.id)
+        back = at
+          ? { ...r, parentId: at.parentId, rank: between(at.rank, nextRank(at.parentId, at.rank)), slot }
+          : { ...r, parentId: stored.parentId, rank: stored.rank, slot }
+      }
+    }
+    const was = all[r.id]
+    if (was && sameRow({ ...back, updatedAt: was.updatedAt }, was)) continue
+    out.push(back)
+  }
   return out
 }
 

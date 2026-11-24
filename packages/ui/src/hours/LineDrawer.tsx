@@ -3,7 +3,7 @@ import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 import { stateOf } from '@hissypad/core';
 import { usePad } from '@hissypad/state';
-import { cmdSlotClear, cmdSlotDone, cmdSlotShift, cmdSlotState } from '@hissypad/state/hours';
+import { cmdPickSlot, cmdSlotClear, cmdSlotDone, cmdSlotShift, cmdSlotState } from '@hissypad/state/hours';
 
 import { StateSwitch, type MarkState } from './StateMark';
 import { Tap } from './Tap';
@@ -74,6 +74,15 @@ export function LineDrawer() {
         style={[styles.button, { borderColor: theme.line }]}
         activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paper }}>
         <Text style={[styles.glyph, { color: theme.ink }]}>→</Text>
+      </Tap>
+      {/* Another hour, or a run of them: the pad's own picker (Kevin, 2026-11-25: a line is
+          not dragged between hours, it is moved from here). */}
+      <Tap
+        aria-label={one ? 'Move this line to another hour' : 'Move these lines to another hour'}
+        onPress={() => cmdPickSlot(ids)}
+        style={[styles.button, styles.words, { borderColor: theme.line }]}
+        activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paper }}>
+        <Text style={[styles.small, { color: theme.ink }]}>Hour…</Text>
       </Tap>
       {known.every((t) => t.depth === 0) && (
         <Tap

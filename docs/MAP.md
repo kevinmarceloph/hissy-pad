@@ -39,7 +39,7 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | `drop.ts` | `resolveDrop`: where a dragged line lands, from pointer position and row layout |
 | `paste.ts` | text to outline and back: `parseOutline`, `insertOutline`, `toOutline`, `toOutlineHtml` |
 | `ops.ts` (again) | `setCategory`: a line's category, one of Hours' (`NodeRow.category`) |
-| `slot.ts` | a line in an hour of a day: the slot's key (`slotKey`, `parseSlot`), the count of done and open lines per slot (`slotCounts`), the lines of one slot, how a slot reads in the pad (`slotLabel`) |
+| `slot.ts` | a line in an hour of a day: the slot's key (`slotKey`, `parseSlot`), the count of done and open lines per slot (`slotCounts`), the lines of one slot in the hour's order (`lineOrder`: by pad, then down the pad), the hour's own lines and outline (`slotTops`, `slotOutline`, `slotProgress`), an hour as a view of the store and the way back (`scopeSlot`, `unscopeSlot`), how a slot reads in the pad (`slotLabel`) |
 | `hours/` | the Hours mode's logic, from Oras-oras, exported as `@hissypad/core/hours`: `day.ts` (days, hour slots, the day start), `entry.ts` (an hour's plan and deed, `applyPatch`, `toggleDone`), `categories.ts`, `flags.ts`, `recurring.ts`, `chime.ts`, `summary.ts`, `store.ts` (the store interfaces, `HoursBackend`, `HoursStore`, the synced `Setting` rows) |
 | `clock.ts` | the monotonic clock every edit stamps `updated_at` with, and `newUuid` |
 | `sync/store.ts` | the `LocalStore` interface, an in-memory one, `changedRows` |
@@ -55,7 +55,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 
 | file | what is in it |
 |---|---|
-| `store.ts` | the state (`all` rows, the scoped `rows` of the pad shown, `padId`, `zoomId`: one line shown as a pad, selection, editing, undo stacks), `apply` and `applyAll`, loading, `openPad`, `zoomTo`, `setAll`, `importOutline` |
+| `store.ts` | the state (`all` rows, the scoped `rows` of the pad shown, `padId`, `zoomId`: one line shown as a pad, `slotId`: one hour shown as a pad (`openSlot`, `closeSlot`), selection, editing, undo stacks), `apply` and `applyAll`, loading, `openPad`, `zoomTo`, `setAll`, `importOutline` |
 | `history.ts` | `undo` and `redo` |
 | `selection.ts` | selecting and editing: `select`, `clickSelect`, `selectRange`, `stepSelection`, `edit`, `targets`, `neighbor` |
 | `commands.ts` | the editor commands (`cmd…`): what a key or button does to lines, and where the caret or selection goes after |

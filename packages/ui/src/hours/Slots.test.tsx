@@ -3,7 +3,7 @@ import { fireEvent as dom } from '@testing-library/react';
 import { idOf, slotCounts, slotKey } from '@hissypad/core';
 import { dayDate, MemoryStore } from '@hissypad/core/hours';
 import { cmdDeleteSelection, loadPad, resetStore, select, usePad } from '@hissypad/state';
-import { cmdSetSlot, cmdSlotBreak, cmdSlotDone, cmdSlotText, createCategoryStore, createDayStore, createFlagStore, openHours } from '@hissypad/state/hours';
+import { cmdApplySlot, cmdSetSlot, setSlotPickerOpener, cmdSlotBreak, cmdSlotDone, cmdSlotText, createCategoryStore, createDayStore, createFlagStore, openHours } from '@hissypad/state/hours';
 
 import { act, fireEvent, render, screen } from '../testing/rntl';
 import { DayScreen } from './DayScreen';
@@ -41,8 +41,9 @@ describe('the pad\'s lines in an hour', () => {
       cmdSetSlot(slotKey('2026-11-19', 14));
       cmdSlotDone(id('call the bank'), true);
     });
-    // No summary was typed, so the row says its first open line.
-    expect(screen.getByLabelText('2pm, now: send invoice, 1 of 2 items done')).toBeTruthy();
+    // No summary was typed, so the row says its first line as the pad has them, crossed
+    // out or not: an hour keeps no order of its own.
+    expect(screen.getByLabelText('2pm, now: call the bank, 1 of 2 items done')).toBeTruthy();
     expect(screen.getByText('1/2')).toBeTruthy();
     // An hour with nothing assigned says nothing about items.
     expect(screen.getByLabelText('1pm: blank')).toBeTruthy();
@@ -127,6 +128,29 @@ describe('the pad\'s lines in an hour', () => {
     expect(all()[id('call the bank')]!.slot).toBeNull();
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
     expect(screen.queryByRole('toolbar', { name: 'Selected lines' })).toBeNull();
+  });
+
+  it('moves the selected lines to another hour through the pad\'s picker', async () => {
+    await setup();
+    await act(async () => {
+      cmdSetSlot(slotKey('2026-11-19', 14), [id('send invoice'), id('buy milk')]);
+    });
+    const asked: (readonly string[])[] = [];
+    setSlotPickerOpener((ids) => asked.push(ids));
+    try {
+      await fireEvent.press(screen.getByRole('checkbox', { name: 'Select “buy milk”' }));
+      await fireEvent.press(screen.getByLabelText('Move this line to another hour'));
+      expect(asked).toEqual([[id('buy milk')]]);
+      // The picker's answer moves the line: it leaves this hour's list.
+      await act(async () => {
+        cmdApplySlot(slotKey('2026-11-19', 16));
+      });
+      expect(all()[id('buy milk')]!.slot).toBe('2026-11-19T16');
+      expect(screen.getAllByRole('listitem')).toHaveLength(1);
+      expect(screen.queryByRole('toolbar', { name: 'Selected lines' })).toBeNull();
+    } finally {
+      setSlotPickerOpener(null);
+    }
   });
 
   it('puts a new item at the top of Today, already in the hour', async () => {

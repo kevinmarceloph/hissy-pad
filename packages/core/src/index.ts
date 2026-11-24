@@ -55,7 +55,7 @@ export {
   setSlot,
   setCategory,
 } from './ops'
-export { slotKey, parseSlot, slotHours, slotCovers, slotCounts, slotDoneExtra, slotLines, slotTops, slotOutline, slotProgress, slotLabel, todayKey, MAX_SLOT_HOURS, type SlotCount, type SlotRow } from './slot'
+export { slotKey, parseSlot, slotHours, slotCovers, slotCounts, slotDoneExtra, slotLines, slotTops, slotOutline, slotProgress, lineOrder, scopeSlot, unscopeSlot, slotLabel, todayKey, MAX_SLOT_HOURS, type SlotCount, type SlotRow, type SlotHome, type SlotView } from './slot'
 export {
   type PadId,
   type Side,
