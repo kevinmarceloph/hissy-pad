@@ -244,16 +244,19 @@ Decided (Kevin, 2026-11-25):
 - The domain becomes `hissypad.com`.
 - The pitch is the whole system: the pad to hold everything, Sort to decide, Hours to do. Not an outliner with extras.
 
+- Sync is $6.99 a month, to match Workflowy.
+- Payments go through Paddle, a merchant of record: it bills, handles VAT and pays out. Before building on it, confirm it pays out to a Philippine account, and note that it reviews the site (lander, pricing, terms, privacy, refund rule) before it lets a seller go live, so those pages come before the checkout.
+- The repo is licensed AGPL-3.0: the code stays open and a hosted copy has to stay open too.
+- Supabase goes to Pro when the launch is ready (backups, no pausing), not before.
+- `hissypad.com` is bought after the rest of the prep, so the domain move is the last step of part 1, not the first. Until then nobody but Kevin gets an account.
+
 Open (Kevin's call):
 
-- The price, and whether there is a trial (suggested: 14 days of sync, no card).
-- The payment provider. Suggested: a merchant of record (Paddle or Lemon Squeezy), which bills, handles VAT and pays out to the Philippines. Check that Stripe itself can pay out to a Philippine account before considering it.
-- The license for the public repo. Suggested: AGPL-3.0, so the code stays open and a hosted copy has to stay open too.
-- The Supabase plan. Paying users need backups and a project that does not pause, so Pro before launch.
+- Whether there is a trial (suggested: 14 days of sync, no card).
 
 ### 1. Safe for strangers
 
-1. Move to `hissypad.com`: the domain on Render, `site_url` and the redirect list in Supabase auth, the Google OAuth origins, a redirect from `hissypad.marcelo.ph`. Browser storage is per origin, so a pad kept only in the old origin does not follow: do this before anyone else has data, and sign in first on Kevin's own devices.
+1. (Done last, once the domain is bought.) Move to `hissypad.com`: the domain on Render, `site_url` and the redirect list in Supabase auth, the Google OAuth origins, a redirect from `hissypad.marcelo.ph`. Browser storage is per origin, so a pad kept only in the old origin does not follow: do this before anyone else has data, and sign in first on Kevin's own devices.
 2. Mail: custom SMTP on the hosted project (Resend or the like) sending from `hissypad.com` with SPF and DKIM, and a magic-link email in the app's voice. `supabase/config.toml` has SMTP commented out; the built-in mailer allows a few mails an hour and is for testing only. Check what the hosted project is set to.
 3. Google sign-in: publish the OAuth consent screen (out of testing), with the privacy page's URL.
 4. Delete my account: an edge function that removes the user and every row of theirs (the one place rows are hard-deleted), reachable from the account menu on web and phone.
