@@ -159,14 +159,16 @@ struct PadCopy: Codable {
     return true
   }
 
-  // A new line at the top of a pad (nil for Main). Returns its id, or nil for blank text.
+  // A new line at the top of a pad (nil for Main, the root level). Returns its id, or nil
+  // for blank text.
   mutating func add(_ text: String, pad: String?, now: Int64 = Stamp.now()) -> String? {
     let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
     if clean.isEmpty { return nil }
     let live = rows.values.filter { !$0.deleted }
     let ids = Set(live.map(\.id))
-    // A pad that is gone meanwhile: the line goes to Main, as cmdAddToPad does.
-    let parent = pad.flatMap { ids.contains($0) ? $0 : nil }
+    // Main, or a pad that is gone meanwhile: the line goes to the Inbox, as cmdAddToPad does
+    // (the root level only when there is no Inbox yet; the app moves it there later).
+    let parent = pad.flatMap { ids.contains($0) ? $0 : nil } ?? Outline.fixedPadId("Inbox", rows)
     // Everything at that level, crossed out or not; a row whose parent is gone sits at the root.
     let first = live
       .filter { r in parent == nil ? (r.parent.map { !ids.contains($0) } ?? true) : r.parent == parent }
@@ -211,8 +213,25 @@ struct PadCopy: Codable {
 }
 
 enum Outline {
-  // Every pad with its open top-level lines, top first: Main (the root level), then each
-  // row at the root with `pad` set. Open means not crossed out and not a blank spacer.
+  // The fixed pads, first in the list in this order (FIXED_PADS in core's pads.ts).
+  static let fixed = ["Today", "Inbox", "Later"]
+
+  // The fixed pad of that name: the first live pad row at the root with it, in root order,
+  // case and outer spaces ignored (findFixedPad in core).
+  static func fixedPadId(_ name: String, _ rows: [String: Row]) -> String? {
+    let key = name.lowercased()
+    return rows.values
+      .filter { !$0.deleted && $0.pad && $0.parent == nil && $0.text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == key }
+      .min { a, b in
+        if a.rank != b.rank { return a.rank.utf8.lexicographicallyPrecedes(b.rank.utf8) }
+        return a.id.utf8.lexicographicallyPrecedes(b.id.utf8)
+      }?.id
+  }
+
+  // Every pad with its open top-level lines, top first, in the app's tab order: Today, Inbox
+  // and Later, then each other row at the root with `pad` set. Main (the root level) is
+  // listed first only while it holds a line, as padList does. Open means not crossed out
+  // and not a blank spacer.
   static func pads(_ rows: [String: Row]) -> [WidgetPad] {
     let live = rows.values.filter { !$0.deleted }
     let ids = Set(live.map(\.id))
@@ -258,10 +277,19 @@ enum Outline {
       }
       return WidgetPad(id: id ?? mainPadId, name: name, count: items.count, items: items)
     }
-    let others = (children[nil] ?? []).filter(\.pad)
-    return [pad(nil, "Main")] + others.map { p in
+    let root = children[nil] ?? []
+    var taken = Set<String>()
+    var fixedPads: [WidgetPad] = []
+    for name in fixed {
+      guard let p = root.first(where: { $0.pad && trimmed($0.text).lowercased() == name.lowercased() }) else { continue }
+      taken.insert(p.id)
+      fixedPads.append(pad(p.id, name))
+    }
+    let others = root.filter { $0.pad && !taken.contains($0.id) }.map { p -> WidgetPad in
       let name = trimmed(p.text)
       return pad(p.id, name.isEmpty ? "Untitled pad" : name)
     }
+    let main = root.contains { !$0.pad } || (fixedPads.isEmpty && others.isEmpty) ? [pad(nil, "Main")] : []
+    return main + fixedPads + others
   }
 }
