@@ -1,4 +1,4 @@
-// The two list views over the table: Trash (tombstoned rows from the last 30 days, grouped
+// The two list views over the table: Archive (tombstoned rows from the last 30 days, grouped
 // by the delete that removed them) and Recently done (live crossed-out rows, newest
 // first). Both read `all` (every pad, tombstones included), so a line deleted in another
 // pad is still found. Pure selectors plus the two commands the panels need; both

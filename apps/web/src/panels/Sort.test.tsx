@@ -22,7 +22,7 @@ describe('sort', () => {
     Element.prototype.scrollIntoView = () => {}
   })
 
-  it('down deletes the card: the arrow key or the Delete button sends it to the Trash, Back restores it', async () => {
+  it('down deletes the card: the arrow key or the Delete button sends it to the Archive, Back restores it', async () => {
     const user = userEvent.setup()
     await mount('A\nB\nC')
     await user.click(button('Sort'))

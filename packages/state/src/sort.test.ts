@@ -135,7 +135,7 @@ describe('sort', () => {
     expect(sortSummary(sortSessionStart())).toBe('')
   })
 
-  it('down deletes the card: the line and its children go to the Trash, and Back brings them back', () => {
+  it('down deletes the card: the line and its children go to the Archive, and Back brings them back', () => {
     let session = sortSessionStart()
     const a = id('A')
     session = sortSessionSend(session, 'down')

@@ -130,9 +130,9 @@ describe('Pad', () => {
     await user.keyboard('{Meta>}{Enter}{/Meta}')
     expect(texts()).toBe('~a\nb')
     expect(rowByText('a').className).toContain('is-done')
-    await user.click(screen.getByRole('button', { name: 'Clear 1 completed' }))
+    await user.click(screen.getByRole('button', { name: 'Archive 1 completed' }))
     expect(texts()).toBe('b')
-    expect(screen.getByRole('status')).toHaveTextContent(/Deleted 1 line/)
+    expect(screen.getByRole('status')).toHaveTextContent(/Archived 1 line/)
   })
 
   it('Cmd+Shift+7 numbers a run of lines; Enter continues the numbering', async () => {
@@ -291,24 +291,24 @@ describe('toolbar iteration', () => {
   })
 })
 
-describe('Trash and Done panels', () => {
+describe('Archive and Done panels', () => {
   beforeEach(() => {
     Element.prototype.scrollIntoView = () => {}
   })
 
-  it('a deleted line shows up in Trash and Restore puts it back, selected', async () => {
+  it('a deleted line shows up in Archive and Restore puts it back, selected', async () => {
     const user = userEvent.setup()
     await mount('keep\ngone\n  gone child')
     await user.click(within(rowByText('gone')).getByRole('button', { name: /Select line/ }))
     await user.keyboard('{Delete}')
     expect(texts()).toBe('keep')
     await user.click(screen.getByRole('button', { name: 'More' }))
-    await user.click(screen.getByRole('menuitem', { name: 'Trash' }))
-    const dlg = screen.getByRole('dialog', { name: 'Trash' })
+    await user.click(screen.getByRole('menuitem', { name: 'Archive' }))
+    const dlg = screen.getByRole('dialog', { name: 'Archive' })
     expect(dlg).toHaveTextContent('Today')
     expect(dlg).toHaveTextContent('gone')
     expect(dlg).toHaveTextContent('+1 line under it')
-    expect(dlg).toHaveTextContent('Deleted lines stay here for 30 days.')
+    expect(dlg).toHaveTextContent('Archived lines stay here for 30 days.')
     await user.click(within(dlg).getByRole('button', { name: 'Restore' }))
     expect(texts()).toBe('keep\ngone\n  gone child')
     expect(usePad.getState().selection).toEqual([rowByText('gone').dataset.id])

@@ -1,4 +1,4 @@
-// The Trash and Recently done panels: a <dialog> each (the window key handler ignores keys
+// The Archive and Recently done panels: a <dialog> each (the window key handler ignores keys
 // inside one), entries grouped by day, a Restore or Undone button per line.
 import type { RefObject } from 'react'
 import {
@@ -24,11 +24,11 @@ export function TrashPanel({ dialog }: { dialog: RefObject<HTMLDialogElement | n
     <dialog ref={dialog} className="import list" aria-labelledby="trash-title">
       <form method="dialog">
         <div className="head">
-          <h2 id="trash-title">Trash</h2>
+          <h2 id="trash-title">Archive</h2>
           <button type="submit">Close</button>
         </div>
         {batches.length === 0 ? (
-          <p className="empty">Nothing deleted in the last {TRASH_DAYS} days.</p>
+          <p className="empty">Nothing archived in the last {TRASH_DAYS} days.</p>
         ) : (
           groups.map((g) => (
             <section key={g.label} className="day">
@@ -60,7 +60,7 @@ export function TrashPanel({ dialog }: { dialog: RefObject<HTMLDialogElement | n
           ))
         )}
         <div className="actions">
-          <p className="note">Deleted lines stay here for {TRASH_DAYS} days.</p>
+          <p className="note">Archived lines stay here for {TRASH_DAYS} days.</p>
         </div>
       </form>
     </dialog>

@@ -331,7 +331,7 @@ export function Pad() {
 
   function deleteDone() {
     const n = cmdDeleteDone()
-    setToast(n === 0 ? 'Nothing crossed out' : `Deleted ${n} ${n === 1 ? 'line' : 'lines'}`)
+    setToast(n === 0 ? 'Nothing crossed out' : `Archived ${n} ${n === 1 ? 'line' : 'lines'}`)
     setTimeout(() => setToast(null), 2500)
   }
 
@@ -347,7 +347,7 @@ export function Pad() {
     stopEditing()
     Alert.alert('HissyPad', undefined, [
       { text: 'Done', onPress: () => setSheet('done') },
-      { text: 'Trash', onPress: () => setSheet('trash') },
+      { text: 'Archive', onPress: () => setSheet('trash') },
       { text: usePrefs.getState().padCounts ? 'Hide pad counts' : 'Show pad counts', onPress: () => setPref('padCounts', !usePrefs.getState().padCounts) },
       ...(logEnabled() ? [{ text: 'Log', onPress: () => setLogText(dumpLog()) }] : []),
       { text: 'Cancel', style: 'cancel' as const },
@@ -364,13 +364,13 @@ export function Pad() {
         <ModeBar mode={mode} onMode={switchMode} theme={theme} />
         <View style={s.grow} />
         <Pressable onPress={() => { stopEditing(); setSheet('search') }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Search every pad"><SearchIcon color={theme.inkSoft} /></Pressable>
-        <Pressable onPress={openMenu} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="More: Done and Trash"><MenuIcon color={theme.inkSoft} /></Pressable>
+        <Pressable onPress={openMenu} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="More: Done and Archive"><MenuIcon color={theme.inkSoft} /></Pressable>
       </View>
       {/* Sort sits above the pads: the chips pick which pad's lines come next. */}
       {mode !== 'hours' && <PadChips theme={theme} />}
       {mode === 'pad' && doneCount > 0 && (
-        <Pressable onPress={deleteDone} style={s.clear} accessibilityRole="button" accessibilityLabel={`Clear ${doneCount} completed`} accessibilityHint="Deletes every crossed-out line in this pad. Shake to undo.">
-          <Text style={[s.clearText, { color: theme.inkMute }]}>Clear {doneCount} completed</Text>
+        <Pressable onPress={deleteDone} style={s.clear} accessibilityRole="button" accessibilityLabel={`Archive ${doneCount} completed`} accessibilityHint="Archives every crossed-out line in this pad. Shake to undo.">
+          <Text style={[s.clearText, { color: theme.inkMute }]}>Archive {doneCount} completed</Text>
         </Pressable>
       )}
       <Modal visible={logText !== null} animationType="slide" onRequestClose={() => setLogText(null)}>

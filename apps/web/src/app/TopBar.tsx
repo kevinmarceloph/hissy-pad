@@ -95,7 +95,7 @@ export function TopBar({ view, onView }: { view: View; onView: (view: View) => v
 
   function deleteDone() {
     const n = cmdDeleteDone()
-    setToast(n === 0 ? 'Nothing crossed out' : `Deleted ${n} ${n === 1 ? 'line' : 'lines'}. ${MOD}+Z brings them back.`)
+    setToast(n === 0 ? 'Nothing crossed out' : `Archived ${n} ${n === 1 ? 'line' : 'lines'}. ${MOD}+Z brings them back.`)
   }
 
   function pick(run: () => void) {
@@ -118,13 +118,13 @@ export function TopBar({ view, onView }: { view: View; onView: (view: View) => v
           <SearchIcon />
         </button>
         <span className="more">
-          <button type="button" className="icon" aria-label="More" aria-haspopup="menu" aria-expanded={menu} title="Done, Trash, Fresh start, pad counts and the theme" onClick={() => setMenu((open) => !open)}>
+          <button type="button" className="icon" aria-label="More" aria-haspopup="menu" aria-expanded={menu} title="Done, Archive, Fresh start, pad counts and the theme" onClick={() => setMenu((open) => !open)}>
             <MenuIcon />
           </button>
           {menu && (
             <div className="more-menu" role="menu" aria-label="More">
               <button type="button" role="menuitem" aria-label="Recently done" title="Crossed-out lines, newest first" onClick={() => pick(() => doneDialog.current?.showModal())}>Done</button>
-              <button type="button" role="menuitem" title="Deleted lines from the last 30 days" onClick={() => pick(() => trashDialog.current?.showModal())}>Trash</button>
+              <button type="button" role="menuitem" title="Archived lines from the last 30 days" onClick={() => pick(() => trashDialog.current?.showModal())}>Archive</button>
               {logEnabled() && (
                 <button type="button" role="menuitem" title="Debug log (?debug=1 turned this on)" onClick={() => pick(() => { setLogText(dumpLog()); logDialog.current?.showModal() })}>Log</button>
               )}
@@ -145,8 +145,8 @@ export function TopBar({ view, onView }: { view: View; onView: (view: View) => v
       {/* Sort sits above the pads: the tabs pick which pad's lines come next. */}
       {mode !== 'hours' && <PadTabs />}
       {view === 'pad' && doneCount > 0 && (
-        <button type="button" className="clear-done" onClick={deleteDone} title="Delete every crossed-out line in this pad (undo brings them back)">
-          Clear {doneCount} completed
+        <button type="button" className="clear-done" onClick={deleteDone} title="Archive every crossed-out line in this pad (undo brings them back)">
+          Archive {doneCount} completed
         </button>
       )}
       {toast && <output className="toast" aria-live="polite">{toast}</output>}

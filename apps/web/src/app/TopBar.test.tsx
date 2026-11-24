@@ -29,9 +29,9 @@ describe('top bar', () => {
     const b = idOf(usePad.getState().rows, 'b')
     select([b], b)
     cmdToggleDone()
-    await user.click(await screen.findByRole('button', { name: /^Clear \d+ completed$/ }))
+    await user.click(await screen.findByRole('button', { name: /^Archive \d+ completed$/ }))
     expect(texts()).toBe('a\nc')
-    expect(screen.getByRole('status')).toHaveTextContent('Deleted 2 lines.')
+    expect(screen.getByRole('status')).toHaveTextContent('Archived 2 lines.')
     expect(screen.queryByRole('button', { name: /completed/ })).toBeNull()
   })
 
@@ -80,13 +80,13 @@ describe('top bar', () => {
     expect(await screen.findByRole('button', { name: 'Hours', pressed: true })).toBeInTheDocument()
   })
 
-  it('Done, Trash and Fresh start are behind More; Fresh start still counts as the pad', async () => {
+  it('Done, Archive and Fresh start are behind More; Fresh start still counts as the pad', async () => {
     const user = userEvent.setup()
     await mount('a\nb')
-    expect(screen.queryByRole('menuitem', { name: 'Trash' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Archive' })).toBeNull()
     await user.click(button('More'))
     expect(screen.getByRole('menuitem', { name: 'Recently done' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Trash' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Archive' })).toBeInTheDocument()
     await user.click(screen.getByRole('menuitem', { name: 'Fresh start…' }))
     expect(screen.queryByRole('menu')).toBeNull()
     expect(button('Pad')).toHaveAttribute('aria-pressed', 'true')

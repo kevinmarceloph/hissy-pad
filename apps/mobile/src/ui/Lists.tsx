@@ -1,4 +1,4 @@
-// Trash and Recently done as full-screen modals: the same selectors and commands as the
+// Archive and Recently done as full-screen modals: the same selectors and commands as the
 // web panels, drawn with the app's paper-and-serif tokens.
 import type { ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
@@ -55,8 +55,8 @@ export function TrashSheet({ visible, onClose, theme }: { visible: boolean; onCl
     onClose()
   }
   return (
-    <Sheet visible={visible} title="Trash" note={`Deleted lines stay here for ${TRASH_DAYS} days.`} onClose={onClose} theme={theme}>
-      {batches.length === 0 && <Text style={[s.empty, { color: theme.inkMute }]}>Nothing deleted in the last {TRASH_DAYS} days.</Text>}
+    <Sheet visible={visible} title="Archive" note={`Archived lines stay here for ${TRASH_DAYS} days.`} onClose={onClose} theme={theme}>
+      {batches.length === 0 && <Text style={[s.empty, { color: theme.inkMute }]}>Nothing archived in the last {TRASH_DAYS} days.</Text>}
       {groups.map((g) => (
         <View key={g.label}>
           <Day label={g.label} theme={theme} />

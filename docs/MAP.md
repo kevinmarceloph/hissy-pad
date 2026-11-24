@@ -61,7 +61,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `commands.ts` | the editor commands (`cmd…`): what a key or button does to lines, and where the caret or selection goes after |
 | `actions.ts` | the line toolbar as data: `LINE_ACTIONS` (each with its icon, and `more` for the ones in the dropdown), `actionFace` (Fold reads Unfold), `LINE_KINDS`, `lineAbilities`. Web and the phone both draw from it |
 | `pads.ts` | pad commands: new, rename, delete, reorder, move to, make pad from a line, fold a pad back into a line, the list of places (`placeList`: pads and "Pad → Sub-pad"), move to a place, jump to a sub-pad, Fresh start; `padList` puts the fixed pads first (the store's `settleFixed` keeps them there and the root empty; tested in `fixed.test.ts`) |
-| `lists.ts` | the Trash and Recently done panels: entries, restore, un-done, day grouping |
+| `lists.ts` | the Archive and Recently done panels: entries, restore, un-done, day grouping |
 | `search.ts` | Search across every pad: the lines found, grouped by pad with the words marked (`search`), and the jump to one (`cmdOpenHit`) |
 | `sort.ts` | Sort: the queue, the two targets, sending a card, the session a sort screen holds, the swipe rule |
 | `shake.ts` | shake detection from accelerometer samples |
@@ -99,10 +99,10 @@ Vite, React 19, a PWA. `src/main.tsx` wires the platform (IndexedDB, clipboard, 
 
 | folder | what is in it |
 |---|---|
-| `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start, Sort or Hours), `icons.tsx` (every icon as SVG: the top bar's and the line toolbar's `LineIcon`), `TopBar.tsx` (the mode switcher, Search, the menu with Done, Trash, Log, Fresh start and the theme, the pad tabs, "Clear N completed"), `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
+| `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start, Sort or Hours), `icons.tsx` (every icon as SVG: the top bar's and the line toolbar's `LineIcon`), `TopBar.tsx` (the mode switcher, Search, the menu with Done, Archive, Log, Fresh start and the theme, the pad tabs, "Archive N completed"), `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
 | `src/pad/` | the editor: `Pad.tsx` (the list and the selection-mode keys), `Row.tsx` (one line and its keys while editing), `SelectionBar.tsx` (the toolbar: icons, the Move to… and ⋯ menus; at phone width two rows that do not scroll, with the Done switch and "done editing" floating above it), `useDrag.ts` (pointer drag, of rows and of the floating +). The floating + itself is in `Pad.tsx` |
 | `src/pads/` | `PadTabs.tsx` (tabs, the pad sheet) and `FreshStart.tsx` |
-| `src/panels/` | `Lists.tsx` (Trash, Recently done), `Search.tsx` (Cmd+K, the top bar's Search), `Sort.tsx` and `Hours.tsx` (mounts the shared Hours screens, loaded on first use; the hour picker's dialog; the page's light or dark scheme) |
+| `src/panels/` | `Lists.tsx` (Archive, Recently done), `Search.tsx` (Cmd+K, the top bar's Search), `Sort.tsx` and `Hours.tsx` (mounts the shared Hours screens, loaded on first use; the hour picker's dialog; the page's light or dark scheme) |
 | `src/platform/` | what only a browser has: `idb.ts` (LocalStore on IndexedDB), `clipboard.ts`, `supabase.ts`, `os.ts` (Mac or not, shortcut hints), `chimes.ts` (Hours' chimes in a browser: a timer, a sound, a notification) |
 | `e2e/` | Playwright with real pointers and touches: `drag.spec.ts`, `sort.spec.ts`, `toolbar.spec.ts` (the Move to… menu is really on screen; at phone width the bar does not scroll and the floating buttons work) |
 | `test/setup.ts` | jsdom gaps filled in (dialogs) |
@@ -113,14 +113,14 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 
 | file | what is in it |
 |---|---|
-| `src/ui/Pad.tsx` | the screen: top bar (mode switcher, Search, the menu), pad chips, "Clear N completed", then the pad's list (long-press drag, pull to sync: the web's line of words on iOS, the platform spinner on Android), Sort or Hours by mode |
+| `src/ui/Pad.tsx` | the screen: top bar (mode switcher, Search, the menu), pad chips, "Archive N completed", then the pad's list (long-press drag, pull to sync: the web's line of words on iOS, the platform spinner on Android), Sort or Hours by mode |
 | `src/ui/TopIcons.tsx` | the top bar's icons, drawn with Views (no icon font, no SVG module), and the Pad, Hours, Sort switcher |
 | `src/ui/LineIcons.tsx` | the line toolbar's icons, drawn with Views: the same set as the web's `icons.tsx`, change both together |
 | `src/ui/Row.tsx` | one line |
 | `src/ui/Toolbar.tsx` | the line toolbar above the keyboard, drawn from `LINE_ACTIONS` as two rows (no sideways scroll); the tray icon lists the pads to move to, the three dots the actions marked `more` |
 | `src/ui/FloatingButtons.tsx` | the round buttons at the bottom right: + when nothing is targeted (tap for a line at the top, drag it onto the pad for a line where it is dropped; the drag itself is `addDrag` in `Pad.tsx`); a • / × switch (open on the left, crossed out on the right) and a chevron (done editing) while editing or selecting |
 | `src/ui/PadChips.tsx` | the pads as chips, with rename, reorder and delete |
-| `src/ui/Lists.tsx` | Trash and Recently done sheets |
+| `src/ui/Lists.tsx` | Archive and Recently done sheets |
 | `src/ui/Search.tsx` | the Search sheet |
 | `src/ui/Sort.tsx` | the Sort screen (PanResponder swipe) |
 | `src/ui/Account.tsx` | sign in and the sync line |

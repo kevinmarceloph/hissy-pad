@@ -1,6 +1,6 @@
 // Sort: the lines of the pad shown, one card at a time. Left sends a line to a pad of the
 // user's choice ("Later" unless set otherwise, remembered per device), right to "Today",
-// up to "Today" crossed out, down to the Trash. Skip leaves a line where it is; Cycle moves
+// up to "Today" crossed out, down to the Archive. Skip leaves a line where it is; Cycle moves
 // it to the bottom of the pad and deals it again at the end. The card can be edited and
 // given sub items before it goes. This file holds the queue, the targets and the commands;
 // the swipe itself is the app's.
@@ -153,8 +153,8 @@ export function cmdSortSend(id: string, dir: SortDir): SortResult | null {
     return { dir, pad: '', moved, undoDepth }
   }
   if (dir === 'down') {
-    // Down deletes: the line and what is under it go to the Trash, one undo step, so Back
-    // (or the Trash itself) brings them back.
+    // Down deletes: the line and what is under it go to the Archive, one undo step, so Back
+    // (or the Archive itself) brings them back.
     apply((rows, ctx) => remove(rows, ctx, [id]), { label: 'cmdSortSend:down' })
     usePad.setState({ selection: [], anchorId: null, focusId: null })
     ensureLine()
