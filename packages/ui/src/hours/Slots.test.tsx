@@ -2,11 +2,12 @@ import { vi } from 'vitest';
 import { fireEvent as dom } from '@testing-library/react';
 import { idOf, slotCounts, slotKey } from '@hissypad/core';
 import { dayDate, MemoryStore } from '@hissypad/core/hours';
-import { cmdDeleteSelection, loadPad, resetStore, select, usePad } from '@hissypad/state';
+import { cmdDeleteSelection, loadPad, resetStore, select, usePad, zoomTo } from '@hissypad/state';
 import { cmdApplySlot, cmdSetSlot, setSlotPickerOpener, cmdSlotBreak, cmdSlotDone, cmdSlotText, createCategoryStore, createDayStore, createFlagStore, openHours } from '@hissypad/state/hours';
 
 import { act, fireEvent, render, screen } from '../testing/rntl';
 import { DayScreen } from './DayScreen';
+import { LinesContext } from './HostedLines';
 import { StoresProvider } from './provider';
 import { SlotPicker } from './SlotPicker';
 
@@ -494,5 +495,86 @@ describe('a line in a run of hours', () => {
     expect(screen.getByLabelText('2pm, now: call the bank, 0 of 1 item done')).toBeTruthy();
     expect(screen.getByLabelText('3pm: call the bank, 0 of 1 item done')).toBeTruthy();
     expect(screen.getByLabelText('4pm: not yet')).toBeTruthy();
+  });
+});
+
+describe('an open hour drawn by the host\'s own editor', () => {
+  // The host's editor, reduced to what matters here: it draws the store's rows.
+  function HostRows() {
+    const rows = usePad((s) => s.rows);
+    return <p data-testid="host-rows">{Object.values(rows).map((r) => r.text).sort().join(' | ')}</p>;
+  }
+
+  async function hosted() {
+    resetStore('call the bank\nsend invoice\nbuy milk');
+    await loadPad();
+    const store = new MemoryStore();
+    const day = createDayStore(store, clock);
+    const categories = createCategoryStore(store);
+    const flags = createFlagStore(store);
+    await categories.getState().load();
+    await flags.getState().load();
+    await render(
+      <StoresProvider day={day} categories={categories} flags={flags}>
+        <LinesContext.Provider value={() => <HostRows />}>
+          <DayScreen clock={clock} />
+        </LinesContext.Provider>
+      </StoresProvider>,
+    );
+    await screen.findByLabelText('2pm, now: blank');
+  }
+
+  it('asks the store to show the hour, and gives the view back when the hour closes', async () => {
+    await hosted();
+    await act(async () => {
+      cmdSetSlot(slotKey('2026-11-19', 14), [id('send invoice')]);
+      cmdSetSlot(slotKey('2026-11-19', 15), [id('buy milk')]);
+    });
+    // The hour in progress is open: the store shows it, and the host draws its lines.
+    expect(usePad.getState().slotId).toBe('2026-11-19T14');
+    expect(screen.getByTestId('host-rows').textContent).toBe('send invoice');
+    // The small pad and its drawer are not drawn; the field that brings lines in is.
+    expect(screen.queryByRole('checkbox', { name: /^Select/ })).toBeNull();
+    expect(screen.getByLabelText('Add an item to this hour')).toBeTruthy();
+
+    // Another hour takes the view; closing it gives the view back to the pad.
+    await fireEvent.press(screen.getByLabelText('3pm: buy milk, 0 of 1 item done'));
+    expect(usePad.getState().slotId).toBe('2026-11-19T15');
+    expect(screen.getByTestId('host-rows').textContent).toBe('buy milk');
+    await fireEvent.press(screen.getByText('Close'));
+    expect(usePad.getState().slotId).toBeNull();
+    expect(Object.keys(usePad.getState().rows)).toHaveLength(3);
+  });
+
+  it('steps aside while a card zooms into a line, and takes the view back after', async () => {
+    await hosted();
+    await act(async () => {
+      cmdSetSlot(slotKey('2026-11-19', 14), [id('send invoice')]);
+    });
+    await act(async () => {
+      zoomTo(id('call the bank'));
+    });
+    // The card has the store's view: the hour draws no lines over it.
+    expect(screen.queryByTestId('host-rows')).toBeNull();
+    await act(async () => {
+      zoomTo(null);
+    });
+    expect(usePad.getState().slotId).toBe('2026-11-19T14');
+    expect(screen.getByTestId('host-rows').textContent).toBe('send invoice');
+  });
+
+  it('lists an archived line under the editor, since a view holds live lines only', async () => {
+    await hosted();
+    const invoice = id('send invoice');
+    await act(async () => {
+      cmdSetSlot(slotKey('2026-11-19', 14), [id('call the bank'), invoice]);
+      select([invoice]);
+      cmdDeleteSelection();
+    });
+    expect(screen.getByTestId('host-rows').textContent).toBe('call the bank');
+    expect(screen.getByText('archived')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Take “send invoice” out of this hour'));
+    expect(all()[invoice]!.slot).toBeNull();
+    expect(screen.queryByText('archived')).toBeNull();
   });
 });

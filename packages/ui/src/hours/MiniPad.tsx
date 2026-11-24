@@ -1,15 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentRef } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
-import { slotKey, slotLabel, slotOutline, stateOf, todayKey, type SlotRow } from '@hissypad/core';
+import { slotKey, slotOutline, stateOf, type SlotRow } from '@hissypad/core';
 import { usePad } from '@hissypad/state';
 import {
-  cmdSlotAdd, cmdSlotBreak, cmdSlotClear, cmdSlotErase, cmdSlotPut, cmdSlotShift, cmdSlotText, slotFinds,
+  cmdSlotBreak, cmdSlotClear, cmdSlotErase, cmdSlotShift, cmdSlotText,
 } from '@hissypad/state/hours';
 
 import { closeLineDrawer, lineDrawer } from './LineDrawer';
+import { SlotAdder } from './SlotAdder';
 import { StateMark } from './StateMark';
 import { Tap } from './Tap';
-import { ROW, serif, SIZE, SMALL, LINE, useTheme } from './theme';
+import { serif, SIZE, SMALL, LINE, useTheme } from './theme';
 
 type Props = {
   // The calendar day and hour of the slot, never the day as drawn.
@@ -36,7 +37,6 @@ const INDENT = 22;
 // arrow keys and Return on the web. A line archived from its pad stays listed, marked
 // "archived", and can still be selected and crossed out.
 export function MiniPad({ day, hour, onClose }: Props) {
-  const theme = useTheme();
   const all = usePad((s) => s.all);
   const rows = slotOutline(all, slotKey(day, hour));
 
@@ -126,27 +126,6 @@ export function MiniPad({ day, hour, onClose }: Props) {
     }
   };
 
-  // ---- the field that brings lines in ----
-  const [draft, setDraft] = useState('');
-  // Read with `all` above, so the list follows edits made anywhere.
-  const finds = draft.trim() === '' ? [] : slotFinds(day, hour, draft);
-  // The find the arrow keys are on; -1 is the field itself, where Return adds a new line.
-  const [found, setFound] = useState(-1);
-  const at = Math.min(found, finds.length - 1);
-  const type = (next: string) => {
-    setDraft(next);
-    setFound(-1);
-  };
-  const put = (id: string) => {
-    cmdSlotPut(id, day, hour);
-    type('');
-  };
-  const add = () => {
-    const chosen = finds[at];
-    if (chosen) put(chosen.id);
-    else if (cmdSlotAdd(day, hour, draft)) type('');
-  };
-
   return (
     <View style={styles.group}>
       {rows.length > 0 && (
@@ -175,61 +154,7 @@ export function MiniPad({ day, hour, onClose }: Props) {
         </View>
       )}
 
-      <View style={styles.adder}>
-        <TextInput
-          value={draft}
-          onChangeText={type}
-          onSubmitEditing={add}
-          onKeyPress={(e) => {
-            const key = (e.nativeEvent as Key).key;
-            if (key === 'Escape') return onClose();
-            if ((key !== 'ArrowDown' && key !== 'ArrowUp') || finds.length === 0) return;
-            e.preventDefault();
-            const n = finds.length + 1;
-            setFound(((at + 1 + (key === 'ArrowDown' ? 1 : n - 1)) % n) - 1);
-          }}
-          submitBehavior="submit"
-          returnKeyType="done"
-          accessibilityLabel="Add an item to this hour"
-          placeholder="Add an item, or find one in a pad"
-          placeholderTextColor={theme.inkQuiet}
-          style={[styles.input, { color: theme.ink, borderColor: theme.line, backgroundColor: theme.paper, outlineColor: theme.accent }]}
-        />
-        <Tap
-          disabled={draft.trim() === ''}
-          aria-label="Add the item"
-          onPress={add}
-          style={[styles.add, { borderColor: theme.line }]}
-          activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paper }}>
-          <Text style={[styles.small, { color: theme.ink }]}>Add</Text>
-        </Tap>
-      </View>
-      {finds.length > 0 && (
-        <View role={'listbox' as 'list'} aria-label="Lines found in your pads" style={[styles.finds, { borderColor: theme.line }]}>
-          {finds.map((f, i) => {
-            const text = f.parts.map((p) => p.text).join('');
-            const elsewhere = f.slot ? `, now in ${slotLabel(f.slot, todayKey())}` : '';
-            return (
-              <Tap
-                key={f.id}
-                role="option"
-                aria-selected={i === at}
-                aria-label={`Put “${text}” in this hour${f.done ? ', crossed out' : ''}${elsewhere}`}
-                onPress={() => put(f.id)}
-                style={[styles.find, { borderTopColor: theme.rule }, i > 0 && styles.findRule, i === at && { backgroundColor: theme.paper, borderLeftColor: theme.accent }]}
-                activeStyle={{ backgroundColor: theme.paper }}>
-                <Text numberOfLines={1} style={[styles.text, { color: f.done ? theme.inkQuiet : theme.ink }, f.done && styles.struck]}>
-                  {f.parts.map((p, k) => (p.hit ? <Text key={k} style={{ fontWeight: '700' }}>{p.text}</Text> : p.text))}
-                </Text>
-                <Text numberOfLines={1} style={[styles.small, { color: theme.inkSoft }]}>
-                  {f.where}
-                  {elsewhere}
-                </Text>
-              </Tap>
-            );
-          })}
-        </View>
-      )}
+      <SlotAdder day={day} hour={hour} onClose={onClose} />
     </View>
   );
 }
@@ -342,14 +267,7 @@ const styles = StyleSheet.create({
   top: { fontWeight: '700' },
   tag: { marginTop: (LINE_ROW - 20) / 2, marginLeft: 6 },
   out: { width: LINE_ROW, height: LINE_ROW, alignItems: 'center', justifyContent: 'center', borderRadius: 4 },
-  adder: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   text: { flexShrink: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
   struck: { textDecorationLine: 'line-through' },
-  input: { flex: 1, minHeight: ROW, fontFamily: serif, fontSize: SIZE, paddingHorizontal: 12, borderWidth: 1, borderRadius: 4 },
-  add: { minHeight: ROW, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderRadius: 4 },
-  finds: { borderWidth: 1, borderRadius: 4, overflow: 'hidden' },
-  // The bar on the left marks the find the arrow keys are on: a shape, not a shade alone.
-  find: { minHeight: ROW, justifyContent: 'center', paddingLeft: 9, paddingRight: 12, paddingVertical: 6, borderLeftWidth: 3, borderLeftColor: 'transparent' },
-  findRule: { borderTopWidth: StyleSheet.hairlineWidth },
   small: { fontFamily: serif, fontSize: SMALL, lineHeight: 20 },
 });

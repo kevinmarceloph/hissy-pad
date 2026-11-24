@@ -5,6 +5,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useCategoryChoices } from '@hissypad/state/hours'
 import type { ColorKey } from '@hissypad/core/hours'
+import { Pad } from '../pad/Pad'
 
 // The screens' code is a chunk of its own (react-native-web and packages/ui, about 180 KB).
 // It used to be fetched on the first switch to Hours, which is what "Opening your hours…"
@@ -41,13 +42,25 @@ export function useScheme(): 'light' | 'dark' {
   return scheme
 }
 
+// An open hour's lines are the pad itself: the store shows that hour (openSlot, asked for
+// by the shared screen), so these are the pad's own rows, keys, drag and undo, and the
+// app's SelectionBar is the toolbar. `embedded`: no hint, tail or floating +.
+// A line's chip for the hour it is in says nothing inside that hour, so it is left out
+// there; a run of hours, or another hour on a line further in, still shows.
+const hourLines = ({ slot }: { slot: string }) => (
+  <div className="hour-lines">
+    <style>{`.hour-lines .slot[data-slot="${slot}"] { display: none; }`}</style>
+    <Pad embedded />
+  </div>
+)
+
 // Drawn under the app's own header: the mode switcher there is the way back to the pad.
 export function Hours() {
   const scheme = useScheme()
   return (
     <section className="hours" aria-label="Hours">
       <Suspense fallback={<p className="hint" aria-busy="true">Opening your hours…</p>}>
-        <HoursApp scheme={scheme} />
+        <HoursApp scheme={scheme} renderLines={hourLines} />
       </Suspense>
     </section>
   )

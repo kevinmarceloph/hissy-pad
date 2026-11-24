@@ -76,7 +76,8 @@ export function App() {
         </div>
       )}
       {load === 'loading' ? <p className="hint" aria-busy="true">Opening your pad…</p> : view === 'fresh' ? <FreshStart onClose={() => setView('pad')} /> : view === 'sort' ? <Sort key={padId ?? 'main'} paused={creating !== null} onClose={() => setView('pad')} /> : view === 'hours' ? <Hours /> : creating !== null ? null : <Pad />}
-      {view === 'pad' && creating === null && <SelectionBar />}
+      {/* In Hours too: an open hour's lines are the pad's own rows (panels/Hours.tsx). */}
+      {(view === 'pad' || view === 'hours') && creating === null && <SelectionBar />}
       {creating !== null && <CreateDialog depth={creating} onClose={() => setCreating(null)} onOpen={() => { setCreating(null); setView('pad') }} />}
       {picking && (
         <SlotDialog

@@ -13,6 +13,7 @@ import { getChimePlatform } from '@hissypad/state/hours';
 
 import { DayStrip } from './DayStrip';
 import { drawHours } from './drawn';
+import { useHostedLines } from './HostedLines';
 import { HourRow } from './HourRow';
 import { LineDrawer } from './LineDrawer';
 import type { HourCell } from './Mark';
@@ -45,6 +46,8 @@ type Props = {
 export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props) {
   const theme = useTheme();
   const now = useNow(clock);
+  // With the host's own editor in the open hour, the host's toolbar is the drawer.
+  const hosted = useHostedLines() !== null;
 
   const day = useDay((s) => s.day);
   const start = useDay((s) => s.start);
@@ -249,7 +252,7 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
           )}
 
           {/* The lines selected in the open hour, and what can be done to them. */}
-          {status === 'ready' && <LineDrawer />}
+          {status === 'ready' && !hosted && <LineDrawer />}
 
           {/* The calendar and the menu open over the hours; a press outside closes them. */}
           {panel && <Pressable aria-hidden onPress={() => setPanel(null)} style={styles.away} />}

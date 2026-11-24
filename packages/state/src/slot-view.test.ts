@@ -94,20 +94,30 @@ describe('an hour as a view of the store', () => {
     expect(view()).toBe('U\n  A\n    A1\n    A2')
   })
 
-  it('sends a line made at the root to the top of Today, in the hour', () => {
+  it('opens the line after one of the hour\'s own right under it, in that line\'s pad and in the hour', () => {
     openSlot(H)
-    // B is alone at the root of nothing here; U has nothing under it, so a line after it is at the root.
+    // U has nothing under it, so a line after it is at the root of the view.
     const made = apply((rows, ctx) => insertAfter(rows, ctx, id('U')).rows)
     const fresh = Object.values(made).find((r) => r.text === '')!
     expect(all()[fresh.id]).toMatchObject({ parentId: today(), slot: H })
     // An empty line stays in the view, so it can be typed in.
     apply((rows, ctx) => setText(rows, ctx, fresh.id, 'new'))
-    expect(tableShape()).toContain('@Today\n  new\n  T\n  U')
-    expect(view()).toBe('new\nU\nA\n  A1\n  A2')
+    expect(tableShape()).toContain('@Today\n  T\n  U\n  new')
+    expect(view()).toBe('U\nnew\nA\n  A1\n  A2')
     undo()
     undo()
     expect(all()[fresh.id]!.deletedAt).not.toBeNull()
     expect(view()).toBe('U\nA\n  A1\n  A2')
+  })
+
+  it('sends a line made above every line of the hour to the top of Today', () => {
+    openSlot(H)
+    const first = Object.values(usePad.getState().rows).filter((r) => r.parentId === null).sort((a, b) => (a.rank < b.rank ? -1 : 1))[0]!
+    const made = apply((rows, ctx) => insertAt(rows, ctx, { parentId: null, afterId: null }, 'first').rows)
+    expect(first.text).toBe('U')
+    expect(all()[idOf(made, 'first')]).toMatchObject({ parentId: today(), slot: H })
+    expect(tableShape()).toContain('@Today\n  first\n  T\n  U')
+    expect(view()).toBe('first\nU\nA\n  A1\n  A2')
   })
 
   it('archives a line with what is under it, and follows a change made from outside', () => {

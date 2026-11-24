@@ -231,7 +231,7 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
       ) : (
         <div className="text" onMouseDown={onTextMouseDown}>
           {row.text === '' ? <span className="placeholder" aria-hidden="true">{'​'}</span> : <Styled text={row.text} />}
-          {row.slot && <span className="slot" title="The hour this line is in (toolbar: Hour…)">{slotLabel(row.slot, todayKey())}</span>}
+          {row.slot && <span className="slot" data-slot={row.slot} title="The hour this line is in (toolbar: Hour…)">{slotLabel(row.slot, todayKey())}</span>}
           {folded && (
             <button
               type="button"

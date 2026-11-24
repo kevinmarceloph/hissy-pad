@@ -232,8 +232,10 @@ export function scopeSlot(all: Rows, slot: string): SlotView {
 //     move among them writes nothing: an hour keeps no order.
 //   - a line moved out to the root joins the hour, and in its pad becomes the line after
 //     the one it came out from under (the hour's line above it in the view).
-//   - a line made at the root is new: it goes to the top of Today, in this hour. With no
-//     Today yet, to the top of the pad given.
+//   - a line made at the root is new, and in this hour: in its pad it is the line after the
+//     hour's line above it in the view, so Return on a line opens the next one right under
+//     it. With no line above it, it goes to the top of Today (of the pad given, with no
+//     Today yet).
 // Anything else (a line under another, one of the hour's own moved in under a line) is
 // stored as the op left it. A row that ends up as the table has it is left out.
 export function unscopeSlot(all: Rows, slot: string, view: SlotView, changed: readonly NodeRow[], fallbackPad: string | null = null): NodeRow[] {
@@ -265,20 +267,29 @@ export function unscopeSlot(all: Rows, slot: string, view: SlotView, changed: re
     }
     return best
   }
+  // Where a line at the root lands in the table: after the hour's line above it, in that
+  // line's pad. Several after the same line keep the order the view had them in.
+  const last = new Map<string, string>()
+  const after = (r: NodeRow): SlotHome | null => {
+    const from = above(r.rank)
+    const at = from && homes.get(from.id)
+    if (!from || !at) return null
+    const rank = between(last.get(from.id) ?? at.rank, nextRank(at.parentId, at.rank))
+    last.set(from.id, rank)
+    return { parentId: at.parentId, rank }
+  }
   const out: NodeRow[] = []
-  for (const r of changed) {
+  for (const r of [...changed].sort((a, b) => (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0))) {
     let back = r
     if (r.parentId === null) {
       const home = homes.get(r.id)
       const stored = all[r.id]
       if (home) back = { ...r, parentId: home.parentId, rank: home.rank }
-      else if (!stored) back = { ...r, parentId: into, rank: fresh.get(r.id)!, slot }
       else {
-        const from = above(r.rank)
-        const at = from && homes.get(from.id)
-        back = at
-          ? { ...r, parentId: at.parentId, rank: between(at.rank, nextRank(at.parentId, at.rank)), slot }
-          : { ...r, parentId: stored.parentId, rank: stored.rank, slot }
+        const place = after(r)
+        if (place) back = { ...r, ...place, slot }
+        else if (stored) back = { ...r, parentId: stored.parentId, rank: stored.rank, slot }
+        else back = { ...r, parentId: into, rank: fresh.get(r.id)!, slot }
       }
     }
     const was = all[r.id]

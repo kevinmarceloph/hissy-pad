@@ -87,6 +87,8 @@ Screens written once in React Native. The phone draws them natively; the web app
 | `src/hours/HourRow.tsx` | one hour: its row (box, words, the lines' count, flag marks) and its editor |
 | `src/hours/MiniPad.tsx` | the open hour as a small pad: the lines put in it and everything under them, typed in place (Return, Tab, Backspace), a bullet that selects its line, and the field that adds a line to Today or finds one in any pad (`slotFinds`). To be replaced by the pad's own editor: PLAN.md, "Hours joins the pad" |
 | `src/hours/LineDrawer.tsx` | the drawer at the foot of the day screen for the lines selected in the open hour, or the one being typed: the three states, in and out, out of the hour |
+| `src/hours/HostedLines.tsx` | an open hour drawn by the host's own pad editor: `LinesContext` (the `renderLines` prop of `HoursApp`), opening and closing the store's view of the hour, the hour's archived lines under it. The web uses it; the phone still draws `MiniPad` |
+| `src/hours/SlotAdder.tsx` | the field under an open hour's lines: add a line to the top of Today, or find one in any pad and put it in the hour |
 | `src/hours/StateMark.tsx` | the three bullets (open, doing, done) for a line and for an hour, and the switch that sets one |
 | `src/hours/drawn.ts` | `drawHours`: each hour of a day as a screen draws it (recurring plan, top line, count, its box in a strip), for the day screen and the hour picker |
 | `src/hours/SlotPicker.tsx` | the hour picker the pad's toolbar opens: the day on one line (earlier, the day, a calendar, later: `DayPicker` from `DayScreen.tsx`) over the strip of hours |
