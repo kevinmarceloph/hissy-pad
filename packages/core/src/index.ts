@@ -92,6 +92,8 @@ export {
   settleFixedPads,
   scopeNode,
 } from './pads'
+export { settlePins, togglePinned, pinDivider } from './pins'
+export { lastPinned } from './ops'
 export { parseOutline, insertOutline, toOutline, toOutlineHtml, type OutlineLine, type OutlineFormat } from './paste'
 export { testCtx, pad, shape, idOf } from './testing'
 export { type LocalStore, createMemoryStore, changedRows } from './sync/store'

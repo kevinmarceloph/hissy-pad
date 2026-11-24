@@ -7,7 +7,7 @@ import { useMemo } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { kindOf } from '@hissypad/core'
 import {
-  actionFace, cmdMoveTo, cmdSetKind, countOf, lineAbilities, lineActions, lineCount, placeList, usePad,
+  actionFace, cmdMoveTo, cmdSetKind, cmdTogglePin, countOf, lineAbilities, lineActions, lineCount, placeList, usePad,
   LINE_ACTIONS, LINE_KINDS, type LineActionGroup, type LineIcon as LineIconId,
 } from '@hissypad/state'
 import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
@@ -62,7 +62,7 @@ export function Toolbar({ theme }: { theme: Theme }) {
     const held = ids
     Alert.alert('More', undefined, [
       // The alert can end the edit before an option is tapped; "Hour…" and "Category…" keep the lines it had.
-      ...tucked.map((a) => ({ text: a.label, onPress: () => void (a.id === 'slot' ? cmdPickSlot(held) : a.id === 'category' ? cmdPickCategory(held) : a.run()) })),
+      ...tucked.map((a) => ({ text: actionFace(a, can).label, onPress: () => void (a.id === 'slot' ? cmdPickSlot(held) : a.id === 'category' ? cmdPickCategory(held) : a.id === 'pin' ? cmdTogglePin(held) : a.run()) })),
       { text: 'Cancel', style: 'cancel' as const },
     ])
   }

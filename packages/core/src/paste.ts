@@ -119,6 +119,7 @@ export function insertOutline(
       pad: false,
       slot: null,
       category: null,
+      pinned: false,
       updatedAt: ctx.now(),
       deletedAt: null,
     }

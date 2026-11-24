@@ -364,10 +364,26 @@ describe('Archive and Done panels', () => {
     await user.keyboard('{Escape}')
     await startEditing('top')
     await user.click(within(bar).getByRole('button', { name: 'More actions' }))
-    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Ungroup', 'Split off open', 'Make pad'])
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Pin to top', 'Ungroup', 'Split off open', 'Make pad'])
     await user.click(screen.getByRole('menuitem', { name: 'Ungroup' }))
     expect(texts()).toBe('top\nchild\n  grand\nother\nlast')
     expect(usePad.getState().past.at(-1)?.label).toBe('cmdUngroup')
+  })
+
+  it('Pin to top in the dropdown puts the line first with a pin for a bullet and a divider under it; Unpin takes them away', async () => {
+    const user = userEvent.setup()
+    await mount('a\nb\nc')
+    await startEditing('c')
+    const bar = screen.getByRole('toolbar', { name: 'Current line' })
+    await user.click(within(bar).getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Pin to top' }))
+    expect(texts()).toBe('^c\na\nb')
+    expect(rowByText('c')).toHaveClass('is-pinned')
+    expect(screen.getByRole('separator', { name: 'Pinned lines end here' })).toBeInTheDocument()
+    await user.click(within(bar).getByRole('button', { name: 'More actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Unpin' }))
+    expect(texts()).toBe('c\na\nb')
+    expect(screen.queryByRole('separator', { name: 'Pinned lines end here' })).not.toBeInTheDocument()
   })
 
   it('the toolbar draws icons with their names: Fold turns into Unfold, Top moves a line up to first, Cut takes it out', async () => {

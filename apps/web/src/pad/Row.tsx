@@ -178,7 +178,7 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
   const category = useLineCategory(row.category)
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
-  const cls = ['row', row.done && 'is-done', row.doing && 'is-doing', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', selectedChild && 'is-selected-child', isEditing && 'is-editing', folded && 'is-collapsed', category && 'has-category']
+  const cls = ['row', row.done && 'is-done', row.doing && 'is-doing', row.pinned && 'is-pinned', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', selectedChild && 'is-selected-child', isEditing && 'is-editing', folded && 'is-collapsed', category && 'has-category']
     .filter(Boolean)
     .join(' ')
 
@@ -188,7 +188,7 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
         type="button"
         className="bullet"
         data-num={number !== null ? `${number}.` : undefined}
-        aria-label={selected ? 'Deselect line' : 'Select line'}
+        aria-label={selected ? 'Deselect line' : row.pinned ? 'Select line (pinned)' : 'Select line'}
         onClick={onBulletClick}
         onClickCapture={onBulletClickCapture}
         onPointerDown={(e) => onBulletPointerDown(row.id, e)}

@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import {
-  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, isPadNode, settleFixedPads,
+  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, isPadNode, settleFixedPads, settlePins,
   insertAt, insertOutline, isLive, newUuid, normalizeRow, parseOutline, parseSlot, sameRow, scopeNode, scopePad, scopeSlot, unscopeRow, unscopeSlot,
   type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus,
 } from '@hissypad/core'
@@ -175,8 +175,23 @@ function tombstone(r: NodeRow): NodeRow {
   return { ...r, deletedAt: now, updatedAt: now }
 }
 
-function commit(all: Rows, nextAll: Rows, label: string, coalesce?: string) {
+// The rows an edit placed somewhere (new, moved, pinned or unpinned, made or unmade a pad,
+// archived): the ones whose sibling groups settlePins has to look at. A text edit has none.
+function placed(all: Rows, nextAll: Rows): string[] {
+  const out: string[] = []
+  for (const r of changedRows(all, nextAll)) {
+    const b = all[r.id]
+    if (!b || b.parentId !== r.parentId || b.rank !== r.rank || b.pinned !== r.pinned || b.pad !== r.pad || b.deletedAt !== r.deletedAt) out.push(r.id)
+  }
+  return out
+}
+
+function commit(all: Rows, edited: Rows, label: string, coalesce?: string) {
   const { past, padId } = get()
+  // Pins stay first in their pad, and only a pad's top-level line stays pinned (pins.ts):
+  // a drag or a paste that breaks that is put right in the same step, so one undo takes it back.
+  const moved = placed(all, edited)
+  const nextAll = moved.length ? settlePins(edited, ctx, moved) : edited
   const now = Date.now()
   const changed = changedRows(all, nextAll)
   const merge = coalesce !== undefined && lastCoalesce?.key === coalesce && now - lastCoalesce.at < 1500 && past.length > 0
@@ -254,13 +269,14 @@ async function loadPadOnce() {
 }
 
 // Keep Today and Later there once each and no pad named Inbox beside the root (see
-// settleFixedPads in core). Run after load and after every sync merge, never inside an op,
+// settleFixedPads in core), and pins first in their pads (settlePins: a line another device
+// added at the top lands under them). Run after load and after every sync merge, never inside an op,
 // and left out of the undo history: undoing it would only bring back a duplicate. If the pad
 // shown was folded away, the Inbox (the root) opens.
 export function settleFixed() {
   const { all, padId, load } = get()
   if (load !== 'ready') return
-  const next = settleFixedPads(all, ctx)
+  const next = settlePins(settleFixedPads(all, ctx), ctx)
   if (next === all) return
   log('pad:settle', { changed: changedRows(all, next).length })
   const shown = padId === null || isPadNode(next[padId]) ? padId : null

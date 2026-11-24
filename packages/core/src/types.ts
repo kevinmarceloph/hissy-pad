@@ -15,6 +15,7 @@ export interface NodeRow {
   pad: boolean              // a root-level node that is a pad of its own (pads.ts); its subtree is that pad
   slot: string | null       // the hour this line is assigned to in Hours, 'YYYY-MM-DDTHH' (a calendar day and hour, device local time; slot.ts)
   category: string | null   // the id of one of Hours' categories (hour_categories.id); drawn as its icon before the text
+  pinned: boolean           // kept at the top of its pad, above a divider (pins.ts); only ever true on a pad's top-level line
   updatedAt: string         // ISO timestamp from the client that made the change (clock.ts)
   deletedAt: string | null  // tombstone; clients never hard-delete
 }
@@ -36,6 +37,7 @@ export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
     pad: r.pad === true,
     slot: r.slot ?? null,
     category: r.category ?? null,
+    pinned: r.pinned === true,
     updatedAt: r.updatedAt ?? new Date(0).toISOString(),
     deletedAt: r.deletedAt ?? null,
   }
@@ -45,7 +47,7 @@ export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
 // new NodeRow field is added here too, which is what keeps sameRow honest.
 const ROW_FIELDS: Record<keyof NodeRow, true> = {
   id: true, parentId: true, rank: true, text: true, done: true, doneAt: true, doing: true, collapsed: true,
-  numbered: true, header: true, pad: true, slot: true, category: true, updatedAt: true, deletedAt: true,
+  numbered: true, header: true, pad: true, slot: true, category: true, pinned: true, updatedAt: true, deletedAt: true,
 }
 export const ROW_KEYS = Object.keys(ROW_FIELDS) as (keyof NodeRow)[]
 

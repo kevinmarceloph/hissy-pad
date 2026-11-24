@@ -8,7 +8,7 @@
 // as round buttons floating above it, Done as the open / doing / done switch.
 import { buildIndex, childrenOf, topmost, type NodeKind, type Rows } from '@hissypad/core'
 import {
-  cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdMoveToTop, cmdPaste, cmdToggleCollapsed, cmdSplitOpen, cmdToggleDone, cmdUngroup,
+  cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdMoveToTop, cmdPaste, cmdTogglePin, cmdToggleCollapsed, cmdSplitOpen, cmdToggleDone, cmdUngroup,
 } from './commands'
 import { cmdLineToPad } from './pads'
 import { cmdPickSlot, cmdSetSlot } from './hours/slots'
@@ -28,23 +28,34 @@ export interface LineAbilities {
   single: boolean   // the targets come down to one line with its subtree (make pad)
   mixed: boolean    // some target has both done and open sub items (split off open)
   hour: boolean     // the lines are an open hour's (the store shows that hour, not a pad)
+  pads: boolean     // the rows are a pad as itself: not an open hour, not a zoomed line's sub items
+  pin: boolean      // some target is one of the pad's top-level lines (it can be pinned)
+  pinned: boolean   // every such target is pinned already (so Pin reads Unpin)
 }
 
 // `hour`: the rows are an open hour's lines. Its own lines, at the root, have no order to
 // change (an hour lists them as the pads have them), so up, down and top are off for them.
-export function lineAbilities(rows: Rows, ids: readonly string[], hour: boolean = usePad.getState().slotId !== null): LineAbilities {
+// Pinned lines move only among the pins, and the others only under them (core's pins.ts).
+export function lineAbilities(
+  rows: Rows, ids: readonly string[], hour: boolean = usePad.getState().slotId !== null, zoomed: boolean = usePad.getState().zoomId !== null,
+): LineAbilities {
   const index = buildIndex(rows)
   const tops = topmost(index, ids)
   const set = new Set(tops)
-  const can: LineAbilities = { indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: tops.length === 1, mixed: false, hour }
+  const pads = !hour && !zoomed
+  const can: LineAbilities = { indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: tops.length === 1, mixed: false, hour, pads, pin: false, pinned: false }
   let open = false
+  let unpinned = false
   for (const id of tops) {
     const parent = index.parentOf.get(id) ?? null
     const sibs = childrenOf(index, parent)
     const i = sibs.findIndex((s) => s.id === id)
     const ordered = !(hour && parent === null)
-    if (sibs.slice(0, i).some((s) => !set.has(s.id))) { can.indent = true; if (ordered) can.up = true }
-    if (ordered && sibs.slice(i + 1).some((s) => !set.has(s.id))) can.down = true
+    const pinned = rows[id]!.pinned
+    const before = sibs.slice(0, i).filter((s) => !set.has(s.id))
+    if (before.length) { can.indent = true; if (ordered && before.some((s) => s.pinned === pinned)) can.up = true }
+    if (ordered && sibs.slice(i + 1).some((s) => !set.has(s.id) && s.pinned === pinned)) can.down = true
+    if (pads && parent === null && !rows[id]!.pad) { can.pin = true; if (!pinned) unpinned = true }
     if (parent !== null) can.dedent = true
     const kids = childrenOf(index, id)
     if (kids.length > 0) {
@@ -54,6 +65,7 @@ export function lineAbilities(rows: Rows, ids: readonly string[], hour: boolean 
     }
   }
   can.folded = can.children && !open
+  can.pinned = can.pin && !unpinned
   return can
 }
 
@@ -108,6 +120,12 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   { id: 'down', group: 'move', label: '↓', name: 'Move down', hint: 'Move down', icon: 'down', keys: 'Alt+↓', enabled: (c) => c.down, run: () => cmdMove('down') },
   { id: 'up', group: 'move', label: '↑', name: 'Move up', hint: 'Move up', icon: 'up', keys: 'Alt+↑', enabled: (c) => c.up, run: () => cmdMove('up') },
   { id: 'top', group: 'move', label: 'Top', name: 'Move to top', hint: 'Move to the top of its level', icon: 'top', enabled: (c) => c.up, run: cmdMoveToTop },
+  {
+    // Kept at the top of the pad, above a divider; Move to top then stops under the pins.
+    id: 'pin', group: 'move', label: 'Pin to top', name: 'Pin to top', hint: 'Pin to the top of the pad, above a divider', more: true,
+    offered: (c) => c.pads, enabled: (c) => c.pin, run: () => cmdTogglePin(),
+    flip: { when: (c) => c.pinned, label: 'Unpin', name: 'Unpin', hint: 'Unpin: it goes back to the top of the lines under the divider' },
+  },
   {
     id: 'fold', group: 'tree', label: 'Fold', name: 'Fold', hint: 'Fold: hide its sub items', icon: 'fold', keys: '⌘.', enabled: (c) => c.children, run: cmdToggleCollapsed,
     flip: { when: (c) => c.folded, label: 'Unfold', name: 'Unfold', hint: 'Unfold: show its sub items', icon: 'unfold' },

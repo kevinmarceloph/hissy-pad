@@ -76,7 +76,8 @@ export const CURSOR_KEY = 'sync.cursor'
 // had one on the web.
 // 3: 2026-11-24. The `category` column, for the same reason.
 // 4: 2026-11-24. The `doing` column (a line's middle state), again the same.
-export const PULL_EPOCH = '4'
+// 5: 2026-11-25. The `pinned` column (a line kept at the top of its pad), the same again.
+export const PULL_EPOCH = '5'
 export const EPOCH_KEY = 'sync.epoch'
 
 export function createSyncEngine(o: SyncEngineOptions): SyncEngine {

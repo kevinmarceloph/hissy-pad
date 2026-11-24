@@ -17,6 +17,7 @@ export interface WireNode {
   pad?: boolean    // same: added 2026-11-02
   slot?: string | null // same: added 2026-11-23
   category?: string | null // same: added 2026-11-24
+  pinned?: boolean // same: added 2026-11-25
   updated_at: string
   deleted_at: string | null
   synced_at?: string
@@ -38,6 +39,7 @@ export function toWire(raw: NodeRow): WireNode {
     pad: r.pad,
     slot: r.slot,
     category: r.category,
+    pinned: r.pinned,
     updated_at: r.updatedAt,
     deleted_at: r.deletedAt,
   }
@@ -60,6 +62,7 @@ export function fromWire(w: WireNode): { row: NodeRow; syncedAt: string } {
       pad: w.pad === true,
       slot: w.slot ?? null,
       category: w.category ?? null,
+      pinned: w.pinned === true,
       updatedAt: new Date(w.updated_at).toISOString(),
       deletedAt: w.deleted_at === null ? null : new Date(w.deleted_at).toISOString(),
     },

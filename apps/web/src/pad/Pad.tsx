@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, listNumbers } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, listNumbers, pinDivider } from '@hissypad/core'
 import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
   cmdAddAtTop, cmdAddUnder, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
@@ -217,6 +217,8 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
 
   // The line of space under each header's group; a click adds a sub item to the header.
   const gaps = useMemo(() => headerGaps(displayed, rows), [displayed, rows])
+  // The rule under the pinned lines, in a pad as itself (not in a card or an open hour).
+  const pinEnd = useMemo(() => (embedded ? null : pinDivider(displayed, rows)), [embedded, displayed, rows])
 
   const lone = visible.length === 1 && rows[visible[0]!.id]!.text === ''
 
@@ -254,6 +256,7 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
               onClick={() => cmdAddUnder(h)}
             />
           ))}
+          {id === pinEnd && <div className="pin-divider" role="separator" aria-label="Pinned lines end here" />}
           </Fragment>
         ))}
       </div>

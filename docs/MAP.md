@@ -36,6 +36,7 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | `ops.ts` | every edit to lines: insert, split, set text, done, the three states (open, doing, done: `setState`, `sharedState`), kind, fold, remove, restore, move, move to top, indent, dedent, ungroup, split off open (`splitOpen`: a copy below takes the open sub items), merge, delete done |
 | `inline.ts` | inline marks drawn from the text, never stored: `inlineSpans` (bold, italic, underline, strikethrough, highlight, code, backslash escapes, symbols kept) and the shared `URL_RE` |
 | `pads.ts` | several pads in one table: the scoped view (`scopePad`), the same view under any one line (`scopeNode`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), sub-pads and places (`isSubPad`, `listSubPads`, `Place`, `moveToPlace`), the fixed tabs (`FIXED_PADS`: Today and Later are pad rows, `findFixedPad`; Inbox is the root; `settleFixedPads` keeps them so), Fresh start |
+| `pins.ts` | pinned lines: the two rules (only a pad's top-level line is pinned, pins rank first) and `settlePins` that keeps them over the table, the Pin action (`togglePinned`), where the rule under the pins goes (`pinDivider`). The ops in `ops.ts` that place lines (move to top, up and down, dedent, a new line at the top, Return beside a pin) know the divider through `lastPinned` |
 | `drop.ts` | `resolveDrop`: where a dragged line lands, from pointer position and row layout |
 | `paste.ts` | text to outline and back: `parseOutline`, `insertOutline`, `toOutline`, `toOutlineHtml` |
 | `ops.ts` (again) | `setCategory`: a line's category, one of Hours' (`NodeRow.category`) |
@@ -56,7 +57,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 
 | file | what is in it |
 |---|---|
-| `store.ts` | the state (`all` rows, the scoped `rows` of the pad shown, `padId`, `zoomId`: one line shown as a pad, `slotId`: one hour shown as a pad (`openSlot`, `closeSlot`), selection, editing, undo stacks), `apply` and `applyAll`, loading, `openPad`, `zoomTo`, `setAll`, `importOutline` |
+| `store.ts` | the state (`all` rows, the scoped `rows` of the pad shown, `padId`, `zoomId`: one line shown as a pad, `slotId`: one hour shown as a pad (`openSlot`, `closeSlot`), selection, editing, undo stacks), `apply` and `applyAll` (each edit runs `settlePins` on the rows it placed, in the same undo step), loading, `openPad`, `zoomTo`, `setAll`, `importOutline` |
 | `history.ts` | `undo` and `redo` |
 | `selection.ts` | selecting and editing: `select`, `clickSelect`, `selectRange`, `stepSelection`, `edit`, `targets`, `neighbor` |
 | `commands.ts` | the editor commands (`cmd…`): what a key or button does to lines, and where the caret or selection goes after |

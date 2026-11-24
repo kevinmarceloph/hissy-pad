@@ -198,7 +198,7 @@ export function SelectionBar() {
         name="More actions"
         title={`More: ${tucked.map((a) => a.label.replace('…', '')).join(', ')}`}
         menuLabel="More actions"
-        items={tucked.map((a) => ({ key: a.id, label: a.label, title: a.hint, disabled: a.enabled ? !a.enabled(can) : false, run: () => run(a) }))}
+        items={tucked.map((a) => ({ key: a.id, label: actionFace(a, can).label, title: actionFace(a, can).hint, disabled: a.enabled ? !a.enabled(can) : false, run: () => run(a) }))}
       >
         <LineIcon icon="more" />
       </BarMenu>

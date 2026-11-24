@@ -46,6 +46,7 @@ function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: strin
     pad: false,
     slot: null,
     category: null,
+    pinned: false,
     updatedAt: ctx.now(),
     deletedAt: null,
   }
@@ -69,6 +70,15 @@ function gapRanks(
   return { rows: out, ranks }
 }
 
+// The last pinned line among `parentId`'s children, leaving out `exclude`: where an
+// unpinned line goes to be at the top of the unpinned area (null: the very top).
+export function lastPinned(rows: Rows, parentId: string | null, exclude: ReadonlySet<string> = new Set()): string | null {
+  const sibs = childrenOf(buildIndex(rows), parentId)
+  let last: string | null = null
+  for (const s of sibs) if (s.pinned && !exclude.has(s.id)) last = s.id
+  return last
+}
+
 // Where Enter puts a new node: first child when the node shows children, else next sibling.
 export function placementAfter(index: TreeIndex, id: string): Placement {
   const row = index.children.get(index.parentOf.get(id) ?? null)?.find((r) => r.id === id)
@@ -84,9 +94,15 @@ export function insertAt(rows: Rows, ctx: OpCtx, p: Placement, text = '', number
 }
 
 // A new sibling continues a numbered list; a new first child starts plain.
+// A new sibling of a pinned line is pinned too (pins.ts), so it stays where it was made.
 export function insertAfter(rows: Rows, ctx: OpCtx, id: string, text = ''): { rows: Rows; newId: string } {
   const p = placementAfter(buildIndex(rows), id)
-  return insertAt(rows, ctx, p, text, p.afterId === id && live(rows, id).numbered)
+  const res = insertAt(rows, ctx, p, text, p.afterId === id && live(rows, id).numbered)
+  return p.afterId === id && live(rows, id).pinned ? pinNew(res) : res
+}
+
+function pinNew(res: { rows: Rows; newId: string }): { rows: Rows; newId: string } {
+  return { rows: { ...res.rows, [res.newId]: { ...res.rows[res.newId]!, pinned: true } }, newId: res.newId }
 }
 
 export function insertBefore(rows: Rows, ctx: OpCtx, id: string, text = ''): { rows: Rows; newId: string } {
@@ -94,12 +110,13 @@ export function insertBefore(rows: Rows, ctx: OpCtx, id: string, text = ''): { r
   const parentId = index.parentOf.get(id) ?? null
   const sibs = childrenOf(index, parentId)
   const i = sibs.findIndex((s) => s.id === id)
-  return insertAt(rows, ctx, { parentId, afterId: i > 0 ? sibs[i - 1]!.id : null }, text, live(rows, id).numbered)
+  const res = insertAt(rows, ctx, { parentId, afterId: i > 0 ? sibs[i - 1]!.id : null }, text, live(rows, id).numbered)
+  return live(rows, id).pinned ? pinNew(res) : res
 }
 
-// Capture: a new top-level node at the very top of the pad.
+// Capture: a new top-level node at the top of the pad, under its pinned lines (pins.ts).
 export function insertAtTop(rows: Rows, ctx: OpCtx, text = ''): { rows: Rows; newId: string } {
-  return insertAt(rows, ctx, { parentId: null, afterId: null }, text)
+  return insertAt(rows, ctx, { parentId: null, afterId: lastPinned(rows, null) }, text)
 }
 
 // Enter mid-text: the head stays, the tail becomes the new node (placed per placementAfter).
@@ -285,13 +302,15 @@ export function indent(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
     const index = buildIndex(out)
     const last = childrenOf(index, prev.id).at(-1)
     out = moveNodes(out, ctx, [id], { parentId: prev.id, afterId: last?.id ?? null })
+    if (out[id]!.pinned) out = patch(out, ctx, id, { pinned: false }) // only a top-level line is pinned
     if (prev.collapsed) out = setCollapsed(out, ctx, prev.id, false)
   }
   return out
 }
 
 // Shift+Tab: each node moves to just after its parent. Following siblings stay where they
-// are (Google Docs behaviour), they do not become children of the outdented node.
+// are (Google Docs behaviour), they do not become children of the outdented node. Out of a
+// pinned line, it goes to the top of the unpinned area instead (pins.ts): it is not pinned.
 export function dedent(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
   const index0 = buildIndex(rows)
   const moving = topmost(index0, ids)
@@ -301,7 +320,7 @@ export function dedent(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
     const parent = index0.parentOf.get(id) ?? null
     if (parent === null) continue
     const grand = index0.parentOf.get(parent) ?? null
-    const afterId = lastMovedFrom.get(parent) ?? parent
+    const afterId = lastMovedFrom.get(parent) ?? (out[parent]!.pinned ? lastPinned(out, grand) : parent)
     out = moveNodes(out, ctx, [id], { parentId: grand, afterId })
     lastMovedFrom.set(parent, id)
   }
@@ -364,12 +383,12 @@ export function moveSibling(rows: Rows, ctx: OpCtx, ids: Iterable<string>, dir: 
   for (const [parentId, group] of byParent) {
     if (dir === 'up') {
       const anchor = prevSiblingExcluding(index0, group[0]!, movingSet)
-      if (!anchor) continue
+      if (!anchor || anchor.pinned !== rows[group[0]!]!.pinned) continue // never across the pins' divider
       const before = prevSiblingExcluding(index0, anchor.id, movingSet)
       out = moveNodes(out, ctx, group, { parentId, afterId: before?.id ?? null })
     } else {
       const anchor = nextSiblingExcluding(index0, group.at(-1)!, movingSet)
-      if (!anchor) continue
+      if (!anchor || anchor.pinned !== rows[group.at(-1)!]!.pinned) continue
       out = moveNodes(out, ctx, group, { parentId, afterId: anchor.id })
     }
   }
@@ -377,11 +396,11 @@ export function moveSibling(rows: Rows, ctx: OpCtx, ids: Iterable<string>, dir: 
 }
 
 // Move to top: each target goes first among its siblings (a selection keeps its order).
-// A group already at the top stays put.
+// A group already at the top stays put. An unpinned line goes to the top of the unpinned
+// area, under the pins; a pinned one to the top of the pins (pins.ts).
 export function moveToTop(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
   const index0 = buildIndex(rows)
   const moving = topmost(index0, ids)
-  const movingSet = new Set(moving)
   const byParent = new Map<string | null, string[]>()
   for (const id of moving) {
     const p = index0.parentOf.get(id) ?? null
@@ -389,8 +408,14 @@ export function moveToTop(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
   }
   let out = rows
   for (const [parentId, group] of byParent) {
-    if (!prevSiblingExcluding(index0, group[0]!, movingSet)) continue
-    out = moveNodes(out, ctx, group, { parentId, afterId: null })
+    for (const pinned of [true, false]) {
+      const part = group.filter((id) => rows[id]!.pinned === pinned)
+      if (part.length === 0) continue
+      const prev = prevSiblingExcluding(buildIndex(out), part[0]!, new Set(part))
+      if (!prev || prev.pinned !== pinned) continue
+      const afterId = pinned ? null : lastPinned(out, parentId, new Set(part))
+      out = moveNodes(out, ctx, part, { parentId, afterId })
+    }
   }
   return out
 }

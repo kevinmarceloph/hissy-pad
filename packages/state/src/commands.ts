@@ -3,7 +3,7 @@
 // selection goes afterwards.
 import {
   buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, moveToTop, remove, removeDone, ungroup, splitOpen,
-  setKind, setText as setTextOp, splitNode, toggleDone, setState, toggleNumbered, type LineState, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
+  setKind, setText as setTextOp, splitNode, togglePinned, toggleDone, setState, toggleNumbered, type LineState, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
 // dialog fallback; mobile: expo-clipboard). `html` is the same outline as nested lists,
@@ -190,6 +190,17 @@ export function cmdMove(dir: 'up' | 'down') {
 export function cmdMoveToTop() {
   const ids = targets()
   if (ids.length) apply((rows, ctx) => moveToTop(rows, ctx, ids), { label: 'cmdMoveToTop' })
+}
+
+// Pin: the top-level lines among the targets go to the very top of the pad, above the
+// divider; when they are all pinned already, they come off and sit right under it. Only in
+// a pad as itself: a zoomed line's sub items and an hour's lines are not a pad's top level.
+// `held`: the lines to act on when the targets may be gone by the time it runs (the phone's
+// More sheet can end the edit before an option is tapped).
+export function cmdTogglePin(held?: readonly string[]) {
+  const { zoomId, slotId } = usePad.getState()
+  const ids = held ?? targets()
+  if (ids.length && zoomId === null && slotId === null) apply((rows, ctx) => togglePinned(rows, ctx, ids), { label: 'cmdTogglePin' })
 }
 
 export function cmdToggleDone() {

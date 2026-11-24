@@ -5,7 +5,7 @@ import { apply, importOutline, loadPad, setAll, usePad } from './store'
 import { redo, undo } from './history'
 import { clickSelect, edit, select } from './selection'
 import { cmdCopySelection, cmdDeleteDone, cmdDeleteSelection, cmdSetText, cmdSplit, cmdTextChanged, cmdToggleDone, setClipboard } from './commands'
-import { setText } from '@hissypad/core'
+import { moveNodes, setText, togglePinned } from '@hissypad/core'
 
 const reset = resetStore
 
@@ -224,5 +224,28 @@ describe('cmdTextChanged', () => {
     expect(cmdTextChanged(id, 'tops')).toBe('tops')
     expect(cmdTextChanged(id, 'to\nps')).toBe('tops')
     expect(shape(usePad.getState().rows)).toBe('to\nps\nlast')
+  })
+})
+
+describe('pins', () => {
+  beforeEach(async () => {
+    resetStore('A\nB\nC')
+    await loadPad()
+  })
+  const shown = () => shape(usePad.getState().rows)
+
+  it('an edit that drops a line among the pins is put right in the same undo step', () => {
+    const a = idOf(usePad.getState().rows, 'A')
+    const c = idOf(usePad.getState().rows, 'C')
+    apply((rows, ctx) => togglePinned(rows, ctx, [a]), { label: 'pin' })
+    expect(shown()).toBe('^A\nB\nC')
+    // A drag of C to the very top lands it under the pin.
+    apply((rows, ctx) => moveNodes(rows, ctx, [c], { parentId: null, afterId: null }), { label: 'drag' })
+    expect(shown()).toBe('^A\nC\nB')
+    // Dropped under B: no longer at the top level, so A comes off.
+    apply((rows, ctx) => moveNodes(rows, ctx, [a], { parentId: idOf(rows, 'B'), afterId: null }), { label: 'drag' })
+    expect(shown()).toBe('C\nB\n  A')
+    undo()
+    expect(shown()).toBe('^A\nC\nB')
   })
 })

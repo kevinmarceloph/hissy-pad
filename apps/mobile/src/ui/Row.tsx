@@ -97,7 +97,12 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
       delayLongPress={280}
       style={s.bullet}
     >
-      {number !== null ? (
+      {row.pinned && !row.done ? (
+        // Pinned (More…, Pin to top): a pushpin in place of the bullet, ringed while doing.
+        <View style={[s.pinBox, row.doing && [s.ring, { borderColor: isEditing ? theme.accent : theme.inkSoft }], folded && { backgroundColor: theme.rule, borderRadius: 8 }]}>
+          <PinMark color={isEditing ? theme.accent : theme.inkSoft} />
+        </View>
+      ) : number !== null ? (
         <Text style={[s.num, { color: isEditing ? theme.accent : theme.inkSoft }, row.done && { color: theme.inkMute, textDecorationLine: 'line-through' }, row.doing && [s.ringed, { borderColor: theme.inkSoft }]]}>{number}.</Text>
       ) : row.header ? (
         <Text style={[s.hash, { color: isEditing ? theme.accent : row.done ? theme.inkMute : theme.inkSoft }, row.done && { textDecorationLine: 'line-through' }, row.doing && [s.ringed, { borderColor: theme.inkSoft }]]}>#</Text>
@@ -213,10 +218,29 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
   )
 })
 
+// A pushpin drawn with Views (no icon font, no SVG module): a cap, a body that flares at
+// the foot, and the needle, leaning like the web's.
+export function PinMark({ color }: { color: string }) {
+  return (
+    <View style={s.pin}>
+      <View style={[s.pinCap, { backgroundColor: color }]} />
+      <View style={[s.pinBody, { backgroundColor: color }]} />
+      <View style={[s.pinFoot, { backgroundColor: color }]} />
+      <View style={[s.pinNeedle, { backgroundColor: color }]} />
+    </View>
+  )
+}
+
 const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: 4, paddingRight: 8 },
   bullet: { width: GUTTER, minHeight: LINE, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 6, height: 6, borderRadius: 3 },
+  pinBox: { width: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
+  pin: { width: 12, height: 14, alignItems: 'center', transform: [{ rotate: '40deg' }] },
+  pinCap: { width: 7, height: 2.5, borderRadius: 1 },
+  pinBody: { width: 4, height: 3.5 },
+  pinFoot: { width: 8, height: 2, borderRadius: 1 },
+  pinNeedle: { width: 1.5, height: 6, borderRadius: 0.75 },
   ring: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   ringed: { borderWidth: 1.5, borderRadius: 11, paddingHorizontal: 4, lineHeight: LINE - 4, overflow: 'hidden' },
   cross: { fontFamily: serif, fontSize: SIZE + 2, lineHeight: LINE },

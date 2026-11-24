@@ -14,7 +14,7 @@ describe('line abilities', () => {
   const can = (...texts: string[]) => lineAbilities(rows, texts.map((t) => idOf(rows, t)))
 
   it('says what the targets allow', () => {
-    expect(can('A')).toEqual({ indent: false, dedent: false, up: false, down: true, children: false, folded: false, single: true, mixed: false, hour: false })
+    expect(can('A')).toEqual({ indent: false, dedent: false, up: false, down: true, children: false, folded: false, single: true, mixed: false, hour: false, pads: true, pin: true, pinned: false })
     expect(can('B')).toMatchObject({ indent: true, up: true, down: true, children: true, dedent: false })
     expect(can('B1')).toMatchObject({ indent: false, dedent: true, up: false, down: true })
     expect(can('C')).toMatchObject({ indent: true, up: true, down: false })
@@ -23,7 +23,7 @@ describe('line abilities', () => {
     expect(can('B', 'B1').single).toBe(true)
     expect(can('A', 'B').single).toBe(false)
     expect(can('A', 'B', 'C')).toMatchObject({ indent: false, up: false, down: false }) // every sibling selected
-    expect(lineAbilities(rows, [])).toEqual({ indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: false, mixed: false, hour: false })
+    expect(lineAbilities(rows, [])).toEqual({ indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: false, mixed: false, hour: false, pads: true, pin: false, pinned: false })
   })
 })
 
@@ -142,6 +142,40 @@ describe('the toolbar registry', () => {
     expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Today', 'Inbox', 'Later', 'B'])
     usePad.setState({ selection: [] })
     expect(action('makePad').run()).toBeUndefined()
+  })
+
+  it('Pin puts the line at the very top and reads Unpin; Top and a drag then stop under the pins', async () => {
+    const can = () => lineAbilities(usePad.getState().rows, usePad.getState().selection)
+    pick('B1')
+    expect(can()).toMatchObject({ pin: false, pads: true })
+    pick('C')
+    expect(actionFace(action('pin'), can())).toMatchObject({ name: 'Pin to top' })
+    action('pin').run()
+    expect(shown()).toBe('^C\nA\nB\n  B1')
+    expect(actionFace(action('pin'), can())).toMatchObject({ name: 'Unpin' })
+    // The first line under the pins is already at the top of its area.
+    pick('A')
+    expect(can()).toMatchObject({ up: false })
+    expect(action('top').enabled!(can())).toBe(false)
+    pick('B')
+    action('top').run()
+    expect(shown()).toBe('^C\nB\n  B1\nA')
+    // An outdent out of a pin lands under the divider, not pinned.
+    pick('B')
+    action('pin').run()
+    expect(shown()).toBe('^B\n  B1\n^C\nA')
+    pick('B1')
+    action('dedent').run()
+    expect(shown()).toBe('^B\n^C\nB1\nA')
+    pick('B')
+    action('pin').run()
+    expect(shown()).toBe('^C\nB\nB1\nA')
+  })
+
+  it('Pin is not offered in a zoomed line', () => {
+    usePad.setState({ zoomId: idOf(usePad.getState().rows, 'B') })
+    expect(lineAbilities(usePad.getState().rows, []).pads).toBe(false)
+    usePad.setState({ zoomId: null })
   })
 
   it('counts lines in words', () => {

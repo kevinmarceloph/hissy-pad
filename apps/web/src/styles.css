@@ -245,6 +245,34 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
 .row.is-doing.is-editing .bullet::before { outline-color: var(--accent); }
 .row.is-doing.is-numbered .bullet::before, .row.is-doing.is-header .bullet::before { outline-offset: 1px; border-radius: 999px; padding: 0 0.25rem; }
 .row.is-doing.is-numbered .bullet::before { margin-right: -0.25rem; }
+/* Pinned (toolbar: ⋯, Pin to top): a pushpin in place of the dot, the #, or the number,
+   until the line is crossed out. The pin is drawn by ::after; ::before stays as a clear
+   circle under it so the fold's and hover's halos and Doing's ring still show. */
+.row.is-pinned:not(.is-done) .bullet::before {
+  content: '';
+  width: 1.15rem; height: 1.15rem;
+  padding: 0; margin-right: 0;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: transparent;
+  outline-offset: 0;
+}
+.row.is-pinned:not(.is-done) .bullet::after {
+  content: '';
+  position: absolute; left: 50%; top: 50%;
+  translate: -50% -50%;
+  margin-left: 6px;
+  width: 0.95rem; height: 0.95rem;
+  background: var(--ink-soft);
+  -webkit-mask: var(--pin-mask) center / contain no-repeat;
+  mask: var(--pin-mask) center / contain no-repeat;
+  pointer-events: none;
+}
+.row.is-pinned.is-editing:not(.is-done) .bullet::after { background: var(--accent); }
+.row.is-pinned:not(.is-done) .bullet:hover::before { background: transparent; padding: 0; border-radius: 50%; }
+.row { --pin-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cg transform='rotate(40 10 10)'%3E%3Crect x='6' y='1.5' width='8' height='2.5' rx='1'/%3E%3Cpath d='M7.5 4h5v4.5l2.5 3H5l2.5-3z'/%3E%3Crect x='9.25' y='11' width='1.5' height='7.5' rx='0.75'/%3E%3C/g%3E%3C/svg%3E"); }
+/* The rule between the pinned lines and the rest of the pad: half a line of space. */
+.pin-divider { height: calc(var(--size) * var(--lh) / 2); margin-left: var(--gutter); background: linear-gradient(var(--rule), var(--rule)) center / 100% 1px no-repeat; }
 /* Done: a bullet-journal cross in place of the dot. */
 .row.is-done .bullet::before {
   content: '×';
