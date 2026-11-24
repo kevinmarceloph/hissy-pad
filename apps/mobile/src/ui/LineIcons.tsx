@@ -14,14 +14,17 @@ const H = ({ x, y, len, color }: { x: number; y: number; len: number; color: str
 const V = ({ x, y, len, color }: { x: number; y: number; len: number; color: string }) => (
   <View style={{ position: 'absolute', left: x - W / 2, top: y, width: W, height: len, borderRadius: 1, backgroundColor: color }} />
 )
-// A chevron whose point is at (x, y), opening away from `dir`.
-function Chevron({ x, y, dir, size = 5.5, color }: { x: number; y: number; dir: 'up' | 'down'; size?: number; color: string }) {
-  const up = dir === 'up'
-  const box: ViewStyle = {
-    position: 'absolute', left: x - size / 2, top: up ? y + size * 0.21 : y - size * 1.21, width: size, height: size,
-    borderColor: color, transform: [{ rotate: '45deg' }],
-    ...(up ? { borderTopWidth: W, borderLeftWidth: W } : { borderBottomWidth: W, borderRightWidth: W }),
+// A chevron whose point is at (x, y), opening away from `dir`. The square turned 45° puts
+// one corner on each side; the two borders that meet at the corner facing `dir` draw it.
+function Chevron({ x, y, dir, size = 5.5, color }: { x: number; y: number; dir: 'up' | 'down' | 'left' | 'right'; size?: number; color: string }) {
+  const near = size * 0.21, far = size * 1.21, mid = size / 2
+  const at: Record<typeof dir, ViewStyle> = {
+    up: { left: x - mid, top: y + near, borderTopWidth: W, borderLeftWidth: W },
+    down: { left: x - mid, top: y - far, borderBottomWidth: W, borderRightWidth: W },
+    left: { left: x + near, top: y - mid, borderBottomWidth: W, borderLeftWidth: W },
+    right: { left: x - far, top: y - mid, borderTopWidth: W, borderRightWidth: W },
   }
+  const box: ViewStyle = { position: 'absolute', width: size, height: size, borderColor: color, transform: [{ rotate: '45deg' }], ...at[dir] }
   return <View style={box} />
 }
 
@@ -45,6 +48,19 @@ export function LineIcon({ icon, color, ground }: { icon: LineIconId; color: str
       break
     case 'addBelow':
       body = <><H x={3} y={4.5} len={14} color={color} /><H x={3} y={9} len={14} color={color} /><V x={5} y={12} len={5} color={color} /><H x={2.5} y={14.5} len={5} color={color} /><H x={10.5} y={14.5} len={7} color={color} /></>
+      break
+    // Plain arrows, drawn like Move to top's: left and right (outdent, indent), down and up.
+    case 'dedent':
+      body = <><H x={4.5} y={10} len={11.5} color={color} /><Chevron x={4} y={10} dir="left" size={6} color={color} /></>
+      break
+    case 'indent':
+      body = <><H x={4} y={10} len={11.5} color={color} /><Chevron x={16} y={10} dir="right" size={6} color={color} /></>
+      break
+    case 'down':
+      body = <><V x={10} y={4} len={11.5} color={color} /><Chevron x={10} y={16} dir="down" size={6} color={color} /></>
+      break
+    case 'up':
+      body = <><V x={10} y={4.5} len={11.5} color={color} /><Chevron x={10} y={4} dir="up" size={6} color={color} /></>
       break
     // An arrow up to a bar.
     case 'top':

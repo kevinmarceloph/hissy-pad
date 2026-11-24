@@ -53,7 +53,7 @@ export type LineActionGroup = 'mark' | 'add' | 'move' | 'tree' | 'clip' | 'pad' 
 
 // The icons the toolbars draw. 'move' is also the Sort mode's icon in the top bar, and the
 // "Move to…" menu's button.
-export type LineIcon = 'addAbove' | 'addBelow' | 'top' | 'fold' | 'unfold' | 'copy' | 'cut' | 'pasteAbove' | 'pasteBelow' | 'move' | 'archive' | 'hour' | 'category' | 'more'
+export type LineIcon = 'addAbove' | 'addBelow' | 'dedent' | 'indent' | 'down' | 'up' | 'top' | 'fold' | 'unfold' | 'copy' | 'cut' | 'pasteAbove' | 'pasteBelow' | 'move' | 'archive' | 'hour' | 'category' | 'more'
 
 export interface LineAction {
   id: string
@@ -90,10 +90,10 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   { id: 'done', group: 'mark', label: 'Done', name: 'Done', hint: 'Cross out', keys: '⌘Enter', run: cmdToggleDone },
   { id: 'addAbove', group: 'add', label: '+ above', name: 'Add a line above', hint: 'New line above', icon: 'addAbove', run: cmdAddAbove },
   { id: 'addBelow', group: 'add', label: '+ below', name: 'Add a line below', hint: 'New line below', icon: 'addBelow', run: cmdAddBelow },
-  { id: 'dedent', group: 'move', label: '←', name: 'Outdent', hint: 'Outdent', keys: 'Shift+Tab', enabled: (c) => c.dedent, run: cmdDedent },
-  { id: 'indent', group: 'move', label: '→', name: 'Indent', hint: 'Indent', keys: 'Tab', enabled: (c) => c.indent, run: cmdIndent },
-  { id: 'down', group: 'move', label: '↓', name: 'Move down', hint: 'Move down', keys: 'Alt+↓', enabled: (c) => c.down, run: () => cmdMove('down') },
-  { id: 'up', group: 'move', label: '↑', name: 'Move up', hint: 'Move up', keys: 'Alt+↑', enabled: (c) => c.up, run: () => cmdMove('up') },
+  { id: 'dedent', group: 'move', label: '←', name: 'Outdent', hint: 'Outdent', icon: 'dedent', keys: 'Shift+Tab', enabled: (c) => c.dedent, run: cmdDedent },
+  { id: 'indent', group: 'move', label: '→', name: 'Indent', hint: 'Indent', icon: 'indent', keys: 'Tab', enabled: (c) => c.indent, run: cmdIndent },
+  { id: 'down', group: 'move', label: '↓', name: 'Move down', hint: 'Move down', icon: 'down', keys: 'Alt+↓', enabled: (c) => c.down, run: () => cmdMove('down') },
+  { id: 'up', group: 'move', label: '↑', name: 'Move up', hint: 'Move up', icon: 'up', keys: 'Alt+↑', enabled: (c) => c.up, run: () => cmdMove('up') },
   { id: 'top', group: 'move', label: 'Top', name: 'Move to top', hint: 'Move to the top of its level', icon: 'top', enabled: (c) => c.up, run: cmdMoveToTop },
   {
     id: 'fold', group: 'tree', label: 'Fold', name: 'Fold', hint: 'Fold: hide its sub items', icon: 'fold', keys: '⌘.', enabled: (c) => c.children, run: cmdToggleCollapsed,

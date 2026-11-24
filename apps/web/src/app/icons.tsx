@@ -17,6 +17,11 @@ const LINE_ICONS: Record<LineIconId, ReactNode> = {
   // A new line (the plus and its stroke) over, or under, the two that are there.
   addAbove: <Icon d="M5 3v5M2.5 5.5h5M10.5 5.5h7M3 11h14M3 15.5h14" />,
   addBelow: <Icon d="M3 4.5h14M3 9h14M5 12v5M2.5 14.5h5M10.5 14.5h7" />,
+  // Plain arrows, drawn like Move to top's: left and right (outdent, indent), down and up.
+  dedent: <Icon d="M16 10H4.5M8.5 6l-4 4 4 4" />,
+  indent: <Icon d="M4 10h11.5M11.5 6l4 4-4 4" />,
+  down: <Icon d="M10 4v11.5M6 11.5l4 4 4-4" />,
+  up: <Icon d="M10 16V4.5M6 8.5l4-4 4 4" />,
   // An arrow up to a bar.
   top: <Icon d="M4 3.5h12M10 17V7.5M6 11.5l4-4 4 4" />,
   // Two chevrons closing on each other; the same two opening.
