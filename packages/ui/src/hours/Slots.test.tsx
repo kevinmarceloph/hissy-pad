@@ -157,25 +157,37 @@ describe('SlotPicker', () => {
     expect(onPick).toHaveBeenCalledWith(null);
   });
 
-  it('picks a run of hours with two taps, across midnight too', async () => {
+  // A swipe as the mouse makes it: down on one hour, moved, up. jsdom has no layout, so the
+  // grid is given its place: at the page's corner, eight hours wide (a column is CELL 64 +
+  // GAP 6 = 70px, a row ROW 44 + 6 = 50px). The grid reads its place on the next tick.
+  const at = (hour: number) => ({ x: (hour % 8) * 70 + 30, y: Math.floor(hour / 8) * 50 + 20 });
+  const swipe = async (from: number, to: number) => {
+    const grid = screen.getByRole('radiogroup', { name: 'Hour' });
+    Object.defineProperty(grid, 'offsetWidth', { configurable: true, value: 554 });
+    const cell = screen.getAllByRole('radio')[from]!;
+    const point = (h: number, buttons: number) => ({ clientX: at(h).x, clientY: at(h).y, pageX: at(h).x, pageY: at(h).y, button: 0, buttons });
+    await act(async () => {
+      dom.mouseDown(cell, point(from, 1));
+      await new Promise((done) => setTimeout(done, 10));
+      dom.mouseMove(cell, point(to, 1));
+      dom.mouseUp(cell, point(to, 0));
+    });
+  };
+
+  it('picks a run of hours with a swipe across them, either way', async () => {
     const onPick = vi.fn();
     await render(<SlotPicker value={null} onPick={onPick} onCancel={() => {}} clock={clock} />);
-    await fireEvent.press(screen.getByRole('switch', { name: 'Several hours' }));
-    await fireEvent.press(screen.getByRole('radio', { name: '4pm' }));
-    expect(onPick).not.toHaveBeenCalled();
-    expect(screen.getByText('From Today 4pm: tap the last hour.')).toBeTruthy();
-    await fireEvent.press(screen.getByRole('radio', { name: '2pm, now' }));
+    expect(screen.getByText('Tap an hour, or swipe across several.')).toBeTruthy();
+    await swipe(14, 16);
     expect(onPick).toHaveBeenLastCalledWith('2026-11-19T14+3');
-
-    await fireEvent.press(screen.getByRole('radio', { name: '10pm' }));
-    await fireEvent.press(screen.getByLabelText('The day after'));
-    await fireEvent.press(screen.getByRole('radio', { name: '1am' }));
-    expect(onPick).toHaveBeenLastCalledWith('2026-11-19T22+4');
+    // Backwards and up a row: the run starts at the earlier hour.
+    await swipe(17, 11);
+    expect(onPick).toHaveBeenLastCalledWith('2026-11-19T11+7');
+    expect(onPick).toHaveBeenCalledTimes(2);
   });
 
-  it('opens a run with its hours checked and Several hours on', async () => {
+  it('opens a run with its hours checked', async () => {
     await render(<SlotPicker value="2026-11-19T14+2" onPick={() => {}} onCancel={() => {}} clock={clock} />);
-    expect(screen.getByRole('switch', { name: 'Several hours' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: '2pm, now' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: '3pm' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: '4pm' })).toHaveAttribute('aria-checked', 'false');

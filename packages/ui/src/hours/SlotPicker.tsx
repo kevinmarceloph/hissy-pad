@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { MAX_SLOT_HOURS, parseSlot, slotCovers, slotKey, slotLabel } from '@hissypad/core';
+import { useRef, useState, type ComponentRef } from 'react';
+import { PanResponder, Platform, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { parseSlot, slotCovers, slotKey, slotLabel } from '@hissypad/core';
 import { dayDate, dayKey, dayTitle, hourLabel, HOURS, shiftDay } from '@hissypad/core/hours';
 
 import { Tap } from './Tap';
@@ -18,10 +18,17 @@ type Props = {
   clock?: () => Date;
 };
 
-// Puts lines of the pad in an hour of a day: step to the day, tap the hour. With "Several
-// hours" on, the first tap is where the run starts and the second where it ends (that hour
-// included), on the same day or one stepped to. The pad's toolbar opens it on web and on
-// the phone.
+// The hour cells' size and the gap between them, which the swipe reads positions from.
+const CELL = 64;
+const GAP = 6;
+// How far a press moves on the phone before the grid takes it from the cell as a swipe.
+const SLOP = 8;
+// Web: the swipe is ours, not the page's scroll.
+const NO_SCROLL = Platform.OS === 'web' ? ({ touchAction: 'none', userSelect: 'none' } as unknown as ViewStyle) : null;
+
+// Puts lines of the pad in an hour of a day: step to the day, tap the hour, or swipe across
+// the hours from the first to the last for a run of them. The pad's toolbar opens it on web
+// and on the phone.
 export function SlotPicker({ scheme = null, ...props }: Props) {
   return (
     <SchemeContext.Provider value={scheme}>
@@ -36,24 +43,72 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
   const today = dayKey(now);
   const current = parseSlot(value);
   const [day, setDay] = useState(current?.day ?? today);
-  const [several, setSeveral] = useState((current?.hours ?? 1) > 1);
-  // The first tap of a run, waiting for the second.
-  const [from, setFrom] = useState<{ day: string; hour: number } | null>(null);
+  // The swipe in progress: the hour it started on and the one under the finger now.
+  const [run, setRun] = useState<{ from: number; to: number } | null>(null);
 
-  const tap = (hour: number) => {
-    if (!several) return onPick(slotKey(day, hour));
-    if (!from) return setFrom({ day, hour });
-    // Whole hours between the two taps, by the calendar: either order works.
-    const at = (d: string, h: number) => {
-      const [y = 1970, m = 1, dd = 1] = d.split('-').map(Number);
-      return Date.UTC(y, m - 1, dd) / 3_600_000 + h;
-    };
-    const a = at(from.day, from.hour);
-    const b = at(day, hour);
-    const start = a <= b ? from : { day, hour };
-    setFrom(null);
-    onPick(slotKey(start.day, start.hour, Math.min(Math.abs(b - a) + 1, MAX_SLOT_HOURS)));
+  // Read inside the responder, which is made once: the latest values through refs.
+  const live = useRef({ day, onPick });
+  live.current.day = day;
+  live.current.onPick = onPick;
+  const grid = useRef<ComponentRef<typeof View>>(null);
+  // Where the grid sits on the page and how wide it is, taken as a press starts.
+  const box = useRef<{ x: number; y: number; width: number } | null>(null);
+  const swipe = useRef<{ from: number; to: number } | null>(null);
+
+  // The hour under a point on the page, from the grid's place and the cells' fixed size.
+  const hourAt = (pageX: number, pageY: number) => {
+    const b = box.current!;
+    const cols = Math.max(1, Math.floor((b.width + GAP) / (CELL + GAP)));
+    const col = Math.min(cols - 1, Math.max(0, Math.floor((pageX - b.x) / (CELL + GAP))));
+    const row = Math.max(0, Math.floor((pageY - b.y) / (ROW + GAP)));
+    return Math.min(23, Math.max(0, row * cols + col));
   };
+  const end = () => {
+    swipe.current = null;
+    box.current = null;
+    setRun(null);
+  };
+
+  // A tap is the cell's own: one hour. A press that moves is the grid's, a run of hours.
+  // On the phone the grid claims a press once it moves. react-native-web only lets a parent
+  // claim a moving press after it leaves the cell, so there the grid takes every press as it
+  // starts and leaves a tap to the cell's click (react-native-web presses on click, which a
+  // drag across cells never makes).
+  const responder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponderCapture: () => Platform.OS === 'web',
+      onMoveShouldSetPanResponderCapture: (_, g) => Math.hypot(g.dx, g.dy) > SLOP,
+      onPanResponderGrant: (_, g) => {
+        // Where the press is as the grid takes it: where it went down on the web, a few
+        // points on from there on the phone, still on the hour it started on.
+        const pageX = g.x0;
+        const pageY = g.y0;
+        grid.current?.measure((_x, _y, width, _h, x, y) => {
+          // react-native-web measures in the window but reports a touch on the page.
+          const scroll = Platform.OS === 'web' ? { x: window.scrollX, y: window.scrollY } : { x: 0, y: 0 };
+          box.current = { x: x + scroll.x, y: y + scroll.y, width };
+          const from = hourAt(pageX, pageY);
+          swipe.current = { from, to: from };
+        });
+      },
+      onPanResponderMove: (_, g) => {
+        if (!swipe.current || !box.current) return;
+        const to = hourAt(g.moveX, g.moveY);
+        if (to === swipe.current.to) return;
+        swipe.current = { ...swipe.current, to };
+        setRun(swipe.current);
+      },
+      onPanResponderRelease: () => {
+        const s = swipe.current;
+        end();
+        if (!s || s.from === s.to) return;
+        const first = Math.min(s.from, s.to);
+        live.current.onPick(slotKey(live.current.day, first, Math.abs(s.to - s.from) + 1));
+      },
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderTerminate: end,
+    }),
+  ).current;
 
   const step = (label: string, name: string, to: string) => (
     <Tap aria-label={name} onPress={() => setDay(to)} style={styles.nav} activeStyle={{ backgroundColor: theme.paperRaised }}>
@@ -66,26 +121,11 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
       <Text role="heading" aria-level={2} style={[styles.title, { color: theme.ink }]}>
         {count === 1 ? 'Which hour is this line for?' : `Which hour are these ${count} lines for?`}
       </Text>
-      <Tap
-        role="switch"
-        aria-label="Several hours"
-        aria-checked={several}
-        onPress={() => {
-          setSeveral(!several);
-          setFrom(null);
-        }}
-        style={styles.toggle}
-        activeStyle={{ backgroundColor: theme.paperRaised }}>
-        <View style={[styles.box, { borderColor: theme.ink }, several && { backgroundColor: theme.ink }]}>
-          {several && <Text style={[styles.small, { color: theme.paper, fontWeight: '700' }]}>✓</Text>}
-        </View>
-        <Text style={[styles.body, { color: theme.ink }]}>Several hours</Text>
-      </Tap>
-      {several && (
-        <Text aria-live="polite" style={[styles.small, { color: theme.inkSoft }]}>
-          {from ? `From ${slotLabel(slotKey(from.day, from.hour), today)}: tap the last hour.` : 'Tap the first hour, then the last.'}
-        </Text>
-      )}
+      <Text aria-live="polite" style={[styles.small, { color: theme.inkSoft }]}>
+        {run
+          ? `${slotLabel(slotKey(day, Math.min(run.from, run.to), Math.abs(run.to - run.from) + 1), today)}: let go to pick.`
+          : 'Tap an hour, or swipe across several.'}
+      </Text>
       <View style={styles.dayRow}>
         <Text aria-live="polite" style={[styles.body, styles.day, { color: theme.ink }]}>
           {dayTitle(day, now)}, {dayDate(day)}
@@ -96,9 +136,16 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
           {day !== today && step('Today', 'Back to today', today)}
         </View>
       </View>
-      <View role="radiogroup" aria-label="Hour" style={styles.hours}>
+      <View
+        role="radiogroup"
+        aria-label="Hour"
+        ref={grid}
+        style={[styles.hours, NO_SCROLL]}
+        {...responder.panHandlers}>
         {HOURS.map((hour) => {
-          const on = from ? from.day === day && from.hour === hour : slotCovers(value, slotKey(day, hour));
+          const on = run
+            ? hour >= Math.min(run.from, run.to) && hour <= Math.max(run.from, run.to)
+            : slotCovers(value, slotKey(day, hour));
           const isNow = day === today && hour === now.getHours();
           return (
             <Tap
@@ -106,7 +153,7 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
               role="radio"
               aria-checked={on}
               aria-label={`${hourLabel(hour)}${isNow ? ', now' : ''}`}
-              onPress={() => tap(hour)}
+              onPress={() => onPick(slotKey(day, hour))}
               style={[styles.hour, { borderColor: on || isNow ? theme.ink : theme.line }, on && { backgroundColor: theme.ink }]}
               activeStyle={{ borderColor: theme.ink }}>
               <Text style={[styles.small, { color: on ? theme.paper : theme.ink }, (on || isNow) && { fontWeight: '700' }]}>
@@ -144,10 +191,8 @@ const styles = StyleSheet.create({
   day: { fontWeight: '700' },
   navs: { flexDirection: 'row', flexWrap: 'wrap', marginLeft: -10 },
   nav: { minHeight: ROW, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 4 },
-  toggle: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: ROW, alignSelf: 'flex-start', paddingRight: 10, borderRadius: 4 },
-  box: { width: 22, height: 22, borderWidth: 1.5, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
-  hours: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  hour: { width: 64, minHeight: ROW, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 4 },
+  hours: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
+  hour: { width: CELL, minHeight: ROW, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 4 },
   actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   action: { minHeight: ROW, justifyContent: 'center', paddingHorizontal: 16, borderWidth: 1, borderRadius: 4 },
 });
