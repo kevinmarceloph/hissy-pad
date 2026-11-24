@@ -15,7 +15,7 @@ import {
 
 describe('wire rows', () => {
   it('maps an entry to the table and back', () => {
-    const entry = { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', planned: null, plannedNote: '', flags: [], updatedAt: 1795000000000 };
+    const entry = { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 1795000000000 };
     expect(entryToWire(entry)).toEqual({
       day: '2026-11-19',
       hour: 9,
@@ -24,6 +24,7 @@ describe('wire rows', () => {
       planned: null,
       planned_note: '',
       flags: [],
+      state: 'open',
       updated_at: 1795000000000,
     });
     expect(entryFromWire({ ...entryToWire(entry), synced_at: '2026-11-19T13:00:00.123456+00:00' })).toEqual({
@@ -43,12 +44,15 @@ describe('wire rows', () => {
   });
 
   it('carries the plan and the flags, and reads a row from before they existed', () => {
-    const entry = { day: '2026-11-20', hour: 9, note: 'scrolled', category: 'drift', planned: 'deep', plannedNote: 'proposals', flags: ['distracted', 'halts'], updatedAt: 5 };
+    const entry = { day: '2026-11-20', hour: 9, note: 'scrolled', category: 'drift', planned: 'deep', plannedNote: 'proposals', flags: ['distracted', 'halts'], state: 'open', updatedAt: 5 };
     expect(entryToWire(entry)).toMatchObject({ planned: 'deep', planned_note: 'proposals', flags: ['distracted', 'halts'] });
     expect(entryFromWire(entryToWire(entry)).row).toEqual(entry);
 
     const old = { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', updated_at: 5 };
-    expect(entryFromWire(old).row).toMatchObject({ planned: null, plannedNote: '', flags: [] });
+    // And from before hours had a state: an hour that was logged counts as done.
+    expect(entryFromWire(old).row).toMatchObject({ planned: null, plannedNote: '', flags: [], state: 'done' });
+    expect(entryFromWire({ ...old, note: '', category: null }).row.state).toBe('open');
+    expect(entryFromWire({ ...old, state: 'doing' }).row.state).toBe('doing');
   });
 
   it('maps a flag to the table and back', () => {

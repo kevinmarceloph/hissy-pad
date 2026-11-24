@@ -5,7 +5,7 @@
 // adds how many: 'YYYY-MM-DDTHH+3' is that hour and the two after it, and may run past
 // midnight into the next day. A single hour never carries '+1'.
 import type { NodeRow, Rows } from './types'
-import { isBlank } from './tree'
+import { buildIndex, childrenOf, isBlank, isLive } from './tree'
 
 export const MAX_SLOT_HOURS = 24
 
@@ -85,6 +85,14 @@ export function slotDoneExtra(all: Rows): Record<string, number> {
     if (Number.isNaN(at.getTime())) continue
     const key = slotKey(todayKey(at), at.getHours())
     if (slotCovers(r.slot, key)) continue
+    // Nor one that sits under a line of that hour: the hour lists it there already.
+    let up = r.parentId ? all[r.parentId] : undefined
+    let inside = false
+    for (let n = 0; up && n < 64 && !inside; n++) {
+      inside = slotCovers(up.slot, key)
+      up = up.parentId ? all[up.parentId] : undefined
+    }
+    if (inside) continue
     out[key] = (out[key] ?? 0) + 1
   }
   return out
@@ -100,6 +108,57 @@ export function slotLines(all: Rows, slot: string): NodeRow[] {
     if (slotCovers(r.slot, slot) && !isBlank(r) && !r.pad) list.push(r)
   }
   return list.sort((a, b) => Number(a.done) - Number(b.done) || (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0) || (a.id < b.id ? -1 : 1))
+}
+
+// The lines an hour lists at its top level: the ones put in it, less any that sits under
+// another line of the same hour, which shows it as one of its children instead.
+export function slotTops(all: Rows, slot: string): NodeRow[] {
+  return slotLines(all, slot).filter((r) => {
+    let up = r.parentId ? all[r.parentId] : undefined
+    for (let n = 0; up && n < 64; n++) {
+      if (isLive(up) && !up.pad && !isBlank(up) && slotCovers(up.slot, slot)) return false
+      up = up.parentId ? all[up.parentId] : undefined
+    }
+    return true
+  })
+}
+
+// An hour as a pad of its own: each top line, then everything under it, depth first.
+// Folds are not kept: the hour shows the whole of what was put in it. An archived line
+// stays listed with nothing under it.
+export interface SlotRow {
+  row: NodeRow
+  depth: number
+}
+export function slotOutline(all: Rows, slot: string): SlotRow[] {
+  const tops = slotTops(all, slot)
+  if (tops.length === 0) return []
+  const index = buildIndex(all)
+  const out: SlotRow[] = []
+  const walk = (row: NodeRow, depth: number) => {
+    out.push({ row, depth })
+    for (const child of childrenOf(index, row.id)) walk(child, depth + 1)
+  }
+  for (const top of tops) walk(top, 0)
+  return out
+}
+
+// What an hour's row counts. With several lines in the hour it is those lines. With one
+// line that has lines under it, it is the lines right under it: the big item worked through
+// over the hour (Kevin, 2026-11-24). Blank lines never count.
+export function slotProgress(all: Rows, slot: string): { top: NodeRow | undefined; count: SlotCount } {
+  const tops = slotTops(all, slot)
+  let counted = tops
+  if (tops.length === 1) {
+    const under: NodeRow[] = []
+    for (const id in all) {
+      const r = all[id]!
+      if (r.parentId === tops[0]!.id && isLive(r) && !isBlank(r)) under.push(r)
+    }
+    if (under.length > 0) counted = under
+  }
+  const done = counted.filter((r) => r.done).length
+  return { top: tops[0], count: { done, open: counted.length - done } }
 }
 
 function hourWord(hour: number): string {

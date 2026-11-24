@@ -1,6 +1,15 @@
 import type { DayKey } from './day';
 import { cleanFlagIds } from './flags';
 
+// The three states an hour goes through, the same three a line of the pad has: open (a
+// dot), doing (a dot in a ring), done (a cross). Done is set by hand: it is how a past
+// hour is confirmed to have gone where it should.
+export type HourState = 'open' | 'doing' | 'done';
+
+export function cleanHourState(raw: unknown): HourState | null {
+  return raw === 'open' || raw === 'doing' || raw === 'done' ? raw : null;
+}
+
 // One row per hour slot. (day, hour) is the identity, on the device and on the server, so
 // two devices logging the same hour land on the same row and last-write-wins settles it.
 // There is no delete: clearing an hour writes an empty row (no note, no category, no plan,
@@ -8,20 +17,21 @@ import { cleanFlagIds } from './flags';
 export type Entry = {
   day: DayKey;
   hour: number; // 0-23, device local time
-  // What happened, in words.
+  // The hour's summary, in words: a title typed by hand. Blank by default, and the hour
+  // then shows the first of the pad's lines put in it.
   note: string;
   // Where the hour went: a category id (src/core/categories.ts). An id the device does not
   // know yet, written by another device before its category row arrived, shows as untagged
   // and is kept.
   category: string | null;
-  // Where the hour was meant to go: also a category id. The screen draws it as an outline
-  // and `category` as the fill, so a kept plan and a missed one look different.
+  // Deprecated 2026-11-24 (Kevin: no more planned against actual). Nothing edits these by
+  // hand any more. They still carry a recurring plan pinned into the hour, and plans typed
+  // before that day, and are read only as the words and category an hour falls back on.
   planned: string | null;
-  // What was meant to happen, in words. Once the hour starts the editor offers it as the
-  // first draft of `note`. Either text can run to several lines.
   plannedNote: string;
   // The ids of the flags (src/core/flags.ts) that are on for this hour, sorted.
   flags: string[];
+  state: HourState;
   updatedAt: number; // ms since epoch, client clock
 };
 
@@ -31,10 +41,11 @@ export type EntryPatch = {
   planned?: string | null;
   plannedNote?: string;
   flags?: string[];
+  state?: HourState;
 };
 
-// Something was written about what happened. A plan alone is not a log.
-export function isLogged(entry: Entry | undefined): entry is Entry {
+// Something was written on the hour itself: a summary, a category or a flag.
+export function isLogged(entry: Pick<Entry, 'note' | 'category' | 'flags'> | undefined): boolean {
   return !!entry && (entry.category !== null || entry.note.trim() !== '' || entry.flags.length > 0);
 }
 
@@ -42,16 +53,14 @@ export function hasPlan(entry: Entry | undefined): entry is Entry {
   return !!entry && (entry.planned !== null || entry.plannedNote.trim() !== '');
 }
 
-// How an hour stands against its plan: 'none' when nothing was planned, 'kept' when it went
-// to the category it was meant for, 'missed' when it went to another, 'open' when nothing
-// says yet. Only categories are compared: a plan that is words alone stays 'open', because
-// two sentences cannot be judged the way two categories can.
-export type PlanState = 'none' | 'open' | 'kept' | 'missed';
+export function hourState(entry: Pick<Entry, 'state'> | undefined): HourState {
+  return entry?.state ?? 'open';
+}
 
-export function planState(entry: Entry | undefined): PlanState {
-  if (!hasPlan(entry)) return 'none';
-  if (entry.planned === null || entry.category === null) return 'open';
-  return entry.category === entry.planned ? 'kept' : 'missed';
+// A row written before hours had a state (2026-11-24) has none: one that was logged then
+// counts as done, which is what its filled box said.
+export function withState(row: Omit<Entry, 'state'> & { state?: unknown }): Entry {
+  return { ...row, state: cleanHourState(row.state) ?? (isLogged(row) ? 'done' : 'open') };
 }
 
 // A text can run to several lines. Lists show the first one that says anything, the way a
@@ -63,6 +72,21 @@ export function firstLine(text: string): string {
       .map((line) => line.trim())
       .find((line) => line !== '') ?? ''
   );
+}
+
+// What an hour's row says: the summary typed for it, or else the line on top of its list,
+// or else the words it falls back on (a recurring plan's). The category goes the same way.
+export type HourShown = { title: string; category: string | null; from: 'summary' | 'line' | 'plan' | null };
+
+export function hourShown(entry: Entry | undefined, top: { text: string; category: string | null } | undefined): HourShown {
+  const summary = firstLine(entry?.note ?? '');
+  const line = firstLine(top?.text ?? '');
+  const plan = firstLine(entry?.plannedNote ?? '');
+  const category = entry?.category ?? top?.category ?? entry?.planned ?? null;
+  if (summary) return { title: summary, category, from: 'summary' };
+  if (line) return { title: line, category, from: 'line' };
+  if (plan || entry?.planned) return { title: plan, category, from: 'plan' };
+  return { title: '', category, from: null };
 }
 
 export function applyPatch(
@@ -80,36 +104,13 @@ export function applyPatch(
     planned: patch.planned !== undefined ? patch.planned : (base?.planned ?? null),
     plannedNote: patch.plannedNote ?? base?.plannedNote ?? '',
     flags: cleanFlagIds(patch.flags ?? base?.flags ?? []),
+    state: patch.state ?? base?.state ?? 'open',
     // Never go backwards: a device with a slow clock still produces a newer write than
     // the row it is editing, or the server's last-write-wins would drop the edit.
     updatedAt: Math.max(now, (base?.updatedAt ?? 0) + 1),
   };
 }
 
-// The patch that clears an hour: what happened and what was planned.
-export const EMPTY: Required<EntryPatch> = { note: '', category: null, planned: null, plannedNote: '', flags: [] };
-
-// What clearing an hour that has started takes away: what happened. Its plan is closed
-// and stays.
-export const DEED_EMPTY: EntryPatch = { note: '', category: null, flags: [] };
-
-// What happened in an hour, apart from its plan.
-export type Deed = Pick<Entry, 'note' | 'category' | 'flags'>;
-
-// A tap on the box of an hour that has started: the hour's checkbox. On an hour with
-// nothing logged it takes the plan as what happened, words and category both. On a logged
-// hour it takes what happened away and leaves the plan. `taken` is what an earlier tap
-// took away, if the screen still has it: the next tap puts exactly that back, so a tap by
-// mistake costs one more tap and nothing else. Null when there is nothing to do: no plan
-// to accept and nothing to put back.
-export function toggleDone(entry: Entry | undefined, taken?: Deed): { patch: EntryPatch; taken?: Deed } | null {
-  // The guards narrow a blank hour to "no entry", which it is not: it can still carry a plan.
-  const logged: boolean = isLogged(entry);
-  if (entry && logged) {
-    return { patch: DEED_EMPTY, taken: { note: entry.note, category: entry.category, flags: entry.flags } };
-  }
-  if (taken) return { patch: taken };
-  const planned: boolean = hasPlan(entry);
-  if (!entry || !planned) return null;
-  return { patch: { note: entry.plannedNote, category: entry.planned } };
-}
+// The patch that clears an hour: everything written on it. The pad's lines put in the
+// hour are not the hour's to clear.
+export const EMPTY: Required<EntryPatch> = { note: '', category: null, planned: null, plannedNote: '', flags: [], state: 'open' };

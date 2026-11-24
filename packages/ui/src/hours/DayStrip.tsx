@@ -1,11 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { categoryShort, findCategory, type Category } from '@hissypad/core/hours';
+import { categoryShort } from '@hissypad/core/hours';
 import { daySlots, hourLabel, slotState, type DayKey } from '@hissypad/core/hours';
-import { isLogged, planState, type Entry } from '@hissypad/core/hours';
 import type { Summary } from '@hissypad/core/hours';
 
-import { Mark, planOutline } from './Mark';
+import { hourBox, Mark, type HourCell } from './Mark';
 import { serif, useTheme } from './theme';
 
 type Props = {
@@ -13,45 +12,37 @@ type Props = {
   // The hour the day starts at: the strip runs from it for 24 hours.
   start: number;
   now: Date;
-  byHour: Record<number, Entry>;
+  // Each hour as its box is drawn, by hour of the day.
+  cells: Record<number, HourCell>;
   summary: Summary;
-  categories: Category[];
 };
 
 const plural = (n: number) => (n === 1 ? 'hour' : 'hours');
 const hours = (n: number) => `${n}h`;
 
-// The day in words: how much of it is written down, how much of the plan held, and the
-// hours by category. Nothing on screen says this any more (2026-11-23, Kevin: the strip
-// alone, no text under it), so it is the strip's name for a screen reader.
+// The day in words: how many of its hours are marked done, and the done hours by category.
+// Nothing on screen says this (2026-11-23, Kevin: the strip alone, no text under it), so it
+// is the strip's name for a screen reader.
 export function stripWords(summary: Summary): string {
-  const accounted = summary.elapsed - summary.blank;
-  const { due, kept } = summary.plan;
   const count =
     summary.elapsed === 0
-      ? summary.planned > 0
-        ? `${summary.planned} ${plural(summary.planned)} planned.`
-        : summary.logged > 0
-          ? `${summary.logged} ${plural(summary.logged)} logged ahead of time.`
-          : 'This day has not started.'
-      : summary.logged === 0
-        ? 'Nothing logged for this day yet.'
-        : `${accounted} of ${summary.elapsed} ${plural(summary.elapsed)} accounted for.`;
-  const parts = summary.byCategory.map(
-    ({ category, hours: n, planned }) =>
-      `${categoryShort(category)} ${n > 0 ? hours(n) : `${hours(planned)} planned`}${n > 0 && planned > 0 ? `, ${hours(planned)} planned` : ''}`,
-  );
+      ? summary.done > 0
+        ? `${summary.done} ${plural(summary.done)} done ahead of time.`
+        : 'This day has not started.'
+      : summary.done === 0
+        ? 'No hour of this day is marked done yet.'
+        : `${summary.elapsed - summary.open} of ${summary.elapsed} ${plural(summary.elapsed)} done.`;
+  const parts = summary.byCategory.map(({ category, hours: n }) => `${categoryShort(category)} ${hours(n)}`);
   if (summary.untagged > 0) parts.push(`Untagged ${hours(summary.untagged)}`);
-  if (summary.blank > 0) parts.push(`Blank ${hours(summary.blank)}`);
-  return [count, due > 0 ? `${kept} of ${due} planned ${plural(due)} went as planned.` : '', parts.length ? `${parts.join('; ')}.` : '']
-    .filter(Boolean)
-    .join(' ');
+  if (summary.open > 0) parts.push(`Not done ${hours(summary.open)}`);
+  return [count, parts.length ? `${parts.join('; ')}.` : ''].filter(Boolean).join(' ');
 }
 
-// The whole day at a glance: 24 cells, from the day's start hour around the clock. The
-// outline of a cell is the plan for that hour and the fill is where it went (see Mark). A
-// bar under a cell marks the hour in progress. Under it, only the four hour ticks.
-export function DayStrip({ day, start, now, byHour, summary, categories }: Props) {
+// The whole day at a glance: 24 boxes, from the day's start hour around the clock. A box
+// is solid once its hour is done, an outline around a core while it is being done, a
+// colored outline when something is in it, and a thin grey one when it is empty (see
+// Mark). A bar under a box marks the hour in progress. Under it, only the four hour ticks.
+export function DayStrip({ day, start, now, cells, summary }: Props) {
   const theme = useTheme();
 
   return (
@@ -59,19 +50,10 @@ export function DayStrip({ day, start, now, byHour, summary, categories }: Props
       <View style={styles.strip} role="img" aria-label={stripWords(summary)}>
         {daySlots(day, start).map((slot) => {
           const { hour } = slot;
-          const entry = byHour[hour];
           const state = slotState(slot.day, hour, now);
-          const done = findCategory(categories, entry?.category);
-          const plan = findCategory(categories, entry?.planned);
           return (
             <View key={hour} style={styles.slot}>
-              <Mark
-                style={styles.cell}
-                fill={isLogged(entry) ? (done ? theme.palette[done.color] : theme.ink) : null}
-                outline={planOutline(entry, plan, isLogged(entry), theme)}
-                kept={planState(entry) === 'kept'}
-                faint={state === 'future'}
-              />
+              <Mark style={styles.cell} {...hourBox(cells[hour], theme.ink)} faint={state === 'future'} />
               <View style={[styles.now, state === 'now' && { backgroundColor: theme.accent }]} />
             </View>
           );

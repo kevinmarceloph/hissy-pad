@@ -39,6 +39,7 @@ const entry = (hour: number, over: Partial<Entry> = {}): Entry => ({
   planned: null,
   plannedNote: '',
   flags: [],
+  state: 'open',
   updatedAt: 1,
   ...over,
 });
@@ -108,6 +109,7 @@ describe('entry', () => {
       planned: null,
       plannedNote: '',
       flags: [],
+      state: 'open',
       updatedAt: 200,
     });
   });
@@ -187,15 +189,17 @@ describe('categories', () => {
 });
 
 describe('summarize', () => {
-  it('totals hours per category in category order and counts the blanks', () => {
+  const hour = (h: number, category: string | null, state: 'open' | 'doing' | 'done' = 'done') => ({ day: TODAY, hour: h, state, category });
+
+  it('totals done hours per category in category order and counts the ones still open', () => {
     const rows = [
-      entry(0, { category: 'sleep' }),
-      entry(1, { category: 'sleep' }),
-      entry(9, { category: 'deep' }),
-      entry(10, { category: 'deep' }),
-      entry(11, { category: null, note: 'call with the landlord' }),
-      entry(12, { category: null, note: '' }), // emptied: not logged
-      entry(16, { category: 'rest' }), // planned ahead: logged, not elapsed
+      hour(0, 'sleep'),
+      hour(1, 'sleep'),
+      hour(9, 'deep'),
+      hour(10, 'deep'),
+      hour(11, null),
+      hour(12, 'deep', 'open'), // not confirmed
+      hour(16, 'rest'), // marked ahead: done, not elapsed
     ];
     const summary = summarize(rows, TODAY, NOW, SAMPLE_CATEGORIES);
     expect(summary.byCategory.map(({ category, hours }) => [category.id, hours])).toEqual([
@@ -205,28 +209,28 @@ describe('summarize', () => {
     ]);
     expect(summary).toMatchObject({
       untagged: 1,
-      logged: 6,
-      blank: 9, // 14 finished hours, 5 of them logged
+      done: 6,
+      open: 9, // 14 finished hours, 5 of them done
       elapsed: 14,
     });
   });
 
-  it('ignores other days and reports a full blank past day', () => {
-    const summary = summarize([entry(9)], '2026-11-18', NOW, SAMPLE_CATEGORIES);
-    expect(summary).toMatchObject({ logged: 0, blank: 24, elapsed: 24, byCategory: [] });
+  it('ignores other days and reports a full open past day', () => {
+    const summary = summarize([hour(9, 'deep')], '2026-11-18', NOW, SAMPLE_CATEGORIES);
+    expect(summary).toMatchObject({ done: 0, open: 24, elapsed: 24, byCategory: [] });
   });
 
   it('follows the user\'s order, keeps archived hours and counts unknown ids as untagged', () => {
     const categories = SAMPLE_CATEGORIES.map((c) =>
       c.id === 'sleep' ? { ...c, position: -1 } : c.id === 'deep' ? { ...c, archived: true } : c,
     );
-    const rows = [entry(0, { category: 'sleep' }), entry(9, { category: 'deep' }), entry(10, { category: 'cnotyet001' })];
+    const rows = [hour(0, 'sleep'), hour(9, 'deep'), hour(10, 'cnotyet001')];
     const summary = summarize(rows, TODAY, NOW, categories);
     expect(summary.byCategory.map(({ category, hours }) => [category.id, hours])).toEqual([
       ['sleep', 1],
       ['deep', 1],
     ]);
-    expect(summary).toMatchObject({ untagged: 1, logged: 3 });
+    expect(summary).toMatchObject({ untagged: 1, done: 3 });
   });
 });
 

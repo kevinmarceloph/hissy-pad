@@ -1,18 +1,20 @@
-import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CHIME_CHOICES, chimesSpoken, minuteLabel, toggleChime } from '@hissypad/core/hours';
 import { dayDate, dayKey, dayOf, daySlots, dayTitle, fromDayKey, hourLabel, HOURS, shiftDay, slotState, type DayKey } from '@hissypad/core/hours';
-import { toggleDone, type Deed, type Entry, type EntryPatch } from '@hissypad/core/hours';
-import { drawnPlan, pinRecurring, recurringAt, withRecurring } from '@hissypad/core/hours';
-import { summarize } from '@hissypad/core/hours';
+import type { EntryPatch } from '@hissypad/core/hours';
+import { pinRecurring } from '@hissypad/core/hours';
+import { summarize, type SummaryHour } from '@hissypad/core/hours';
 import { useCategories, useChimes, useDay, useFlags, useRecurring, useSync } from './provider';
-import { slotCounts, slotDoneExtra, slotKey, slotLines } from '@hissypad/core';
+import { slotDoneExtra, slotKey } from '@hissypad/core';
 import { usePad } from '@hissypad/state';
 import { getChimePlatform } from '@hissypad/state/hours';
 
 import { DayStrip } from './DayStrip';
+import { drawHours } from './drawn';
 import { HourRow } from './HourRow';
+import type { HourCell } from './Mark';
 import { PullIndicator, useRefreshControl } from './PullRefresh';
 import { Tap } from './Tap';
 import { GUTTER, LINE, MAX_WIDTH, ROW, serif, SIZE, SMALL, useTheme } from './theme';
@@ -57,10 +59,9 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
   const recurring = useRecurring((s) => s.list);
   // Pulling the hours down syncs now and re-reads the day, signed in or not.
   const { syncNow } = useSync();
-  // The pad's lines assigned to an hour, counted by slot across every pad.
+  // The pad's lines, every pad: an hour lists the ones put in it.
   const all = usePad((s) => s.all);
-  const counts = slotCounts(all);
-  // And the lines crossed out during an hour that were not assigned to it, cleared ones too.
+  // The lines crossed out during an hour that were not assigned to it, cleared ones too.
   const extras = slotDoneExtra(all);
   const refreshDay = useDay((s) => s.refresh);
   const pulled = async () => {
@@ -69,17 +70,10 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
   };
   const refreshControl = useRefreshControl(pulled);
 
-  const [editing, setEditing] = useState<number | null>(null);
+  // Hours opens with the hour in progress open (Kevin, 2026-11-24): today is the day it
+  // starts on. Another day opens with every hour closed.
+  const [editing, setEditing] = useState<number | null>(() => (day === today ? now.getHours() : null));
   const [panel, setPanel] = useState<Panel | null>(null);
-  // What a tap on an hour's box took away, by calendar slot, until the app closes: the next
-  // tap on that box puts it back as it was.
-  const [taken, setTaken] = useState<Record<string, Deed>>({});
-  const remember = (slot: string, deed: Deed | undefined) =>
-    setTaken((before) => {
-      if (!deed && !(slot in before)) return before;
-      const { [slot]: _gone, ...rest } = before;
-      return deed ? { ...rest, [slot]: deed } : rest;
-    });
   const list = useRef<ComponentRef<typeof ScrollView>>(null);
 
   useEffect(() => {
@@ -114,20 +108,18 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
     void open(to);
   };
 
-  // Each hour as the screen shows it: its own plan, or the recurring plan that covers it, or
-  // else the words and category of the first line put in it (Kevin, 2026-11-24).
-  // `byHour` stays what is stored; `shown` is what is drawn, counted and edited.
-  const slots = daySlots(day, start).map((slot) => {
-    const drawn = drawnPlan(recurringAt(recurring, slot.day, slot.hour), slotLines(all, slotKey(slot.day, slot.hour)));
-    return { ...slot, plan: drawn?.plan, from: drawn?.from };
-  });
-  const shown: Record<number, Entry> = {};
-  for (const { day: on, hour, plan } of slots) {
-    const entry = withRecurring(byHour[hour], plan, on, hour);
-    if (entry) shown[hour] = entry;
-  }
+  // Each hour as the screen shows it: with the recurring plan that covers it, when it has
+  // no plan stored (`byHour` stays what is stored; `entry` here is what is drawn and
+  // edited), and with the line on top of its list and what its row counts.
+  const hours = useMemo(
+    () => drawHours(daySlots(day, start), byHour, recurring, all, categories, theme.palette),
+    [day, start, byHour, recurring, all, categories, theme.palette],
+  );
+  const cells: Record<number, HourCell> = {};
+  for (const h of hours) cells[h.hour] = h.cell;
+  const counted: SummaryHour[] = hours.map((h) => ({ day: h.day, hour: h.hour, state: h.cell.state, category: h.says.category }));
 
-  const summary = summarize(Object.values(shown), day, now, categories, start);
+  const summary = summarize(counted, day, now, categories, start);
 
   const toggle = (which: Panel) => setPanel(panel === which || (which === 'menu' && panel === 'settings') ? null : which);
   const leave = (to: (() => void) | undefined) =>
@@ -200,7 +192,7 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
             <>
               {/* Always in view, above the hours. What it says in words is its label. */}
               <View style={styles.summary}>
-                <DayStrip day={day} start={start} now={now} byHour={shown} summary={summary} categories={categories} />
+                <DayStrip day={day} start={start} now={now} cells={cells} summary={summary} />
                 {error && (
                   <Text role="alert" style={[styles.count, { color: theme.accent }]}>
                     That change was not saved and has been undone: {error}
@@ -218,13 +210,8 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
                 automaticallyAdjustKeyboardInsets
                 onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
                 contentContainerStyle={{ paddingBottom: Math.max(48, listHeight - ROW) }}>
-                {slots.map(({ day: on, hour, plan, from }) => {
-                  const slot = `${on}T${hour}`;
+                {hours.map(({ day: on, hour, plan, top, count, entry }) => {
                   const state = slotState(on, hour, now);
-                  // Only an hour that has started can be marked done.
-                  const mark = state === 'future' ? null : toggleDone(shown[hour], taken[slot]);
-                  // The first write to an hour pins the recurring plan it was showing.
-                  const write = (patch: EntryPatch) => void save(hour, pinRecurring(patch, byHour[hour], plan));
                   return (
                     <View
                       key={`${day}-${hour}`}
@@ -239,10 +226,10 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
                       <HourRow
                         day={on}
                         hour={hour}
-                        count={counts[slotKey(on, hour)]}
+                        top={top}
+                        count={count}
                         extra={extras[slotKey(on, hour)]}
-                        entry={shown[hour]}
-                        drawn={shown[hour] !== byHour[hour] ? from : undefined}
+                        entry={entry}
                         state={state}
                         open={editing === hour}
                         categories={categories}
@@ -250,19 +237,8 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
                         onEditFlags={onEditFlags}
                         onOpen={() => setEditing(hour)}
                         onClose={() => setEditing(null)}
-                        onSave={(patch) => {
-                          // An edit made by hand is newer than anything a tap took away.
-                          remember(slot, undefined);
-                          write(patch);
-                        }}
-                        onMark={
-                          mark
-                            ? () => {
-                                remember(slot, mark.taken);
-                                write(mark.patch);
-                              }
-                            : undefined
-                        }
+                        // The first write to an hour pins the recurring plan it was showing.
+                        onSave={(patch: EntryPatch) => void save(hour, pinRecurring(patch, byHour[hour], plan))}
                       />
                     </View>
                   );

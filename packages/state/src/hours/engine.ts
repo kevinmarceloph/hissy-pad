@@ -68,7 +68,8 @@ export const cursorKey = (table: string) => `sync.cursor.${table}`;
 // row again; the merge takes what is newer or what a clean local row got wrong.
 // 2: 2026-11-21, a phone showed four planned hours as blank while the server had the plans.
 // 3: 2026-11-24, categories got an icon: a device on the older code pulled them without it.
-export const PULL_EPOCH = '3';
+// 4: 2026-11-24, hours got a state (open, doing, done): a device on the older code pulled them without it.
+export const PULL_EPOCH = '4';
 const EPOCH_KEY = 'sync.epoch';
 const TABLES = ['categories', 'flags', 'recurring', 'entries'];
 

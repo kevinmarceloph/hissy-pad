@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSlot, slotCounts, slotCovers, slotDoneExtra, slotHours, slotKey, slotLabel, slotLines } from './slot'
+import { parseSlot, slotCounts, slotCovers, slotDoneExtra, slotHours, slotKey, slotLabel, slotLines, slotOutline, slotProgress, slotTops } from './slot'
 import type { NodeRow, Rows } from './types'
 
 const row = (id: string, slot: string | null, done = false): NodeRow => ({
@@ -69,5 +69,40 @@ describe('lines crossed out during an hour', () => {
       row('i', null),                                  // open
     )
     expect(slotDoneExtra(all)).toEqual({ '2026-11-24T14': 2, '2026-11-24T15': 1 })
+  })
+})
+
+describe('an hour as a pad of its own', () => {
+  const H = '2026-11-24T14'
+  const under = (id: string, parentId: string, over: Partial<NodeRow> = {}): NodeRow => ({ ...row(id, null), parentId, ...over })
+
+  it('lists the lines put in it and everything under them, depth first', () => {
+    const all = table(row('a', H), under('a1', 'a'), under('a1x', 'a1'), under('a2', 'a'), row('b', H), row('c', null), under('c1', 'c'))
+    expect(slotOutline(all, H).map((r) => `${r.row.id}:${r.depth}`)).toEqual(['a:0', 'a1:1', 'a1x:2', 'a2:1', 'b:0'])
+    expect(slotOutline(all, '2026-11-24T15')).toEqual([])
+  })
+
+  it('shows a line that sits under another line of the same hour once, under it', () => {
+    const all = table(row('a', H), under('a1', 'a', { slot: H }), row('b', H))
+    expect(slotTops(all, H).map((r) => r.id)).toEqual(['a', 'b'])
+    expect(slotOutline(all, H).map((r) => r.row.id)).toEqual(['a', 'a1', 'b'])
+  })
+
+  it('keeps an archived line with nothing under it', () => {
+    const gone = '2026-11-24T10:00:00.000Z'
+    const all = table({ ...row('a', H), deletedAt: gone }, under('a1', 'a', { deletedAt: gone }))
+    expect(slotOutline(all, H).map((r) => r.row.id)).toEqual(['a'])
+  })
+
+  it('counts the lines under its one line, or its lines when there are several', () => {
+    // One big item: the hour counts what is right under it, blank lines and deeper ones left out.
+    const one = table(row('a', H), under('a1', 'a', { done: true }), under('a2', 'a'), under('a3', 'a', { text: '' }), under('a2x', 'a2', { done: true }))
+    expect(slotProgress(one, H)).toMatchObject({ top: { id: 'a' }, count: { done: 1, open: 1 } })
+    // One item with nothing under it counts for itself.
+    expect(slotProgress(table(row('a', H, true)), H).count).toEqual({ done: 1, open: 0 })
+    // Several: the hour's own lines.
+    const many = table(row('a', H), under('a1', 'a', { done: true }), row('b', H, true))
+    expect(slotProgress(many, H)).toMatchObject({ top: { id: 'a' }, count: { done: 1, open: 1 } })
+    expect(slotProgress(table(), H)).toEqual({ top: undefined, count: { done: 0, open: 0 } })
   })
 })

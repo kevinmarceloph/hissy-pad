@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cleanIcon, SAMPLE_CATEGORIES } from './categories';
-import { applyPatch, DEED_EMPTY, EMPTY, firstLine, hasPlan, isLogged, planState, toggleDone, type Entry } from './entry';
+import { applyPatch, EMPTY, firstLine, hasPlan, hourShown, hourState, isLogged, withState, type Entry } from './entry';
 import {
   activeFlags,
   activeOptions,
@@ -35,6 +35,7 @@ const entry = (hour: number, over: Partial<Entry> = {}): Entry => ({
   planned: null,
   plannedNote: '',
   flags: [],
+  state: 'open',
   updatedAt: 1,
   ...over,
 });
@@ -49,28 +50,10 @@ describe('the plan', () => {
     expect(isLogged(entry(9, { planned: 'deep', plannedNote: 'proposals' }))).toBe(false);
   });
 
-  it('is kept or missed by category only', () => {
-    expect(planState(entry(9))).toBe('none');
-    expect(planState(entry(9, { planned: 'deep' }))).toBe('open');
-    expect(planState(entry(9, { planned: 'deep', note: 'scrolled' }))).toBe('open');
-    expect(planState(entry(9, { planned: 'deep', category: 'deep' }))).toBe('kept');
-    expect(planState(entry(9, { planned: 'deep', category: 'drift' }))).toBe('missed');
-    // Words alone are never judged, even when they differ.
-    expect(planState(entry(9, { plannedNote: 'proposals', note: 'scrolled', category: 'drift' }))).toBe('open');
-  });
-
   it('shows the first line that says anything', () => {
     expect(firstLine('fix the collector\n\nthe five-minute one, again')).toBe('fix the collector');
     expect(firstLine('\n  \n  lunch  \nwith the team')).toBe('lunch');
     expect(firstLine('')).toBe('');
-  });
-
-  it('clears what happened and keeps the plan once the hour has started', () => {
-    const lived = entry(9, { note: 'scrolled', category: 'drift', flags: ['distracted'], planned: 'deep', plannedNote: 'proposals' });
-    expect(applyPatch(lived, TODAY, 9, DEED_EMPTY, 300)).toEqual({
-      ...entry(9, { planned: 'deep', plannedNote: 'proposals' }),
-      updatedAt: 300,
-    });
   });
 
   it('patches the plan without touching what happened, and clears both', () => {
@@ -81,55 +64,48 @@ describe('the plan', () => {
     expect(applyPatch(planned, TODAY, 9, EMPTY, 300)).toEqual({ ...entry(9), updatedAt: 300 });
   });
 
-  it('marks an hour done as planned with one tap, and not done with the next', () => {
-    // Nothing to accept and nothing to put back: the box does nothing.
-    expect(toggleDone(undefined)).toBeNull();
-    expect(toggleDone(entry(9))).toBeNull();
-
-    // Done takes the plan's words and its category.
-    const planned = entry(9, { planned: 'sleep', plannedNote: 'sleep\nno phone' });
-    const done = toggleDone(planned)!;
-    expect(done).toEqual({ patch: { note: 'sleep\nno phone', category: 'sleep' } });
-    const after = applyPatch(planned, TODAY, 9, done.patch, 2);
-    expect(isLogged(after)).toBe(true);
-    expect(planState(after)).toBe('kept');
-
-    // Not done takes what happened and leaves the plan, and hands back what it took.
-    const logged = { ...after, note: 'slept badly', flags: ['halts:yes'] };
-    const undone = toggleDone(logged)!;
-    expect(undone.patch).toBe(DEED_EMPTY);
-    expect(undone.taken).toEqual({ note: 'slept badly', category: 'sleep', flags: ['halts:yes'] });
-    const blank = applyPatch(logged, TODAY, 9, undone.patch, 3);
-    expect(blank).toMatchObject({ note: '', category: null, flags: [], planned: 'sleep', plannedNote: 'sleep\nno phone' });
-
-    // The next tap puts back what was taken, not the plan: a tap by mistake loses nothing.
-    expect(toggleDone(blank, undone.taken)).toEqual({ patch: undone.taken });
-    // That holds for an hour that never had a plan.
-    expect(toggleDone(entry(9), { note: 'lunch', category: null, flags: [] })).toEqual({
-      patch: { note: 'lunch', category: null, flags: [] },
-    });
+  it('has a state of its own, set by a patch and kept by the others', () => {
+    expect(hourState(undefined)).toBe('open');
+    const done = applyPatch(entry(9, { note: 'email' }), TODAY, 9, { state: 'done' }, 200);
+    expect(done).toMatchObject({ note: 'email', state: 'done' });
+    expect(applyPatch(done, TODAY, 9, { note: 'email, then lunch' }, 300).state).toBe('done');
+    expect(applyPatch(done, TODAY, 9, EMPTY, 300).state).toBe('open');
   });
 
-  it('counts the planned hours and how many went as planned', () => {
+  it('reads a row from before hours had a state as done when it was logged', () => {
+    const { state: _none, ...old } = entry(9, { note: 'email' });
+    expect(withState(old).state).toBe('done');
+    const { state: _gone, ...blank } = entry(9, { planned: 'deep' });
+    expect(withState(blank).state).toBe('open');
+    expect(withState({ ...old, state: 'doing' }).state).toBe('doing');
+    expect(withState({ ...old, state: 'kept' }).state).toBe('done');
+  });
+
+  it('shows its summary, or else the line on top of its list, or else what it falls back on', () => {
+    const top = { text: 'write the proposal', category: 'deep' };
+    expect(hourShown(undefined, undefined)).toEqual({ title: '', category: null, from: null });
+    expect(hourShown(undefined, top)).toEqual({ title: 'write the proposal', category: 'deep', from: 'line' });
+    // A summary wins over the line, and the hour's own category over the line's.
+    expect(hourShown(entry(9, { note: 'proposals\nall morning' }), top)).toEqual({ title: 'proposals', category: 'deep', from: 'summary' });
+    expect(hourShown(entry(9, { category: 'admin' }), top)).toEqual({ title: 'write the proposal', category: 'admin', from: 'line' });
+    // With no line and no summary, a recurring plan's words and category.
+    expect(hourShown(entry(9, { planned: 'sleep', plannedNote: 'sleep' }), undefined)).toEqual({ title: 'sleep', category: 'sleep', from: 'plan' });
+    expect(hourShown(entry(9, { planned: 'sleep', plannedNote: 'sleep' }), top)).toMatchObject({ title: 'write the proposal', category: 'deep' });
+  });
+
+  it('counts the hours marked done, by the category each row shows', () => {
+    const hour = (h: number, state: 'open' | 'doing' | 'done', category: string | null) => ({ day: TODAY, hour: h, state, category });
     const rows = [
-      entry(8, { planned: 'deep', category: 'deep' }),
-      entry(9, { planned: 'deep', category: 'drift' }),
-      entry(10, { planned: 'deep' }), // over and blank: due, not kept
-      entry(11, { plannedNote: 'call the bank' }), // words alone: planned, never judged
-      entry(16, { planned: 'body' }), // not yet: planned, not due
-      entry(17, { planned: 'rest', category: 'rest' }), // logged ahead: already kept
+      hour(8, 'done', 'deep'),
+      hour(9, 'done', 'drift'),
+      hour(10, 'open', 'deep'), // over and not confirmed
+      hour(11, 'doing', 'deep'),
+      hour(12, 'done', null),
+      hour(17, 'done', 'rest'), // marked ahead of time
     ];
     const summary = summarize(rows, TODAY, NOW, SAMPLE_CATEGORIES);
-    expect(summary.planned).toBe(6);
-    expect(summary.plan).toEqual({ due: 4, kept: 2 });
-    expect(summary.byCategory.map((c) => `${c.category.id} ${c.hours}/${c.planned}`)).toEqual([
-      'deep 1/3',
-      'body 0/1',
-      'rest 1/1',
-      'drift 1/0',
-    ]);
-    // A plan is not a log: 10am and 11am are still blank.
-    expect(summary.logged).toBe(3);
+    expect(summary.byCategory.map((c) => `${c.category.id} ${c.hours}`)).toEqual(['deep 1', 'rest 1', 'drift 1']);
+    expect(summary).toMatchObject({ done: 4, untagged: 1, elapsed: 14, open: 11 });
   });
 });
 

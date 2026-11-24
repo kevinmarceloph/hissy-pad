@@ -1,33 +1,27 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import type { Category } from '@hissypad/core/hours';
-import { hasPlan, type Entry } from '@hissypad/core/hours';
-
-import { useTheme, type Theme } from './theme';
+import { useTheme } from './theme';
 
 type Props = {
-  // The color of what was done, or nothing.
+  // The color of the inside of the box, or nothing.
   fill?: string | null;
-  // The color of what was planned, or nothing.
+  // The color of its outline, or nothing.
   outline?: string | null;
-  // The plan and the deed are the same category.
-  kept?: boolean;
   // An hour that has not come yet draws its empty box lighter.
   faint?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-// One box that says both things about an hour: the outline is the plan, the fill is what
-// happened. The shapes differ, not only the colors, so they read without telling hues
-// apart:
-//   hollow, colored outline    planned, nothing done yet
-//   solid                      done (as planned, or with no plan)
-//   outline around a core      done, but not what was planned
-//   hollow, thin grey outline  nothing planned, nothing done
-export function Mark({ fill, outline, kept, faint, style }: Props) {
+// One box: a category's swatch in a list, or one hour in a strip of them, where the shape
+// says the hour's state so it reads without telling hues apart (see hourBox):
+//   hollow, thin grey outline  nothing in the hour
+//   hollow, colored outline    something in it, still open
+//   outline around a core      doing
+//   solid                      done
+export function Mark({ fill, outline, faint, style }: Props) {
   const theme = useTheme();
 
-  if (fill && outline && !kept) {
+  if (fill && outline) {
     return (
       <View style={[styles.box, styles.ring, { borderColor: outline }, style]}>
         <View style={[styles.core, { backgroundColor: fill }]} />
@@ -39,13 +33,17 @@ export function Mark({ fill, outline, kept, faint, style }: Props) {
   return <View style={[styles.box, { borderColor: faint ? theme.rule : theme.line }, style]} />;
 }
 
-// The outline of an hour's box: its planned category's color. A plan that is words alone
-// draws in ink, and only until something is logged: around a fill it would read as an hour
-// that went elsewhere.
-export function planOutline(entry: Entry | undefined, plan: Category | undefined, logged: boolean, theme: Theme): string | null {
-  if (!hasPlan(entry)) return null;
-  if (entry.planned === null) return logged ? null : theme.ink;
-  return plan ? theme.palette[plan.color] : theme.ink;
+// One hour of a strip: its state, the color of the category its row shows (null for none),
+// and whether there is anything in it at all.
+export type HourCell = { state: 'open' | 'doing' | 'done'; color: string | null; any: boolean };
+
+// The box an hour is drawn as in a strip. No category draws in ink.
+export function hourBox(cell: HourCell | undefined, ink: string): { fill: string | null; outline: string | null } {
+  if (!cell) return { fill: null, outline: null };
+  const color = cell.color ?? ink;
+  if (cell.state === 'done') return { fill: color, outline: null };
+  if (cell.state === 'doing') return { fill: color, outline: color };
+  return { fill: null, outline: cell.any ? color : null };
 }
 
 const styles = StyleSheet.create({

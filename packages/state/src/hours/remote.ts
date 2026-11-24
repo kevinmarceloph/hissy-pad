@@ -3,7 +3,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { cleanIcon, isColorKey, type Category } from '@hissypad/core/hours';
-import type { Entry } from '@hissypad/core/hours';
+import { withState, type Entry } from '@hissypad/core/hours';
 import { cleanFlagIds, cleanOptions, type Flag, type FlagOption } from '@hissypad/core/hours';
 import { cleanDays, cleanHour, type RecurringPlan } from '@hissypad/core/hours';
 
@@ -18,6 +18,8 @@ type WireEntry = {
   planned?: string | null;
   planned_note?: string | null;
   flags?: string[] | null;
+  // Absent on a row read from a server that has not run the hour-state migration.
+  state?: string | null;
   updated_at: number;
   synced_at?: string;
 };
@@ -69,11 +71,12 @@ export const entryToWire = (e: Entry): WireEntry => ({
   planned: e.planned,
   planned_note: e.plannedNote,
   flags: e.flags,
+  state: e.state,
   updated_at: e.updatedAt,
 });
 
 export const entryFromWire = (w: WireEntry): Pulled<Entry> => ({
-  row: {
+  row: withState({
     day: w.day,
     hour: w.hour,
     note: w.note,
@@ -81,8 +84,9 @@ export const entryFromWire = (w: WireEntry): Pulled<Entry> => ({
     planned: w.planned ?? null,
     plannedNote: w.planned_note ?? '',
     flags: cleanFlagIds(Array.isArray(w.flags) ? w.flags : []),
+    state: w.state,
     updatedAt: Number(w.updated_at),
-  },
+  }),
   syncedAt: new Date(w.synced_at ?? 0).toISOString(),
 });
 

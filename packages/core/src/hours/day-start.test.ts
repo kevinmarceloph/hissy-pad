@@ -12,6 +12,7 @@ const entry = (day: string, hour: number, over: Partial<Entry> = {}): Entry => (
   planned: null,
   plannedNote: '',
   flags: [],
+  state: 'open',
   updatedAt: 1,
   ...over,
 });
@@ -61,10 +62,10 @@ describe('a day that starts at 6am', () => {
       entry('2026-11-21', 1, { category: 'sleep' }), // after midnight: still Friday's day
       entry('2026-11-21', 7), // Saturday's day
     ];
-    const summary = summarize(rows, '2026-11-20', now, SAMPLE_CATEGORIES, 6);
-    expect(summary.logged).toBe(2);
+    const summary = summarize(rows.map((r) => ({ ...r, state: 'done' as const })), '2026-11-20', now, SAMPLE_CATEGORIES, 6);
+    expect(summary.done).toBe(2);
     expect(summary.elapsed).toBe(20);
-    expect(summary.blank).toBe(18);
+    expect(summary.open).toBe(18);
     expect(summary.byCategory.map((c) => `${c.category.id} ${c.hours}`)).toEqual(['deep 1', 'sleep 1']);
   });
 

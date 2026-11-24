@@ -1,6 +1,6 @@
 -- pgTAP: RLS and last-write-wins on public.hour_entries. Run with `supabase test db`.
 begin;
-select plan(16);
+select plan(19);
 
 -- Two users, created directly (no GoTrue in a db test).
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
@@ -79,6 +79,14 @@ on conflict (user_id, day, hour) do update
   set note = excluded.note, category = excluded.category, updated_at = excluded.updated_at;
 select is((select note || '|' || coalesce(category, 'null') from public.hour_entries where hour = 9),
   '|null', 'a newer empty upsert clears the hour');
+
+-- An hour has a state: open until said otherwise, and one of three.
+select is((select state from public.hour_entries where hour = 9), 'open', 'state defaults to open');
+update public.hour_entries set state = 'done', updated_at = 5000 where hour = 9;
+select is((select state from public.hour_entries where hour = 9), 'done', 'an hour can be marked done');
+select throws_ok(
+  $$ update public.hour_entries set state = 'kept', updated_at = 6000 where hour = 9 $$,
+  '23514', null, 'a state outside open, doing, done is rejected');
 
 select throws_ok($$ delete from public.hour_entries $$, '42501', null, 'clients cannot delete');
 

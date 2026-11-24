@@ -1,6 +1,6 @@
 import type { Category } from './categories';
 import type { DayKey } from './day';
-import type { Entry } from './entry';
+import { withState, type Entry } from './entry';
 import type { Flag } from './flags';
 import type { RecurringPlan } from './recurring';
 
@@ -169,7 +169,13 @@ export class HoursStore implements EntryStore, CategoryStore, FlagStore, Recurri
     };
     for (const stored of await this.backend.load()) {
       // A category saved before categories had an icon has none.
-      const row = stored.table === 'categories' ? { icon: '', ...(stored.row as object) } : stored.row;
+      // And an hour saved before hours had a state has none.
+      const row =
+        stored.table === 'categories'
+          ? { icon: '', ...(stored.row as object) }
+          : stored.table === 'entries'
+            ? withState(stored.row as Entry)
+            : stored.row;
       maps[stored.table]?.set(stored.key, { row: row as never, dirty: stored.dirty });
     }
   }

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { applyPatch, planState, toggleDone, type Entry } from './entry';
+import { applyPatch, type Entry } from './entry';
 import {
-  drawnPlan,
   cleanDays,
   covers,
   daysLabel,
@@ -147,6 +146,7 @@ describe('an hour under a recurring plan', () => {
     planned: null,
     plannedNote: '',
     flags: [],
+    state: 'open',
     updatedAt: 7,
     ...over,
   });
@@ -162,32 +162,16 @@ describe('an hour under a recurring plan', () => {
     expect(withRecurring(undefined, undefined, SAT, 3)).toBeUndefined();
   });
 
-  it('draws the first line put in the hour where no recurring plan covers it', () => {
-    const lines = [{ text: ' call the bank ', category: 'work' }, { text: 'buy milk', category: null }];
-    expect(drawnPlan(undefined, lines)).toEqual({ plan: { note: 'call the bank', category: 'work' }, from: 'line' });
-    // A recurring plan comes first.
-    expect(drawnPlan(plan(), lines)).toEqual({ plan: plan(), from: 'recurring' });
-    expect(drawnPlan(undefined, [])).toBeUndefined();
-    expect(drawnPlan(undefined, [{ text: '  ', category: 'work' }])).toBeUndefined();
-    expect(withRecurring(undefined, drawnPlan(undefined, lines)!.plan, SAT, 3)).toMatchObject({ planned: 'work', plannedNote: 'call the bank' });
-  });
-
-  it('is marked done as planned with one tap, and the plan is pinned into the row', () => {
-    const shown = withRecurring(undefined, plan(), SAT, 3);
-    const tap = toggleDone(shown)!;
-    expect(tap.patch).toEqual({ note: 'sleep', category: 'sleep' });
-
-    const patch = pinRecurring(tap.patch, undefined, plan());
+  it('is pinned into the row by the first write to the hour', () => {
+    const patch = pinRecurring({ state: 'done' }, undefined, plan());
     const row = applyPatch(undefined, SAT, 3, patch, 100);
-    expect(row).toMatchObject({ note: 'sleep', category: 'sleep', planned: 'sleep', plannedNote: 'sleep' });
-    expect(planState(row)).toBe('kept');
+    expect(row).toMatchObject({ state: 'done', planned: 'sleep', plannedNote: 'sleep' });
 
-    // The plan changes later; the hour that was lived keeps the one it was lived against.
+    // The plan changes later; the hour that was lived keeps the one it was lived under.
     const later = plan({ note: 'sleep early', category: 'rest' });
     expect(withRecurring(row, later, SAT, 3)).toBe(row);
-    // Marked not done, the pinned plan stays.
-    const undone = applyPatch(row, SAT, 3, pinRecurring(toggleDone(row)!.patch, row, later), 200);
-    expect(undone).toMatchObject({ note: '', category: null, planned: 'sleep', plannedNote: 'sleep' });
+    const undone = applyPatch(row, SAT, 3, pinRecurring({ state: 'open' }, row, later), 200);
+    expect(undone).toMatchObject({ state: 'open', planned: 'sleep', plannedNote: 'sleep' });
   });
 
   it('lets a patch that sets the plan win over the pin', () => {

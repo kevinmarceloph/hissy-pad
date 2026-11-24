@@ -84,7 +84,9 @@ Screens written once in React Native. The phone draws them natively; the web app
 | `src/hours/HoursApp.tsx` | the Hours mode, whole: opens the stores, switches between the day and the three list screens |
 | `src/hours/DayScreen.tsx` | the day: a one-line header (earlier, the day, the calendar, later, the menu), the 24-cell strip pinned under it, the hour rows (padded so the current hour opens at the top), and the panels over them: the calendar (`DayPicker`), the menu (the lists, Settings, the sync line) and Settings (day start, chimes) |
 | `src/hours/HourRow.tsx` | one hour: its row (box, words, the lines' count, flag marks) and its editor |
-| `src/hours/Items.tsx` | the pad's lines in an open hour: tick, take out, add, or find a line in any pad (the universal search, `slotFinds`) and put it in the hour |
+| `src/hours/MiniPad.tsx` | the open hour as a small pad: the lines put in it and everything under them, typed in place (Return, Tab, Backspace, the bullet, the three-state switch), and the field that adds a line or finds one in any pad (`slotFinds`) |
+| `src/hours/StateMark.tsx` | the three bullets (open, doing, done) for a line and for an hour, and the switch that sets one |
+| `src/hours/drawn.ts` | `drawHours`: each hour of a day as a screen draws it (recurring plan, top line, count, its box in a strip), for the day screen and the hour picker |
 | `src/hours/SlotPicker.tsx` | the hour picker the pad's toolbar opens |
 | `src/hours/CategoryPicker.tsx` | the category picker the pad's toolbar opens ("Category…"), with "New category" in place (the form is `NewCategory` from `CategoriesScreen.tsx`) |
 | `src/hours/CategoriesScreen.tsx`, `FlagsScreen.tsx`, `RecurringScreen.tsx` | the user's own lists; categories open from the app's top menu through `CategoriesApp` (`HoursApp.tsx`), flags and plans from Hours' menu |

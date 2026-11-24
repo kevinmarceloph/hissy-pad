@@ -137,7 +137,7 @@ export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { label?: stri
 
 // The same for an op that spans pads (move to another pad, a new pad, a fresh start): it
 // sees and returns the whole table.
-export function applyAll(fn: (all: Rows, ctx: OpCtx) => Rows, opts: { label?: string } = {}): Rows {
+export function applyAll(fn: (all: Rows, ctx: OpCtx) => Rows, opts: { label?: string; coalesce?: string } = {}): Rows {
   const { all } = get()
   const next = fn(all, ctx)
   const label = opts.label ?? 'op'
@@ -147,7 +147,7 @@ export function applyAll(fn: (all: Rows, ctx: OpCtx) => Rows, opts: { label?: st
   }
   const nextAll: Record<string, NodeRow> = { ...next }
   for (const id in all) if (!(id in next)) nextAll[id] = tombstone(all[id]!)
-  commit(all, nextAll, label)
+  commit(all, nextAll, label, opts.coalesce)
   return get().all
 }
 

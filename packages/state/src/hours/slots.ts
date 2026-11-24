@@ -1,7 +1,7 @@
 // Lines of the pad inside an hour. A line carries the slot it is assigned to (core/slot.ts);
 // these are the commands the pad's toolbar and the Hours screen run on it. They go through
 // the pad's own store, so each one is an undo step and syncs like any other edit.
-import { insertAt, isLive, setDone, setSlot, slotCovers, slotKey, slotLabel, slotLines, todayKey, type NodeRow } from '@hissypad/core';
+import { buildIndex, childrenOf, dedent, indent, insertAfter, insertAt, isLive, remove, setDone, setSlot, setState, setText, slotCovers, slotKey, slotLabel, slotLines, slotOutline, splitNode, todayKey, type LineState, type NodeRow } from '@hissypad/core';
 
 import { apply, applyAll, usePad } from '../store';
 import { search, type SearchPart } from '../search';
@@ -35,6 +35,60 @@ export function cmdSlotClear(id: string) {
 // the whole table is the target; a line in another hour moves to this one.
 export function cmdSlotPut(id: string, day: string, hour: number) {
   applyAll((all, ctx) => (isLive(all[id]) ? setSlot(all, ctx, [id], slotKey(day, hour)) : all), { label: 'cmdSlotPut' });
+}
+
+// ---- the hour as a pad of its own -------------------------------------------------------------
+// The open hour lists its lines with everything under them, and edits them in place. The
+// lines may sit in any pad, so each of these works on the whole table.
+
+// A line's words, typed in the hour. A run of keystrokes on one line is one undo step.
+export function cmdSlotText(id: string, text: string) {
+  applyAll((all, ctx) => (isLive(all[id]) ? setText(all, ctx, id, text.replace(/\n/g, ' ')) : all), { label: 'cmdSlotText', coalesce: `slot-text:${id}` });
+}
+
+// One of the three states, from the hour's switch.
+export function cmdSlotState(id: string, state: LineState) {
+  applyAll((all, ctx) => setState(all, ctx, [id], state), { label: 'cmdSlotState' });
+}
+
+// Return on a line of the hour. On one of the hour's own lines (`top`) the new line goes
+// right under it, as its first child: a line beside it would sit outside the hour. On a
+// line further in, it splits at the caret like the pad does. Returns the new line's id.
+export function cmdSlotBreak(id: string, top: boolean, caret?: number): string {
+  let made = '';
+  applyAll((all, ctx) => {
+    const row = all[id];
+    if (!isLive(row)) return all;
+    const out = top
+      ? insertAt(all, ctx, { parentId: id, afterId: null })
+      : caret !== undefined && caret < row.text.length
+        ? splitNode(all, ctx, id, caret)
+        : insertAfter(all, ctx, id);
+    made = out.newId;
+    return out.rows;
+  }, { label: 'cmdSlotBreak' });
+  return made;
+}
+
+// Backspace on an empty line with nothing under it takes the line away. Never one of the
+// hour's own lines: those leave the hour by their own button.
+export function cmdSlotErase(id: string): boolean {
+  const { all } = usePad.getState();
+  const row = all[id];
+  if (!isLive(row) || row.text !== '' || childrenOf(buildIndex(all), id).length > 0) return false;
+  applyAll((rows, ctx) => remove(rows, ctx, [id]), { label: 'cmdSlotErase' });
+  return true;
+}
+
+// Tab and Shift+Tab. A line never moves out from under the hour's own line it belongs to:
+// `depth` is how deep it sits in the hour, and a line right under a top one stays there.
+export function cmdSlotShift(id: string, depth: number, dir: 'in' | 'out') {
+  if (depth < 1 || (dir === 'out' && depth < 2)) return;
+  applyAll((all, ctx) => (isLive(all[id]) ? (dir === 'in' ? indent(all, ctx, [id]) : dedent(all, ctx, [id])) : all), { label: 'cmdSlotShift' });
+}
+
+export function outlineOfSlot(day: string, hour: number) {
+  return slotOutline(usePad.getState().all, slotKey(day, hour));
 }
 
 // Lines to offer for an hour while its item field is typed in: the universal search over

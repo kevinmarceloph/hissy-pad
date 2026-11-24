@@ -81,6 +81,11 @@ export interface HoursStores {
 const syncStore: HoursSyncStore = createStore(() => ({ status: null as SyncStatus | null }));
 
 let opened: Promise<HoursStores> | null = null;
+// The same stores once they are open, for a screen that draws before it can wait.
+let ready: HoursStores | null = null;
+export function hoursIfOpen(): HoursStores | null {
+  return ready;
+}
 let engine: SyncEngine | null = null;
 // Who is signed in, kept so sync can start once the store is open (or at once if it is).
 let signedIn: { remote: Remote; userId: string } | null = null;
@@ -126,6 +131,7 @@ export function openHours(): Promise<HoursStores> {
       })();
     });
     const stores: HoursStores = { store, day, categories, flags, recurring, chimes, sync: syncStore };
+    ready = stores;
     if (signedIn) await startEngine(stores, signedIn.remote, signedIn.userId);
     return stores;
   })());
@@ -204,4 +210,5 @@ export function refreshHours(): Promise<void> {
 export function resetHours() {
   stopHoursSync();
   opened = null;
+  ready = null;
 }

@@ -9,8 +9,8 @@ const NOW = new Date(2026, 10, 19, 14, 25);
 const clock = () => NOW;
 
 const seed: Entry[] = [
-  { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
-  { day: '2026-11-18', hour: 22, note: '', category: 'sleep', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
+  { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 1 },
+  { day: '2026-11-18', hour: 22, note: '', category: 'sleep', planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 1 },
 ];
 
 describe('day store', () => {
@@ -32,7 +32,7 @@ describe('day store', () => {
     expect(day.getState().byHour[9]).toMatchObject({ note: 'proposals', category: 'admin' });
     await day.getState().open('2026-11-18');
     await day.getState().open('2026-11-19');
-    expect(day.getState().byHour[10]).toMatchObject({ note: 'lunch', category: 'body', planned: null, plannedNote: '', flags: [], updatedAt: NOW.getTime() });
+    expect(day.getState().byHour[10]).toMatchObject({ note: 'lunch', category: 'body', planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: NOW.getTime() });
   });
 
   it('drops a slow load when the day changed underneath it', async () => {
@@ -104,10 +104,10 @@ describe('day store', () => {
 
   describe('with a day that starts at 6am', () => {
     const rows: Entry[] = [
-      { day: '2026-11-19', hour: 3, note: 'up late', category: 'drift', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
-      { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
-      { day: '2026-11-20', hour: 1, note: '', category: 'sleep', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
-      { day: '2026-11-20', hour: 8, note: 'standup', category: 'people', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
+      { day: '2026-11-19', hour: 3, note: 'up late', category: 'drift', planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 1 },
+      { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 1 },
+      { day: '2026-11-20', hour: 1, note: '', category: 'sleep', planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 1 },
+      { day: '2026-11-20', hour: 8, note: 'standup', category: 'people', planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 1 },
     ];
 
     it('loads 6am to 6am and writes the small hours under the next calendar day', async () => {

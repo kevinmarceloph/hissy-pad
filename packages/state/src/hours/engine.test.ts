@@ -17,6 +17,7 @@ const entry = (hour: number, note: string, updatedAt: number, category: string |
   planned: null,
   plannedNote: '',
   flags: [],
+  state: 'open',
   updatedAt,
 });
 
@@ -149,7 +150,7 @@ describe('sync engine', () => {
     await a.store.put(applyPatch(before, DAY, 9, { note: '', category: null }, 300));
     await a.engine.sync();
     await b.engine.sync();
-    expect(await b.store.listDay(DAY)).toEqual([{ day: DAY, hour: 9, note: '', category: null, planned: null, plannedNote: '', flags: [], updatedAt: 300 }]);
+    expect(await b.store.listDay(DAY)).toEqual([{ day: DAY, hour: 9, note: '', category: null, planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 300 }]);
   });
 
   it('syncs a renamed, recolored and archived category', async () => {

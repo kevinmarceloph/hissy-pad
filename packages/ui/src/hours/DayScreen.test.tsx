@@ -31,10 +31,14 @@ vi.mock('./PullRefresh', () => ({
 // Thursday 2026-11-19, 14:25 local: 14 hours are over, 2pm is in progress.
 const clock = () => new Date(2026, 10, 19, 14, 25);
 
+// Both were marked done.
 const seed: Entry[] = [
-  { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
-  { day: '2026-11-18', hour: 22, note: '', category: 'sleep', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
+  { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', planned: null, plannedNote: '', flags: [], state: 'done', updatedAt: 1 },
+  { day: '2026-11-18', hour: 22, note: '', category: 'sleep', planned: null, plannedNote: '', flags: [], state: 'done', updatedAt: 1 },
 ];
+const blank = (hour: number, over: Partial<Entry> = {}): Entry => ({
+  day: '2026-11-19', hour, note: '', category: null, planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 1, ...over,
+});
 
 // Entries can come from any EntryStore (some tests break it); categories from memory.
 async function setup(store: EntryStore = new MemoryStore(seed, SAMPLE_CATEGORIES, SAMPLE_FLAGS), categoryRows = new MemoryStore([], SAMPLE_CATEGORIES, SAMPLE_FLAGS)) {
@@ -56,52 +60,67 @@ async function setup(store: EntryStore = new MemoryStore(seed, SAMPLE_CATEGORIES
 }
 
 describe('DayScreen', () => {
-  it('shows today, what is accounted for and the hour in progress', async () => {
+  it('shows today, how much of it is done, and opens on the hour in progress', async () => {
     await setup();
-    expect(await screen.findByLabelText(/1 of 14 hours accounted for\./)).toBeTruthy();
+    expect(await screen.findByLabelText(/1 of 14 hours done\./)).toBeTruthy();
     expect(screen.getByText('Today')).toBeTruthy();
     expect(screen.getByText('Thu, Nov 19')).toBeTruthy();
-    expect(screen.getByLabelText('9am: Deep work: proposals')).toBeTruthy();
-    expect(screen.getByLabelText('2pm, now: blank')).toBeTruthy();
+    expect(screen.getByLabelText('9am: Deep work: proposals, done')).toBeTruthy();
     expect(screen.getByLabelText('3pm: not yet')).toBeTruthy();
-    expect(screen.getByLabelText(/Blank 13h/)).toBeTruthy();
+    expect(screen.getByLabelText(/Not done 13h/)).toBeTruthy();
+    // The hour in progress is open: its three states, and the field that brings lines in.
+    expect(screen.getByLabelText('2pm, now: blank')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('radio', { name: '2pm: Open', checked: true })).toBeTruthy();
+    expect(screen.getByLabelText('Add an item to this hour')).toBeTruthy();
+    // Nothing asks for a title: the summary is behind its button.
+    expect(screen.queryByLabelText('Summary of 2pm')).toBeNull();
   });
 
-  it('logs an hour with a note and a category', async () => {
+  it('gives an hour a summary and a category behind the Summary button', async () => {
     const { store } = await setup();
+    const at = async (hour: number) => (await store.listDay('2026-11-19')).find((e) => e.hour === hour);
     await fireEvent.press(await screen.findByLabelText('10am: blank'));
-    await fireEvent.changeText(screen.getByLabelText('What happened at 10am?'), 'lunch');
-    await fireEvent.press(screen.getByLabelText('Where it went: None'));
+    expect(screen.queryByLabelText('Summary of 10am')).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Summary' }));
+    await fireEvent.changeText(screen.getByLabelText('Summary of 10am'), 'lunch');
+    await fireEvent.press(screen.getByLabelText('Category: None'));
     await fireEvent.press(screen.getByRole('option', { name: 'Body' }));
     // Choosing closes the list and the closed line says what was chosen.
     expect(screen.queryByRole('option', { name: 'Body' })).toBeNull();
-    expect(screen.getByLabelText('Where it went: Body')).toBeTruthy();
-    await fireEvent.press(screen.getByText('Done'));
+    expect(screen.getByLabelText('Category: Body')).toBeTruthy();
 
+    // Written as it is typed. A summary is not a done hour: that is said by hand.
     expect(await screen.findByLabelText('10am: Body: lunch')).toBeTruthy();
-    expect(screen.getByLabelText(/2 of 14 hours accounted for\./)).toBeTruthy();
-    expect((await store.listDay('2026-11-19')).find((e) => e.hour === 10)).toMatchObject({
-      note: 'lunch',
-      category: 'body',
-    });
+    expect(await at(10)).toMatchObject({ note: 'lunch', category: 'body', state: 'open' });
+    await fireEvent.press(screen.getByRole('radio', { name: '10am: Done' }));
+    expect(await screen.findByLabelText('10am: Body: lunch, done')).toBeTruthy();
+    expect(screen.getByLabelText(/2 of 14 hours done\./)).toBeTruthy();
+    expect(await at(10)).toMatchObject({ note: 'lunch', category: 'body', state: 'done' });
+
+    await fireEvent.press(screen.getByText('Close'));
+    expect(screen.queryByLabelText('Summary of 10am')).toBeNull();
+    // An hour that has a summary opens with it showing.
+    await fireEvent.press(screen.getByLabelText('10am: Body: lunch, done'));
+    expect(screen.getByLabelText('Summary of 10am').value).toBe('lunch');
   });
 
   it('clears an hour back to blank', async () => {
     const { store } = await setup();
-    await fireEvent.press(await screen.findByLabelText('9am: Deep work: proposals'));
+    await fireEvent.press(await screen.findByLabelText('9am: Deep work: proposals, done'));
     await fireEvent.press(screen.getByText('Clear this hour'));
-    await fireEvent.press(screen.getByText('Done'));
 
     expect(await screen.findByLabelText('9am: blank')).toBeTruthy();
-    expect((await store.listDay('2026-11-19'))[0]).toMatchObject({ note: '', category: null });
+    expect((await store.listDay('2026-11-19'))[0]).toMatchObject({ note: '', category: null, state: 'open' });
   });
 
   it('moves to another day and back', async () => {
     await setup();
     await fireEvent.press(await screen.findByLabelText('Earlier'));
     expect(await screen.findByText('Yesterday')).toBeTruthy();
-    expect(screen.getByLabelText('10pm: Sleep')).toBeTruthy();
-    expect(screen.getByLabelText(/1 of 24 hours accounted for\./)).toBeTruthy();
+    expect(screen.getByLabelText('10pm: Sleep, done')).toBeTruthy();
+    expect(screen.getByLabelText(/1 of 24 hours done\./)).toBeTruthy();
+    // Another day opens with every hour closed.
+    expect(screen.queryByLabelText('Add an item to this hour')).toBeNull();
 
     // The way back is in the calendar, which closes once a day is picked.
     await fireEvent.press(screen.getByLabelText('Pick a day'));
@@ -117,33 +136,33 @@ describe('DayScreen', () => {
 
   it('follows the category list: renames, archives and ids it does not know', async () => {
     const rows: Entry[] = [
-      { day: '2026-11-19', hour: 8, note: '', category: 'drift', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
-      { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
-      { day: '2026-11-19', hour: 10, note: '', category: 'cnotyet001', planned: null, plannedNote: '', flags: [], updatedAt: 1 },
+      blank(8, { category: 'drift', state: 'done' }),
+      blank(9, { note: 'proposals', category: 'deep', state: 'done' }),
+      blank(10, { category: 'cnotyet001', state: 'done' }),
     ];
     const { categories } = await setup(new MemoryStore(rows));
     await categories.getState().update('deep', { label: 'Focus' });
     await categories.getState().update('drift', { archived: true });
 
     // A rename reaches the row and the legend; an archived category keeps its hours.
-    expect(await screen.findByLabelText('9am: Focus: proposals')).toBeTruthy();
+    expect(await screen.findByLabelText('9am: Focus: proposals, done')).toBeTruthy();
     expect(screen.getByLabelText(/Focus 1h/)).toBeTruthy();
-    expect(screen.getByLabelText('8am: Drift')).toBeTruthy();
+    expect(screen.getByLabelText('8am: Drift, done')).toBeTruthy();
     // An id with no category on this device reads as untagged.
-    expect(screen.getByLabelText('10am: Untagged')).toBeTruthy();
+    expect(screen.getByLabelText('10am: Untagged, done')).toBeTruthy();
     expect(screen.getByLabelText(/Untagged 1h/)).toBeTruthy();
 
     // The picker leaves the archived one out, except on the hour that already has it.
-    await fireEvent.press(screen.getByLabelText('9am: Focus: proposals'));
-    await fireEvent.press(screen.getByLabelText('Where it went: Focus'));
+    await fireEvent.press(screen.getByLabelText('9am: Focus: proposals, done'));
+    await fireEvent.press(screen.getByLabelText('Category: Focus'));
     expect(screen.getByRole('option', { name: 'Admin' })).toBeTruthy();
     expect(screen.queryByRole('option', { name: 'Drift' })).toBeNull();
-    await fireEvent.press(screen.getByLabelText('8am: Drift'));
-    await fireEvent.press(screen.getByLabelText('Where it went: Drift'));
+    await fireEvent.press(screen.getByLabelText('8am: Drift, done'));
+    await fireEvent.press(screen.getByLabelText('Category: Drift'));
     expect(screen.getByRole('option', { name: 'Drift' })).toBeTruthy();
     // None takes the category off.
     await fireEvent.press(screen.getByRole('option', { name: 'None' }));
-    expect(screen.getByLabelText('Where it went: None')).toBeTruthy();
+    expect(screen.getByLabelText('Category: None')).toBeTruthy();
 
     // The category list is edited from the app's top menu, not from Hours.
     await fireEvent.press(screen.getByLabelText('Hours menu'));
@@ -151,176 +170,87 @@ describe('DayScreen', () => {
     expect(screen.getByLabelText('Edit flags')).toBeTruthy();
   });
 
-  it('shows a category by its icon in the rows and the legend, and by icon and name in the pickers', async () => {
+  it('shows a category by its icon in the rows and the legend, and by icon and name in the picker', async () => {
     const rows = new MemoryStore([], SAMPLE_CATEGORIES, SAMPLE_FLAGS);
-    const { categories } = await setup(new MemoryStore([{ ...seed[0], planned: 'body' }]), rows);
+    const { categories } = await setup(undefined, rows);
     await categories.getState().update('deep', { icon: '\u{1F4BB}', label: 'Deep work, no chat' });
 
     // The row says the icon where there is one and the name where there is not.
-    expect(await screen.findByLabelText('9am: \u{1F4BB}: proposals, planned Body')).toBeTruthy();
-    // So does the legend. The pickers say the icon and the name.
+    expect(await screen.findByLabelText('9am: \u{1F4BB}: proposals, done')).toBeTruthy();
+    // So does the legend. The picker says the icon and the name.
     expect(screen.getByLabelText(/\u{1F4BB} 1h/u)).toBeTruthy();
-    await fireEvent.press(screen.getByLabelText('9am: \u{1F4BB}: proposals, planned Body'));
-    expect(screen.getByLabelText('Where it went: \u{1F4BB} Deep work, no chat')).toBeTruthy();
-    expect(screen.getByText('Planned: Body')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('9am: \u{1F4BB}: proposals, done'));
+    expect(screen.getByLabelText('Category: \u{1F4BB} Deep work, no chat')).toBeTruthy();
   });
 
-  it('plans an hour that has not come, in words and by category', async () => {
+  it('has no plan to edit, and falls back on words planned before', async () => {
+    const rows: Entry[] = [
+      blank(11, { planned: 'body', plannedNote: 'gym\nlegs, then a short run' }),
+      // What was logged wins over what was planned for it.
+      blank(12, { note: 'scrolled', category: 'drift', planned: 'deep', plannedNote: 'proposals', state: 'done' }),
+    ];
+    const { store } = await setup(new MemoryStore(rows));
+    // The row shows the first line of the words, with their category.
+    await fireEvent.press(await screen.findByLabelText('11am: Body: gym'));
+    expect(screen.getByLabelText('12pm: Drift: scrolled, done')).toBeTruthy();
+    expect(screen.queryByText(/[Pp]lanned/)).toBeNull();
+    expect(screen.queryByLabelText('Edit the plan')).toBeNull();
+    expect(screen.queryByLabelText(/^What (is|was|happened)/)).toBeNull();
+    // Nothing is offered as what happened, and opening the hour writes nothing.
+    expect(screen.queryByLabelText('Summary of 11am')).toBeNull();
+    await fireEvent.press(screen.getByText('Close'));
+    expect((await store.listDay('2026-11-19'))[0]).toMatchObject({ note: '', category: null, state: 'open', updatedAt: 1 });
+  });
+
+  it('marks an hour done with a tap on its bullet, and not done with another', async () => {
     const { store } = await setup();
-    await fireEvent.press(await screen.findByLabelText('4pm: not yet'));
-    // Ahead of time there is only the plan to write.
-    expect(screen.queryByLabelText('What happened at 4pm?')).toBeNull();
-    await fireEvent.changeText(screen.getByLabelText('What is 4pm for?'), 'proposals');
-    await fireEvent.press(screen.getByLabelText('Where it should go: None'));
-    await fireEvent.press(screen.getByRole('option', { name: 'Deep work' }));
-    await fireEvent.press(screen.getByText('Done'));
-
-    expect(await screen.findByLabelText('4pm: planned Deep work: proposals')).toBeTruthy();
-    expect(screen.getByLabelText(/Deep work 1h, 1h planned/)).toBeTruthy();
-    expect((await store.listDay('2026-11-19')).find((e) => e.hour === 16)).toMatchObject({
-      planned: 'deep',
-      plannedNote: 'proposals',
-      category: null,
-      note: '',
-    });
-  });
-
-  it('says in words whether an hour went as planned', async () => {
-    const rows: Entry[] = [
-      { ...seed[0], planned: 'deep', plannedNote: 'proposals' },
-      { day: '2026-11-19', hour: 10, note: 'scrolled', category: 'drift', planned: 'deep', plannedNote: '', flags: [], updatedAt: 1 },
-      { day: '2026-11-19', hour: 11, note: '', category: null, planned: 'body', plannedNote: 'gym', flags: [], updatedAt: 1 },
-    ];
-    await setup(new MemoryStore(rows));
-    expect(await screen.findByLabelText('9am: Deep work: proposals, as planned')).toBeTruthy();
-    expect(screen.getByLabelText('10am: Drift: scrolled, planned Deep work')).toBeTruthy();
-    expect(screen.getByLabelText('11am: blank, planned Body: gym')).toBeTruthy();
-    expect(screen.getByLabelText(/1 of 3 planned hours went as planned\./)).toBeTruthy();
-  });
-
-  it('closes the plan once the hour has started and starts what happened from it', async () => {
-    const rows: Entry[] = [
-      { day: '2026-11-19', hour: 11, note: '', category: null, planned: 'body', plannedNote: 'gym\nlegs, then a short run', flags: [], updatedAt: 1 },
-    ];
-    const { store } = await setup(new MemoryStore(rows));
-    // The list shows the first line of the plan only.
-    await fireEvent.press(await screen.findByLabelText('11am: blank, planned Body: gym'));
-
-    // One text field: what happened, holding the plan's words. The plan itself is there to read.
-    expect(screen.getByLabelText('What happened at 11am?').value).toBe('gym\nlegs, then a short run');
-    expect(screen.queryByLabelText('What is 11am for?')).toBeNull();
-    expect(screen.queryByLabelText(/^Where it should go/)).toBeNull();
-    expect(screen.getByText('Planned: Body')).toBeTruthy();
-    expect(screen.queryByText('Copy from the plan')).toBeNull();
-
-    // Opening and leaving logs nothing.
-    await fireEvent.blur(screen.getByLabelText('What happened at 11am?'));
-    expect((await store.listDay('2026-11-19'))[0].note).toBe('');
-
-    // Done takes the plan as what happened: its words and its category.
-    await fireEvent.press(screen.getByText('Done'));
-    expect(await screen.findByLabelText('11am: Body: gym, as planned')).toBeTruthy();
-    expect((await store.listDay('2026-11-19'))[0]).toMatchObject({
-      note: 'gym\nlegs, then a short run',
-      category: 'body',
-      planned: 'body',
-      plannedNote: 'gym\nlegs, then a short run',
-    });
-
-    // Clearing it takes what happened and leaves the plan.
-    await fireEvent.press(screen.getByLabelText('11am: Body: gym, as planned'));
-    await fireEvent.press(screen.getByText('Clear this hour'));
-    await fireEvent.press(screen.getByText('Done'));
-    expect(await screen.findByLabelText('11am: blank, planned Body: gym')).toBeTruthy();
-  });
-
-  it('offers the planned category as where the hour went', async () => {
-    const rows: Entry[] = [
-      { day: '2026-11-19', hour: 10, note: '', category: null, planned: 'body', plannedNote: 'gym', flags: [], updatedAt: 1 },
-      { day: '2026-11-19', hour: 11, note: '', category: null, planned: 'body', plannedNote: 'gym', flags: [], updatedAt: 1 },
-      { day: '2026-11-19', hour: 12, note: '', category: null, planned: 'body', plannedNote: 'gym', flags: [], updatedAt: 1 },
-    ];
-    const { store } = await setup(new MemoryStore(rows));
     const at = async (hour: number) => (await store.listDay('2026-11-19')).find((e) => e.hour === hour);
 
-    // It comes chosen, marked as the plan's. Opening and leaving still logs nothing.
-    await fireEvent.press(await screen.findByLabelText('10am: blank, planned Body: gym'));
-    expect(screen.getByLabelText('Where it went: Body, from the plan')).toBeTruthy();
-    await fireEvent.blur(screen.getByLabelText('What happened at 10am?'));
-    expect(await at(10)).toMatchObject({ note: '', category: null });
+    // The bullet is a checkbox beside the row's own button, on any hour that has started,
+    // blank ones too: done is how a past hour is confirmed. One still ahead has none.
+    expect(await screen.findByRole('checkbox', { name: '10am done', checked: false })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: '9am done', checked: true })).toBeTruthy();
+    expect(screen.queryByRole('checkbox', { name: /^4pm/ })).toBeNull();
 
-    // Words typed and left go in with it.
-    await fireEvent.changeText(screen.getByLabelText('What happened at 10am?'), 'gym, short');
-    await fireEvent.blur(screen.getByLabelText('What happened at 10am?'));
-    expect(await at(10)).toMatchObject({ note: 'gym, short', category: 'body' });
-    await fireEvent.press(screen.getByText('Done'));
+    await fireEvent.press(screen.getByRole('checkbox', { name: '10am done' }));
+    expect(await screen.findByLabelText('10am: done')).toBeTruthy();
+    expect(await at(10)).toMatchObject({ state: 'done', note: '', category: null });
+    expect(screen.getByLabelText(/2 of 14 hours done\./)).toBeTruthy();
 
-    // Another category can be chosen in its place.
-    await fireEvent.press(screen.getByLabelText('11am: blank, planned Body: gym'));
-    await fireEvent.press(screen.getByLabelText('Where it went: Body, from the plan'));
-    await fireEvent.press(screen.getByRole('option', { name: 'Admin' }));
-    expect(screen.getByLabelText('Where it went: Admin')).toBeTruthy();
-    await fireEvent.press(screen.getByText('Done'));
-    expect(await at(11)).toMatchObject({ note: 'gym', category: 'admin', planned: 'body' });
-
-    // So can none at all, and Done does not bring the plan's back.
-    await fireEvent.press(screen.getByLabelText('12pm: blank, planned Body: gym'));
-    await fireEvent.press(screen.getByLabelText('Where it went: Body, from the plan'));
-    await fireEvent.press(screen.getByRole('option', { name: 'None' }));
-    expect(screen.getByLabelText('Where it went: None')).toBeTruthy();
-    await fireEvent.press(screen.getByText('Done'));
-    expect(await at(12)).toMatchObject({ note: 'gym', category: null, planned: 'body' });
+    // The next tap takes it back, and what is written on the hour stays.
+    await fireEvent.press(screen.getByRole('checkbox', { name: '9am done', checked: true }));
+    expect(await screen.findByLabelText('9am: Deep work: proposals')).toBeTruthy();
+    expect(await at(9)).toMatchObject({ state: 'open', note: 'proposals', category: 'deep' });
   });
 
-  it('does not write an open editor\'s old words over an edit that landed under it', async () => {
-    const { store, day } = await setup();
-    await fireEvent.press(await screen.findByLabelText('9am: Deep work: proposals'));
-    expect(screen.getByLabelText('What happened at 9am?').value).toBe('proposals');
+  it('puts the open hour in one of three states from its switch', async () => {
+    const { store } = await setup();
+    const now = async () => (await store.listDay('2026-11-19')).find((e) => e.hour === 14);
+    await fireEvent.press(await screen.findByRole('radio', { name: '2pm: Doing' }));
+    expect(await screen.findByLabelText('2pm, now: doing')).toBeTruthy();
+    expect(screen.getByRole('radio', { name: '2pm: Doing', checked: true })).toBeTruthy();
+    expect(await now()).toMatchObject({ state: 'doing' });
+    await fireEvent.press(screen.getByRole('radio', { name: '2pm: Done' }));
+    expect(await screen.findByLabelText('2pm, now: done')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('radio', { name: '2pm: Open' }));
+    expect(await screen.findByLabelText('2pm, now: blank')).toBeTruthy();
+    expect(await now()).toMatchObject({ state: 'open' });
+  });
 
-    // Another device rewrites the hour and sync lands it while the editor is open.
-    await (store as MemoryStore).sync.entries.applyRemote([{ ...seed[0], note: 'proposals, then a call', updatedAt: 2 }]);
+  it('follows an edit that lands under the open hour', async () => {
+    const { store, day } = await setup();
+    await fireEvent.press(await screen.findByLabelText('9am: Deep work: proposals, done'));
+    expect(screen.getByLabelText('Summary of 9am').value).toBe('proposals');
+
+    // Another device rewrites the hour and sync lands it while the hour is open.
+    await (store as MemoryStore).sync.entries.applyRemote([{ ...seed[0]!, note: 'proposals, then a call', updatedAt: 2 }]);
     await act(async () => {
       await day.getState().refresh();
     });
-    expect(screen.getByLabelText('What happened at 9am?').value).toBe('proposals, then a call');
-
-    // Leaving the field changes nothing: the draft held no typing of its own.
-    await fireEvent.blur(screen.getByLabelText('What happened at 9am?'));
-    await fireEvent.press(screen.getByText('Done'));
+    expect(screen.getByLabelText('Summary of 9am').value).toBe('proposals, then a call');
+    // Nothing is a draft, so closing writes nothing over it.
+    await fireEvent.press(screen.getByText('Close'));
     expect((await store.listDay('2026-11-19'))[0]).toMatchObject({ note: 'proposals, then a call', updatedAt: 2 });
-  });
-
-  it('keeps what is being typed when an edit lands under the editor', async () => {
-    const { store, day } = await setup();
-    await fireEvent.press(await screen.findByLabelText('9am: Deep work: proposals'));
-    await fireEvent.changeText(screen.getByLabelText('What happened at 9am?'), 'proposals and invoices');
-    await (store as MemoryStore).sync.entries.applyRemote([{ ...seed[0], category: 'admin', updatedAt: 2 }]);
-    await act(async () => {
-      await day.getState().refresh();
-    });
-    expect(screen.getByLabelText('What happened at 9am?').value).toBe('proposals and invoices');
-  });
-
-  it('keeps a recurring plan\'s words when the plan is made under an open editor', async () => {
-    const { store, recurring } = await setup();
-    // 2am is open with its plan fields showing and no plan: nothing typed.
-    await fireEvent.press(await screen.findByLabelText('2am: blank'));
-    await fireEvent.press(screen.getByLabelText('Edit the plan'));
-    expect(screen.getByLabelText('What was 2am for?').value).toBe('');
-
-    await act(async () => {
-      await recurring.getState().add({ note: 'Sleep', category: 'sleep', from: 2, to: 10, days: [0, 1, 2, 3, 4, 5, 6] });
-    });
-    expect(screen.getByLabelText('What was 2am for?').value).toBe('Sleep');
-
-    // Logging the hour pins the plan as it is now, words included.
-    await fireEvent.changeText(screen.getByLabelText('What happened at 2am?'), 'drafted a message');
-    await fireEvent.press(screen.getByText('Done'));
-    expect((await store.listDay('2026-11-19')).find((e) => e.hour === 2)).toMatchObject({
-      note: 'drafted a message',
-      planned: 'sleep',
-      plannedNote: 'Sleep',
-    });
   });
 
   it('syncs and re-reads the day when the hours are pulled down', async () => {
@@ -342,49 +272,7 @@ describe('DayScreen', () => {
     await act(async () => {
       await mockPull.run();
     });
-    expect(await screen.findByLabelText('10am: Deep work: from the laptop')).toBeTruthy();
-  });
-
-  it('marks an hour done as planned with a tap on its box, and not done with another', async () => {
-    const rows: Entry[] = [
-      { day: '2026-11-19', hour: 11, note: '', category: null, planned: 'body', plannedNote: 'gym\nlegs', flags: [], updatedAt: 1 },
-      // The hour in progress can be marked too. One still ahead cannot.
-      { day: '2026-11-19', hour: 14, note: '', category: null, planned: 'deep', plannedNote: '', flags: [], updatedAt: 1 },
-      { day: '2026-11-19', hour: 16, note: '', category: null, planned: 'deep', plannedNote: '', flags: [], updatedAt: 1 },
-    ];
-    const { store } = await setup(new MemoryStore(rows));
-    const at = async (hour: number) => (await store.listDay('2026-11-19')).find((e) => e.hour === hour);
-
-    // The box is a checkbox beside the row's own button. An hour with no plan and nothing
-    // logged has none, and neither does an hour that has not come.
-    expect(await screen.findByRole('checkbox', { name: '11am done as planned', checked: false })).toBeTruthy();
-    expect(screen.queryByRole('checkbox', { name: /^10am/ })).toBeNull();
-    expect(screen.queryByRole('checkbox', { name: /^4pm/ })).toBeNull();
-
-    // One tap takes the plan as what happened: its words and its category.
-    await fireEvent.press(screen.getByRole('checkbox', { name: '11am done as planned' }));
-    expect(await screen.findByLabelText('11am: Body: gym, as planned')).toBeTruthy();
-    expect(await at(11)).toMatchObject({ note: 'gym\nlegs', category: 'body', planned: 'body', plannedNote: 'gym\nlegs' });
-    await fireEvent.press(screen.getByRole('checkbox', { name: '2pm done as planned' }));
-    expect(await screen.findByLabelText('2pm, now: Deep work, as planned')).toBeTruthy();
-
-    // The next tap takes it back and keeps the plan.
-    await fireEvent.press(screen.getByRole('checkbox', { name: '11am done', checked: true }));
-    expect(await screen.findByLabelText('11am: blank, planned Body: gym')).toBeTruthy();
-    expect(await at(11)).toMatchObject({ note: '', category: null, planned: 'body', plannedNote: 'gym\nlegs' });
-  });
-
-  it('puts back what a tap on the box took away, words typed by hand included', async () => {
-    const { store } = await setup();
-    // 9am was logged by hand and never had a plan.
-    await fireEvent.press(await screen.findByRole('checkbox', { name: '9am done', checked: true }));
-    expect(await screen.findByLabelText('9am: blank')).toBeTruthy();
-    expect((await store.listDay('2026-11-19'))[0]).toMatchObject({ note: '', category: null });
-
-    // The box stays, though the hour has no plan: one more tap undoes the mistake.
-    await fireEvent.press(screen.getByRole('checkbox', { name: '9am done as planned', checked: false }));
-    expect(await screen.findByLabelText('9am: Deep work: proposals')).toBeTruthy();
-    expect((await store.listDay('2026-11-19'))[0]).toMatchObject({ note: 'proposals', category: 'deep' });
+    expect(await screen.findByLabelText('10am: Deep work: from the laptop, done')).toBeTruthy();
   });
 
   it('draws a recurring plan on the hours it covers and pins it when an hour is marked done', async () => {
@@ -394,115 +282,61 @@ describe('DayScreen', () => {
     const { store, recurring, onEditPlans } = await setup(undefined, rows);
     const at = async (hour: number) => (await store.listDay('2026-11-19')).find((e) => e.hour === hour);
 
-    // Eight hours come planned, with nothing stored for them. 9am has its own log.
-    expect(await screen.findByLabelText('2am: blank, planned Sleep: sleep')).toBeTruthy();
-    expect(screen.getByLabelText('8am: blank, planned Sleep: sleep')).toBeTruthy();
-    expect(screen.getByLabelText('9am: Deep work: proposals, planned Sleep')).toBeTruthy();
+    // Eight hours come with its words and category, with nothing stored for them. 9am has its own.
+    expect(await screen.findByLabelText('2am: Sleep: sleep')).toBeTruthy();
+    expect(screen.getByLabelText('8am: Sleep: sleep')).toBeTruthy();
+    expect(screen.getByLabelText('9am: Deep work: proposals, done')).toBeTruthy();
     expect(screen.getByLabelText('1am: blank')).toBeTruthy();
     expect(screen.getByLabelText('10am: blank')).toBeTruthy();
-    expect(screen.getByLabelText(/0 of 8 planned hours went as planned\./)).toBeTruthy();
     expect(await at(2)).toBeUndefined();
 
     // One tap marks an hour done, and writes the plan it was showing into the row.
-    await fireEvent.press(screen.getByRole('checkbox', { name: '2am done as planned' }));
-    expect(await screen.findByLabelText('2am: Sleep: sleep, as planned')).toBeTruthy();
-    expect(await at(2)).toMatchObject({ note: 'sleep', category: 'sleep', planned: 'sleep', plannedNote: 'sleep' });
+    await fireEvent.press(screen.getByRole('checkbox', { name: '2am done' }));
+    expect(await screen.findByLabelText('2am: Sleep: sleep, done')).toBeTruthy();
+    expect(await at(2)).toMatchObject({ state: 'done', note: '', category: null, planned: 'sleep', plannedNote: 'sleep' });
+    expect(screen.getByLabelText(/2 of 14 hours done\. .*Sleep 1h/)).toBeTruthy();
 
     // The plan changes: hours not lived yet follow, the one marked done keeps its own.
     await recurring.getState().update('rsleep0001', { note: 'sleep, no phone', to: 8 });
-    expect(await screen.findByLabelText('3am: blank, planned Sleep: sleep, no phone')).toBeTruthy();
-    expect(screen.getByLabelText('2am: Sleep: sleep, as planned')).toBeTruthy();
+    expect(await screen.findByLabelText('3am: Sleep: sleep, no phone')).toBeTruthy();
+    expect(screen.getByLabelText('2am: Sleep: sleep, done')).toBeTruthy();
     expect(screen.getByLabelText('8am: blank')).toBeTruthy();
 
-    // The recurring plans have their own button at the foot of the day, not a place in Settings.
+    // The recurring plans are reached from the menu, not from Settings.
     await fireEvent.press(screen.getByLabelText('Hours menu'));
     expect(screen.queryByText(/2am-8am/)).toBeNull();
     await fireEvent.press(screen.getByRole('link', { name: 'Edit recurring plans' }));
     expect(onEditPlans).toHaveBeenCalled();
   });
 
-  it('keeps an hour`s own plan over a recurring one', async () => {
+  it('keeps words stored on an hour over a recurring plan, and pins the plan on the first write', async () => {
     const rows = new MemoryStore([], SAMPLE_CATEGORIES, SAMPLE_FLAGS);
     await rows.putRecurring({ id: 'rsleep0001', note: 'sleep', category: 'sleep', from: 2, to: 10, days: [0, 1, 2, 3, 4, 5, 6], since: '2026-11-01', position: 0, archived: false, updatedAt: 1 });
-    const own: Entry = { day: '2026-11-19', hour: 3, note: '', category: null, planned: 'people', plannedNote: 'airport run', flags: [], updatedAt: 1 };
+    const own = blank(3, { planned: 'people', plannedNote: 'airport run' });
     const { store } = await setup(new MemoryStore([own]), rows);
-    expect(await screen.findByLabelText('3am: blank, planned People: airport run')).toBeTruthy();
+    expect(await screen.findByLabelText('3am: People: airport run')).toBeTruthy();
 
-    // An edit in the editor of a recurring hour pins the plan too.
-    await fireEvent.press(screen.getByLabelText('4am: blank, planned Sleep: sleep'));
-    expect(screen.getByText('Recurring plan: Sleep')).toBeTruthy();
-    await fireEvent.changeText(screen.getByLabelText('What happened at 4am?'), 'awake, reading');
-    await fireEvent.press(screen.getByText('Done'));
+    // A summary typed on a recurring hour takes the row, in the plan's category.
+    await fireEvent.press(screen.getByLabelText('4am: Sleep: sleep'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Summary' }));
+    await fireEvent.changeText(screen.getByLabelText('Summary of 4am'), 'awake, reading');
+    expect(await screen.findByLabelText('4am: Sleep: awake, reading')).toBeTruthy();
     expect((await store.listDay('2026-11-19')).find((e) => e.hour === 4)).toMatchObject({
       note: 'awake, reading',
-      // The planned category came chosen and was left as it was.
-      category: 'sleep',
+      category: null,
       planned: 'sleep',
       plannedNote: 'sleep',
     });
   });
 
-  it('opens the plan of an hour that has started only when asked', async () => {
-    const rows: Entry[] = [
-      { day: '2026-11-19', hour: 11, note: 'email', category: 'admin', planned: 'body', plannedNote: 'gym', flags: [], updatedAt: 1 },
-    ];
-    const { store } = await setup(new MemoryStore(rows));
-    await fireEvent.press(await screen.findByLabelText('11am: Admin: email, planned Body'));
-
-    // The plan is there to read, words and category, and cannot be typed into.
-    expect(screen.getByText('Planned: Body')).toBeTruthy();
-    expect(screen.getByText('gym')).toBeTruthy();
-    expect(screen.queryByLabelText('What was 11am for?')).toBeNull();
-
-    await fireEvent.press(screen.getByLabelText('Edit the plan'));
-    await fireEvent.changeText(screen.getByLabelText('What was 11am for?'), 'gym, legs');
-    await fireEvent.press(screen.getByLabelText('Where it was meant to go: Body'));
-    await fireEvent.press(screen.getByRole('option', { name: 'Admin' }));
-    await fireEvent.press(screen.getByText('Done'));
-
-    expect(await screen.findByLabelText('11am: Admin: email, as planned')).toBeTruthy();
-    expect((await store.listDay('2026-11-19'))[0]).toMatchObject({
-      note: 'email',
-      category: 'admin',
-      planned: 'admin',
-      plannedNote: 'gym, legs',
-    });
-  });
-
-  it('plans the hour in progress', async () => {
-    const { store } = await setup();
-    await fireEvent.press(await screen.findByLabelText('2pm, now: blank'));
-    expect(screen.getByText('No plan for this hour')).toBeTruthy();
-
-    await fireEvent.press(screen.getByLabelText('Edit the plan'));
-    await fireEvent.changeText(screen.getByLabelText('What is 2pm for?'), 'proposals');
-    await fireEvent.press(screen.getByLabelText('Where it should go: None'));
-    await fireEvent.press(screen.getByRole('option', { name: 'Deep work' }));
-    await fireEvent.press(screen.getByText('Done'));
-
-    // A plan is not a log: the hour is still open, with its plan on the row.
-    expect(await screen.findByLabelText('2pm, now: planned Deep work: proposals')).toBeTruthy();
-    expect((await store.listDay('2026-11-19')).find((e) => e.hour === 14)).toMatchObject({
-      note: '',
-      category: null,
-      planned: 'deep',
-      plannedNote: 'proposals',
-    });
-  });
-
-  it('keeps a text of several lines and lists its first', async () => {
-    const { store } = await setup();
-    await fireEvent.press(await screen.findByLabelText('10am: blank'));
-    await fireEvent.changeText(screen.getByLabelText('What happened at 10am?'), 'fixed the collector\n\nthe retry loop, again');
-    await fireEvent.press(screen.getByText('Done'));
-
+  it('lists the first line of a summary that runs to several', async () => {
+    await setup(new MemoryStore([blank(10, { note: 'fixed the collector\n\nthe retry loop, again' })]));
     expect(await screen.findByLabelText('10am: fixed the collector')).toBeTruthy();
-    expect((await store.listDay('2026-11-19')).find((e) => e.hour === 10)!.note).toBe('fixed the collector\n\nthe retry loop, again');
   });
 
   it('answers a flag Yes or No for an hour, or leaves it unset', async () => {
     const { store, flags, onEditFlags } = await setup();
-    await fireEvent.press(await screen.findByLabelText('9am: Deep work: proposals'));
+    await fireEvent.press(await screen.findByLabelText('9am: Deep work: proposals, done'));
     // Nothing is chosen to begin with: unset is neither Yes nor No.
     expect(screen.getByRole('radio', { name: 'Distracted: Yes', checked: false })).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Distracted: No', checked: false })).toBeTruthy();
@@ -510,7 +344,7 @@ describe('DayScreen', () => {
     await fireEvent.press(screen.getByRole('radio', { name: 'Distracted: Yes' }));
     await fireEvent.press(screen.getByRole('radio', { name: 'HALTS: No' }));
 
-    expect(await screen.findByLabelText('9am: Deep work: proposals, Distracted: Yes, HALTS: No')).toBeTruthy();
+    expect(await screen.findByLabelText('9am: Deep work: proposals, done, Distracted: Yes, HALTS: No')).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Distracted: Yes', checked: true })).toBeTruthy();
     expect((await store.listDay('2026-11-19'))[0].flags).toEqual(['distracted:yes', 'halts:no']);
 
@@ -550,7 +384,7 @@ describe('DayScreen', () => {
     });
     await setup(
       new MemoryStore([
-        { day: '2026-11-19', hour: 9, note: 'scrolled', category: 'drift', planned: null, plannedNote: '', flags: ['distracted', 'halts:no'], updatedAt: 1 },
+        { day: '2026-11-19', hour: 9, note: 'scrolled', category: 'drift', planned: null, plannedNote: '', flags: ['distracted', 'halts:no'], state: 'open', updatedAt: 1 },
       ]),
       rows,
     );
@@ -572,17 +406,15 @@ describe('DayScreen', () => {
   it('redraws in place when sync brings rows in', async () => {
     const { store, day } = await setup();
     expect(await screen.findByLabelText('10am: blank')).toBeTruthy();
-    await (store as MemoryStore).sync.entries.applyRemote([
-      { day: '2026-11-19', hour: 10, note: 'from the phone', category: 'body', planned: null, plannedNote: '', flags: [], updatedAt: 5 },
-    ]);
+    await (store as MemoryStore).sync.entries.applyRemote([blank(10, { note: 'from the phone', category: 'body', updatedAt: 5 })]);
     await day.getState().refresh();
     expect(await screen.findByLabelText('10am: Body: from the phone')).toBeTruthy();
     expect(screen.queryByText(/^Opening/)).toBeNull();
   });
 
-  it('says so when a day has nothing in it', async () => {
+  it('says so when no hour of a day is done', async () => {
     await setup(new MemoryStore([], SAMPLE_CATEGORIES, SAMPLE_FLAGS));
-    expect(await screen.findByLabelText(/Nothing logged for this day yet\./)).toBeTruthy();
+    expect(await screen.findByLabelText(/No hour of this day is marked done yet\./)).toBeTruthy();
   });
 
   it('shows a read failure with a way to retry', async () => {
@@ -596,16 +428,13 @@ describe('DayScreen', () => {
 
     fail = false;
     await fireEvent.press(screen.getByText('Try again'));
-    expect(await screen.findByLabelText(/1 of 14 hours accounted for\./)).toBeTruthy();
+    expect(await screen.findByLabelText(/1 of 14 hours done\./)).toBeTruthy();
   });
 
   it('lets the day start at another hour', async () => {
-    const rows: Entry[] = [
-      ...seed,
-      { day: '2026-11-20', hour: 1, note: 'could not sleep', category: null, planned: null, plannedNote: '', flags: [], updatedAt: 1 },
-    ];
+    const rows: Entry[] = [...seed, { ...blank(1, { note: 'could not sleep' }), day: '2026-11-20' }];
     const { store, day } = await setup(new MemoryStore(rows));
-    expect(await screen.findByLabelText(/1 of 14 hours accounted for\./)).toBeTruthy();
+    expect(await screen.findByLabelText(/1 of 14 hours done\./)).toBeTruthy();
     expect(screen.queryByLabelText('1am: could not sleep')).toBeNull();
 
     await fireEvent.press(screen.getByLabelText('Hours menu'));
@@ -614,7 +443,7 @@ describe('DayScreen', () => {
     await fireEvent.press(screen.getByRole('radio', { name: '6am' }));
 
     // 6am to 6am: eight hours are over at 2:25pm, and Friday's 1am is part of Thursday.
-    expect(await screen.findByLabelText(/1 of 8 hours accounted for\./)).toBeTruthy();
+    expect(await screen.findByLabelText(/1 of 8 hours done\./)).toBeTruthy();
     // Choosing closes the settings; opening them again shows the choice.
     expect(screen.queryByText('Day starts at 12am')).toBeNull();
     await fireEvent.press(screen.getByLabelText('Hours menu'));
@@ -623,12 +452,13 @@ describe('DayScreen', () => {
     expect(screen.getByRole('radio', { name: '6am', checked: true })).toBeTruthy();
     expect(screen.getByLabelText('1am: could not sleep')).toBeTruthy();
     expect(day.getState().start).toBe(6);
+    await fireEvent.press(screen.getByLabelText('Hours menu'));
 
     // An hour after midnight is written under the next calendar day.
     await fireEvent.press(screen.getByLabelText('2am: not yet'));
-    await fireEvent.changeText(screen.getByLabelText('What is 2am for?'), 'sleep');
-    await fireEvent.press(screen.getByText('Done'));
-    expect((await store.listDay('2026-11-20')).find((e) => e.hour === 2)!.plannedNote).toBe('sleep');
+    await fireEvent.press(screen.getByRole('button', { name: 'Summary' }));
+    await fireEvent.changeText(screen.getByLabelText('Summary of 2am'), 'sleep');
+    expect((await store.listDay('2026-11-20')).find((e) => e.hour === 2)!.note).toBe('sleep');
   });
 
   it('has no chimes control when nothing can chime', async () => {
