@@ -83,10 +83,15 @@ enum Shared {
     return id
   }
 
-  // The Inbox pad's row id, when the app has one and has said so. Nil when the pad is
-  // still to be made (or is only the stand-in above): making it is the app's job.
+  // The Inbox pad's row id, when the app has one and has said so: the snapshot's `inbox`,
+  // which is the fixed Inbox (findFixedPad in core, the first pad of that name in root
+  // order), else the first pad listed with that name. Nil when the pad is still to be made
+  // (or is only the stand-in above): making it is the app's job.
   static func inboxPad() -> String? {
-    snapshot()?.pads.first { $0.name.lowercased() == "inbox" && $0.id != mainPadId && $0.id != inboxKey }?.id
+    guard let snap = snapshot() else { return nil }
+    let real = { (id: String) in id != mainPadId && id != inboxKey }
+    if real(snap.inbox), snap.pads.contains(where: { $0.id == snap.inbox }) { return snap.inbox }
+    return snap.pads.first { $0.name.lowercased() == "inbox" && real($0.id) }?.id
   }
 
   // A queued new line reached the server by itself (native/SiriSync.swift), so the app has
