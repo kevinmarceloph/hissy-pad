@@ -132,8 +132,9 @@ kbd {
 .more-menu button:disabled { color: var(--ink-mute); cursor: default; }
 .more-menu .select { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; height: 36px; padding: 0 0.6rem; border-top: 1px solid var(--rule); margin-top: 0.25rem; color: var(--ink-soft); }
 .more-menu select { border: 0; background: transparent; cursor: pointer; }
-/* Under the pads, only while the open pad has crossed-out lines. */
-.clear-done { flex-basis: 100%; text-align: left; margin-top: -0.35rem; padding: 0 0.55rem; min-height: 28px; font-size: 0.82rem; color: var(--ink-mute); }
+/* Under the pads, only while the open pad has crossed-out lines. It floats in the header's
+   bottom margin, flush right, like the toast does on the left, so it never pushes the pad down. */
+.clear-done { position: absolute; top: 100%; right: 0; margin-top: 0.15rem; padding: 0 0.55rem; font-size: 0.82rem; line-height: 1.4rem; color: var(--ink-mute); }
 .clear-done:hover { color: var(--accent); text-decoration: underline; }
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; font-size: 0.9rem; color: var(--ink-soft); }
 .bar button, .bar .check, .bar select {
