@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { fireEvent as dom } from '@testing-library/react';
 import { idOf, slotCounts, slotKey } from '@hissypad/core';
 import { MemoryStore } from '@hissypad/core/hours';
 import { loadPad, resetStore, select, usePad } from '@hissypad/state';
@@ -75,6 +76,44 @@ describe('the pad\'s lines in an hour', () => {
     await fireEvent.changeText(screen.getByLabelText('Add an item to this hour'), 'pack for the trip');
     await fireEvent.press(screen.getByLabelText('Add the item'));
     expect(all()[id('pack for the trip')]!.slot).toBe('2026-11-19T17');
+  });
+});
+
+describe('finding a line for an hour', () => {
+  it('searches every pad as the item field is typed in and puts a line found in the hour', async () => {
+    await setup();
+    await act(async () => {
+      select([id('call the bank')]);
+      cmdSetSlot(slotKey('2026-11-19', 9));
+    });
+    await fireEvent.press(screen.getByLabelText('2pm, now: blank'));
+    await fireEvent.changeText(screen.getByLabelText('Add an item to this hour'), 'BAN');
+    // A line in another hour says where it is now.
+    const found = screen.getByRole('option', { name: /^Put “call the bank” in this hour, now in .*9am$/ });
+    expect(screen.queryByRole('option', { name: /buy milk/ })).toBeNull();
+    await fireEvent.press(found);
+    expect(all()[id('call the bank')]!.slot).toBe('2026-11-19T14');
+    expect(screen.getByText('Items: 0 of 1 done')).toBeTruthy();
+    // The field is cleared, and a line already in the hour is not offered again.
+    await fireEvent.changeText(screen.getByLabelText('Add an item to this hour'), 'bank');
+    expect(screen.queryByRole('option')).toBeNull();
+  });
+
+  it('puts the find the arrow keys are on with Return, and adds a new line without one', async () => {
+    await setup();
+    await fireEvent.press(screen.getByLabelText('2pm, now: blank'));
+    const field = screen.getByLabelText('Add an item to this hour');
+    await fireEvent.changeText(field, 'in');
+    expect(screen.getAllByRole('option')).toHaveLength(1); // send invoice
+    await act(async () => {
+      dom.keyDown(field, { key: 'ArrowDown' });
+    });
+    expect(screen.getByRole('option', { name: /send invoice/ })).toHaveAttribute('aria-selected', 'true');
+    await act(async () => {
+      dom.keyDown(field, { key: 'Enter' });
+    });
+    expect(all()[id('send invoice')]!.slot).toBe('2026-11-19T14');
+    expect(Object.values(all()).filter((r) => r.text === 'in')).toHaveLength(0);
   });
 });
 
