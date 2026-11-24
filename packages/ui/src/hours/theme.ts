@@ -3,6 +3,7 @@
 // Dials: ENERGY 1 / RHYTHM 1 / MOTION 1. Charter ships on Apple devices; Georgia elsewhere.
 import { createContext, useContext } from 'react';
 import { Platform, useColorScheme } from 'react-native';
+import { LINE_NATIVE, LINE_WEB, TEXT_SIZE } from '@hissypad/core';
 
 import { PALETTES } from './palette';
 
@@ -70,9 +71,11 @@ export function useTheme(): Theme {
   return (forced ?? device) === 'dark' ? dark : light;
 }
 
-export const SIZE = 17;
+// The pad's own type size and line (core/look.ts), so a line of text in Hours sits as one
+// does in the pad: 25.5px on the web, 26pt on a phone.
+export const SIZE = TEXT_SIZE;
 export const SMALL = 14;
-export const LINE = 26;
+export const LINE = Platform.OS === 'web' ? LINE_WEB : LINE_NATIVE;
 // One hour is one row, and a row is a comfortable tap: 44pt.
 export const ROW = 44;
 export const GUTTER = 20;

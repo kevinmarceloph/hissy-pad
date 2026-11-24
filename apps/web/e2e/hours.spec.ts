@@ -8,7 +8,7 @@ test('an open hour edits its lines with the pad\'s own rows, keys and toolbar', 
   await page.getByRole('button', { name: 'Hours', exact: true }).click()
 
   // Hours opens on the hour in progress. An item typed there goes to Today, in the hour.
-  const add = page.getByLabel('Add an item to this hour')
+  const add = page.getByLabel('Add a line to this hour')
   await add.fill('Write the proposal')
   await add.press('Enter')
   const rows = page.locator('.hour-lines .row')
@@ -48,7 +48,7 @@ test('an open hour edits its lines with the pad\'s own rows, keys and toolbar', 
 test('in an open hour the toolbar offers Out of this hour, not Make pad, and no reorder for the hour\'s own lines', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Hours', exact: true }).click()
-  const add = page.getByLabel('Add an item to this hour')
+  const add = page.getByLabel('Add a line to this hour')
   for (const text of ['Call the bank', 'Send invoice']) {
     await add.fill(text)
     await add.press('Enter')
@@ -72,5 +72,9 @@ test('in an open hour the toolbar offers Out of this hour, not Make pad, and no 
   await rows.first().getByRole('button', { name: 'Select line' }).click()
   await page.getByRole('button', { name: 'Archive', exact: true }).click()
   await expect(rows).toHaveCount(0)
-  await expect(page.getByText('archived', { exact: true })).toBeVisible()
+  // It is listed under Archived, drawn like a line, and comes back from there.
+  await expect(page.getByRole('heading', { name: 'Archived' })).toBeVisible()
+  await page.getByRole('button', { name: /^Unarchive/ }).click()
+  await expect(rows).toHaveCount(1)
+  await expect(page.getByRole('heading', { name: 'Archived' })).toHaveCount(0)
 })

@@ -71,7 +71,7 @@ describe('DayScreen', () => {
     // The hour in progress is open: its three states, and the field that brings lines in.
     expect(screen.getByLabelText('2pm, now: blank')).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('radio', { name: '2pm: Open', checked: true })).toBeTruthy();
-    expect(screen.getByLabelText('Add an item to this hour')).toBeTruthy();
+    expect(screen.getByLabelText('Add a line to this hour')).toBeTruthy();
     // Nothing asks for a title: the summary is behind its button.
     expect(screen.queryByLabelText('Summary of 2pm')).toBeNull();
   });
@@ -84,9 +84,11 @@ describe('DayScreen', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Summary' }));
     await fireEvent.changeText(screen.getByLabelText('Summary of 10am'), 'lunch');
     await fireEvent.press(screen.getByLabelText('Category: None'));
-    await fireEvent.press(screen.getByRole('option', { name: 'Body' }));
-    // Choosing closes the list and the closed line says what was chosen.
-    expect(screen.queryByRole('option', { name: 'Body' })).toBeNull();
+    // The picker is the one a line of the pad gets its category from, opened in place.
+    expect(screen.getByText('Which category is 10am?')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('radio', { name: 'Body' }));
+    // Choosing closes it and the closed line says what was chosen.
+    expect(screen.queryByRole('radio', { name: 'Body' })).toBeNull();
     expect(screen.getByLabelText('Category: Body')).toBeTruthy();
 
     // Written as it is typed. A summary is not a done hour: that is said by hand.
@@ -120,7 +122,7 @@ describe('DayScreen', () => {
     expect(screen.getByLabelText('10pm: Sleep, done')).toBeTruthy();
     expect(screen.getByLabelText(/1 of 24 hours done\./)).toBeTruthy();
     // Another day opens with every hour closed.
-    expect(screen.queryByLabelText('Add an item to this hour')).toBeNull();
+    expect(screen.queryByLabelText('Add a line to this hour')).toBeNull();
 
     // The way back is in the calendar, which closes once a day is picked.
     await fireEvent.press(screen.getByLabelText('Pick a day'));
@@ -155,13 +157,13 @@ describe('DayScreen', () => {
     // The picker leaves the archived one out, except on the hour that already has it.
     await fireEvent.press(screen.getByLabelText('9am: Focus: proposals, done'));
     await fireEvent.press(screen.getByLabelText('Category: Focus'));
-    expect(screen.getByRole('option', { name: 'Admin' })).toBeTruthy();
-    expect(screen.queryByRole('option', { name: 'Drift' })).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Admin' })).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: 'Drift' })).toBeNull();
     await fireEvent.press(screen.getByLabelText('8am: Drift, done'));
     await fireEvent.press(screen.getByLabelText('Category: Drift'));
-    expect(screen.getByRole('option', { name: 'Drift' })).toBeTruthy();
-    // None takes the category off.
-    await fireEvent.press(screen.getByRole('option', { name: 'None' }));
+    expect(screen.getByRole('radio', { name: 'Drift', checked: true })).toBeTruthy();
+    // No category takes it off.
+    await fireEvent.press(screen.getByRole('button', { name: 'No category' }));
     expect(screen.getByLabelText('Category: None')).toBeTruthy();
 
     // The category list is edited from the app's top menu, not from Hours.

@@ -14,6 +14,8 @@ type Props = {
   value: string | null;
   // How many lines are being given one, for the heading.
   count?: number;
+  // The heading, where what is given a category is not lines (an hour's summary).
+  title?: string;
   // A category was picked, or "No category" (null).
   onPick(category: string | null): void;
   onCancel(): void;
@@ -34,7 +36,7 @@ export function CategoryPicker({ scheme = null, ...props }: Props) {
   );
 }
 
-function Picker({ categories, value, count = 1, onPick, onCancel, onCreate }: Omit<Props, 'scheme'>) {
+function Picker({ categories, value, count = 1, title, onPick, onCancel, onCreate }: Omit<Props, 'scheme'>) {
   const theme = useTheme();
   const [making, setMaking] = useState(false);
   if (making && onCreate) {
@@ -49,7 +51,7 @@ function Picker({ categories, value, count = 1, onPick, onCancel, onCreate }: Om
   return (
     <View style={[styles.sheet, { backgroundColor: theme.paper }]}>
       <Text role="heading" aria-level={2} style={[styles.title, { color: theme.ink }]}>
-        {count === 1 ? 'Which category is this line?' : `Which category are these ${count} lines?`}
+        {title ?? (count === 1 ? 'Which category is this line?' : `Which category are these ${count} lines?`)}
       </Text>
       {categories.length === 0 ? (
         <Text style={[styles.small, { color: theme.inkSoft }]}>

@@ -140,7 +140,8 @@ export function padOf(all: Rows, id: string): PadId {
 
 // Bring deleted lines back where they were, with the rows that went with them, then show
 // the pad they are in and select them. Returns the restored top-level ids.
-export function cmdRestore(ids: readonly string[]): string[] {
+// `show: false` leaves the screen where it is (an hour in Hours unarchives one of its lines).
+export function cmdRestore(ids: readonly string[], opts: { show?: boolean } = {}): string[] {
   const { all } = usePad.getState()
   const tops = ids.filter((id) => all[id] && all[id]!.deletedAt !== null)
   if (tops.length === 0) return []
@@ -151,6 +152,7 @@ export function cmdRestore(ids: readonly string[]): string[] {
     for (const id of tops) for (const a of foldedAncestors(out, id)) out = setCollapsed(out, ctx, a, false)
     return out
   }, { label: 'cmdRestore' })
+  if (opts.show === false) return tops
   const after = usePad.getState()
   // An archived pad comes back as a tab: open it rather than the root, where it is no line.
   if (isPadNode(after.all[tops[0]!])) {

@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { slotKey, slotLines } from '@hissypad/core';
-import { closeSlot, openSlot, usePad } from '@hissypad/state';
-import { cmdSlotClear, cmdSlotDone } from '@hissypad/state/hours';
+import { Platform, StyleSheet, Text, View } from 'react-native';
+import { slotKey, slotLines, stateOf } from '@hissypad/core';
+import { closeSlot, cmdRestore, openSlot, usePad } from '@hissypad/state';
 
 import { SlotAdder } from './SlotAdder';
 import { StateMark } from './StateMark';
@@ -25,8 +24,8 @@ type Props = {
 
 // An open hour's lines, drawn by the pad's own editor (PLAN.md, "Hours joins the pad"): the store is
 // asked to show this hour, the host draws its rows, and the host's toolbar acts on them.
-// Under them, what a view of live rows leaves out, the hour's archived lines, and the
-// field that brings lines in.
+// Under them, what a view of live rows leaves out, the hour's archived lines under a
+// heading of their own, and the field that brings lines in.
 export function HostedLines({ day, hour, onClose }: Props) {
   const theme = useTheme();
   // Both apps hand an editor in. Without one (a screen under test) no lines are drawn and
@@ -56,32 +55,30 @@ export function HostedLines({ day, hour, onClose }: Props) {
     <View style={styles.group}>
       {render && shown === slot && render({ day, hour, slot })}
       {archived.length > 0 && (
-        <View role="list" aria-label="Archived lines in this hour">
-          {archived.map((r) => (
-            <View key={r.id} role="listitem" style={styles.line}>
-              {/* An archived line can still be crossed out here, or not: it was the hour's. */}
-              <Tap
-                role="checkbox"
-                aria-checked={r.done}
-                aria-label={`${r.text}, archived`}
-                onPress={() => cmdSlotDone(r.id, !r.done)}
-                style={styles.out}
-                activeStyle={{ backgroundColor: theme.paper }}>
-                <StateMark state={r.done ? 'done' : 'open'} color={theme.inkQuiet} />
-              </Tap>
-              <Text numberOfLines={2} style={[styles.text, { color: theme.inkQuiet }, r.done && styles.struck]}>
-                {r.text}
-              </Text>
-              <Text style={[styles.small, { color: theme.inkSoft }]}>archived</Text>
-              <Tap
-                aria-label={`Take “${r.text}” out of this hour`}
-                onPress={() => cmdSlotClear(r.id)}
-                style={[styles.out, styles.last]}
-                activeStyle={{ backgroundColor: theme.paper }}>
-                <Text style={[styles.text, { color: theme.inkSoft }]}>×</Text>
-              </Tap>
-            </View>
-          ))}
+        // Drawn like the pad's lines, under a heading of their own: a bullet that says the
+        // line's state, its words, and the way back (Kevin, 2026-11-25). Unarchiving puts
+        // the line back in its pad, and so back among the hour's lines above.
+        <View>
+          <Text role="heading" aria-level={3} style={[styles.heading, { color: theme.inkSoft }]}>
+            Archived
+          </Text>
+          <View role="list" aria-label="Archived lines in this hour">
+            {archived.map((r) => (
+              <View key={r.id} role="listitem" style={styles.line}>
+                <View aria-hidden style={styles.bullet}>
+                  <StateMark state={stateOf(r)} color={r.done ? theme.inkQuiet : theme.inkSoft} />
+                </View>
+                <Text style={[styles.text, { color: r.done ? theme.inkQuiet : theme.ink }, r.done && styles.struck]}>{r.text}</Text>
+                <Tap
+                  aria-label={`Unarchive “${r.text}”`}
+                  onPress={() => cmdRestore([r.id], { show: false })}
+                  style={[styles.back, { borderColor: theme.line }]}
+                  activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paper }}>
+                  <Text style={[styles.small, { color: theme.ink }]}>Unarchive</Text>
+                </Tap>
+              </View>
+            ))}
+          </View>
         </View>
       )}
       <SlotAdder day={day} hour={hour} onClose={onClose} />
@@ -91,10 +88,14 @@ export function HostedLines({ day, hour, onClose }: Props) {
 
 const styles = StyleSheet.create({
   group: { gap: 8 },
-  line: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 36 },
-  text: { flexShrink: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
+  heading: { fontFamily: serif, fontSize: SMALL, lineHeight: 20, marginBottom: 2 },
+  // A line as the pad draws one: a bullet in its own column, the words in the pad's line.
+  // The bullet sits where each app's pad puts its own: measured against the web's rows,
+  // and the phone's 36pt gutter.
+  line: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 2, ...(Platform.OS === 'web' ? { marginLeft: 4, gap: 5 } : null) },
+  bullet: { width: Platform.OS === 'web' ? 28 : 36, height: LINE, alignItems: 'center', justifyContent: 'center' },
+  text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
   struck: { textDecorationLine: 'line-through' },
   small: { fontFamily: serif, fontSize: SMALL, lineHeight: 20 },
-  out: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 4 },
-  last: { marginLeft: 'auto' },
+  back: { minHeight: 30, justifyContent: 'center', paddingHorizontal: 10, borderWidth: 1, borderRadius: 15 },
 });

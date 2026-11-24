@@ -58,14 +58,14 @@ export function SlotAdder({ day, hour, onClose }: Props) {
           }}
           submitBehavior="submit"
           returnKeyType="done"
-          accessibilityLabel="Add an item to this hour"
-          placeholder="Add an item, or find one in a pad"
+          accessibilityLabel="Add a line to this hour"
+          placeholder="Add a line, or find one in a pad"
           placeholderTextColor={theme.inkQuiet}
           style={[styles.input, { color: theme.ink, borderColor: theme.line, backgroundColor: theme.paper, outlineColor: theme.accent }]}
         />
         <Tap
           disabled={draft.trim() === ''}
-          aria-label="Add the item"
+          aria-label="Add the line"
           onPress={add}
           style={[styles.add, { borderColor: theme.line }]}
           activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paper }}>

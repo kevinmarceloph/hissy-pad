@@ -8,6 +8,10 @@ import { flagChoice, flagOption, setFlagChoice, type Flag } from '@hissypad/core
 
 import type { NodeRow, SlotCount } from '@hissypad/core';
 
+import { cmdAddCategory } from '@hissypad/state/hours';
+
+import { CategoryBadge } from './CategoryBadge';
+import { CategoryPicker } from './CategoryPicker';
 import { FlagMark } from './FlagMark';
 import { Mark } from './Mark';
 import { HostedLines } from './HostedLines';
@@ -70,7 +74,7 @@ export function HourRow(props: Props) {
     words || (mark !== 'open' ? null : state === 'future' ? 'not yet' : 'blank'),
     mark === 'open' ? null : mark,
     aside || null,
-    items > 0 ? `${count!.done} of ${items} ${items === 1 ? 'item' : 'items'} done` : null,
+    items > 0 ? `${count!.done} of ${items} ${items === 1 ? 'line' : 'lines'} done` : null,
     extra > 0 ? `${extra} more done` : null,
   ]
     .filter(Boolean)
@@ -155,6 +159,8 @@ function Editor({ day, hour, entry, top, categories, flags, onEditFlags, onSave,
   const title = entry?.note ?? '';
   // The summary stays out of the way until asked for, unless the hour already has one.
   const [summing, setSumming] = useState(title.trim() !== '' || (entry?.category ?? null) !== null);
+  const [picking, setPicking] = useState(false);
+  const own = findCategory(categories, entry?.category);
   const fallback = findCategory(categories, hourShown({ ...(entry ?? BLANK), category: null }, top).category);
 
   return (
@@ -193,7 +199,40 @@ function Editor({ day, hour, entry, top, categories, flags, onEditFlags, onSave,
               style={[styles.input, { color: theme.ink, borderColor: theme.line, backgroundColor: theme.paper, outlineColor: theme.accent }]}
             />
           </View>
-          <Picker title="Category" kind="done" value={entry?.category ?? null} categories={categories} onPick={(category) => onSave({ category })} />
+          {/* The same picker a line of the pad gets its category from, opened in place. */}
+          <Tap
+            aria-label={`Category: ${own ? categoryName(own) : entry?.category ? 'A category not on this device' : 'None'}`}
+            aria-expanded={picking}
+            onPress={() => setPicking(!picking)}
+            style={[styles.select, { borderColor: picking ? theme.ink : theme.line, backgroundColor: theme.paper }]}
+            activeStyle={{ borderColor: theme.ink }}>
+            {own ? <CategoryBadge category={own} size={22} /> : <Mark style={styles.chipSwatch} />}
+            <Text numberOfLines={1} style={[styles.selectText, { color: own ? theme.ink : theme.inkSoft }]}>
+              {own ? own.label : entry?.category ? 'A category not on this device' : 'No category'}
+            </Text>
+            <Text aria-hidden style={[styles.caret, { color: theme.ink }]}>
+              {picking ? '▴' : '▾'}
+            </Text>
+          </Tap>
+          {picking && (
+            <View style={[styles.options, { borderColor: theme.ink }]}>
+              <CategoryPicker
+                title={`Which category is ${at}?`}
+                // The active ones, plus this hour's own if it has since been archived.
+                categories={categories.filter((c) => !c.archived || c.id === entry?.category)}
+                value={entry?.category ?? null}
+                onPick={(category) => {
+                  setPicking(false);
+                  if (category !== (entry?.category ?? null)) onSave({ category });
+                }}
+                onCancel={() => setPicking(false)}
+                onCreate={(label, icon, color) => {
+                  setPicking(false);
+                  void cmdAddCategory(label, icon, color).then((made) => made && onSave({ category: made.id }));
+                }}
+              />
+            </View>
+          )}
           {(entry?.category ?? null) === null && fallback && (
             <Text style={[styles.label, { color: theme.inkSoft }]}>With none chosen, the hour takes its top line's: {categoryName(fallback)}.</Text>
           )}
@@ -280,7 +319,8 @@ type PickerProps = {
   onPick(id: string | null): void;
 };
 
-// A dropdown of categories: one closed line that says what is chosen, and a list that
+// The recurring plans' dropdown of categories (an hour's own category goes through the
+// shared CategoryPicker): one closed line that says what is chosen, and a list that
 // opens under it. Built from Taps, not a native select, so every option keeps its swatch
 // and the same control runs on phones and the web.
 export function Picker({ title, kind, value, categories, onPick }: PickerProps) {

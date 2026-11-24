@@ -1,6 +1,7 @@
 // The web's paper-and-ink tokens, for React Native. Charter ships on iOS; Android falls
 // back to its serif.
 import { Platform, useColorScheme } from 'react-native'
+import { LINE_NATIVE, TEXT_SIZE } from '@hissypad/core'
 
 export const serif = Platform.select({ ios: 'Charter', android: 'serif', default: 'serif' })
 export const mono = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' })
@@ -39,8 +40,9 @@ export function useTheme(): Theme {
   return useColorScheme() === 'dark' ? dark : light
 }
 
-export const SIZE = 17
-export const LINE = 26
+// One set of sizes with the web and the shared screens: core/look.ts.
+export const SIZE = TEXT_SIZE
+export const LINE = LINE_NATIVE
 export const INDENT = 22
 export const GUTTER = 36
 // A multiline TextInput on iOS (UITextView) puts all of the extra line height above the
