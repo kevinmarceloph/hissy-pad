@@ -61,7 +61,7 @@ describe('the widget', () => {
     cmdMoveToPad(inbox)
     const depth = usePad.getState().past.length
     expect(cmdWidgetActions([{ id: id('A'), dir: 'left' }, { id: id('B'), dir: 'up' }, { id: id('C'), dir: 'right' }])).toBe(3)
-    expect(whole()).toBe('\nD\n@Inbox\n  \n@Later\n  A\n@Today\n  ~B\n    B1\n    B2\n  C')
+    expect(whole()).toBe('\nD\n@Inbox\n  \n@Later\n  A\n@Today\n  C\n  ~B\n    B1\n    B2')
     expect(usePad.getState().past).toHaveLength(depth + 3)
     expect(usePad.getState().padId).toBeNull() // the pad shown does not change
     undo()

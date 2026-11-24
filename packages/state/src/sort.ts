@@ -104,7 +104,7 @@ export interface SortResult {
   undoDepth: number // the undo stack's length before this card; cmdSortBack returns to it
 }
 
-// The move itself, on the whole table: `id` goes to the bottom of the target (a pad, made
+// The move itself, on the whole table: `id` goes to the top of the target (a pad, made
 // on the spot when it is a default that does not exist yet, or a sub-pad) unless it is already in it,
 // and is crossed out when the direction is up. `here` is the pad the line is in now.
 export function sendToTarget(all: Rows, ctx: OpCtx, id: string, dir: Exclude<SortDir, 'skip' | 'cycle' | 'down'>, target: SortTarget, here: PadId): { rows: Rows; moved: boolean } {
@@ -120,8 +120,7 @@ export function sendToTarget(all: Rows, ctx: OpCtx, id: string, dir: Exclude<Sor
   const parent = target.subId ?? padId
   const there = target.subId !== null ? id === target.subId || out[id]?.parentId === target.subId : padId === here
   if (!there) {
-    const last = childrenOf(buildIndex(out), parent).filter((r) => !r.pad).at(-1)
-    out = moveNodes(out, ctx, [id], { parentId: parent, afterId: last?.id ?? null })
+    out = moveNodes(out, ctx, [id], { parentId: parent, afterId: null })
     moved = true
   }
   if (dir === 'up') out = setDone(out, ctx, [id], true)
@@ -129,8 +128,7 @@ export function sendToTarget(all: Rows, ctx: OpCtx, id: string, dir: Exclude<Sor
 }
 
 // Send one card on its way: one undo step, the default pad made on the spot if needed.
-// The line goes to the bottom of its new pad, so a run of cards arrives in the order it
-// was sorted.
+// The line goes to the top of its new pad, so the card sorted last is the first line there.
 export function cmdSortSend(id: string, dir: SortDir): SortResult | null {
   const state = usePad.getState()
   if (!isLive(state.rows[id])) return null

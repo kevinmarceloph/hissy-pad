@@ -29,13 +29,13 @@ describe('sort', () => {
     expect(sortQueue()).toEqual([])
   })
 
-  it('left makes Later, right makes Today, up crosses out in Today; lines keep their order and subtrees', () => {
+  it('left makes Later, right makes Today, up crosses out in Today; each line lands on top with its subtree', () => {
     expect(sortTarget(all(), 'left')).toMatchObject({ name: 'Later', exists: false })
     cmdSortSend(id('A'), 'left')
     cmdSortSend(id('B'), 'right')
     cmdSortSend(id('C'), 'up')
     cmdSortSend(id('D'), 'right')
-    expect(whole()).toBe('\n@Later\n  A\n@Today\n  B\n    B1\n  ~C\n  D')
+    expect(whole()).toBe('\n@Later\n  A\n@Today\n  D\n  ~C\n  B\n    B1')
     expect(all()[id('C')]!.doneAt).not.toBeNull()
     expect(listPads(all())).toHaveLength(2)
     expect(sortTarget(all(), 'right')).toMatchObject({ name: 'Today', exists: true, isDefault: true })
@@ -52,7 +52,7 @@ describe('sort', () => {
     expect(whole()).toBe('A\nB\n  B1\n\nC\nD')
   })
 
-  it('the left side can point at a sub-pad: the line goes to the bottom of its lines, and the header is not sent into itself', () => {
+  it('the left side can point at a sub-pad: the line goes to the top of its lines, and the header is not sent into itself', () => {
     const b = id('B')
     usePad.setState({ selection: [b] })
     cmdSetKind('header')
@@ -62,7 +62,7 @@ describe('sort', () => {
     expect(cmdSortSend(id('A'), 'left')).toMatchObject({ pad: 'Main → B', moved: true })
     expect(cmdSortSend(id('C'), 'left')).toMatchObject({ moved: true })
     expect(cmdSortSend(b, 'left')).toMatchObject({ moved: false })
-    expect(whole()).toBe('#B\n  B1\n  A\n  C\n\nD')
+    expect(whole()).toBe('#B\n  C\n  A\n  B1\n\nD')
     // Turned back into a plain line, the choice falls back to the default.
     usePad.setState({ selection: [b] })
     cmdSetKind('plain')

@@ -66,7 +66,7 @@ describe('sort', () => {
     expect(screen.getByRole('textbox', { name: 'Sub item' })).toHaveValue('B1')
     await user.click(button('Right: Today'))
     await user.keyboard('{ArrowUp}')
-    expect(whole()).toBe('D\n@Later\n  A\n@Today\n  B\n    B1\n  ~C')
+    expect(whole()).toBe('D\n@Later\n  A\n@Today\n  ~C\n  B\n    B1')
     await user.click(button('Back'))
     expect(card().value).toBe('C')
     expect(whole()).toBe('C\nD\n@Later\n  A\n@Today\n  B\n    B1')
@@ -140,7 +140,7 @@ describe('sort', () => {
     expect(card().value).toBe('B')
     expect(button('Left: Someday')).toBeInTheDocument()
     await user.keyboard('{ArrowRight}{ArrowLeft}')
-    expect(whole()).toBe('\n@Someday\n  \n  A\n  C\n@Today\n  B')
+    expect(whole()).toBe('\n@Someday\n  C\n  A\n  \n@Today\n  B')
   })
 
   it('New pad… in the left select makes a pad on the spot and sends the card to it; Cancel changes nothing', async () => {
