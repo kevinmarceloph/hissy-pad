@@ -18,7 +18,8 @@ type Props = {
 };
 
 // The pad's lines assigned to this hour: tick one to cross it out in its pad, take it out
-// of the hour, or type a new one, which lands at the top of the pad that is open. What is
+// of the hour, or type a new one, which lands at the top of the pad that is open. A line
+// archived from its pad stays here, marked "archived", and can still be ticked. What is
 // typed also searches every pad (the universal search): a line found is put in this hour
 // with a tap, or with the arrow keys and Return on the web.
 export function Items({ day, hour, hold }: Props) {
@@ -58,7 +59,7 @@ export function Items({ day, hour, hold }: Props) {
             {...hold}
             role="checkbox"
             aria-checked={line.done}
-            aria-label={line.text}
+            aria-label={line.deletedAt ? `${line.text}, archived` : line.text}
             onPress={() => cmdSlotDone(line.id, !line.done)}
             style={styles.check}
             activeStyle={{ backgroundColor: theme.paper }}>
@@ -70,6 +71,7 @@ export function Items({ day, hour, hold }: Props) {
               style={[styles.text, { color: line.done ? theme.inkQuiet : theme.ink }, line.done && styles.struck]}>
               {line.text}
             </Text>
+            {line.deletedAt && <Text style={[styles.small, { color: theme.inkSoft }]}>archived</Text>}
           </Tap>
           <Tap
             {...hold}

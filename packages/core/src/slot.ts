@@ -5,7 +5,7 @@
 // adds how many: 'YYYY-MM-DDTHH+3' is that hour and the two after it, and may run past
 // midnight into the next day. A single hour never carries '+1'.
 import type { NodeRow, Rows } from './types'
-import { isBlank, isLive } from './tree'
+import { isBlank } from './tree'
 
 export const MAX_SLOT_HOURS = 24
 
@@ -56,12 +56,13 @@ export interface SlotCount {
 
 // How many assigned lines are crossed out and how many are still open, per hour. Every pad
 // counts, blank lines never do, and a line counts for itself only (not for what is under it).
-// A line in a run of hours counts in each hour of it.
+// A line in a run of hours counts in each hour of it. An archived line still counts: it was
+// planned for that hour, and archiving it from the pad does not take it out of the day.
 export function slotCounts(all: Rows): Record<string, SlotCount> {
   const out: Record<string, SlotCount> = {}
   for (const id in all) {
     const r = all[id]!
-    if (r.slot === null || !isLive(r) || isBlank(r) || r.pad) continue
+    if (r.slot === null || isBlank(r) || r.pad) continue
     for (const key of slotHours(r.slot)) {
       const c = (out[key] ??= { done: 0, open: 0 })
       if (r.done) c.done++
@@ -90,12 +91,13 @@ export function slotDoneExtra(all: Rows): Record<string, number> {
 }
 
 // The lines in one hour (a single-hour key), a run of hours that takes it in included: open ones first, then crossed out, each group by rank
-// (a line's place among its siblings), which is steady enough across pads.
+// (a line's place among its siblings), which is steady enough across pads. Archived lines stay
+// listed, as in slotCounts.
 export function slotLines(all: Rows, slot: string): NodeRow[] {
   const list: NodeRow[] = []
   for (const id in all) {
     const r = all[id]!
-    if (slotCovers(r.slot, slot) && isLive(r) && !isBlank(r) && !r.pad) list.push(r)
+    if (slotCovers(r.slot, slot) && !isBlank(r) && !r.pad) list.push(r)
   }
   return list.sort((a, b) => Number(a.done) - Number(b.done) || (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0) || (a.id < b.id ? -1 : 1))
 }

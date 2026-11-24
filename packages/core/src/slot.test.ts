@@ -36,6 +36,13 @@ describe('a run of hours', () => {
     expect(slotLines(all, '2026-11-24T15').map((r) => r.id)).toEqual(['a', 'b'])
   })
 
+  it('keeps an archived line in its hours, counted and listed', () => {
+    const gone = { ...row('a', '2026-11-24T14', true), deletedAt: '2026-11-24T15:00:00.000Z' }
+    const all = table(gone, row('b', '2026-11-24T14'))
+    expect(slotCounts(all)).toEqual({ '2026-11-24T14': { done: 1, open: 1 } })
+    expect(slotLines(all, '2026-11-24T14').map((r) => r.id)).toEqual(['b', 'a'])
+  })
+
   it('reads to the hour it ends at', () => {
     expect(slotLabel('2026-11-24T14+3', '2026-11-24')).toBe('Today 2pm-5pm')
     expect(slotLabel('2026-11-24T22+4', '2026-11-24')).toBe('Today 10pm-2am')

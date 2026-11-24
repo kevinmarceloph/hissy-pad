@@ -22,12 +22,13 @@ export function targetSlot(ids: readonly string[] = targets()): string | null {
 }
 
 // From the Hours screen, where a line may be in any pad: the whole table is the target.
+// Hours keeps listing a line after it is archived, so both reach archived lines too.
 export function cmdSlotDone(id: string, done: boolean) {
-  applyAll((all, ctx) => (isLive(all[id]) ? setDone(all, ctx, [id], done) : all), { label: 'cmdSlotDone' });
+  applyAll((all, ctx) => setDone(all, ctx, [id], done, true), { label: 'cmdSlotDone' });
 }
 
 export function cmdSlotClear(id: string) {
-  applyAll((all, ctx) => setSlot(all, ctx, [id], null), { label: 'cmdSlotClear' });
+  applyAll((all, ctx) => setSlot(all, ctx, [id], null, true), { label: 'cmdSlotClear' });
 }
 
 // A line found by search, put in this hour from the Hours screen. It may sit in any pad, so

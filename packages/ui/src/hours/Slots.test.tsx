@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 import { fireEvent as dom } from '@testing-library/react';
 import { idOf, slotCounts, slotKey } from '@hissypad/core';
 import { MemoryStore } from '@hissypad/core/hours';
-import { loadPad, resetStore, select, usePad } from '@hissypad/state';
+import { cmdDeleteSelection, loadPad, resetStore, select, usePad } from '@hissypad/state';
 import { cmdSetSlot, cmdSlotDone, createCategoryStore, createDayStore, createFlagStore } from '@hissypad/state/hours';
 
 import { act, fireEvent, render, screen } from '../testing/rntl';
@@ -87,6 +87,23 @@ describe('the pad\'s lines in an hour', () => {
     await fireEvent.press(screen.getByLabelText('Add the item'));
     expect(all()[id('renew passport')]!.slot).toBe('2026-11-19T14');
     expect(slotCounts(all())).toEqual({ '2026-11-19T14': { done: 1, open: 1 } });
+  });
+
+  it('keeps an archived line in its hour, marked archived, and ticks it there', async () => {
+    await setup();
+    const invoice = id('send invoice');
+    await act(async () => {
+      select([id('call the bank'), invoice]);
+      cmdSetSlot(slotKey('2026-11-19', 14));
+      select([invoice]);
+      cmdDeleteSelection();
+    });
+    expect(all()[invoice]!.deletedAt).not.toBeNull();
+    await fireEvent.press(screen.getByLabelText('2pm, now: planned call the bank, 0 of 2 items done'));
+    expect(screen.getAllByText('archived')).toHaveLength(1);
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'send invoice, archived' }));
+    expect(all()[invoice]!.done).toBe(true);
+    expect(screen.getByText('Items: 1 of 2 done')).toBeTruthy();
   });
 
   it('plans items into an hour that has not come', async () => {

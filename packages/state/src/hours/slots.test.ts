@@ -4,7 +4,8 @@ import { idOf, shape, slotCounts, slotKey, slotLabel, parseSlot } from '@hissypa
 import { resetStore } from '../testing';
 import { loadPad, usePad } from '../store';
 import { edit, select, stopEditing } from '../selection';
-import { undo } from '../history';
+import { redo, undo } from '../history';
+import { cmdDeleteSelection } from '../commands';
 import { cmdApplySlot, cmdPickSlot, cmdSetSlot, cmdSlotAdd, cmdSlotClear, cmdSlotDone, linesInSlot, setSlotPickerOpener, targetSlot } from './slots';
 
 const SLOT = slotKey('2026-11-23', 9);
@@ -47,6 +48,30 @@ describe('lines in an hour', () => {
     select([id('D')]);
     cmdSetSlot(null);
     expect(slotCounts(usePad.getState().all)).toEqual({ [SLOT]: { done: 0, open: 1 } });
+  });
+
+  it('keeps an archived line in its hour, where it can still be ticked and taken out', () => {
+    select([id('A'), id('C')]);
+    cmdSetSlot(SLOT);
+    const c = id('C');
+    select([c]);
+    cmdDeleteSelection();
+    expect(usePad.getState().all[c]!.deletedAt).not.toBeNull();
+    expect(linesInSlot('2026-11-23', 9).map((r) => r.text)).toEqual(['A', 'C']);
+    cmdSlotDone(c, true);
+    expect(usePad.getState().all[c]).toMatchObject({ done: true, deletedAt: expect.any(String) });
+    expect(slotCounts(usePad.getState().all)).toEqual({ [SLOT]: { done: 1, open: 1 } });
+    cmdSlotClear(c);
+    expect(linesInSlot('2026-11-23', 9).map((r) => r.text)).toEqual(['A']);
+  });
+
+  it('drops an undone add from the hour, and a redo puts it back', () => {
+    const made = cmdSlotAdd('2026-11-23', 9, 'call the bank');
+    undo();
+    expect(usePad.getState().all[made]).toMatchObject({ slot: null, deletedAt: expect.any(String) });
+    expect(linesInSlot('2026-11-23', 9)).toEqual([]);
+    redo();
+    expect(usePad.getState().all[made]).toMatchObject({ slot: SLOT, deletedAt: null });
   });
 
   it('adds a new line at the top of the open pad, already in the hour', () => {

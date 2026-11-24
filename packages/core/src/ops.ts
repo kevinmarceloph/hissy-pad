@@ -116,10 +116,12 @@ export function setText(rows: Rows, ctx: OpCtx, id: string, text: string): Rows 
 }
 
 // Crossing out stamps doneAt (what "Recently done" sorts by); un-doing clears it.
-export function setDone(rows: Rows, ctx: OpCtx, ids: Iterable<string>, done: boolean): Rows {
+// `archived` lets it reach an archived line too, as Hours does: it still lists them.
+export function setDone(rows: Rows, ctx: OpCtx, ids: Iterable<string>, done: boolean, archived = false): Rows {
   let out = rows
   for (const id of ids) {
-    if (!isLive(out[id]) || out[id]!.done === done) continue
+    const r = out[id]
+    if (!r || (!archived && !isLive(r)) || r.done === done) continue
     const now = ctx.now()
     out = { ...out, [id]: { ...out[id]!, done, doneAt: done ? now : null, updatedAt: now } }
   }
@@ -134,9 +136,14 @@ export function setCategory(rows: Rows, ctx: OpCtx, ids: Iterable<string>, categ
 }
 
 // Assign lines to an hour of a day in Hours (slot.ts), or take them out of it with null.
-export function setSlot(rows: Rows, ctx: OpCtx, ids: Iterable<string>, slot: string | null): Rows {
+// `archived` lets it reach an archived line too (Hours' × on one it still lists).
+export function setSlot(rows: Rows, ctx: OpCtx, ids: Iterable<string>, slot: string | null, archived = false): Rows {
   let out = rows
-  for (const id of ids) if (isLive(out[id]) && out[id]!.slot !== slot) out = patch(out, ctx, id, { slot })
+  for (const id of ids) {
+    const r = out[id]
+    if (!r || (!archived && !isLive(r)) || r.slot === slot) continue
+    out = { ...out, [id]: { ...r, slot, updatedAt: ctx.now() } }
+  }
   return out
 }
 

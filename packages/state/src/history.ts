@@ -10,6 +10,8 @@ const set = usePad.setState
 
 // Restore one side of an entry onto the table. Rows that did not exist on that side
 // become tombstones (an undone insert). Everything restored gets a fresh updatedAt.
+// An undone insert also loses its hour: Hours lists archived lines, and this one never was
+// a line to archive (a redo puts the slot back with the rest of the row).
 function restore(side: Record<string, NodeRow | undefined>, ids: string[]): { rows: Rows; touched: string[] } {
   const cur = get().all
   const out: Record<string, NodeRow> = { ...cur }
@@ -18,7 +20,7 @@ function restore(side: Record<string, NodeRow | undefined>, ids: string[]): { ro
     const want = side[id]
     const now = ctx.now()
     if (want) out[id] = { ...want, updatedAt: now }
-    else if (cur[id]) out[id] = { ...cur[id]!, deletedAt: now, updatedAt: now }
+    else if (cur[id]) out[id] = { ...cur[id]!, slot: null, deletedAt: now, updatedAt: now }
     else continue
     touched.push(id)
   }
