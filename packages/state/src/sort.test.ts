@@ -69,18 +69,16 @@ describe('sort', () => {
     expect(sortTarget(all(), 'left')).toMatchObject({ name: 'Later', isDefault: true })
   })
 
-  it('a chosen pad or Main is the target, remembered on the device; a deleted choice falls back', async () => {
+  it('a chosen pad is the target, remembered on the device; a deleted choice falls back', async () => {
     const work = cmdNewPad('Work')
     setSortTarget(work)
     cmdSortAddSub(Object.keys(usePad.getState().rows)[0]!, 'x') // nothing: blank parent still takes a sub item
     openPad(null)
     cmdSortSend(id('A'), 'left')
     expect(all()[id('A')]!.parentId).toBe(work)
-    // Already in the target: stays put.
+    // 'main' is a choice from before the fixed pads: it falls back to Later.
     setSortTarget('main')
-    expect(cmdSortSend(id('C'), 'left')).toMatchObject({ moved: false, pad: 'Main' })
-    expect(all()[id('C')]).toMatchObject({ parentId: null })
-    expect(listPads(all()).map((p) => p.text)).toEqual(['Work'])
+    expect(sortTarget(all(), 'left')).toMatchObject({ name: 'Later', isDefault: true })
     setSortTarget(work)
     useSort.setState({ left: null })
     await loadSortTargets()

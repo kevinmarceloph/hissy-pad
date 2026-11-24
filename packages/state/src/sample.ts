@@ -1,7 +1,7 @@
 // What a first visit sees instead of one blank line: a small pad that shows the shape
 // (a heading with children, a numbered list, a crossed-out line, a spacer) and teaches
 // the handful of moves, in the app's own voice. It also serves as the Paste-in example.
-import { insertOutline, parseOutline, setDone, type OpCtx, type Rows } from '@hissypad/core'
+import { findFixedPad, insertOutline, parseOutline, setDone, settleFixedPads, type OpCtx, type Rows } from '@hissypad/core'
 
 export const SAMPLE_OUTLINE = `Welcome to HissyPad
 	This is one page. Put whatever matters next at the top.
@@ -24,8 +24,13 @@ When you are ready, select the top line and press Delete, or paste your own list
 
 export const SAMPLE_DONE_LINE = 'Cross a line out from the toolbar, or with Cmd+Enter. Like this one.'
 
-export function seedSample(rows: Rows, ctx: OpCtx): { rows: Rows; ids: string[] } {
-  const res = insertOutline(rows, ctx, parseOutline(SAMPLE_OUTLINE), { parentId: null, afterId: null })
+// The sample goes in the Inbox, and the fixed pads it makes are part of the seed: a device
+// that then signs in to an account drops them with the untouched lines.
+export function seedSample(rows: Rows, ctx: OpCtx, fixed = true): { rows: Rows; ids: string[]; padId: string | null } {
+  const settled = fixed ? settleFixedPads(rows, ctx) : rows
+  const pads = Object.keys(settled).filter((id) => !(id in rows))
+  const inbox = fixed ? findFixedPad(settled, 'Inbox')!.id : null
+  const res = insertOutline(settled, ctx, parseOutline(SAMPLE_OUTLINE), { parentId: inbox, afterId: null })
   const done = res.ids.find((id) => res.rows[id]!.text === SAMPLE_DONE_LINE)
-  return { rows: done ? setDone(res.rows, ctx, [done], true) : res.rows, ids: res.ids }
+  return { rows: done ? setDone(res.rows, ctx, [done], true) : res.rows, ids: [...pads, ...res.ids], padId: inbox }
 }

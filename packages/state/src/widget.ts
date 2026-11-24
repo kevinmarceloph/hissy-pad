@@ -5,9 +5,9 @@
 // separate process that cannot run this code, so the two only ever exchange these two
 // JSON values through shared storage (apps/mobile/src/widget.ts writes and reads them,
 // targets/widget/*.swift is the other end).
-import { buildIndex, countLines, padLines, createPad, descendantIds, insertAt, isLive, isPadNode, listPads, setDone, type PadId, type Rows } from '@hissypad/core'
+import { buildIndex, countLines, padLines, createPad, descendantIds, findFixedPad, insertAt, isLive, isPadNode, setDone, type PadId, type Rows } from '@hissypad/core'
 import { applyAll, usePad } from './store'
-import { MAIN_PAD_NAME } from './pads'
+import { MAIN_PAD_NAME, padList } from './pads'
 import { padOf } from './lists'
 import { sendToTarget, sortTarget, useSort, type SortChoice } from './sort'
 import { log } from './log'
@@ -67,11 +67,12 @@ export function widgetSnapshot(all: Rows = usePad.getState().all, choice: { left
       }),
     }
   }
-  const others = listPads(all)
+  // The pads in tab order (Today, Inbox, Later first; Main only while the root holds lines).
   const inbox = inboxPad(all)
+  const tabs = padList(all).map((p) => pad(p.id, p.name))
   return {
     v: 1,
-    pads: [pad(null, MAIN_PAD_NAME), ...others.map((p) => pad(p.id, p.text.trim() || 'Untitled pad'))],
+    pads: tabs.length ? tabs : [pad(null, MAIN_PAD_NAME)],
     inbox: padKey(inbox?.id ?? null),
     left: sortTarget(all, 'left', choice.left).name,
     right: sortTarget(all, 'right').name,
@@ -80,7 +81,7 @@ export function widgetSnapshot(all: Rows = usePad.getState().all, choice: { left
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
-const inboxPad = (all: Rows) => listPads(all).find((p) => p.text.trim().toLowerCase() === WIDGET_INBOX_NAME.toLowerCase())
+const inboxPad = (all: Rows) => findFixedPad(all, 'Inbox')
 
 // Apply what happened outside the app since it was last in front, oldest first: buttons
 // pressed on the widget, lines added through Siri. Each is one undo step. A line that is
@@ -138,8 +139,9 @@ export function cmdAddToPad(key: string, text: string, id?: string): string {
         padId = made.padId
       }
     } else {
+      // Main (the root level, an older widget's key) or a pad that is gone: the Inbox.
       const wanted = fromKey(key)
-      padId = wanted !== null && isPadNode(out[wanted]) ? wanted : null
+      padId = wanted !== null && isPadNode(out[wanted]) ? wanted : (inboxPad(out)?.id ?? null)
     }
     const res = insertAt(out, id ? { ...ctx, newId: () => id } : ctx, { parentId: padId, afterId: null }, clean)
     newId = res.newId
@@ -152,5 +154,5 @@ export function cmdAddToPad(key: string, text: string, id?: string): string {
 export function widgetPadName(key: string, all: Rows = usePad.getState().all): string {
   if (key === WIDGET_INBOX) return inboxPad(all)?.text.trim() || WIDGET_INBOX_NAME
   const id = fromKey(key)
-  return id !== null && isPadNode(all[id]) ? all[id].text.trim() || 'Untitled pad' : MAIN_PAD_NAME
+  return id !== null && isPadNode(all[id]) ? all[id].text.trim() || 'Untitled pad' : inboxPad(all)?.text.trim() || MAIN_PAD_NAME
 }

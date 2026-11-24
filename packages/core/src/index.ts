@@ -79,6 +79,11 @@ export {
   sendTo,
   sideRows,
   freshStart,
+  FIXED_PADS,
+  type FixedPad,
+  fixedPadOf,
+  findFixedPad,
+  settleFixedPads,
 } from './pads'
 export { parseOutline, insertOutline, toOutline, toOutlineHtml, type OutlineLine, type OutlineFormat } from './paste'
 export { testCtx, pad, shape, idOf } from './testing'

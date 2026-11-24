@@ -642,6 +642,10 @@ dialog.import input[type='email'] {
   border-bottom: 2px solid transparent;
 }
 .pads .pad-tab { display: inline-flex; align-items: stretch; }
+/* Today, Inbox and Later: always first, each with its icon, a little apart from the pads after them. */
+.pads [role='tab'] .glyph { display: inline-flex; vertical-align: -0.15em; margin-right: 0.3rem; }
+.pads [role='tab'] .glyph svg { width: 15px; height: 15px; }
+.pads .pad-tab.fixed + .pad-tab:not(.fixed) { margin-left: 0.6rem; }
 /* The chevron beside a pad that has sub-pads (its top-level headers): opens the list to jump to. */
 .pads .subs { min-width: 24px; min-height: 32px; margin-left: -0.3rem; border-radius: 4px; color: var(--ink-mute); display: inline-flex; align-items: center; justify-content: center; }
 .pads .subs::before { content: ''; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); }

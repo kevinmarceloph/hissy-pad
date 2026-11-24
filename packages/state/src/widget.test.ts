@@ -32,7 +32,7 @@ describe('the widget', () => {
     cmdToggleDone()
     snap = widgetSnapshot()
     expect(snap.inbox).toBe(inbox)
-    expect(snap.pads.map((p) => [p.name, p.count])).toEqual([['Main', 3], ['inbox', 0]])
+    expect(snap.pads.map((p) => [p.name, p.count])).toEqual([['Main', 3], ['Inbox', 0]])
     expect(JSON.parse(JSON.stringify(snap))).toEqual(snap) // plain JSON, as it travels
   })
 
@@ -76,15 +76,15 @@ describe('the widget', () => {
     expect(all()[id('A')]).toMatchObject({ done: true })
   })
 
-  it('+ adds a line at the top of the pad the widget shows; an unknown pad means Main', () => {
+  it('+ adds a line at the top of the pad the widget shows; Main or an unknown pad means the Inbox', () => {
     const inbox = cmdNewPad('Inbox')
     expect(cmdAddToPad(inbox, '  buy milk ')).not.toBe('')
     expect(cmdAddToPad(inbox, 'second')).not.toBe('')
     expect(cmdAddToPad(WIDGET_MAIN, 'top of main')).not.toBe('')
     expect(cmdAddToPad('gone', 'also main')).not.toBe('')
     expect(cmdAddToPad(inbox, '   ')).toBe('')
-    expect(whole()).toBe('also main\ntop of main\nA\nB\n  B1\n  B2\n\nC\nD\n@Inbox\n  second\n  buy milk\n  ')
-    expect([widgetPadName(inbox), widgetPadName(WIDGET_MAIN), widgetPadName('gone')]).toEqual(['Inbox', 'Main', 'Main'])
+    expect(whole()).toBe('A\nB\n  B1\n  B2\n\nC\nD\n@Inbox\n  also main\n  top of main\n  second\n  buy milk\n  ')
+    expect([widgetPadName(inbox), widgetPadName(WIDGET_MAIN), widgetPadName('gone')]).toEqual(['Inbox', 'Inbox', 'Inbox'])
   })
 
   it('adding to "the Inbox" makes the Inbox pad the first time and reuses it after', () => {
@@ -116,7 +116,7 @@ describe('the widget', () => {
     ])).toBe(0)
     expect(cmdWidgetActions([{ dir: 'add', id: 'not-a-uuid', pad: WIDGET_MAIN, text: 'loose' }])).toBe(1)
     expect(all()['not-a-uuid']).toBeUndefined()
-    expect(whole().startsWith('loose\nA')).toBe(true)
+    expect(whole()).toContain('@Inbox\n  loose\n')
   })
 
   it('a Done from the watch crosses the line out where it is, once', () => {

@@ -34,6 +34,18 @@ export function HoursIcon({ color }: { color: string }) {
   )
 }
 
+// Later: a calendar page, rings at the top.
+export function CalendarIcon({ color }: { color: string }) {
+  return (
+    <View style={i.box}>
+      <View style={{ position: 'absolute', left: 3, top: 4, width: 14, height: 13, borderRadius: 2, borderWidth: W, borderColor: color }} />
+      <View style={{ position: 'absolute', left: 3, top: 8, width: 14, height: W, backgroundColor: color }} />
+      <View style={{ position: 'absolute', left: 6.25, top: 2.5, width: W, height: 3.5, borderRadius: 1, backgroundColor: color }} />
+      <View style={{ position: 'absolute', left: 12.25, top: 2.5, width: W, height: 3.5, borderRadius: 1, backgroundColor: color }} />
+    </View>
+  )
+}
+
 export function SearchIcon({ color }: { color: string }) {
   return (
     <View style={i.box}>

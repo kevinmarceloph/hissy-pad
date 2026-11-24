@@ -2,10 +2,13 @@
 // LocalStore holding an outline, and the store back at its initial state. Call loadPad()
 // (or mount the app) afterwards.
 import { createMemoryStore, pad } from '@hissypad/core'
-import { configureLocalStore, usePad } from './store'
+import { configureFixedPads, configureLocalStore, usePad } from './store'
 import { useSort } from './sort'
 
-export function resetStore(outline?: string) {
+// `fixed` turns on the fixed pads (Today, Inbox, Later): off, the root level is the Main pad
+// the older tests were written for.
+export function resetStore(outline?: string, { fixed = false }: { fixed?: boolean } = {}) {
+  configureFixedPads(fixed)
   const mem = createMemoryStore(Object.values(outline ? pad(outline) : {}))
   configureLocalStore(mem)
   usePad.setState({

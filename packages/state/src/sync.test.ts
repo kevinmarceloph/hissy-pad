@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createFakeRemote, createMemoryStore, pad, shape, idOf, insertAt } from '@hissypad/core'
-import { apply, configureLocalStore, loadPad, usePad } from './store'
+import { apply, configureFixedPads, configureLocalStore, loadPad, usePad } from './store'
 import { refresh, startSync, stopSync, syncLine } from './sync'
 import { cmdSetText } from './commands'
 
@@ -11,6 +11,7 @@ async function flush(n = 30) {
 describe('sync wiring', () => {
   beforeEach(() => {
     stopSync()
+    configureFixedPads(false)
     usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading', storageError: null, editing: null, selection: [], anchorId: null, focusId: null, past: [], future: [], session: null, sync: null })
   })
 

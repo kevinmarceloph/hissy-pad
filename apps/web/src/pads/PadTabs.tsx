@@ -1,15 +1,21 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactElement } from 'react'
 import { createPortal } from 'react-dom'
 import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, openSubPad, padList, padTopLines, placeList, usePad, usePrefs } from '@hissypad/state'
-import type { PadId } from '@hissypad/core'
+import type { FixedPad, PadId } from '@hissypad/core'
 import { showToast } from '../app/toast'
 import { MOD } from '../platform/os'
+import { CalendarIcon, HoursIcon, SortIcon } from '../app/icons'
+
+// The fixed pads' icons: Today is the day (Hours' clock), Inbox is what is still to sort,
+// Later is the calendar.
+const FIXED_ICON: Record<FixedPad, () => ReactElement> = { Today: HoursIcon, Inbox: SortIcon, Later: CalendarIcon }
 
 
 type Sheet = { mode: 'new' } | { mode: 'edit'; padId: string }
 
-// The pads as a row of tabs under the title. The main pad is always first and cannot be
-// renamed or deleted; clicking the open tab of any other pad opens its name and delete.
+// The pads as a row of tabs under the title. Today, Inbox and Later are always first, each
+// with its icon, and cannot be renamed, moved or deleted; clicking the open tab of any
+// other pad opens its name, place and delete.
 export function PadTabs() {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
@@ -36,9 +42,9 @@ export function PadTabs() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheet])
 
-  function pick(id: PadId) {
+  function pick(id: PadId, fixed: boolean) {
     if (id === padId) {
-      if (id !== null) setSheet({ mode: 'edit', padId: id })
+      if (id !== null && !fixed) setSheet({ mode: 'edit', padId: id })
       return
     }
     openPad(id)
@@ -108,15 +114,17 @@ export function PadTabs() {
       <div role="tablist" aria-label="Pads">
         {pads.map((p) => {
           const key = p.id ?? 'main'
+          const Glyph = p.fixed ? FIXED_ICON[p.fixed] : null
           return (
-            <span key={key} className="pad-tab">
+            <span key={key} className={p.fixed ? 'pad-tab fixed' : 'pad-tab'}>
               <button
                 type="button"
                 role="tab"
                 aria-selected={p.id === padId}
-                title={(p.id === padId && p.id !== null ? 'Rename, fold in or delete this pad' : `Open ${p.name}`) + (p.count > 0 ? `: ${p.count} open ${p.count === 1 ? 'line' : 'lines'}` : '')}
-                onClick={() => pick(p.id)}
+                title={(p.id === padId && p.id !== null && !p.fixed ? 'Rename, fold in or delete this pad' : `Open ${p.name}`) + (p.count > 0 ? `: ${p.count} open ${p.count === 1 ? 'line' : 'lines'}` : '')}
+                onClick={() => pick(p.id, p.fixed !== null)}
               >
+                {Glyph && <span className="glyph"><Glyph /></span>}
                 <span className="name">{p.name}</span>
                 {showCounts && p.count > 0 && <span className="n" aria-hidden="true"> {p.count}</span>}
               </button>
@@ -155,11 +163,12 @@ export function PadTabs() {
           </label>
           {sheet?.mode === 'edit' && (() => {
             const i = pads.findIndex((p) => p.id === sheet.padId)
+            const first = pads.findIndex((p) => !p.fixed && p.id !== null)
             return (
               <div className="field order">
                 <span>Place among the pads</span>
                 <div>
-                  <button type="button" onClick={() => cmdMovePad(sheet.padId, -1)} disabled={i <= 1} aria-label="Move pad left">← Move left</button>
+                  <button type="button" onClick={() => cmdMovePad(sheet.padId, -1)} disabled={i <= first} aria-label="Move pad left">← Move left</button>
                   <button type="button" onClick={() => cmdMovePad(sheet.padId, 1)} disabled={i < 0 || i >= pads.length - 1} aria-label="Move pad right">Move right →</button>
                 </div>
               </div>

@@ -22,6 +22,22 @@ describe('pads', () => {
     Element.prototype.scrollIntoView = () => {}
   })
 
+  it('Today, Inbox and Later come first with their icons; the old Main lines are in the Inbox, and a fixed tab opens no sheet', async () => {
+    const user = userEvent.setup()
+    resetStore('a\nb', { fixed: true })
+    render(<App />)
+    await screen.findByRole('tree')
+    expect(screen.getAllByRole('tab').map((t) => t.querySelector('.name')!.textContent)).toEqual(['Today', 'Inbox', 'Later'])
+    expect(screen.getAllByRole('tab').every((t) => t.querySelector('.glyph svg'))).toBe(true)
+    expect(tab('Inbox')).toHaveAttribute('aria-selected', 'true')
+    expect(texts()).toBe('a\nb')
+    await user.click(tab('Inbox'))
+    expect(document.querySelector('dialog.pad-sheet')).not.toHaveAttribute('open')
+    await user.click(tab('Later'))
+    expect(tab('Later')).toHaveAttribute('aria-selected', 'true')
+    expect(texts()).toBe('')
+  })
+
   it('starts on Main; + makes a pad that opens empty with a line to type into; tabs switch back', async () => {
     const user = userEvent.setup()
     await mount('a\nb')

@@ -46,3 +46,5 @@ export const HoursIcon = () => <Icon d="M10 5.5V10l3 2"><circle cx="10" cy="10" 
 export const SortIcon = () => <LineIcon icon="move" />
 export const SearchIcon = () => <Icon d="M13 13l4 4"><circle cx="8.5" cy="8.5" r="5" /></Icon>
 export const MenuIcon = () => <Icon d="M3.5 5.5h13M3.5 10h13M3.5 14.5h13" />
+// Later: a calendar page, rings at the top.
+export const CalendarIcon = () => <Icon d="M3.5 8h13M7 2.5v3M13 2.5v3"><rect x="3.5" y="4" width="13" height="12.5" rx="1.5" /></Icon>

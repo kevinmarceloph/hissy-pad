@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { pad, shape, idOf, testCtx } from './testing'
 import { allRows, buildIndex, countLines, headerGaps, visibleRows } from './tree'
 import { toggleDone } from './ops'
-import { createPad, freshStart, lineToPad, padToLine, MAIN_PLACE, isPlace, isSubPad, listSubPads, moveToPlace, placeOf, listPads, padCounts, padLines, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
+import { createPad, findFixedPad, fixedPadOf, settleFixedPads, freshStart, lineToPad, padToLine, MAIN_PLACE, isPlace, isSubPad, listSubPads, moveToPlace, placeOf, listPads, padCounts, padLines, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
 import { dedent, insertAt, remove, setText } from './ops'
 import { changedRows } from './sync/store'
 
@@ -278,5 +278,46 @@ describe('fresh start', () => {
     const res = freshStart(rows, ctx, null, none, 'all of it')
     expect(shape(scopePad(res.rows, null))).toBe('')
     expect(shape(scopePad(res.rows, res.archiveId))).toBe('A\nB')
+  })
+})
+
+describe('fixed pads', () => {
+  it('settling makes Today, Inbox and Later, moves the root lines to the top of Inbox, and is idempotent', () => {
+    const { rows, ctx, w } = table()
+    const out = settleFixedPads(rows, ctx)
+    expect(shape(out)).toBe('@Work\n  W1\n  W2\n    W2a\n@Today\n@Inbox\n  A\n  B\n    B1\n    B2\n  C\n@Later')
+    expect(fixedPadOf(out, findFixedPad(out, 'Inbox')!.id)).toBe('Inbox')
+    expect(fixedPadOf(out, w)).toBeNull()
+    expect(settleFixedPads(out, ctx)).toBe(out)
+  })
+
+  it('a pad already named Inbox is used, whatever its case; a second one is folded into the first', () => {
+    const ctx = testCtx()
+    let rows = pad('loose', ctx)
+    const mk = (name: string, line?: string) => {
+      const made = createPad(rows, ctx, name)
+      rows = made.rows
+      if (line) rows = insertAt(rows, ctx, { parentId: made.padId, afterId: null }, line).rows
+      return made.padId
+    }
+    const first = mk('inbox', 'i1')
+    mk('Today')
+    mk('Inbox', 'i2')
+    mk('Later')
+    rows = settleFixedPads(rows, ctx)
+    expect(shape(rows)).toBe('@inbox\n  loose\n  i1\n  i2\n@Today\n@Later')
+    expect(findFixedPad(rows, 'Inbox')!.id).toBe(first)
+    expect(Object.values(rows).filter((r) => r.deletedAt !== null).map((r) => r.text)).toEqual(['Inbox'])
+  })
+
+  it('a fixed pad does not move, and the other pads move past it', () => {
+    const ctx = testCtx()
+    let rows = pad('', ctx)
+    rows = createPad(rows, ctx, 'One').rows
+    rows = settleFixedPads(createPad(rows, ctx, 'Two').rows, ctx)
+    const order = () => listPads(rows).filter((p) => fixedPadOf(rows, p.id) === null).map((p) => p.text)
+    rows = movePad(rows, ctx, listPads(rows).find((p) => p.text === 'Two')!.id, -1)
+    expect(order()).toEqual(['Two', 'One'])
+    expect(movePad(rows, ctx, findFixedPad(rows, 'Today')!.id, 1)).toBe(rows)
   })
 })

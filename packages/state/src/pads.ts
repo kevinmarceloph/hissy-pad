@@ -1,7 +1,7 @@
 // Pad commands: switch, create, rename, delete, move lines across, and the fresh start.
 // The data side is core's pads.ts; this file picks targets from the store and lands the
 // selection afterwards.
-import { buildIndex, countLines, descendantIds, padCounts, padLines, listSubPads, moveToPlace, placeOf, isPlace, MAIN_PLACE, type Place, createPad, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, FIXED_PADS, findFixedPad, fixedPadOf, type FixedPad, descendantIds, padCounts, padLines, listSubPads, moveToPlace, placeOf, isPlace, MAIN_PLACE, type Place, createPad, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
 import { apply, applyAll, openPad, revealRow, usePad } from './store'
 import { edit, stopEditing, targets } from './selection'
 import { log } from './log'
@@ -13,11 +13,14 @@ export function padName(all: Rows, padId: PadId): string {
   return all[padId]?.text || 'Untitled pad'
 }
 
-// The pads in switcher order: main first, then the others by root rank. `count` is the
-// pad's open top-level lines, blank ones left out; the switcher shows it when it is not 0.
-// `subs` are the pad's sub-pads (its top-level headers), top first, each with its own count.
+// The pads in switcher order: the fixed three (Today, Inbox, Later), then the others by
+// root rank. The root level is kept empty (see settleFixedPads), so it is listed, first and
+// as Main, only while it holds a line (between a sync and the settle after it). `count`
+// is the pad's open top-level lines, blank ones left out; the switcher shows it when it is not
+// 0. `subs` are the pad's sub-pads (its top-level headers), top first, each with its own count.
+// `fixed` names a fixed pad: it cannot be renamed, moved, folded in or deleted.
 export interface SubPadItem { id: string; name: string; count: number }
-export interface PadItem { id: PadId; name: string; count: number; subs: SubPadItem[] }
+export interface PadItem { id: PadId; name: string; count: number; subs: SubPadItem[]; fixed: FixedPad | null }
 
 // A sub-pad's name in a list is its first line up to an em dash: what follows the dash is
 // a description, shown on the pad itself only. A line that starts with the dash keeps it all.
@@ -30,10 +33,33 @@ export function padList(all: Rows): PadItem[] {
   const counts = padCounts(all)
   const index = buildIndex(all)
   const subs = (id: PadId): SubPadItem[] => listSubPads(index, id).map((r) => ({ id: r.id, name: subName(r.text), count: padLines(index, r.id, true).length }))
+  const item = (r: { id: string; text: string }, fixed: FixedPad | null): PadItem => ({ id: r.id, name: fixed ?? (r.text || 'Untitled pad'), count: counts.get(r.id) ?? 0, subs: subs(r.id), fixed })
+  const fixed = FIXED_PADS.flatMap((name) => {
+    const r = findFixedPad(all, name)
+    return r ? [item(r, name)] : []
+  })
+  const taken = new Set(fixed.map((p) => p.id))
+  const root = childrenOf(index, null).some((r) => !r.pad)
   return [
-    { id: null, name: MAIN_PAD_NAME, count: counts.get(null) ?? 0, subs: subs(null) },
-    ...listPads(all).map((r) => ({ id: r.id, name: r.text || 'Untitled pad', count: counts.get(r.id) ?? 0, subs: subs(r.id) })),
+    ...(root ? [{ id: null, name: MAIN_PAD_NAME, count: counts.get(null) ?? 0, subs: subs(null), fixed: null }] : []),
+    ...fixed,
+    ...listPads(all).filter((r) => !taken.has(r.id)).map((r) => item(r, null)),
   ]
+}
+
+// The Inbox pad's id: where the app lands when the pad shown is gone. '' before the first
+// settle has made it (a store that never loaded).
+export function inboxPadId(all: Rows = usePad.getState().all): string {
+  return findFixedPad(all, 'Inbox')?.id ?? ''
+}
+
+export function isFixedPad(all: Rows, padId: PadId): boolean {
+  return fixedPadOf(all, padId) !== null
+}
+
+// Open the Inbox, or the root level if there is none yet.
+export function openInbox() {
+  openPad(inboxPadId() || null)
 }
 
 // Every place a line can be sent to, for any list of pads: each pad, then its sub-pads as
@@ -113,13 +139,14 @@ export function cmdNewPad(name: string): string {
 
 export function cmdRenamePad(padId: string, name: string) {
   const text = name.trim()
-  if (!text) return
+  if (!text || isFixedPad(usePad.getState().all, padId)) return
   applyAll((all, ctx) => (isPadNode(all[padId]) ? setText(all, ctx, padId, text) : all), { label: 'cmdRenamePad' })
 }
 
 // Move a pad one place left or right in the switcher. Returns false at either end.
 export function cmdMovePad(padId: string, dir: -1 | 1): boolean {
   const before = usePad.getState().all
+  if (isFixedPad(before, padId)) return false
   return applyAll((all, ctx) => (isPadNode(all[padId]) ? movePad(all, ctx, padId, dir) : all), { label: 'cmdMovePad' }) !== before
 }
 
@@ -127,9 +154,9 @@ export function cmdMovePad(padId: string, dir: -1 | 1): boolean {
 // went with it (blank ones not counted). The main pad cannot be deleted.
 export function cmdDeletePad(padId: string): number {
   const { all, padId: current } = usePad.getState()
-  if (!isPadNode(all[padId])) return 0
+  if (!isPadNode(all[padId]) || isFixedPad(all, padId)) return 0
   const n = countOf(descendantIds(buildIndex(all), padId), all)
-  if (current === padId) openPad(null)
+  if (current === padId) openInbox()
   applyAll((rows, ctx) => remove(rows, ctx, [padId]), { label: 'cmdDeletePad' })
   return n
 }
@@ -189,7 +216,7 @@ export function cmdLineToPad(): { padId: string; name: string } | null {
 // opens. Returns the folded pad's name, or null when refused. One undo step.
 export function cmdPadToLine(padId: string, into: Place): string | null {
   const { all, padId: current } = usePad.getState()
-  if (!isPadNode(all[padId]) || into.padId === padId || !isPlace(all, into)) return null
+  if (!isPadNode(all[padId]) || isFixedPad(all, padId) || into.padId === padId || !isPlace(all, into)) return null
   const name = padName(all, padId)
   stopEditing()
   if (current === padId) openPad(into.padId)

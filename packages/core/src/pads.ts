@@ -9,7 +9,7 @@
 // turns the changed rows back (parentId null -> the pad id) before saving them.
 import type { NodeRow, OpCtx, Rows } from './types'
 import { buildIndex, childrenOf, countLines, descendantIds, flatten, isBlank, isLive, topmost, type TreeIndex } from './tree'
-import { insertAt, moveNodes, type Placement } from './ops'
+import { insertAt, moveNodes, remove, type Placement } from './ops'
 
 // null is the main pad (the root level).
 export type PadId = string | null
@@ -151,11 +151,62 @@ export function padToLine(all: Rows, ctx: OpCtx, padId: string, into: Place): Ro
   return { ...moved, [padId]: { ...moved[padId]!, parentId, pad: false, updatedAt: ctx.now() } }
 }
 
-// Move a pad one place left (-1) or right (1) among the pads. The main pad is always
-// first and is not in this order. Only the moved pad's rank changes.
+// ---- Fixed pads ----------------------------------------------------------------------
+//
+// Since 2026-11-24 the tabs start with three pads that are always there and never move:
+// Today, Inbox, Later. Each is an ordinary pad row found by its name (the first one in root
+// order, so every device picks the same), and the root level is no longer shown as a pad of
+// its own: whatever lands there (Main's lines from before, a line added to Main by the watch
+// or an older build, an orphan) is moved to the top of Inbox.
+
+export const FIXED_PADS = ['Today', 'Inbox', 'Later'] as const
+export type FixedPad = (typeof FIXED_PADS)[number]
+
+const nameKey = (s: string) => s.trim().toLowerCase()
+
+// Which fixed pad a row is, or null for any other row (or a later pad of the same name).
+export function fixedPadOf(all: Rows, id: string | null): FixedPad | null {
+  if (id === null || !isPadNode(all[id])) return null
+  const name = FIXED_PADS.find((n) => nameKey(n) === nameKey(all[id]!.text))
+  return name && findFixedPad(all, name)?.id === id ? name : null
+}
+
+export function findFixedPad(all: Rows, name: FixedPad): NodeRow | undefined {
+  return listPads(all).find((p) => nameKey(p.text) === nameKey(name))
+}
+
+// Bring the table in line with the rule above, in one pass: make each fixed pad that is
+// missing, fold a second pad of the same name into the first (its lines go to the bottom,
+// the extra pad row is deleted), and move the root's lines to the top of Inbox. Returns
+// `all` itself when there was nothing to do.
+export function settleFixedPads(all: Rows, ctx: OpCtx): Rows {
+  let out = all
+  for (const name of FIXED_PADS) {
+    const same = listPads(out).filter((p) => nameKey(p.text) === nameKey(name))
+    if (same.length === 0) {
+      out = createPad(out, ctx, name).rows
+      continue
+    }
+    const [keep, ...extra] = same
+    for (const dup of extra) {
+      const index = buildIndex(out)
+      const lines = childrenOf(index, dup.id).map((r) => r.id)
+      if (lines.length) out = moveNodes(out, ctx, lines, { parentId: keep!.id, afterId: childrenOf(index, keep!.id).at(-1)?.id ?? null })
+      out = remove(out, ctx, [dup.id])
+    }
+  }
+  const inbox = findFixedPad(out, 'Inbox')!
+  const loose = childrenOf(buildIndex(out), null).filter((r) => !r.pad).map((r) => r.id)
+  if (loose.length) out = moveNodes(out, ctx, loose, { parentId: inbox.id, afterId: null })
+  return out
+}
+
+// Move a pad one place left (-1) or right (1) among the pads. The fixed pads are always
+// first and are not in this order. Only the moved pad's rank changes.
 export function movePad(all: Rows, ctx: OpCtx, padId: string, dir: -1 | 1): Rows {
   const root = childrenOf(buildIndex(all), null)
-  const pads = root.filter((r) => r.pad)
+  // The fixed pads keep their places at the front of the tabs, wherever their rows sit.
+  const pads = root.filter((r) => r.pad && fixedPadOf(all, r.id) === null)
   const i = pads.findIndex((r) => r.id === padId)
   const other = pads[i + dir]
   if (i < 0 || !other) return all

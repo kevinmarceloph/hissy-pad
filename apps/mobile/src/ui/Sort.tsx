@@ -123,7 +123,6 @@ export function SortView({ theme }: { theme: Theme }) {
     const places = placeList(all).filter((p) => p.key !== 'main' && !(p.subId === null && p.padId === def.padId && def.exists))
     Alert.alert(id ? 'Send left to' : 'A left swipe goes to', id ? 'This line goes there now, and the next left swipes too.' : undefined, [
       { text: def.exists ? def.name : `${def.name} (new pad)`, onPress: () => pickLeft(null) },
-      { text: padName(all, null), onPress: () => pickLeft('main') },
       ...places.map((p) => ({ text: p.label, onPress: () => pickLeft(p.key) })),
       { text: 'New pad…', onPress: newTarget },
       { text: 'Cancel', style: 'cancel' as const },

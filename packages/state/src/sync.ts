@@ -4,7 +4,7 @@
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { createSyncEngine, type NodeRow, type Remote, type SyncEngine, type SyncStatus } from '@hissypad/core'
 import { createSupabaseRemote } from './remote'
-import { applyAll, clock, getLocalStore, SEED_KEY, setAll, setOnLocalChange, usePad } from './store'
+import { applyAll, clock, getLocalStore, SEED_KEY, setAll, setOnLocalChange, settleFixed, usePad } from './store'
 import { remove } from '@hissypad/core'
 import { log, rowBrief } from './log'
 import { refreshHours, startHoursSync, stopHoursSync } from './hours'
@@ -52,7 +52,9 @@ async function dropUntouchedSeed(incoming: readonly NodeRow[]) {
 
 function mergeRemote(incoming: readonly NodeRow[]) {
   log('sync:merge', { n: incoming.length, rows: incoming.slice(0, 8).map(rowBrief) })
-  void dropUntouchedSeed(incoming)
+  // The fixed pads are settled once the seed is dealt with: before it, a seed Inbox and the
+  // account's Inbox would be folded into one, and dropping the seed would take both.
+  void dropUntouchedSeed(incoming).catch(() => {}).then(settleFixed)
   const s = usePad.getState()
   const all: Record<string, NodeRow> = { ...s.all }
   for (const r of incoming) {
