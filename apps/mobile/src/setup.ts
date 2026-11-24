@@ -8,7 +8,7 @@ if (!g.crypto?.randomUUID) g.crypto = { ...(g.crypto ?? {}), randomUUID }
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Clipboard from 'expo-clipboard'
-import { bindAuth, configureLocalStore, initLog, setClipboard, setLogEnabled, setSyncTriggers } from '@hissypad/state'
+import { bindAuth, configureLocalStore, initLog, initPrefs, setClipboard, setLogEnabled, setSyncTriggers } from '@hissypad/state'
 import { configureChimes, configureHoursBackend } from '@hissypad/state/hours'
 import { createSqliteStore } from './local/sqlite'
 import { mobileChimes } from './chimes'
@@ -26,6 +26,11 @@ export async function setupApp() {
       cached = v
       void (v === null ? AsyncStorage.removeItem('hissypad.debug') : AsyncStorage.setItem('hissypad.debug', v))
     },
+  })
+  const prefs = await AsyncStorage.getItem('hissypad.prefs')
+  initPrefs({
+    get: (k) => (k === 'hissypad.prefs' ? prefs : null),
+    set: (k, v) => void (v === null ? AsyncStorage.removeItem(k) : AsyncStorage.setItem(k, v)),
   })
   // Plain text only. expo-clipboard's HTML format replaces the plain-text half with iOS's
   // own rendering of the HTML, which drops the list markers and indents, so a plain paste

@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import { App } from './app/App'
-import { bindAuth, configureLocalStore, initLog, setClipboard, setSyncTriggers } from '@hissypad/state'
+import { bindAuth, configureLocalStore, initLog, initPrefs, setClipboard, setSyncTriggers } from '@hissypad/state'
 import { configureChimes, configureHoursBackend } from '@hissypad/state/hours'
 import { createIdbStore } from './platform/idb'
 import { webChimes } from './platform/chimes'
@@ -17,6 +17,10 @@ initLog(
   },
   new URLSearchParams(location.search).get('debug'),
 )
+initPrefs({
+  get: (k) => localStorage.getItem(k),
+  set: (k, v) => (v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v)),
+})
 setClipboard(copyText)
 setSyncTriggers((kick) => {
   window.addEventListener('online', kick)

@@ -125,6 +125,10 @@ kbd {
 }
 .more-menu button { text-align: left; height: 36px; padding: 0 0.6rem; border-radius: 4px; }
 .more-menu button:hover:not(:disabled) { background: var(--accent-soft); }
+.more-menu .check { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; border-top: 1px solid var(--rule); margin-top: 0.25rem; border-radius: 0 0 4px 4px; }
+.more-menu .check::after { content: ''; width: 0.5rem; height: 0.9rem; margin: 0 0.2rem 0.2rem 0; border: solid var(--accent); border-width: 0 2px 2px 0; transform: rotate(45deg); visibility: hidden; }
+.more-menu .check[aria-checked='true']::after { visibility: visible; }
+.more-menu .check + .select { border-top: 0; margin-top: 0; }
 .more-menu button:disabled { color: var(--ink-mute); cursor: default; }
 .more-menu .select { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; height: 36px; padding: 0 0.6rem; border-top: 1px solid var(--rule); margin-top: 0.25rem; color: var(--ink-soft); }
 .more-menu select { border: 0; background: transparent; cursor: pointer; }

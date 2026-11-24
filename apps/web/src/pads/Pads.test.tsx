@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { listPads, shape } from '@hissypad/core'
 import { App } from '../app/App'
-import { resetStore, usePad } from '@hissypad/state'
+import { initPrefs, resetStore, usePad } from '@hissypad/state'
 
 async function mount(outline?: string) {
   resetStore(outline)
@@ -18,6 +18,7 @@ const rowByText = (t: string) => screen.getAllByRole('treeitem').find((el) => (e
 
 describe('pads', () => {
   beforeEach(() => {
+    initPrefs({ get: () => null, set: () => {} })
     Element.prototype.scrollIntoView = () => {}
   })
 
@@ -159,6 +160,21 @@ describe('pads', () => {
     await user.type(screen.getByLabelText('Pad name'), 'Empty')
     await user.click(screen.getByRole('button', { name: 'Create' }))
     expect(counts()).toEqual(['1', '2', ''])
+  })
+
+  it('Pad counts in the menu turns the numbers on the tabs off and back on', async () => {
+    const user = userEvent.setup()
+    await mount('keep\nthis')
+    const counts = () => screen.getAllByRole('tab').map((t) => t.querySelector('.n')?.textContent?.trim() ?? '')
+    expect(counts()).toEqual(['2'])
+    await user.click(screen.getByRole('button', { name: 'More' }))
+    const toggle = screen.getByRole('menuitemcheckbox', { name: 'Pad counts' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    expect(counts()).toEqual([''])
+    await user.click(toggle)
+    expect(counts()).toEqual(['2'])
   })
 
   it('a top-level header is a sub-pad: Move to lists it as "Pad → Sub-pad", and the chevron beside the tab jumps to it', async () => {

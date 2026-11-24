@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { usePad } from '@hissypad/state'
+import { setPref, usePad, usePrefs } from '@hissypad/state'
 import { cmdDeleteDone } from '@hissypad/state'
 import { copyText } from '../platform/clipboard'
 import { DonePanel, TrashPanel } from '../panels/Lists'
@@ -63,6 +63,7 @@ export function TopBar({ view, onView }: { view: View; onView: (view: View) => v
   const searchDialog = useRef<HTMLDialogElement>(null)
   const [logText, setLogText] = useState('')
   const [menu, setMenu] = useState(false)
+  const padCounts = usePrefs((s) => s.padCounts)
 
   useEffect(() => {
     applyTheme(theme)
@@ -135,7 +136,7 @@ export function TopBar({ view, onView }: { view: View; onView: (view: View) => v
           <SearchIcon />
         </button>
         <span className="more">
-          <button type="button" className="icon" aria-label="More" aria-haspopup="menu" aria-expanded={menu} title="Done, Trash, Fresh start and the theme" onClick={() => setMenu((open) => !open)}>
+          <button type="button" className="icon" aria-label="More" aria-haspopup="menu" aria-expanded={menu} title="Done, Trash, Fresh start, pad counts and the theme" onClick={() => setMenu((open) => !open)}>
             <MenuIcon />
           </button>
           {menu && (
@@ -146,6 +147,7 @@ export function TopBar({ view, onView }: { view: View; onView: (view: View) => v
                 <button type="button" role="menuitem" title="Debug log (?debug=1 turned this on)" onClick={() => pick(() => { setLogText(dumpLog()); logDialog.current?.showModal() })}>Log</button>
               )}
               <button type="button" role="menuitem" disabled={liveCount === 0 || view === 'fresh'} title="Pick what stays in the open pad; the rest moves to a new pad" onClick={() => pick(() => onView('fresh'))}>Fresh start…</button>
+              <button type="button" role="menuitemcheckbox" aria-checked={padCounts} className="check" title="The number of open lines beside each pad's name" onClick={() => setPref('padCounts', !padCounts)}>Pad counts</button>
               <label className="select">
                 <span>Theme</span>
                 <select value={theme} onChange={(e) => setTheme(e.target.value as Theme)} aria-label="Theme">

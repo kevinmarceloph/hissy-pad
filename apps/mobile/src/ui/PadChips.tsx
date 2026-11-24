@@ -6,7 +6,7 @@
 import { useMemo } from 'react'
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import type { PadId } from '@hissypad/core'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, openSubPad, padList, padTopLines, placeList, usePad, type PadItem } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, openSubPad, padList, padTopLines, placeList, usePad, usePrefs, type PadItem } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 
 function ask(title: string, message: string | undefined, initial: string, onName: (name: string) => void) {
@@ -20,6 +20,7 @@ function ask(title: string, message: string | undefined, initial: string, onName
 export function PadChips({ theme }: { theme: Theme }) {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
+  const showCounts = usePrefs((s) => s.padCounts)
   const pads = useMemo(() => padList(all), [all])
 
   function manage(id: string, name: string) {
@@ -54,7 +55,7 @@ export function PadChips({ theme }: { theme: Theme }) {
   // The chevron beside a pad that has sub-pads (its top-level headers): pick one to jump to.
   function jump(p: PadItem) {
     Alert.alert(p.name, 'Jump to a sub-pad', [
-      ...p.subs.map((sp) => ({ text: sp.count > 0 ? `${sp.name}  ${sp.count}` : sp.name, onPress: () => void openSubPad(sp.id) })),
+      ...p.subs.map((sp) => ({ text: showCounts && sp.count > 0 ? `${sp.name}  ${sp.count}` : sp.name, onPress: () => void openSubPad(sp.id) })),
       { text: 'Cancel', style: 'cancel' as const },
     ])
   }
@@ -82,7 +83,7 @@ export function PadChips({ theme }: { theme: Theme }) {
             >
               <Text style={[s.chipText, { color: on ? theme.ink : theme.inkSoft }]} numberOfLines={1}>
                 {p.name}
-                {p.count > 0 && <Text style={[s.chipCount, { color: theme.inkMute }]}>{'  '}{p.count}</Text>}
+                {showCounts && p.count > 0 && <Text style={[s.chipCount, { color: theme.inkMute }]}>{'  '}{p.count}</Text>}
               </Text>
             </Pressable>
             {p.subs.length > 0 && (

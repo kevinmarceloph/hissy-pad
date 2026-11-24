@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, openSubPad, padList, padTopLines, placeList, usePad } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, openSubPad, padList, padTopLines, placeList, usePad, usePrefs } from '@hissypad/state'
 import type { PadId } from '@hissypad/core'
 import { showToast } from '../app/toast'
 import { MOD } from '../platform/os'
@@ -13,6 +13,7 @@ type Sheet = { mode: 'new' } | { mode: 'edit'; padId: string }
 export function PadTabs() {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
+  const showCounts = usePrefs((s) => s.padCounts)
   const pads = useMemo(() => padList(all), [all])
   const dialog = useRef<HTMLDialogElement>(null)
   const input = useRef<HTMLInputElement>(null)
@@ -117,7 +118,7 @@ export function PadTabs() {
                 onClick={() => pick(p.id)}
               >
                 <span className="name">{p.name}</span>
-                {p.count > 0 && <span className="n" aria-hidden="true"> {p.count}</span>}
+                {showCounts && p.count > 0 && <span className="n" aria-hidden="true"> {p.count}</span>}
               </button>
               {p.subs.length > 0 && (
                 <button
@@ -134,7 +135,7 @@ export function PadTabs() {
                 <div className="bar moveto-menu sub-menu" role="menu" aria-label={`Sub-pads of ${p.name}`} style={{ left: subs.left, top: subs.top }}>
                   {p.subs.map((sp) => (
                     <button key={sp.id} type="button" role="menuitem" title={sp.name} onClick={() => { setSubs(null); openSubPad(sp.id) }}>
-                      {sp.name}{sp.count > 0 && <span className="n" aria-hidden="true"> {sp.count}</span>}
+                      {sp.name}{showCounts && sp.count > 0 && <span className="n" aria-hidden="true"> {sp.count}</span>}
                     </button>
                   ))}
                 </div>,
