@@ -53,7 +53,7 @@ describe('apply / undo / persist', () => {
     undo()
     expect(shape(usePad.getState().rows)).toBe('A')
     await Promise.resolve()
-    const live = [...mem.rows.values()].filter((r) => r.deletedAt === null)
+    const live = [...mem.rows.values()].filter((r) => r.deletedAt === null && !r.pad)
     expect(live.map((r) => r.text)).toEqual(['A'])
     redo()
     expect(shape(usePad.getState().rows)).toBe('A\n')

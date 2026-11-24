@@ -1,24 +1,25 @@
 // Pad commands: switch, create, rename, delete, move lines across, and the fresh start.
 // The data side is core's pads.ts; this file picks targets from the store and lands the
 // selection afterwards.
-import { buildIndex, childrenOf, countLines, FIXED_PADS, findFixedPad, fixedPadOf, type FixedPad, descendantIds, padCounts, padLines, listSubPads, moveToPlace, placeOf, isPlace, MAIN_PLACE, type Place, createPad, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
+import { buildIndex, countLines, FIXED_PADS, findFixedPad, fixedPadOf, isFixedName, type FixedPad, descendantIds, padCounts, padLines, listSubPads, moveToPlace, placeOf, isPlace, MAIN_PLACE, type Place, createPad, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
 import { apply, applyAll, openPad, revealRow, usePad } from './store'
 import { edit, stopEditing, targets } from './selection'
 import { log } from './log'
 
-export const MAIN_PAD_NAME = 'Main'
+// The root level's name. It was Main until 2026-11-24; it is the Inbox tab now.
+export const MAIN_PAD_NAME = 'Inbox'
 
 export function padName(all: Rows, padId: PadId): string {
   if (padId === null) return MAIN_PAD_NAME
   return all[padId]?.text || 'Untitled pad'
 }
 
-// The pads in switcher order: the fixed three (Today, Inbox, Later), then the others by
-// root rank. The root level is kept empty (see settleFixedPads), so it is listed, first and
-// as Main, only while it holds a line (between a sync and the settle after it). `count`
-// is the pad's open top-level lines, blank ones left out; the switcher shows it when it is not
-// 0. `subs` are the pad's sub-pads (its top-level headers), top first, each with its own count.
-// `fixed` names a fixed pad: it cannot be renamed, moved, folded in or deleted.
+// The pads in switcher order: the fixed three (Today, Inbox, Later; Inbox is the root level),
+// then the others by root rank. Today or Later is left out only before the store has settled
+// (see settleFixedPads). `count` is the pad's open top-level lines, blank ones left out; the
+// switcher shows it when it is not 0. `subs` are the pad's sub-pads (its top-level headers),
+// top first, each with its own count. `fixed` names a fixed pad: it cannot be renamed, moved,
+// folded in or deleted.
 export interface SubPadItem { id: string; name: string; count: number }
 export interface PadItem { id: PadId; name: string; count: number; subs: SubPadItem[]; fixed: FixedPad | null }
 
@@ -33,33 +34,18 @@ export function padList(all: Rows): PadItem[] {
   const counts = padCounts(all)
   const index = buildIndex(all)
   const subs = (id: PadId): SubPadItem[] => listSubPads(index, id).map((r) => ({ id: r.id, name: subName(r.text), count: padLines(index, r.id, true).length }))
-  const item = (r: { id: string; text: string }, fixed: FixedPad | null): PadItem => ({ id: r.id, name: fixed ?? (r.text || 'Untitled pad'), count: counts.get(r.id) ?? 0, subs: subs(r.id), fixed })
+  const item = (id: PadId, name: string, fixed: FixedPad | null): PadItem => ({ id, name, count: counts.get(id) ?? 0, subs: subs(id), fixed })
   const fixed = FIXED_PADS.flatMap((name) => {
+    if (name === 'Inbox') return [item(null, name, name)]
     const r = findFixedPad(all, name)
-    return r ? [item(r, name)] : []
+    return r ? [item(r.id, name, name)] : []
   })
   const taken = new Set(fixed.map((p) => p.id))
-  const root = childrenOf(index, null).some((r) => !r.pad)
-  return [
-    ...(root ? [{ id: null, name: MAIN_PAD_NAME, count: counts.get(null) ?? 0, subs: subs(null), fixed: null }] : []),
-    ...fixed,
-    ...listPads(all).filter((r) => !taken.has(r.id)).map((r) => item(r, null)),
-  ]
-}
-
-// The Inbox pad's id: where the app lands when the pad shown is gone. '' before the first
-// settle has made it (a store that never loaded).
-export function inboxPadId(all: Rows = usePad.getState().all): string {
-  return findFixedPad(all, 'Inbox')?.id ?? ''
+  return [...fixed, ...listPads(all).filter((r) => !taken.has(r.id)).map((r) => item(r.id, r.text || 'Untitled pad', null))]
 }
 
 export function isFixedPad(all: Rows, padId: PadId): boolean {
   return fixedPadOf(all, padId) !== null
-}
-
-// Open the Inbox, or the root level if there is none yet.
-export function openInbox() {
-  openPad(inboxPadId() || null)
 }
 
 // Every place a line can be sent to, for any list of pads: each pad, then its sub-pads as
@@ -123,8 +109,15 @@ export function ensureLine(): string | null {
   return id
 }
 
-// A new pad, opened at once with its first blank line ready to type into. Returns its id.
+// A new pad, opened at once with its first blank line ready to type into. Returns its id. A
+// fixed pad's name opens that pad instead ('' for the Inbox, which is the root level).
 export function cmdNewPad(name: string): string {
+  const hit = isFixedName(name) ? FIXED_PADS.find((n) => n.toLowerCase() === name.trim().toLowerCase())! : null
+  const existing = hit === 'Inbox' ? '' : hit ? findFixedPad(usePad.getState().all, hit)?.id : undefined
+  if (existing !== undefined) {
+    openPad(existing || null)
+    return existing
+  }
   let id = ''
   applyAll((all, ctx) => {
     const res = createPad(all, ctx, name.trim() || 'Untitled pad')
@@ -139,7 +132,7 @@ export function cmdNewPad(name: string): string {
 
 export function cmdRenamePad(padId: string, name: string) {
   const text = name.trim()
-  if (!text || isFixedPad(usePad.getState().all, padId)) return
+  if (!text || isFixedName(text) || isFixedPad(usePad.getState().all, padId)) return
   applyAll((all, ctx) => (isPadNode(all[padId]) ? setText(all, ctx, padId, text) : all), { label: 'cmdRenamePad' })
 }
 
@@ -151,12 +144,12 @@ export function cmdMovePad(padId: string, dir: -1 | 1): boolean {
 }
 
 // Archive a pad with everything in it (undo or the Archive panel brings it all back). Returns how many lines
-// went with it (blank ones not counted). The main pad cannot be deleted.
+// went with it (blank ones not counted). The fixed pads cannot be archived.
 export function cmdDeletePad(padId: string): number {
   const { all, padId: current } = usePad.getState()
   if (!isPadNode(all[padId]) || isFixedPad(all, padId)) return 0
   const n = countOf(descendantIds(buildIndex(all), padId), all)
-  if (current === padId) openInbox()
+  if (current === padId) openPad(null)
   applyAll((rows, ctx) => remove(rows, ctx, [padId]), { label: 'cmdDeletePad' })
   return n
 }

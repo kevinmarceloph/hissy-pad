@@ -1,73 +1,93 @@
-// The fixed pads in the store: Today, Inbox and Later replace the root-level Main pad.
+// The fixed tabs in the store: Today, Inbox (the root level) and Later.
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createFakeRemote, findFixedPad, listPads, shape } from '@hissypad/core'
+import { createFakeRemote, createPad, findFixedPad, insertAt, listPads, shape, testCtx, type NodeRow } from '@hissypad/core'
 import { resetStore } from './testing'
-import { loadPad, openPad, usePad } from './store'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, padList, placeList } from './pads'
+import { configureLocalStore, loadPad, openPad, PAD_KEY, usePad } from './store'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, padList } from './pads'
 import { startSync, stopSync } from './sync'
 import { SAMPLE_OUTLINE } from './sample'
+import { createMemoryStore } from '@hissypad/core'
 
 const all = () => usePad.getState().all
-const inbox = () => findFixedPad(all(), 'Inbox')!.id
+const today = () => findFixedPad(all(), 'Today')!.id
 
 async function flush(n = 30) {
   for (let i = 0; i < n; i++) await Promise.resolve()
 }
 
-describe('fixed pads', () => {
+describe('fixed tabs', () => {
   beforeEach(async () => {
     stopSync()
-    resetStore('A\nB\n  B1', { fixed: true })
+    resetStore('A\nB\n  B1')
     await loadPad()
   })
 
-  it('on load, Main’s lines move to the top of the Inbox, which opens; the tabs are Today, Inbox, Later', () => {
-    expect(usePad.getState().padId).toBe(inbox())
+  it('load makes Today and Later; the root stays the Inbox and opens; none of it is an undo step', () => {
+    expect(usePad.getState().padId).toBeNull()
     expect(shape(usePad.getState().rows)).toBe('A\nB\n  B1')
-    expect(padList(all()).map((p) => [p.name, p.fixed])).toEqual([['Today', 'Today'], ['Inbox', 'Inbox'], ['Later', 'Later']])
-    expect(placeList(all()).map((p) => p.key)).not.toContain('main')
-    // Not an undo step: there is nothing to undo.
+    expect(padList(all()).map((p) => [p.id === null ? 'root' : 'row', p.name, p.fixed])).toEqual([
+      ['row', 'Today', 'Today'], ['root', 'Inbox', 'Inbox'], ['row', 'Later', 'Later'],
+    ])
     expect(usePad.getState().past).toHaveLength(0)
   })
 
-  it('a fixed pad is not renamed, moved, folded in or deleted; other pads come after them', () => {
-    const today = findFixedPad(all(), 'Today')!.id
+  it('a fixed tab is not renamed, moved, folded in or archived, and its name cannot be taken', () => {
     const work = cmdNewPad('Work')
     const ideas = cmdNewPad('Ideas')
-    cmdRenamePad(today, 'Tomorrow')
-    expect(cmdMovePad(today, 1)).toBe(false)
-    expect(cmdPadToLine(today, { padId: work, subId: null })).toBeNull()
-    expect(cmdDeletePad(today)).toBe(0)
+    cmdRenamePad(today(), 'Tomorrow')
+    cmdRenamePad(work, 'later')
+    expect(cmdMovePad(today(), 1)).toBe(false)
+    expect(cmdPadToLine(today(), { padId: work, subId: null })).toBeNull()
+    expect(cmdDeletePad(today())).toBe(0)
     expect(padList(all()).map((p) => p.name)).toEqual(['Today', 'Inbox', 'Later', 'Work', 'Ideas'])
+    // A new pad with a fixed name opens that tab instead of making a second one.
+    expect(cmdNewPad(' TODAY ')).toBe(today())
+    expect(usePad.getState().padId).toBe(today())
+    expect(cmdNewPad('inbox')).toBe('')
+    expect(usePad.getState().padId).toBeNull()
+    expect(listPads(all())).toHaveLength(4)
+    // The other pads reorder among themselves, after the fixed ones.
     expect(cmdMovePad(ideas, -1)).toBe(true)
     expect(cmdMovePad(ideas, -1)).toBe(false)
     expect(padList(all()).map((p) => p.name)).toEqual(['Today', 'Inbox', 'Later', 'Ideas', 'Work'])
   })
 
-  it('deleting the pad shown opens the Inbox', () => {
-    const work = cmdNewPad('Work')
-    expect(usePad.getState().padId).toBe(work)
-    cmdDeletePad(work)
-    expect(usePad.getState().padId).toBe(inbox())
+  it('a device with a pad named Inbox (from the widget, or the first version of this) gets its lines in the root, and the root opens', async () => {
+    const ctx = testCtx()
+    let rows = createPad({}, ctx, 'Inbox').rows
+    const inbox = listPads(rows)[0]!.id
+    rows = insertAt(rows, ctx, { parentId: inbox, afterId: null }, 'milk').rows
+    rows = insertAt(rows, ctx, { parentId: null, afterId: null }, 'old main line').rows
+    const mem = createMemoryStore(Object.values(rows))
+    await mem.setMeta(PAD_KEY, inbox)
+    configureLocalStore(mem)
+    usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading', past: [], future: [] })
+    await loadPad()
+    expect(usePad.getState().padId).toBeNull()
+    expect(shape(usePad.getState().rows)).toBe('old main line\nmilk')
+    expect(padList(all()).map((p) => p.name)).toEqual(['Today', 'Inbox', 'Later'])
   })
 
-  it('a line that reaches the root through sync (the watch, an older build) is moved to the Inbox', async () => {
+  it('a pad named Inbox that arrives by sync is folded into the root', async () => {
     const remote = createFakeRemote()
-    const now = Date.now() + 1000
-    remote.rows.set('r1', { row: { id: 'r1', parentId: null, rank: 'a0', text: 'from the watch', done: false, doneAt: null, collapsed: false, numbered: false, header: false, pad: false, deletedAt: null, updatedAt: now } as never, syncedAt: new Date(1_700_000_000_000).toISOString() })
+    const at = Date.now() + 1000
+    const row = (r: Partial<NodeRow> & { id: string }): NodeRow => ({ parentId: null, rank: 'a0', text: '', done: false, doneAt: null, collapsed: false, numbered: false, header: false, pad: false, deletedAt: null, updatedAt: at, ...r } as NodeRow)
+    remote.rows.set('p', { row: row({ id: 'p', text: 'Inbox', pad: true, rank: 'z0' }), syncedAt: new Date(1_700_000_000_000).toISOString() })
+    remote.rows.set('l', { row: row({ id: 'l', parentId: 'p', text: 'from another device' }), syncedAt: new Date(1_700_000_000_001).toISOString() })
     startSync(remote)
     await flush(60)
-    expect(all().r1).toMatchObject({ parentId: inbox() })
+    expect(all().l).toMatchObject({ parentId: null })
+    expect(all().p!.deletedAt).not.toBeNull()
     stopSync()
   })
 
-  it('a first visit puts the welcome lines in a new Inbox', async () => {
-    resetStore(undefined, { fixed: true })
+  it('a first visit puts the welcome lines in the Inbox, with Today and Later beside it', async () => {
+    resetStore()
     await loadPad()
-    expect(listPads(all()).map((p) => p.text)).toEqual(['Today', 'Inbox', 'Later'])
-    expect(usePad.getState().padId).toBe(inbox())
+    expect(listPads(all()).map((p) => p.text)).toEqual(['Today', 'Later'])
+    expect(usePad.getState().padId).toBeNull()
     expect(shape(usePad.getState().rows).split('\n')[0]).toBe(SAMPLE_OUTLINE.split('\n')[0])
-    openPad(null)
+    openPad(today())
     expect(usePad.getState().rows).toEqual({})
   })
 })

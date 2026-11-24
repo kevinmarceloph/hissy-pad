@@ -23,7 +23,7 @@ import { useEffect } from 'react'
 import { Alert, AppState, Platform } from 'react-native'
 import { ExtensionStorage } from '@bacons/apple-targets'
 import {
-  cmdAddToPad, cmdWidgetActions, loadSortTargets, log, openInbox, openPad, usePad, useSort, watchHandoffDue, watchSignedIn, widgetPadName,
+  cmdAddToPad, cmdWidgetActions, loadSortTargets, log, openPad, usePad, useSort, watchHandoffDue, watchSignedIn, widgetPadName,
   widgetSnapshot, WIDGET_MAIN,
   type WidgetAction,
 } from '@hissypad/state'
@@ -168,8 +168,7 @@ export function handleWidgetUrl(url: string): boolean {
   const all = usePad.getState().all
   const name = widgetPadName(pad, all)
   if (m[1] === 'pad') {
-    if (pad === WIDGET_MAIN || !all[pad]) openInbox()
-    else openPad(pad)
+    openPad(pad === WIDGET_MAIN || !all[pad] ? null : pad)
     return true
   }
   if (Platform.OS === 'ios') {

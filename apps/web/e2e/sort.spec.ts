@@ -91,6 +91,6 @@ test('swipe cards left, right and up; edit one first', async ({ page }, info) =>
 
   expect(await tabs(page)).toEqual(['Today', 'Inbox', 'Later'])
   expect(await padLines(page, 'Later')).toBe('call the dentist')
-  expect(await padLines(page, 'Today')).toBe('plan the trip\n  book flights\n  renew passport\n~water the plants')
+  expect(await padLines(page, 'Today')).toBe('~water the plants\nplan the trip\n  book flights\n  renew passport')
   expect(await padLines(page, 'Inbox')).toBe('read chapter 13')
 })

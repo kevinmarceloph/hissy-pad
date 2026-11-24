@@ -35,7 +35,7 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | `rank.ts` | fractional ranks: a rank between two others, re-ranking a run |
 | `ops.ts` | every edit to lines: insert, split, set text, done, kind, fold, remove, restore, move, move to top, indent, dedent, ungroup, merge, delete done |
 | `inline.ts` | inline marks drawn from the text, never stored: `inlineSpans` (bold, italic, underline, strikethrough, symbols kept) and the shared `URL_RE` |
-| `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), sub-pads and places (`isSubPad`, `listSubPads`, `Place`, `moveToPlace`), the fixed pads Today, Inbox, Later (`FIXED_PADS`, `findFixedPad`, `settleFixedPads`), Fresh start |
+| `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), sub-pads and places (`isSubPad`, `listSubPads`, `Place`, `moveToPlace`), the fixed tabs (`FIXED_PADS`: Today and Later are pad rows, `findFixedPad`; Inbox is the root; `settleFixedPads` keeps them so), Fresh start |
 | `drop.ts` | `resolveDrop`: where a dragged line lands, from pointer position and row layout |
 | `paste.ts` | text to outline and back: `parseOutline`, `insertOutline`, `toOutline`, `toOutlineHtml` |
 | `ops.ts` (again) | `setCategory`: a line's category, one of Hours' (`NodeRow.category`) |
@@ -60,7 +60,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `selection.ts` | selecting and editing: `select`, `clickSelect`, `selectRange`, `stepSelection`, `edit`, `targets`, `neighbor` |
 | `commands.ts` | the editor commands (`cmd…`): what a key or button does to lines, and where the caret or selection goes after |
 | `actions.ts` | the line toolbar as data: `LINE_ACTIONS` (each with its icon, and `more` for the ones in the dropdown), `actionFace` (Fold reads Unfold), `LINE_KINDS`, `lineAbilities`. Web and the phone both draw from it |
-| `pads.ts` | pad commands: new, rename, delete, reorder, move to, make pad from a line, fold a pad back into a line, the list of places (`placeList`: pads and "Pad → Sub-pad"), move to a place, jump to a sub-pad, Fresh start; `padList` puts the fixed pads first (the store's `settleFixed` keeps them there and the root empty; tested in `fixed.test.ts`) |
+| `pads.ts` | pad commands: new, rename, delete, reorder, move to, make pad from a line, fold a pad back into a line, the list of places (`placeList`: pads and "Pad → Sub-pad"), move to a place, jump to a sub-pad, Fresh start; `padList` puts Today, Inbox (the root) and Later first (the store's `settleFixed` keeps Today and Later there and folds a pad named Inbox into the root; tested in `fixed.test.ts`) |
 | `lists.ts` | the Archive and Recently done panels: entries, restore, un-done, day grouping |
 | `search.ts` | Search across every pad: the lines found, grouped by pad with the words marked (`search`), and the jump to one (`cmdOpenHit`) |
 | `sort.ts` | Sort: the queue, the two targets, sending a card, the session a sort screen holds, the swipe rule |
@@ -73,7 +73,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `prefs.ts` | per-device preferences, not synced (pad counts on the tabs): `usePrefs`, `setPref`; each app hands in its storage with `initPrefs` |
 | `hours/` | the Hours mode's state, exported as `@hissypad/state/hours`: `index.ts` (opens the store, wires the stores, starts and stops hours sync, `configureHoursBackend`, `configureChimes`), the day, category, flag, recurring plan and chime stores, `engine.ts` and `remote.ts` (sync for the four hours tables), `slots.ts` (lines in an hour: assign, cross out, take out, add, find one to put in, the picker's opener), `line-categories.ts` (a line's category: the list the pad draws icons from, `useLineCategory`, set it, the picker's opener) |
 | `sample.ts` | the welcome pad a new device starts with |
-| `testing.ts` | `resetStore(outline)` for tests here and in the apps |
+| `testing.ts` | `resetStore(outline)` for tests here and in the apps (the outline lands in the Inbox, the root), and `tableShape()`: the whole table as one outline, Inbox first, then each pad as `@Name`, an empty Today or Later left out |
 
 ## packages/ui
 

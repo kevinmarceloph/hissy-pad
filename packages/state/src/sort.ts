@@ -12,7 +12,7 @@ import {
 import { apply, applyAll, getLocalStore, usePad } from './store'
 import { undo } from './history'
 import { stopEditing } from './selection'
-import { ensureLine, placeName } from './pads'
+import { MAIN_PAD_NAME, ensureLine, placeName } from './pads'
 import { log } from './log'
 
 export type SortSide = 'left' | 'right'
@@ -76,8 +76,9 @@ export interface SortTarget {
 // A side's target as things stand. Right is always the default; on the left, a chosen pad
 // that is gone (deleted here or on another device) falls back to the default.
 export function sortTarget(all: Rows, side: SortSide, leftChoice: SortChoice = useSort.getState().left): SortTarget {
-  // 'main' (the root level, a choice from before the fixed pads) is no longer a place.
-  const choice = side === 'left' && leftChoice !== 'main' ? leftChoice : null
+  const choice = side === 'left' ? leftChoice : null
+  // 'main' is the root level, the Inbox.
+  if (choice === 'main') return { padId: null, subId: null, name: MAIN_PAD_NAME, exists: true, isDefault: false }
   if (choice !== null && isPadNode(all[choice])) return { padId: choice, subId: null, name: all[choice].text || 'Untitled pad', exists: true, isDefault: false }
   if (choice !== null && isSubPad(all, all[choice])) {
     const place = { padId: all[choice]!.parentId, subId: choice }

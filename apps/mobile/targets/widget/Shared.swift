@@ -62,36 +62,25 @@ enum Shared {
 
   // A new line for the Inbox, typed outside the app (Siri, Shortcuts). It gets its id
   // here, so the widget can show it at once and its buttons work on it before the app has
-  // run. If there is no Inbox pad yet, the snapshot gets a stand-in for the one the app
-  // will make. Returns the id.
+  // run. The Inbox is the root level (mainPadId) since 2026-11-24; a snapshot from an older
+  // app may still have it as a pad named Inbox, which is used then. Returns the id.
   @discardableResult
   static func add(text: String) -> String {
     let id = UUID().uuidString.lowercased()
     let item = WidgetItem(id: id, text: String(text.prefix(140)), subs: 0)
     if var snap = snapshot() {
-      if let i = snap.pads.firstIndex(where: { $0.name.lowercased() == "inbox" && $0.id != mainPadId }) {
+      if let i = snap.pads.firstIndex(where: { $0.id == snap.inbox }) ?? snap.pads.firstIndex(where: { $0.id == mainPadId }) {
         snap.pads[i].items.insert(item, at: 0)
         snap.pads[i].items = Array(snap.pads[i].items.prefix(maxItems))
         snap.pads[i].count += 1
       } else {
-        snap.pads.append(WidgetPad(id: inboxKey, name: "Inbox", count: 1, items: [item]))
-        snap.inbox = inboxKey
+        snap.pads.append(WidgetPad(id: mainPadId, name: "Inbox", count: 1, items: [item]))
+        snap.inbox = mainPadId
       }
       save(snap)
     }
     enqueue(QueuedAction(id: id, dir: "add", pad: inboxKey, text: text))
     return id
-  }
-
-  // The Inbox pad's row id, when the app has one and has said so: the snapshot's `inbox`,
-  // which is the fixed Inbox (findFixedPad in core, the first pad of that name in root
-  // order), else the first pad listed with that name. Nil when the pad is still to be made
-  // (or is only the stand-in above): making it is the app's job.
-  static func inboxPad() -> String? {
-    guard let snap = snapshot() else { return nil }
-    let real = { (id: String) in id != mainPadId && id != inboxKey }
-    if real(snap.inbox), snap.pads.contains(where: { $0.id == snap.inbox }) { return snap.inbox }
-    return snap.pads.first { $0.name.lowercased() == "inbox" && real($0.id) }?.id
   }
 
   // A queued new line reached the server by itself (native/SiriSync.swift), so the app has

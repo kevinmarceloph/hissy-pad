@@ -98,6 +98,8 @@ test('the floating + adds a line at the top on a tap, and where it is dropped on
   test.skip(info.project.name !== 'phone', 'phone width only')
   await page.goto('/#pads')
   const add = page.getByRole('button', { name: 'Add a line at the top' })
+  // Count only once the welcome lines are drawn.
+  await expect(page.locator('.row', { hasText: 'Oat milk' })).toBeVisible()
   const before = await page.locator('.row').count()
   const from = (await add.boundingBox())!
   const row = (await page.locator('.row', { hasText: 'Oat milk' }).boundingBox())!

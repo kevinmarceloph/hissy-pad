@@ -33,8 +33,8 @@ describe('search', () => {
   })
 
   it('finds lines in every pad, the pad on screen first, and marks the words found', () => {
-    expect(found('milk')).toEqual(['Main: Buy [milk]', 'Work: work [milk] run'])
-    expect(found('milk', work)).toEqual(['Work: work [milk] run', 'Main: Buy [milk]'])
+    expect(found('milk')).toEqual(['Inbox: Buy [milk]', 'Work: work [milk] run'])
+    expect(found('milk', work)).toEqual(['Work: work [milk] run', 'Inbox: Buy [milk]'])
     expect(search(all(), 'milk').total).toBe(2)
     expect(searchCount(search(all(), 'milk'))).toBe('2 lines')
     expect(searchCount(search(all(), 'buy'))).toBe('1 line')
@@ -42,7 +42,7 @@ describe('search', () => {
 
   it('wants every word, in any order, and ignores case and accents', () => {
     expect(found('RUN work')).toEqual(['Work: [work] milk [run]'])
-    expect(found('cafe')).toEqual(['Main: [Café] list'])
+    expect(found('cafe')).toEqual(['Inbox: [Café] list'])
     expect(found('milk cebu')).toEqual([])
     expect(found('   ')).toEqual([])
     expect(searchTerms('  Café  cafe ')).toEqual(['cafe'])

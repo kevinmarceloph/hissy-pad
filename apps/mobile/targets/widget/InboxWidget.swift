@@ -25,7 +25,7 @@ struct InboxProvider: AppIntentTimelineProvider {
     guard let snap = Shared.snapshot() else {
       return InboxEntry(date: .now, pad: nil, left: "Later", right: "Today")
     }
-    // The pad that was picked, if it is still there; else the Inbox default; else Main.
+    // The pad that was picked, if it is still there; else the Inbox (the root); else the first.
     let wanted = configuration.pad?.id ?? snap.inbox
     let pad = snap.pads.first { $0.id == wanted } ?? snap.pads.first { $0.id == snap.inbox } ?? snap.pads.first
     return InboxEntry(date: .now, pad: pad, left: snap.left, right: snap.right)

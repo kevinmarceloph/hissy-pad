@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { shape } from '@hissypad/core'
 import { App } from '../app/App'
-import { resetStore, usePad } from '@hissypad/state'
+import { resetStore, tableShape, usePad } from '@hissypad/state'
 import { cmdSetSlot, setSlotPickerOpener } from '@hissypad/state/hours'
 import { slotKey, slotLabel, todayKey } from '@hissypad/core'
 
@@ -13,7 +13,7 @@ async function mount(outline: string) {
   await screen.findByRole('tree')
 }
 
-const whole = () => shape(usePad.getState().all)
+const whole = () => tableShape()
 const card = () => screen.getByRole('textbox', { name: 'Line text' }) as HTMLTextAreaElement
 const button = (name: string | RegExp) => screen.getByRole('button', { name })
 
@@ -39,7 +39,7 @@ describe('sort', () => {
 
   it('the title picks the pad to sort, with no pad tabs on screen', async () => {
     const user = userEvent.setup()
-    resetStore('A\n  A1\n  A2\nB', { fixed: true })
+    resetStore('A\n  A1\n  A2\nB')
     render(<App />)
     await screen.findByRole('tree')
     await user.click(button('Sort'))
@@ -66,10 +66,10 @@ describe('sort', () => {
     expect(screen.getByRole('textbox', { name: 'Sub item' })).toHaveValue('B1')
     await user.click(button('Right: Today'))
     await user.keyboard('{ArrowUp}')
-    expect(whole()).toBe('D\n@Later\n  A\n@Today\n  ~C\n  B\n    B1')
+    expect(whole()).toBe('D\n@Today\n  ~C\n  B\n    B1\n@Later\n  A')
     await user.click(button('Back'))
     expect(card().value).toBe('C')
-    expect(whole()).toBe('C\nD\n@Later\n  A\n@Today\n  B\n    B1')
+    expect(whole()).toBe('C\nD\n@Today\n  B\n    B1\n@Later\n  A')
     await user.keyboard('s{ArrowRight}')
     expect(screen.getByText('All sorted.')).toBeInTheDocument()
     expect(screen.getByText('2 to Today, 1 to Later, 1 skipped')).toBeInTheDocument()
@@ -124,7 +124,7 @@ describe('sort', () => {
     drag(-140, 10)
     expect(whole()).toBe('B\n@Later\n  A')
     drag(20, -150)
-    expect(whole()).toBe('\n@Later\n  A\n@Today\n  ~B')
+    expect(whole()).toBe('\n@Today\n  ~B\n@Later\n  A')
   })
 
   it('picking a left pad sends the card there and keeps it for the next ones; right has no picker', async () => {
@@ -133,14 +133,14 @@ describe('sort', () => {
     await user.click(button('New pad'))
     await user.type(screen.getByLabelText('Pad name'), 'Someday')
     await user.click(button('Create'))
-    await user.click(screen.getByRole('tab', { name: 'Main' }))
+    await user.click(screen.getByRole('tab', { name: 'Inbox' }))
     await user.click(button('Sort'))
     expect(screen.queryByLabelText('Pad for a right or up swipe')).toBeNull()
     await user.selectOptions(screen.getByLabelText('Pad for a left swipe'), 'Someday')
     expect(card().value).toBe('B')
     expect(button('Left: Someday')).toBeInTheDocument()
     await user.keyboard('{ArrowRight}{ArrowLeft}')
-    expect(whole()).toBe('\n@Someday\n  C\n  A\n  \n@Today\n  B')
+    expect(whole()).toBe('\n@Today\n  B\n@Someday\n  C\n  A\n  ')
   })
 
   it('New pad… in the left select makes a pad on the spot and sends the card to it; Cancel changes nothing', async () => {
@@ -150,7 +150,7 @@ describe('sort', () => {
     await user.selectOptions(screen.getByLabelText('Pad for a left swipe'), 'New pad…')
     await user.type(screen.getByLabelText('Name for the new pad'), 'Someday{Enter}')
     expect(button('Left: Someday')).toBeInTheDocument()
-    expect(card().value).toBe('B') // A went to Someday; still sorting Main
+    expect(card().value).toBe('B') // A went to Someday; still sorting the Inbox
     expect(whole()).toBe('B\n@Someday\n  A')
     await user.selectOptions(screen.getByLabelText('Pad for a left swipe'), 'New pad…')
     await user.click(button('Cancel'))

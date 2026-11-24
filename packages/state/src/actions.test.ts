@@ -117,7 +117,7 @@ describe('the toolbar registry', () => {
     pick('B')
     expect(action('makePad').enabled!(lineAbilities(usePad.getState().rows, usePad.getState().selection))).toBe(true)
     expect(action('makePad').run()).toBe('“B” is a pad now.')
-    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Main', 'B'])
+    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Today', 'Inbox', 'Later', 'B'])
     usePad.setState({ selection: [] })
     expect(action('makePad').run()).toBeUndefined()
   })

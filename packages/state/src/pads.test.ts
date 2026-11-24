@@ -20,13 +20,13 @@ describe('pads in the store', () => {
     await loadPad()
   })
 
-  it('a new pad opens empty, is listed after main, and edits in it land under the pad node', async () => {
+  it('a new pad opens empty, is listed after the fixed tabs, and edits in it land under the pad node', async () => {
     const w = cmdNewPad('Work')
     expect(usePad.getState().padId).toBe(w)
     expect(shown()).toBe('') // one blank line, being edited
     expect(Object.keys(usePad.getState().rows)).toHaveLength(1)
     expect(usePad.getState().editing?.id).toBe(Object.keys(usePad.getState().rows)[0])
-    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Main', 'Work'])
+    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Today', 'Inbox', 'Later', 'Work'])
     const ids = importOutline('one\n\ttwo', 'top')
     expect(shown()).toBe('one\n  two\n')
     // In table terms the top line hangs under the pad node.
@@ -64,17 +64,17 @@ describe('pads in the store', () => {
     expect(main()).toBe('A\nB\n  B1\nC')
   })
 
-  it('rename and delete; deleting the open pad falls back to main; undo brings it back', () => {
+  it('rename and delete; archiving the open pad falls back to the Inbox; undo brings it back', () => {
     const w = cmdNewPad('Work')
     importOutline('w1\nw2', 'top')
     cmdRenamePad(w, 'Werk')
-    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Main', 'Werk'])
-    expect(padList(usePad.getState().all).map((p) => p.count)).toEqual([3, 2]) // A, B, C; w1, w2 (B1 is nested, the blank line is not counted)
+    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Today', 'Inbox', 'Later', 'Werk'])
+    expect(padList(usePad.getState().all).map((p) => p.count)).toEqual([0, 3, 0, 2]) // Today; A, B, C; Later; w1, w2 (B1 is nested, the blank line is not counted)
     expect(cmdDeletePad(w)).toBe(2) // w1 and w2; the blank first line is not counted
     expect(usePad.getState().padId).toBeNull()
-    expect(listPads(usePad.getState().all)).toEqual([])
+    expect(listPads(usePad.getState().all).map((p) => p.text)).toEqual(['Today', 'Later'])
     undo()
-    expect(listPads(usePad.getState().all).map((r) => r.text)).toEqual(['Werk'])
+    expect(listPads(usePad.getState().all).map((r) => r.text)).toEqual(['Today', 'Later', 'Werk'])
     expect(openPad(w)).toBe(true)
     expect(shown()).toBe('w1\nw2\n')
     redo()
@@ -116,16 +116,16 @@ describe('pads in the store', () => {
     const res = cmdFreshStart(sides, name)
     expect(res.moved).toBe(2)
     expect(main()).toBe('B\n  B1')
-    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Main', 'Before 2 Nov 2026'])
+    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Today', 'Inbox', 'Later', 'Before 2 Nov 2026'])
     openPad(res.archiveId)
     expect(shown()).toBe('A\nC')
     openPad(null)
     undo()
     expect(main()).toBe('A\nB\n  B1\nC')
-    expect(listPads(usePad.getState().all)).toEqual([])
+    expect(listPads(usePad.getState().all).map((p) => p.text)).toEqual(['Today', 'Later'])
   })
 
-  it('a remembered pad reopens on load; a missing one falls back to main', async () => {
+  it('a remembered pad reopens on load; a missing one falls back to the Inbox', async () => {
     const w = cmdNewPad('Work')
     importOutline('w1', 'top')
     await Promise.resolve()
@@ -144,12 +144,12 @@ describe('pads in the store', () => {
     const b = cmdNewPad('Two')
     const names = () => padList(usePad.getState().all).map((p) => p.name)
     expect(cmdMovePad(b, -1)).toBe(true)
-    expect(names()).toEqual(['Main', 'Two', 'One'])
+    expect(names()).toEqual(['Today', 'Inbox', 'Later', 'Two', 'One'])
     expect(usePad.getState().padId).toBe(b)
     expect(cmdMovePad(b, -1)).toBe(false)
     expect(cmdMovePad(a, 1)).toBe(false)
     undo()
-    expect(names()).toEqual(['Main', 'One', 'Two'])
+    expect(names()).toEqual(['Today', 'Inbox', 'Later', 'One', 'Two'])
   })
 
   it('Fold into turns a pad back into a line of another pad, opens that pad if the folded one was shown, and undoes', () => {
@@ -159,10 +159,10 @@ describe('pads in the store', () => {
     expect(cmdPadToLine(w, { padId: 'nope', subId: null })).toBeNull()
     expect(cmdPadToLine(w, { padId: null, subId: null })).toBe('Work')
     expect(usePad.getState().padId).toBeNull()
-    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Main'])
+    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Today', 'Inbox', 'Later'])
     expect(main()).toBe('Work\n  one\n    two\n  \nA\nB\n  B1\nC')
     undo()
-    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Main', 'Work'])
+    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Today', 'Inbox', 'Later', 'Work'])
     expect(main()).toBe('A\nB\n  B1\nC')
     // From another pad: the pad shown stays.
     const x = cmdNewPad('X')
@@ -176,7 +176,7 @@ describe('pads in the store', () => {
     select([id('\u{1F525} \u2014 urgent things')], id('\u{1F525} \u2014 urgent things'))
     cmdSetKind('header')
     const all = usePad.getState().all
-    expect(padList(all)[0]!.subs.map((s) => s.name)).toEqual(['\u{1F525}'])
+    expect(padList(all).find((p) => p.id === null)!.subs.map((s) => s.name)).toEqual(['\u{1F525}'])
     expect(placeList(all).map((p) => p.label)).toContain(`${MAIN_PAD_NAME} ${PLACE_ARROW} \u{1F525}`)
     expect(subName('\u2014 all dash')).toBe('\u2014 all dash')
     expect(subName('a - b')).toBe('a - b')
@@ -192,8 +192,8 @@ describe('pads in the store', () => {
     select([id('w2')], id('w2'))
     cmdSetKind('header')
     const all = () => usePad.getState().all
-    expect(placeList(all()).map((p) => p.label)).toEqual(['Main', 'Main → B', 'Work', 'Work → w2'])
-    expect(padList(all()).map((p) => p.subs.map((s) => `${s.name}:${s.count}`))).toEqual([['B:1'], ['w2:0']])
+    expect(placeList(all()).map((p) => p.label)).toEqual(['Today', 'Inbox', 'Inbox → B', 'Later', 'Work', 'Work → w2'])
+    expect(padList(all()).map((p) => p.subs.map((s) => `${s.name}:${s.count}`))).toEqual([[], ['B:1'], [], ['w2:0']])
     expect(placeFromKey(all(), 'main')).toEqual({ padId: null, subId: null })
     expect(placeFromKey(all(), id('B'))).toEqual({ padId: null, subId: id('B') })
     // From Work, send w1 to Main → B: it lands at the top of B's lines.
@@ -224,7 +224,7 @@ describe('pads in the store', () => {
     select([idOf(rows, 'B'), idOf(rows, 'B1')], idOf(rows, 'B')) // a line and its own child: still one line
     const res = cmdLineToPad()!
     expect(res.name).toBe('B')
-    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Main', 'B'])
+    expect(padList(usePad.getState().all).map((p) => p.name)).toEqual(['Today', 'Inbox', 'Later', 'B'])
     expect(usePad.getState().padId).toBeNull()
     expect(main()).toBe('A\nC')
     openPad(res.padId)
@@ -232,6 +232,6 @@ describe('pads in the store', () => {
     openPad(null)
     undo()
     expect(main()).toBe('A\nB\n  B1\nC')
-    expect(padList(usePad.getState().all)).toHaveLength(1)
+    expect(padList(usePad.getState().all)).toHaveLength(3)
   })
 })

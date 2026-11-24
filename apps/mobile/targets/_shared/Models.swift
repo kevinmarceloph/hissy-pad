@@ -4,7 +4,7 @@
 import Foundation
 
 let mainPadId = "main"
-let inboxKey = "inbox" // "the pad named Inbox, made by the app if there is none"
+let inboxKey = "inbox" // "the Inbox": the root level, the same as mainPadId since 2026-11-24
 
 struct WidgetItem: Codable, Identifiable, Hashable {
   let id: String

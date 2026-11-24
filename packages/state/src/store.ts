@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import {
-  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, findFixedPad, isPadNode, settleFixedPads,
+  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, isPadNode, settleFixedPads,
   insertAt, insertOutline, newUuid, normalizeRow, parseOutline, sameRow, scopePad, unscopeRow,
   type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus,
 } from '@hissypad/core'
@@ -215,13 +215,13 @@ async function loadPadOnce() {
     if (!live) {
       // First visit on this device: a welcome pad. Its rows are remembered with their
       // stamps so sync can drop the untouched ones if a real pad arrives from the account.
-      const res = seedSample(rows, ctx, fixedPads)
+      const res = seedSample(rows, ctx)
       state = res.rows
       await local.upsertMany(changedRows(rows, state), { dirty: true })
       await local.setMeta(SEED_KEY, JSON.stringify(Object.fromEntries(res.ids.map((id) => [id, state[id]!.updatedAt]))))
       log('seed', { n: res.ids.length })
     }
-    // Reopen the pad this device had open, if it still exists; else (after the settle) the Inbox.
+    // Reopen the pad this device had open, if it still exists; else the Inbox (the root).
     const remembered = await local.getMeta(PAD_KEY)
     const padId = remembered && isPadNode(state[remembered]) ? remembered : null
     set({ all: state, rows: scopePad(state, padId), padId, load: 'ready' })
@@ -235,31 +235,20 @@ async function loadPadOnce() {
   }
 }
 
-// Keep the fixed pads (Today, Inbox, Later) there once each and the root level empty (see
-// settleFixedPads in core), and keep a real pad on screen: the Inbox when the one shown is
-// gone or is the root. Run after load and after every sync merge, never inside an op, and
-// left out of the undo history: undoing it would only put lines back where nobody sees them.
-let fixedPads = true
-// Tests written for the root-level Main pad turn the settle off (resetStore does, unless
-// asked for the fixed pads); the apps never call this.
-export function configureFixedPads(on: boolean) {
-  fixedPads = on
-}
-
+// Keep Today and Later there once each and no pad named Inbox beside the root (see
+// settleFixedPads in core). Run after load and after every sync merge, never inside an op,
+// and left out of the undo history: undoing it would only bring back a duplicate. If the pad
+// shown was folded away, the Inbox (the root) opens.
 export function settleFixed() {
   const { all, padId, load } = get()
-  if (load !== 'ready' || !fixedPads) return
+  if (load !== 'ready') return
   const next = settleFixedPads(all, ctx)
-  if (next !== all) {
-    log('pad:settle', { changed: changedRows(all, next).length })
-    set({ all: next, rows: scopePad(next, padId) })
-    persist(all, next)
-  }
-  const cur = get()
-  if (cur.padId === null || !isPadNode(cur.all[cur.padId])) {
-    const inbox = findFixedPad(cur.all, 'Inbox')
-    if (inbox) openPad(inbox.id)
-  }
+  if (next === all) return
+  log('pad:settle', { changed: changedRows(all, next).length })
+  const shown = padId === null || isPadNode(next[padId]) ? padId : null
+  set({ all: next, padId: shown, rows: scopePad(next, shown) })
+  if (shown !== padId) void local.setMeta(PAD_KEY, '').catch(() => {})
+  persist(all, next)
 }
 
 // Show another pad. Selection and editing belong to the pad they were in, so they clear.
@@ -283,7 +272,7 @@ export function setAll(all: Rows, extra: Partial<PadState> = {}) {
   const { padId } = get()
   // The open pad may have been deleted on another device: fall back to the Inbox.
   const stillThere = padId === null || isPadNode(all[padId])
-  const nextPad = stillThere ? padId : (findFixedPad(all, 'Inbox')?.id ?? null)
+  const nextPad = stillThere ? padId : null
   set({ all, padId: nextPad, rows: scopePad(all, nextPad), ...extra })
   if (!stillThere) void local.setMeta(PAD_KEY, '').catch(() => {})
 }

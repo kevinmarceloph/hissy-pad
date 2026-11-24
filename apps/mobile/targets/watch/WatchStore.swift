@@ -97,13 +97,13 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
     return true
   }
 
-  // Siri on the watch (WatchShortcuts.swift): a new line at the top of the pad named
-  // Inbox, then a sync that is waited for, a few seconds at most, because the watch app may
-  // be put back to sleep as soon as Siri has its answer. The line is kept here either way.
-  // False when no pad here is named Inbox.
+  // Siri on the watch (WatchShortcuts.swift): a new line at the top of the Inbox (the root
+  // level since 2026-11-24), then a sync that is waited for, a few seconds at most, because
+  // the watch app may be put back to sleep as soon as Siri has its answer. The line is kept
+  // here either way. False when the watch has nothing to add it to yet (signed out and no
+  // snapshot from the phone).
   func addToInbox(_ text: String) async -> Bool {
-    guard let pad = pads.first(where: { $0.id != mainPadId && $0.name.lowercased() == "inbox" }) else { return false }
-    guard add(text, to: pad.id) else { return false }
+    guard add(text, to: mainPadId) else { return false }
     guard sync.copy != nil else { return true }
     await withCheckedContinuation { (waiting: CheckedContinuation<Void, Never>) in
       var over = false

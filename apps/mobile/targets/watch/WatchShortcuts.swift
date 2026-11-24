@@ -23,7 +23,7 @@ struct AddToInboxIntent: AppIntent {
       throw $text.needsValueError(IntentDialog("What should I add?"))
     }
     guard await WatchStore.shared.addToInbox(clean) else {
-      return .result(dialog: IntentDialog("There is no Inbox pad on this watch yet. Open HissyPad on your iPhone first."))
+      return .result(dialog: IntentDialog("HissyPad on this watch has nothing yet. Open it on your iPhone first."))
     }
     return .result(dialog: IntentDialog("Added to Inbox."))
   }

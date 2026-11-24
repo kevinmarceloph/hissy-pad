@@ -153,51 +153,58 @@ export function padToLine(all: Rows, ctx: OpCtx, padId: string, into: Place): Ro
 
 // ---- Fixed pads ----------------------------------------------------------------------
 //
-// Since 2026-11-24 the tabs start with three pads that are always there and never move:
-// Today, Inbox, Later. Each is an ordinary pad row found by its name (the first one in root
-// order, so every device picks the same), and the root level is no longer shown as a pad of
-// its own: whatever lands there (Main's lines from before, a line added to Main by the watch
-// or an older build, an orphan) is moved to the top of Inbox.
+// Since 2026-11-24 the tabs start with three that are always there and never move: Today,
+// Inbox, Later. Inbox is the root level itself (the old Main, renamed), so it cannot be made
+// twice and whatever reaches the root (the watch, an older build, an orphan) is already in
+// it. Today and Later are ordinary pad rows found by their names, the first in root order, so
+// every device picks the same one. A pad named Inbox (the widget made one, and for a few hours
+// the Inbox was such a pad) is folded into the root.
 
 export const FIXED_PADS = ['Today', 'Inbox', 'Later'] as const
 export type FixedPad = (typeof FIXED_PADS)[number]
+// The fixed pads that are pad rows.
+export type RowPad = Exclude<FixedPad, 'Inbox'>
+export const ROW_PADS: readonly RowPad[] = ['Today', 'Later']
 
 const nameKey = (s: string) => s.trim().toLowerCase()
 
-// Which fixed pad a row is, or null for any other row (or a later pad of the same name).
+// A name the fixed pads own: a new pad or a rename to it is refused.
+export function isFixedName(name: string): boolean {
+  return FIXED_PADS.some((n) => nameKey(n) === nameKey(name))
+}
+
+// Which fixed pad this is: null (the root) is Inbox; a row is Today or Later when it is the
+// first pad of that name. null for anything else.
 export function fixedPadOf(all: Rows, id: string | null): FixedPad | null {
-  if (id === null || !isPadNode(all[id])) return null
-  const name = FIXED_PADS.find((n) => nameKey(n) === nameKey(all[id]!.text))
+  if (id === null) return 'Inbox'
+  if (!isPadNode(all[id])) return null
+  const name = ROW_PADS.find((n) => nameKey(n) === nameKey(all[id]!.text))
   return name && findFixedPad(all, name)?.id === id ? name : null
 }
 
-export function findFixedPad(all: Rows, name: FixedPad): NodeRow | undefined {
+export function findFixedPad(all: Rows, name: RowPad): NodeRow | undefined {
   return listPads(all).find((p) => nameKey(p.text) === nameKey(name))
 }
 
-// Bring the table in line with the rule above, in one pass: make each fixed pad that is
-// missing, fold a second pad of the same name into the first (its lines go to the bottom,
-// the extra pad row is deleted), and move the root's lines to the top of Inbox. Returns
-// `all` itself when there was nothing to do.
+// Bring the table in line with the rule above, in one pass: make Today or Later when missing,
+// fold a second pad of either name into the first, and fold every pad named Inbox into the
+// root. Folding moves the pad's lines to the bottom of the other one, in order, and deletes
+// the emptied pad row. Returns `all` itself when there was nothing to do.
 export function settleFixedPads(all: Rows, ctx: OpCtx): Rows {
   let out = all
-  for (const name of FIXED_PADS) {
-    const same = listPads(out).filter((p) => nameKey(p.text) === nameKey(name))
-    if (same.length === 0) {
-      out = createPad(out, ctx, name).rows
-      continue
-    }
-    const [keep, ...extra] = same
-    for (const dup of extra) {
-      const index = buildIndex(out)
-      const lines = childrenOf(index, dup.id).map((r) => r.id)
-      if (lines.length) out = moveNodes(out, ctx, lines, { parentId: keep!.id, afterId: childrenOf(index, keep!.id).at(-1)?.id ?? null })
-      out = remove(out, ctx, [dup.id])
-    }
+  const fold = (from: string, into: PadId) => {
+    const index = buildIndex(out)
+    const lines = childrenOf(index, from).map((r) => r.id)
+    const last = childrenOf(index, into).filter((r) => !r.pad).at(-1)?.id ?? null
+    if (lines.length) out = moveNodes(out, ctx, lines, { parentId: into, afterId: last })
+    out = remove(out, ctx, [from])
   }
-  const inbox = findFixedPad(out, 'Inbox')!
-  const loose = childrenOf(buildIndex(out), null).filter((r) => !r.pad).map((r) => r.id)
-  if (loose.length) out = moveNodes(out, ctx, loose, { parentId: inbox.id, afterId: null })
+  for (const name of ROW_PADS) {
+    const same = listPads(out).filter((p) => nameKey(p.text) === nameKey(name))
+    if (same.length === 0) out = createPad(out, ctx, name).rows
+    else for (const dup of same.slice(1)) fold(dup.id, same[0]!.id)
+  }
+  for (const p of listPads(out).filter((r) => nameKey(r.text) === 'inbox')) fold(p.id, null)
   return out
 }
 

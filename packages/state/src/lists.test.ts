@@ -1,6 +1,6 @@
 import { resetStore } from './testing'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createPad, idOf, moveToPad, remove, shape } from '@hissypad/core'
+import { createPad, idOf, moveToPad, remove, scopePad, shape } from '@hissypad/core'
 import { apply, applyAll, clock, loadPad, setAll, usePad } from './store'
 import { undo } from './history'
 import { select } from './selection'
@@ -16,6 +16,7 @@ async function reset(outline: string) {
 
 // The whole table, tombstones included; the pad being shown is usePad.getState().rows.
 const rows = () => usePad.getState().all
+const inbox = () => scopePad(rows(), null) // the Inbox (the root level), without Today and Later
 // By text, deleted rows included (core's idOf only sees live ones).
 const id = (t: string) => Object.values(rows()).find((r) => r.text === t)?.id ?? idOf(rows(), t)
 // Move the shared clock on, so the next delete is its own batch.
@@ -84,18 +85,18 @@ describe('cmdRestore', () => {
   it('brings a subtree back where it was, re-stamped, and selects it; undo re-deletes', async () => {
     const mem = await reset('A\nB\n  B1\n  B2\n    B2a\nC')
     del('B')
-    expect(shape(rows())).toBe('A\nC')
+    expect(shape(inbox())).toBe('A\nC')
     const before = rows()[id('B1')]!.updatedAt
     await mem.markClean([...mem.rows.keys()])
     cmdRestore([id('B')])
-    expect(shape(rows())).toBe('A\nB\n  B1\n  B2\n    B2a\nC')
+    expect(shape(inbox())).toBe('A\nB\n  B1\n  B2\n    B2a\nC')
     expect(rows()[id('B1')]!.updatedAt > before).toBe(true)
     expect(usePad.getState().selection).toEqual([id('B')])
     await Promise.resolve()
     expect((await mem.dirtyIds()).sort()).toEqual(['B', 'B1', 'B2', 'B2a'].map(id).sort())
     expect(trashEntries()).toEqual([])
     undo()
-    expect(shape(rows())).toBe('A\nC')
+    expect(shape(inbox())).toBe('A\nC')
   })
 
   it('a restored child whose parent is still deleted lands at the root', () => {
@@ -104,7 +105,7 @@ describe('cmdRestore', () => {
     del('B')
     cmdRestore([id('B2a')])
     // At the root (its parent is still gone), placed by its own rank among the root lines.
-    expect(shape(rows())).toBe('A\nB2a\nC')
+    expect(shape(inbox())).toBe('A\nB2a\nC')
     expect(rows()[id('B')]!.deletedAt).not.toBeNull()
   })
 
@@ -145,9 +146,9 @@ describe('cmdRestore', () => {
   it('unfolds a collapsed parent so the restored line is on screen', () => {
     del('B1')
     apply((r, ctx) => ({ ...r, [id('B')]: { ...r[id('B')]!, collapsed: true, updatedAt: ctx.now() } }))
-    expect(shape(rows(), true)).toBe('A\nB\nC')
+    expect(shape(inbox(), true)).toBe('A\nB\nC')
     cmdRestore([id('B1')])
-    expect(shape(rows(), true)).toBe('A\nB\n  B1\n  B2\n    B2a\nC')
+    expect(shape(inbox(), true)).toBe('A\nB\n  B1\n  B2\n    B2a\nC')
     expect(usePad.getState().selection).toEqual([id('B1')])
   })
 })

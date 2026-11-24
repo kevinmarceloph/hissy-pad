@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { pad, shape, idOf, testCtx } from './testing'
 import { allRows, buildIndex, countLines, headerGaps, visibleRows } from './tree'
 import { toggleDone } from './ops'
-import { createPad, findFixedPad, fixedPadOf, settleFixedPads, freshStart, lineToPad, padToLine, MAIN_PLACE, isPlace, isSubPad, listSubPads, moveToPlace, placeOf, listPads, padCounts, padLines, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
+import { createPad, findFixedPad, fixedPadOf, isFixedName, settleFixedPads, freshStart, lineToPad, padToLine, MAIN_PLACE, isPlace, isSubPad, listSubPads, moveToPlace, placeOf, listPads, padCounts, padLines, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
 import { dedent, insertAt, remove, setText } from './ops'
 import { changedRows } from './sync/store'
 
@@ -282,16 +282,18 @@ describe('fresh start', () => {
 })
 
 describe('fixed pads', () => {
-  it('settling makes Today, Inbox and Later, moves the root lines to the top of Inbox, and is idempotent', () => {
+  it('settling makes Today and Later and leaves the root lines where they are (the root is the Inbox); a second settle does nothing', () => {
     const { rows, ctx, w } = table()
     const out = settleFixedPads(rows, ctx)
-    expect(shape(out)).toBe('@Work\n  W1\n  W2\n    W2a\n@Today\n@Inbox\n  A\n  B\n    B1\n    B2\n  C\n@Later')
-    expect(fixedPadOf(out, findFixedPad(out, 'Inbox')!.id)).toBe('Inbox')
+    expect(shape(out)).toBe('A\nB\n  B1\n  B2\nC\n@Work\n  W1\n  W2\n    W2a\n@Today\n@Later')
+    expect(fixedPadOf(out, null)).toBe('Inbox')
+    expect(fixedPadOf(out, findFixedPad(out, 'Later')!.id)).toBe('Later')
     expect(fixedPadOf(out, w)).toBeNull()
     expect(settleFixedPads(out, ctx)).toBe(out)
+    expect([isFixedName(' today '), isFixedName('INBOX'), isFixedName('Work')]).toEqual([true, true, false])
   })
 
-  it('a pad already named Inbox is used, whatever its case; a second one is folded into the first', () => {
+  it('a pad named Inbox is folded into the root and a second Today into the first, whatever the case', () => {
     const ctx = testCtx()
     let rows = pad('loose', ctx)
     const mk = (name: string, line?: string) => {
@@ -300,14 +302,15 @@ describe('fixed pads', () => {
       if (line) rows = insertAt(rows, ctx, { parentId: made.padId, afterId: null }, line).rows
       return made.padId
     }
-    const first = mk('inbox', 'i1')
-    mk('Today')
+    mk('inbox', 'i1')
+    const today = mk('Today', 't1')
     mk('Inbox', 'i2')
+    mk('today', 't2')
     mk('Later')
     rows = settleFixedPads(rows, ctx)
-    expect(shape(rows)).toBe('@inbox\n  loose\n  i1\n  i2\n@Today\n@Later')
-    expect(findFixedPad(rows, 'Inbox')!.id).toBe(first)
-    expect(Object.values(rows).filter((r) => r.deletedAt !== null).map((r) => r.text)).toEqual(['Inbox'])
+    expect(shape(rows)).toBe('loose\ni1\ni2\n@Today\n  t1\n  t2\n@Later')
+    expect(findFixedPad(rows, 'Today')!.id).toBe(today)
+    expect(Object.values(rows).filter((r) => r.deletedAt !== null).map((r) => r.text).sort()).toEqual(['Inbox', 'inbox', 'today'])
   })
 
   it('a fixed pad does not move, and the other pads move past it', () => {

@@ -54,11 +54,11 @@ describe('top bar', () => {
     expect(button('Sort')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('textbox', { name: 'Line text' })).toHaveValue('a')
     // No pad tabs in Sort: its title picks the pad.
-    expect(screen.queryByRole('tab', { name: /Main/ })).toBeNull()
+    expect(screen.queryByRole('tab', { name: /Inbox/ })).toBeNull()
     expect(screen.getByRole('combobox', { name: 'Pad to sort' })).toBeInTheDocument()
     await user.click(button('Hours'))
     expect(button('Hours')).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.queryByRole('tab', { name: /Main/ })).toBeNull()
+    expect(screen.queryByRole('tab', { name: /Inbox/ })).toBeNull()
     await user.click(button('Pad'))
     expect(screen.getByRole('tree')).toBeInTheDocument()
   })

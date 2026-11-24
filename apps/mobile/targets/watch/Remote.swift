@@ -117,13 +117,15 @@ struct Remote {
   // The rank of every live row right under `parent`, for a sender that keeps no rows of
   // its own (Siri on the phone, native/SiriSync.swift) and needs one above the first. All
   // of them, in pages, and the caller picks the smallest: the server's own ordering of
-  // text follows its locale, not the bytes ranks are compared by.
-  func ranks(under parent: String, access: String) async throws -> [String] {
+  // text follows its locale, not the bytes ranks are compared by. nil is the root level
+  // (the Inbox), pad rows included, as PadCopy.add counts them.
+  func ranks(under parent: String?, access: String) async throws -> [String] {
     struct Ranked: Decodable { let rank: String }
     let page = 1000
     var all: [String] = []
+    let filter = parent.map { "eq.\($0)" } ?? "is.null"
     while true {
-      let path = "/rest/v1/nodes?select=rank&parent_id=eq.\(parent)&deleted_at=is.null&order=id.asc&limit=\(page)&offset=\(all.count)"
+      let path = "/rest/v1/nodes?select=rank&parent_id=\(filter)&deleted_at=is.null&order=id.asc&limit=\(page)&offset=\(all.count)"
       let data = try await send("GET", path, access: access)
       guard let rows = try? JSONDecoder().decode([Ranked].self, from: data) else { throw Failure.refused("Ranks that could not be read") }
       all += rows.map(\.rank)

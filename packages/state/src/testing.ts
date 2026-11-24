@@ -1,14 +1,26 @@
 // Test helpers shared by this package's tests and the apps' tests: a fresh in-memory
-// LocalStore holding an outline, and the store back at its initial state. Call loadPad()
-// (or mount the app) afterwards.
-import { createMemoryStore, pad } from '@hissypad/core'
-import { configureFixedPads, configureLocalStore, usePad } from './store'
+// LocalStore holding an outline (at the root, which is the Inbox), and the store back at its
+// initial state. Call loadPad() (or mount the app) afterwards; it makes Today and Later.
+import { createMemoryStore, fixedPadOf, listPads, pad, scopePad, shape, type Rows } from '@hissypad/core'
+import { configureLocalStore, usePad } from './store'
 import { useSort } from './sort'
 
-// `fixed` turns on the fixed pads (Today, Inbox, Later): off, the root level is the Main pad
-// the older tests were written for.
-export function resetStore(outline?: string, { fixed = false }: { fixed?: boolean } = {}) {
-  configureFixedPads(fixed)
+// The whole table as one outline, for tests: the Inbox's lines, then each pad in root order
+// as "@Name" with its lines indented under it. Today and Later are left out while empty:
+// every store has them, so a test only sees them once something is in them.
+export function tableShape(all: Rows = usePad.getState().all): string {
+  const parts: string[] = []
+  if (Object.keys(scopePad(all, null)).length) parts.push(shape(scopePad(all, null)))
+  for (const p of listPads(all)) {
+    const scoped = scopePad(all, p.id)
+    const empty = Object.keys(scoped).length === 0
+    if (empty && fixedPadOf(all, p.id)) continue
+    parts.push(`@${p.text}` + (empty ? '' : '\n' + shape(scoped).split('\n').map((l) => `  ${l}`).join('\n')))
+  }
+  return parts.join('\n')
+}
+
+export function resetStore(outline?: string) {
   const mem = createMemoryStore(Object.values(outline ? pad(outline) : {}))
   configureLocalStore(mem)
   usePad.setState({

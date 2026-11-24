@@ -74,9 +74,9 @@ actor SiriSync {
     report()
   }
 
-  // Send a new line to the top of the Inbox pad, under the id it was queued with. True
-  // when the server has it. False (no session, no Inbox pad yet, no network, out of time)
-  // leaves it to the queue. Siri gives an intent only so long, hence the limit.
+  // Send a new line to the top of the Inbox (the root level since 2026-11-24), under the id
+  // it was queued with. True when the server has it. False (no session, no network, out of
+  // time) leaves it to the queue. Siri gives an intent only so long, hence the limit.
   nonisolated func add(id: String, text: String, within seconds: Double = 8) async -> Bool {
     let work = Task { await self.send(id: id, text: text) }
     let limit = Task {
@@ -90,15 +90,15 @@ actor SiriSync {
 
   private func send(id: String, text: String) async -> Bool {
     await take()
-    guard let pad = Shared.inboxPad(), var s = session else { return false }
+    guard var s = session else { return false }
     do {
       if s.expires - Date().timeIntervalSince1970 < 60 { s = try await refresh(s) }
       do {
-        try await post(id: id, text: text, pad: pad, s)
+        try await post(id: id, text: text, pad: nil, s)
       } catch Remote.Failure.unauthorized {
         // The token went stale early. One refresh, one more try.
         s = try await refresh(s)
-        try await post(id: id, text: text, pad: pad, s)
+        try await post(id: id, text: text, pad: nil, s)
       }
       return true
     } catch {
@@ -108,7 +108,7 @@ actor SiriSync {
 
   // Above the first row of the pad, as the server has it now (cmdAddToPad in
   // packages/state/src/widget.ts, PadCopy.add on the watch).
-  private func post(id: String, text: String, pad: String, _ s: Session) async throws {
+  private func post(id: String, text: String, pad: String?, _ s: Session) async throws {
     let remote = Remote(url: s.url, key: s.key)
     let first = try await remote.ranks(under: pad, access: s.access).min { $0.utf8.lexicographicallyPrecedes($1.utf8) }
     guard let rank = Rank.before(first) else { throw Remote.Failure.refused("No rank above the first line") }

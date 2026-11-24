@@ -5,16 +5,16 @@
 // separate process that cannot run this code, so the two only ever exchange these two
 // JSON values through shared storage (apps/mobile/src/widget.ts writes and reads them,
 // targets/widget/*.swift is the other end).
-import { buildIndex, countLines, padLines, createPad, descendantIds, findFixedPad, insertAt, isLive, isPadNode, setDone, type PadId, type Rows } from '@hissypad/core'
+import { buildIndex, countLines, padLines, descendantIds, insertAt, isLive, isPadNode, setDone, type PadId, type Rows } from '@hissypad/core'
 import { applyAll, usePad } from './store'
 import { MAIN_PAD_NAME, padList } from './pads'
 import { padOf } from './lists'
 import { sendToTarget, sortTarget, useSort, type SortChoice } from './sort'
 import { log } from './log'
 
-// The main pad's key in the snapshot (every other pad is keyed by its row id).
+// The root level's key in the snapshot, the Inbox (every other pad is keyed by its row id).
 export const WIDGET_MAIN = 'main'
-export const WIDGET_INBOX_NAME = 'Inbox'
+export const WIDGET_INBOX_NAME = MAIN_PAD_NAME
 const MAX_ITEMS = 25 // the widget shows a handful; the watch lists them all
 const MAX_TEXT = 140
 
@@ -34,7 +34,7 @@ export interface WidgetPad {
 export interface WidgetSnapshot {
   v: 1
   pads: WidgetPad[]
-  inbox: string // the pad a widget shows until one is picked: the pad named "Inbox", else Main
+  inbox: string // the pad a widget shows until one is picked: the Inbox, WIDGET_MAIN
   left: string  // where the left button sends a line, by name
   right: string // where the right and up buttons send it
 }
@@ -45,7 +45,8 @@ export type WidgetAction =
   | { dir: 'done'; id: string } // cross the line out where it is (the watch)
   | { dir: 'add'; id: string; pad: string; text: string } // a new line, with the id it was given
 
-// The key that means "the pad named Inbox, made on the spot if there is none".
+// The key that means "the Inbox", from before the Inbox was the root level: the same as
+// WIDGET_MAIN now. Siri and older widgets still send it.
 export const WIDGET_INBOX = 'inbox'
 
 const padKey = (id: PadId) => id ?? WIDGET_MAIN
@@ -67,21 +68,17 @@ export function widgetSnapshot(all: Rows = usePad.getState().all, choice: { left
       }),
     }
   }
-  // The pads in tab order (Today, Inbox, Later first; Main only while the root holds lines).
-  const inbox = inboxPad(all)
-  const tabs = padList(all).map((p) => pad(p.id, p.name))
+  // The pads in tab order: Today, Inbox (the root), Later, then the others.
   return {
     v: 1,
-    pads: tabs.length ? tabs : [pad(null, MAIN_PAD_NAME)],
-    inbox: padKey(inbox?.id ?? null),
+    pads: padList(all).map((p) => pad(p.id, p.name)),
+    inbox: WIDGET_MAIN,
     left: sortTarget(all, 'left', choice.left).name,
     right: sortTarget(all, 'right').name,
   }
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-
-const inboxPad = (all: Rows) => findFixedPad(all, 'Inbox')
 
 // Apply what happened outside the app since it was last in front, oldest first: buttons
 // pressed on the widget, lines added through Siri. Each is one undo step. A line that is
@@ -120,30 +117,17 @@ export function cmdWidgetActions(actions: readonly WidgetAction[]): number {
 }
 
 // A new line at the top of a pad: the widget's + (which opens the app to type it), the
-// home-screen Add button, Siri. `key` is a snapshot pad id, or WIDGET_INBOX for the pad
-// named "Inbox", which is made if it does not exist yet; an unknown key falls back to the
-// main pad. `id` fixes the new row's id. Returns the new line's id, or '' for blank text.
+// home-screen Add button, Siri. `key` is a snapshot pad id; WIDGET_MAIN, WIDGET_INBOX and a
+// pad that is gone all mean the Inbox (the root). `id` fixes the new row's id. Returns the
+// new line's id, or '' for blank text.
 export function cmdAddToPad(key: string, text: string, id?: string): string {
   const clean = text.trim()
   if (!clean) return ''
   let newId = ''
   applyAll((all, ctx) => {
-    let out = all
-    let padId: PadId = null
-    if (key === WIDGET_INBOX) {
-      const inbox = inboxPad(out)
-      if (inbox) padId = inbox.id
-      else {
-        const made = createPad(out, ctx, WIDGET_INBOX_NAME)
-        out = made.rows
-        padId = made.padId
-      }
-    } else {
-      // Main (the root level, an older widget's key) or a pad that is gone: the Inbox.
-      const wanted = fromKey(key)
-      padId = wanted !== null && isPadNode(out[wanted]) ? wanted : (inboxPad(out)?.id ?? null)
-    }
-    const res = insertAt(out, id ? { ...ctx, newId: () => id } : ctx, { parentId: padId, afterId: null }, clean)
+    const wanted = fromKey(key)
+    const padId = wanted !== null && isPadNode(all[wanted]) ? wanted : null
+    const res = insertAt(all, id ? { ...ctx, newId: () => id } : ctx, { parentId: padId, afterId: null }, clean)
     newId = res.newId
     return res.rows
   }, { label: 'widget:add' })
@@ -152,7 +136,6 @@ export function cmdAddToPad(key: string, text: string, id?: string): string {
 
 // The name to show for a snapshot pad key, for the app's "Add to …" prompt.
 export function widgetPadName(key: string, all: Rows = usePad.getState().all): string {
-  if (key === WIDGET_INBOX) return inboxPad(all)?.text.trim() || WIDGET_INBOX_NAME
   const id = fromKey(key)
-  return id !== null && isPadNode(all[id]) ? all[id].text.trim() || 'Untitled pad' : inboxPad(all)?.text.trim() || MAIN_PAD_NAME
+  return id !== null && isPadNode(all[id]) ? all[id].text.trim() || 'Untitled pad' : MAIN_PAD_NAME
 }

@@ -5,14 +5,14 @@
 // The intent does not open the app or run its JavaScript. It queues the line in the
 // shared storage, the same way a widget button does, so the widget shows it straight
 // away; then it sends the line to the server itself (SiriSync.swift) and takes it back out
-// of the queue. If that does not work (signed out, no Inbox pad yet, no network), the
+// of the queue. If that does not work (signed out, no network), the
 // line stays queued and the app adds it for real the next time it is in front.
 import AppIntents
 import WidgetKit
 
 struct AddToInboxIntent: AppIntent {
   static let title: LocalizedStringResource = "Add to Inbox"
-  static let description = IntentDescription("Adds a line at the top of your Inbox pad in HissyPad.")
+  static let description = IntentDescription("Adds a line at the top of your Inbox in HissyPad.")
   static let openAppWhenRun = false
 
   @Parameter(title: "Text", requestValueDialog: IntentDialog("What should I add?"))

@@ -1,6 +1,6 @@
-import { resetStore } from './testing'
+import { resetStore, tableShape } from './testing'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { idOf, listPads, shape } from '@hissypad/core'
+import { idOf, listPads } from '@hissypad/core'
 import { loadPad, openPad, usePad } from './store'
 import { undo } from './history'
 import { cmdNewPad } from './pads'
@@ -12,7 +12,7 @@ import {
 const reset = resetStore
 
 const all = () => usePad.getState().all
-const whole = () => shape(all())
+const whole = () => tableShape()
 const id = (text: string) => idOf(all(), text)
 
 describe('sort', () => {
@@ -29,16 +29,24 @@ describe('sort', () => {
     expect(sortQueue()).toEqual([])
   })
 
-  it('left makes Later, right makes Today, up crosses out in Today; each line lands on top with its subtree', () => {
-    expect(sortTarget(all(), 'left')).toMatchObject({ name: 'Later', exists: false })
+  it('left goes to Later, right to Today, up to Today crossed out; each line lands on top with its subtree', () => {
+    expect(sortTarget(all(), 'left')).toMatchObject({ name: 'Later', exists: true, isDefault: true })
     cmdSortSend(id('A'), 'left')
     cmdSortSend(id('B'), 'right')
     cmdSortSend(id('C'), 'up')
     cmdSortSend(id('D'), 'right')
-    expect(whole()).toBe('\n@Later\n  A\n@Today\n  D\n  ~C\n  B\n    B1')
+    expect(whole()).toBe('\n@Today\n  D\n  ~C\n  B\n    B1\n@Later\n  A')
     expect(all()[id('C')]!.doneAt).not.toBeNull()
     expect(listPads(all())).toHaveLength(2)
     expect(sortTarget(all(), 'right')).toMatchObject({ name: 'Today', exists: true, isDefault: true })
+  })
+
+  it('a default pad that is not there yet (before the store settles) is made by the first send', () => {
+    const later = listPads(all()).find((p) => p.text === 'Later')!
+    usePad.setState({ all: { ...all(), [later.id]: { ...later, deletedAt: later.updatedAt } } })
+    expect(sortTarget(all(), 'left')).toMatchObject({ name: 'Later', exists: false })
+    cmdSortSend(id('A'), 'left')
+    expect(whole()).toBe('B\n  B1\n\nC\nD\n@Later\n  A')
   })
 
   it('each send is one undo step, pad creation included, and Back also drops edits made since', () => {
@@ -58,8 +66,8 @@ describe('sort', () => {
     cmdSetKind('header')
     usePad.setState({ selection: [] })
     setSortTarget(b)
-    expect(sortTarget(all(), 'left')).toMatchObject({ padId: null, subId: b, name: 'Main → B', exists: true })
-    expect(cmdSortSend(id('A'), 'left')).toMatchObject({ pad: 'Main → B', moved: true })
+    expect(sortTarget(all(), 'left')).toMatchObject({ padId: null, subId: b, name: 'Inbox → B', exists: true })
+    expect(cmdSortSend(id('A'), 'left')).toMatchObject({ pad: 'Inbox → B', moved: true })
     expect(cmdSortSend(id('C'), 'left')).toMatchObject({ moved: true })
     expect(cmdSortSend(b, 'left')).toMatchObject({ moved: false })
     expect(whole()).toBe('#B\n  C\n  A\n  B1\n\nD')
@@ -69,16 +77,17 @@ describe('sort', () => {
     expect(sortTarget(all(), 'left')).toMatchObject({ name: 'Later', isDefault: true })
   })
 
-  it('a chosen pad is the target, remembered on the device; a deleted choice falls back', async () => {
+  it('a chosen pad or the Inbox is the target, remembered on the device; a deleted choice falls back', async () => {
     const work = cmdNewPad('Work')
     setSortTarget(work)
     cmdSortAddSub(Object.keys(usePad.getState().rows)[0]!, 'x') // nothing: blank parent still takes a sub item
     openPad(null)
     cmdSortSend(id('A'), 'left')
     expect(all()[id('A')]!.parentId).toBe(work)
-    // 'main' is a choice from before the fixed pads: it falls back to Later.
+    // 'main' is the Inbox (the root); a line already there stays put.
     setSortTarget('main')
-    expect(sortTarget(all(), 'left')).toMatchObject({ name: 'Later', isDefault: true })
+    expect(cmdSortSend(id('C'), 'left')).toMatchObject({ moved: false, pad: 'Inbox' })
+    expect(all()[id('C')]).toMatchObject({ parentId: null })
     setSortTarget(work)
     useSort.setState({ left: null })
     await loadSortTargets()
@@ -113,7 +122,7 @@ describe('sort', () => {
     expect(sortTarget(all(), 'left')).toMatchObject({ padId: someday, name: 'Someday', isDefault: false })
     cmdSortSend(id('A'), 'left')
     expect(all()[id('A')]!.parentId).toBe(someday)
-    expect(listPads(all()).map((p) => p.text)).toEqual(['Someday'])
+    expect(listPads(all()).map((p) => p.text)).toEqual(['Today', 'Later', 'Someday'])
   })
 
   it('a session walks the queue, skips a card that left mid-sort, steps back, and sums up', () => {
@@ -141,7 +150,7 @@ describe('sort', () => {
     session = sortSessionSend(session, 'down')
     expect(all()[a]!.deletedAt).not.toBeNull()
     expect(session.sent.at(-1)).toMatchObject({ dir: 'down', moved: false })
-    expect(listPads(all())).toHaveLength(0) // no pad is made for a delete
+    expect(listPads(all())).toHaveLength(2) // Today and Later; no pad is made for a delete
     expect(sortSummary(session)).toBe('1 archived')
     session = sortSessionBack(session)
     expect(all()[a]!.deletedAt).toBeNull()
