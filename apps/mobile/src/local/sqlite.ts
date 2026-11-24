@@ -19,6 +19,7 @@ interface Row {
   category: string | null
   doing: number | null
   pinned: number | null
+  count_hidden: number | null
   updated_at: string
   deleted_at: string | null
 }
@@ -32,6 +33,7 @@ const toRow = (r: Row): NodeRow => ({
   doneAt: r.done === 1 ? r.done_at ?? null : null,
   doing: r.doing === 1 && r.done !== 1,
   pinned: r.pinned === 1,
+  countHidden: r.count_hidden === 1,
   collapsed: r.collapsed === 1,
   numbered: r.numbered === 1,
   header: r.header === 1,
@@ -53,7 +55,7 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: H
           id text primary key, parent_id text, rank text not null, text text not null,
           done integer not null default 0, collapsed integer not null default 0, numbered integer not null default 0,
           header integer not null default 0, done_at text, pad integer not null default 0,
-          updated_at text not null, deleted_at text, slot text, category text, doing integer not null default 0, pinned integer not null default 0
+          updated_at text not null, deleted_at text, slot text, category text, doing integer not null default 0, pinned integer not null default 0, count_hidden integer not null default 0
         );
         create table if not exists hours_rows (tbl text not null, key text not null, json text not null, dirty integer not null default 0, primary key (tbl, key));
         create table if not exists dirty (id text primary key);
@@ -68,6 +70,7 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: H
       if (!cols.some((c) => c.name === 'category')) await d.execAsync('alter table nodes add column category text')
       if (!cols.some((c) => c.name === 'doing')) await d.execAsync('alter table nodes add column doing integer not null default 0')
       if (!cols.some((c) => c.name === 'pinned')) await d.execAsync('alter table nodes add column pinned integer not null default 0')
+      if (!cols.some((c) => c.name === 'count_hidden')) await d.execAsync('alter table nodes add column count_hidden integer not null default 0')
       return d
     })())
 
@@ -121,12 +124,12 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: H
       await oneAtATime(() => d.withTransactionAsync(async () => {
         for (const r of rows) {
           await d.runAsync(
-            `insert into nodes (id, parent_id, rank, text, done, done_at, collapsed, numbered, header, pad, updated_at, deleted_at, slot, category, doing, pinned)
-             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `insert into nodes (id, parent_id, rank, text, done, done_at, collapsed, numbered, header, pad, updated_at, deleted_at, slot, category, doing, pinned, count_hidden)
+             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              on conflict (id) do update set parent_id = excluded.parent_id, rank = excluded.rank, text = excluded.text,
                done = excluded.done, done_at = excluded.done_at, collapsed = excluded.collapsed, numbered = excluded.numbered, header = excluded.header,
-               pad = excluded.pad, updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, slot = excluded.slot, category = excluded.category, doing = excluded.doing, pinned = excluded.pinned`,
-            r.id, r.parentId, r.rank, r.text, r.done ? 1 : 0, r.doneAt ?? null, r.collapsed ? 1 : 0, r.numbered ? 1 : 0, r.header ? 1 : 0, r.pad ? 1 : 0, r.updatedAt, r.deletedAt, r.slot ?? null, r.category ?? null, r.doing ? 1 : 0, r.pinned ? 1 : 0,
+               pad = excluded.pad, updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, slot = excluded.slot, category = excluded.category, doing = excluded.doing, pinned = excluded.pinned, count_hidden = excluded.count_hidden`,
+            r.id, r.parentId, r.rank, r.text, r.done ? 1 : 0, r.doneAt ?? null, r.collapsed ? 1 : 0, r.numbered ? 1 : 0, r.header ? 1 : 0, r.pad ? 1 : 0, r.updatedAt, r.deletedAt, r.slot ?? null, r.category ?? null, r.doing ? 1 : 0, r.pinned ? 1 : 0, r.countHidden ? 1 : 0,
           )
           if (opts.dirty) await d.runAsync('insert or ignore into dirty (id) values (?)', r.id)
         }

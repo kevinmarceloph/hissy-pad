@@ -120,6 +120,7 @@ export function insertOutline(
       slot: null,
       category: null,
       pinned: false,
+      countHidden: false,
       updatedAt: ctx.now(),
       deletedAt: null,
     }

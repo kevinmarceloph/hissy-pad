@@ -64,6 +64,7 @@ export {
   listPads,
   padLines,
   padCounts,
+  setCountHidden,
   scopePad,
   unscopeRow,
   createPad,

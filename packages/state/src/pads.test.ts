@@ -1,11 +1,12 @@
 import { resetStore } from './testing'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { shape, idOf, listPads } from '@hissypad/core'
-import { loadPad, openPad, usePad } from './store'
+import { getLocalStore, loadPad, openPad, usePad } from './store'
+import { initPrefs } from './prefs'
 import { redo, undo } from './history'
 import { select } from './selection'
 import { cmdSetKind, cmdDeleteDone, cmdDeleteSelection, cmdIndent, cmdSetText, cmdSplit } from './commands'
-import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdLineToPad, cmdPadToLine, cmdMoveTo, openSubPad, placeList, placeFromKey, cmdMovePad, padCandidate, cmdMoveToPad, cmdNewPad, cmdRenamePad, padList, subName, PLACE_ARROW, MAIN_PAD_NAME } from './pads'
+import { archiveNameFor, cmdDeletePad, cmdFreshStart, cmdLineToPad, cmdPadToLine, cmdMoveTo, openSubPad, placeList, placeFromKey, cmdMovePad, padCandidate, cmdMoveToPad, cmdNewPad, cmdRenamePad, cmdSetPadCount, padList, subName, PLACE_ARROW, MAIN_PAD_NAME } from './pads'
 import { importOutline } from './store'
 
 const reset = resetStore
@@ -233,5 +234,45 @@ describe('pads in the store', () => {
     undo()
     expect(main()).toBe('A\nB\n  B1\nC')
     expect(padList(usePad.getState().all)).toHaveLength(3)
+  })
+})
+
+describe('a pad count on and off', () => {
+  beforeEach(async () => {
+    initPrefs({ get: () => null, set: () => {} })
+    reset('A')
+    await loadPad()
+  })
+
+  it('is a column on the pad row, written for sync and undoable; the fixed pads always show theirs', async () => {
+    const w = cmdNewPad('Work')
+    const before = usePad.getState().all[w]!.updatedAt
+    cmdSetPadCount(w, false)
+    const row = usePad.getState().all[w]!
+    expect(row.countHidden).toBe(true)
+    expect(row.updatedAt > before).toBe(true)
+    await Promise.resolve()
+    expect(await getLocalStore().dirtyIds()).toContain(w)
+    expect(padList(usePad.getState().all).map((p) => [p.name, p.countShown])).toEqual([['Today', true], ['Inbox', true], ['Later', true], ['Work', false]])
+    undo()
+    expect(usePad.getState().all[w]!.countHidden).toBe(false)
+    const today = padList(usePad.getState().all)[0]!.id!
+    cmdSetPadCount(today, false)
+    expect(usePad.getState().all[today]!.countHidden).toBe(false)
+  })
+
+  it('what a device hid before it synced moves onto the pad rows once, out of undo; fixed pads are skipped', async () => {
+    const w = cmdNewPad('Work')
+    const today = padList(usePad.getState().all)[0]!.id!
+    await new Promise((r) => setTimeout(r, 0))
+    const saved: Record<string, string> = { 'hissypad.prefs': JSON.stringify({ hiddenCounts: [w, 'Today', today, 'gone'] }) }
+    initPrefs({ get: (k) => saved[k] ?? null, set: (k, v) => { if (v === null) delete saved[k]; else saved[k] = v } })
+    usePad.setState({ all: {}, rows: {}, padId: null, load: 'loading', past: [], future: [] })
+    await loadPad()
+    expect(usePad.getState().all[w]!.countHidden).toBe(true)
+    expect(usePad.getState().all[today]!.countHidden).toBe(false)
+    expect(await getLocalStore().dirtyIds()).toContain(w)
+    expect(usePad.getState().past).toHaveLength(0)
+    expect(JSON.parse(saved['hissypad.prefs']!)).toEqual({})
   })
 })

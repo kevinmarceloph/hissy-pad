@@ -1,7 +1,7 @@
 // Pad commands: switch, create, rename, delete, move lines across, and the fresh start.
 // The data side is core's pads.ts; this file picks targets from the store and lands the
 // selection afterwards.
-import { buildIndex, countLines, FIXED_PADS, findFixedPad, fixedPadOf, isFixedName, type FixedPad, descendantIds, padCounts, padLines, listSubPads, moveToPlace, placeOf, isPlace, MAIN_PLACE, type Place, createPad, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
+import { buildIndex, countLines, FIXED_PADS, findFixedPad, fixedPadOf, isFixedName, type FixedPad, descendantIds, padCounts, padLines, listSubPads, moveToPlace, placeOf, isPlace, MAIN_PLACE, type Place, createPad, setCountHidden, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
 import { apply, applyAll, openPad, revealRow, usePad } from './store'
 import { edit, stopEditing, targets } from './selection'
 import { log } from './log'
@@ -19,9 +19,10 @@ export function padName(all: Rows, padId: PadId): string {
 // (see settleFixedPads). `count` is the pad's open top-level lines, blank ones left out; the
 // switcher shows it when it is not 0. `subs` are the pad's sub-pads (its top-level headers),
 // top first, each with its own count. `fixed` names a fixed pad: it cannot be renamed, moved,
-// folded in or deleted.
+// folded in or deleted. `countShown` is false when the pad's sheet turned its count off
+// (`countHidden` on its row); a fixed pad has no sheet and always shows it.
 export interface SubPadItem { id: string; name: string; count: number }
-export interface PadItem { id: PadId; name: string; count: number; subs: SubPadItem[]; fixed: FixedPad | null }
+export interface PadItem { id: PadId; name: string; count: number; subs: SubPadItem[]; fixed: FixedPad | null; countShown: boolean }
 
 // A sub-pad's name in a list is its first line up to an em dash: what follows the dash is
 // a description, shown on the pad itself only. A line that starts with the dash keeps it all.
@@ -34,7 +35,7 @@ export function padList(all: Rows): PadItem[] {
   const counts = padCounts(all)
   const index = buildIndex(all)
   const subs = (id: PadId): SubPadItem[] => listSubPads(index, id).map((r) => ({ id: r.id, name: subName(r.text), count: padLines(index, r.id, true).length }))
-  const item = (id: PadId, name: string, fixed: FixedPad | null): PadItem => ({ id, name, count: counts.get(id) ?? 0, subs: subs(id), fixed })
+  const item = (id: PadId, name: string, fixed: FixedPad | null): PadItem => ({ id, name, count: counts.get(id) ?? 0, subs: subs(id), fixed, countShown: fixed !== null || id === null || all[id]?.countHidden !== true })
   const fixed = FIXED_PADS.flatMap((name) => {
     if (name === 'Inbox') return [item(null, name, name)]
     const r = findFixedPad(all, name)
@@ -136,6 +137,13 @@ export function cmdRenamePad(padId: string, name: string) {
   const text = name.trim()
   if (!text || isFixedName(text) || isFixedPad(usePad.getState().all, padId)) return
   applyAll((all, ctx) => (isPadNode(all[padId]) ? setText(all, ctx, padId, text) : all), { label: 'cmdRenamePad' })
+}
+
+// Show or leave out a pad's count on its tab, for every device (a column on the pad row).
+// The fixed pads always show theirs.
+export function cmdSetPadCount(padId: string, shown: boolean) {
+  if (isFixedPad(usePad.getState().all, padId)) return
+  applyAll((all, ctx) => setCountHidden(all, ctx, padId, !shown), { label: 'cmdSetPadCount' })
 }
 
 // Move a pad one place left or right in the switcher. Returns false at either end.

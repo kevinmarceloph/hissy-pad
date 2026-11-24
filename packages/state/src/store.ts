@@ -6,12 +6,13 @@
 import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import {
-  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, isPadNode, settleFixedPads, settlePins,
+  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, fixedPadOf, isPadNode, settleFixedPads, settlePins,
   insertAt, insertOutline, isLive, newUuid, normalizeRow, parseOutline, parseSlot, sameRow, scopeNode, scopePad, scopeSlot, unscopeRow, unscopeSlot,
   type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus,
 } from '@hissypad/core'
 import { log, rowBrief } from './log'
 import { seedSample } from './sample'
+import { takeLegacyHiddenCounts } from './prefs'
 
 export type Caret = number | 'end'
 
@@ -259,6 +260,7 @@ async function loadPadOnce() {
     const padId = remembered && isPadNode(state[remembered]) ? remembered : null
     set({ all: state, rows: scopePad(state, padId), padId, load: 'ready' })
     settleFixed()
+    adoptLegacyCounts()
   } catch (e) {
     // Keep working in memory so the pad is still usable; the banner says edits won't stick.
     local = createMemoryStore()
@@ -282,6 +284,22 @@ export function settleFixed() {
   const shown = padId === null || isPadNode(next[padId]) ? padId : null
   set({ all: next, padId: shown, rows: view(next, shown) })
   if (shown !== padId) void local.setMeta(PAD_KEY, '').catch(() => {})
+  persist(all, next)
+}
+
+// The pads this device hid the count of before the choice synced (kept in its prefs until
+// 2026-11-25) become `countHidden` on their rows, once. Like settleFixed, left out of undo.
+function adoptLegacyCounts() {
+  const ids = takeLegacyHiddenCounts()
+  const { all, padId } = get()
+  let next = all
+  for (const id of ids) {
+    const r = next[id]
+    if (isPadNode(r) && !r.countHidden && fixedPadOf(next, id) === null) next = { ...next, [id]: { ...r, countHidden: true, updatedAt: clock.tick() } }
+  }
+  if (next === all) return
+  log('pad:adopt-counts', { changed: changedRows(all, next).length })
+  set({ all: next, rows: view(next, padId) })
   persist(all, next)
 }
 

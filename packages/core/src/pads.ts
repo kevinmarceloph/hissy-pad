@@ -353,3 +353,10 @@ export function freshStart(
   const moved = countLines(descendantIds(buildIndex(out), made.padId).map((id) => out[id]))
   return { rows: out, archiveId: made.padId, moved }
 }
+
+// Show or leave out a pad's count of open lines on its tab. Only a pad row carries it.
+export function setCountHidden(all: Rows, ctx: OpCtx, padId: string, hidden: boolean): Rows {
+  const r = all[padId]
+  if (!isPadNode(r) || r.countHidden === hidden) return all
+  return { ...all, [padId]: { ...r, countHidden: hidden, updatedAt: ctx.now() } }
+}

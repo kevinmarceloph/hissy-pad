@@ -47,6 +47,7 @@ function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: strin
     slot: null,
     category: null,
     pinned: false,
+    countHidden: false,
     updatedAt: ctx.now(),
     deletedAt: null,
   }

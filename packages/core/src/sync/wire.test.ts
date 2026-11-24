@@ -4,7 +4,7 @@ import { ROW_KEYS, normalizeRow, sameRow } from '../types'
 
 const row = normalizeRow({
   id: 'r1', parentId: 'p1', rank: 'a5', text: 'hello', done: true, doneAt: '2026-11-01T00:00:01.000Z', collapsed: true,
-  numbered: false, header: true, pad: false, updatedAt: '2026-11-01T00:00:02.000Z', deletedAt: '2026-11-01T00:00:03.000Z',
+  numbered: false, header: true, pad: false, countHidden: true, updatedAt: '2026-11-01T00:00:02.000Z', deletedAt: '2026-11-01T00:00:03.000Z',
 })
 
 describe('wire format', () => {
