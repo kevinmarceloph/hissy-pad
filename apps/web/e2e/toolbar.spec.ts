@@ -13,14 +13,15 @@ test('the Move to… menu opens above the toolbar, fully on screen, and moves th
     await page.getByRole('button', { name: 'Create' }).click()
   }
   await page.keyboard.press('Escape')
-  await page.getByRole('tab', { name: 'Main' }).click()
+  await page.getByRole('tab', { name: /^Inbox/ }).click()
   await page.getByRole('button', { name: 'Select line' }).first().click()
   const button = page.getByRole('button', { name: 'Move to…' })
   await button.scrollIntoViewIfNeeded()
   await button.click()
 
+  // Every pad but the open one: the fixed Today and Later, and the three made above.
   const items = page.getByRole('menuitem')
-  await expect(items).toHaveCount(3)
+  await expect(items).toHaveText(['Today', 'Later', 'Work', 'Ideas', 'A pad with a much longer name than the others'])
   const view = page.viewportSize()!
   const anchor = (await button.boundingBox())!
   for (const item of await items.all()) {
@@ -51,16 +52,16 @@ test('the Move to… menu closes on Escape and on a click elsewhere', async ({ p
   await page.getByLabel('Pad name').fill('Work')
   await page.getByRole('button', { name: 'Create' }).click()
   await page.keyboard.press('Escape')
-  await page.getByRole('tab', { name: 'Main' }).click()
+  await page.getByRole('tab', { name: /^Inbox/ }).click()
   await page.getByRole('button', { name: 'Select line' }).first().click()
   const button = page.getByRole('button', { name: 'Move to…' })
   await button.scrollIntoViewIfNeeded()
   await button.click()
-  await expect(page.getByRole('menuitem')).toHaveCount(1)
+  await expect(page.getByRole('menuitem')).toHaveCount(3)
   await page.keyboard.press('Escape')
   await expect(page.getByRole('menuitem')).toHaveCount(0)
   await button.click()
-  await expect(page.getByRole('menuitem')).toHaveCount(1)
+  await expect(page.getByRole('menuitem')).toHaveCount(3)
   await page.locator('h1').click()
   await expect(page.getByRole('menuitem')).toHaveCount(0)
 })

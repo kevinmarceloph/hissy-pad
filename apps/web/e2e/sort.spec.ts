@@ -89,8 +89,8 @@ test('swipe cards left, right and up; edit one first', async ({ page }, info) =>
   await shot('5-all-sorted')
   await page.getByRole('button', { name: 'Pad', exact: true }).click()
 
-  expect(await tabs(page)).toEqual(['Main', 'Later', 'Today'])
+  expect(await tabs(page)).toEqual(['Today', 'Inbox', 'Later'])
   expect(await padLines(page, 'Later')).toBe('call the dentist')
   expect(await padLines(page, 'Today')).toBe('plan the trip\n  book flights\n  renew passport\n~water the plants')
-  expect(await padLines(page, 'Main')).toBe('read chapter 13')
+  expect(await padLines(page, 'Inbox')).toBe('read chapter 13')
 })
