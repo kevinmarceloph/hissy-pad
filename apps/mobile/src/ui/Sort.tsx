@@ -1,7 +1,7 @@
 // Sort on the phone: the pad's top-level lines one card at a time, under the top bar. Swipe the
 // card left for Later (or the pad picked at the bottom: picking one sends the card there
-// too), right for Today, up for Today and crossed out; the buttons do the same. Skip leaves
-// a card; Cycle sends it to the bottom of the pad to come round again. The card's text and sub items are live fields. Same queue, targets and commands as
+// too), right for Today, up for Today and crossed out, down to cycle it to the bottom of the
+// pad to come round again; the buttons do the same. Skip leaves a card; Archive deletes it. The card's text and sub items are live fields. Same queue, targets and commands as
 // the web (state/sort.ts); only the gesture is drawn here, with PanResponder and Animated
 // so it ships as a JS-only update.
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react'
@@ -78,7 +78,7 @@ export function SortView({ theme }: { theme: Theme }) {
     Keyboard.dismiss()
     void Haptics.selectionAsync().catch(() => {})
     const { width, height } = Dimensions.get('window')
-    const to = dir === 'left' ? { x: -width * 1.2, y: 0 } : dir === 'right' ? { x: width * 1.2, y: 0 } : dir === 'up' ? { x: 0, y: -height * 0.8 } : dir === 'down' ? { x: 0, y: height * 0.8 } : dir === 'cycle' ? { x: 0, y: height * 0.3 } : { x: 0, y: 0 }
+    const to = dir === 'left' ? { x: -width * 1.2, y: 0 } : dir === 'right' ? { x: width * 1.2, y: 0 } : dir === 'up' ? { x: 0, y: -height * 0.8 } : dir === 'cycle' ? { x: 0, y: height * 0.8 } : { x: 0, y: 0 }
     Animated.timing(pan, { toValue: to, duration: 180, useNativeDriver: true }).start(() => {
       commit(run)
       pan.setValue({ x: 0, y: 0 })
@@ -199,7 +199,7 @@ export function SortView({ theme }: { theme: Theme }) {
               {stamp(left.name, stampLeft, s.stampLeft)}
               {stamp(right.name, stampRight, s.stampRight)}
               {stamp('Done', stampUp, s.stampUp)}
-              {stamp('Archive', stampDown, s.stampDown)}
+              {stamp('Cycle', stampDown, s.stampDown)}
               <View style={s.top}>
                 <Text style={[s.count, { color: theme.inkMute }]}>{progress.at} of {progress.total}</Text>
                 {row.slot && <Text style={[s.slot, { color: theme.inkSoft, borderColor: theme.rule }]}>{slotLabel(row.slot, todayKey())}</Text>}
@@ -280,7 +280,7 @@ export function SortView({ theme }: { theme: Theme }) {
           {action(`${right.name} →`, `Right: ${right.name}`, () => send('right'), !id)}
         </View>
         <View style={[s.actions, s.actionsDown]}>
-          {action('↓ Archive', 'Down: archive', () => send('down'), !id)}
+          {action('↓ Cycle', 'Down: cycle, to the bottom of the pad to come round again', () => send('cycle'), !id)}
         </View>
         <View style={s.minor}>
           <Pressable onPress={back} disabled={sent.length === 0} accessibilityRole="button" style={s.minorBtn}>
@@ -289,8 +289,8 @@ export function SortView({ theme }: { theme: Theme }) {
           <Pressable onPress={() => send('skip')} disabled={!id} accessibilityRole="button" style={s.minorBtn}>
             <Text style={[s.minorText, { color: id ? theme.inkSoft : theme.inkMute, opacity: id ? 1 : 0.5 }]}>Skip</Text>
           </Pressable>
-          <Pressable onPress={() => send('cycle')} disabled={!id} accessibilityRole="button" accessibilityHint="Moves it to the bottom of the pad; it comes round again at the end" style={s.minorBtn}>
-            <Text style={[s.minorText, { color: id ? theme.inkSoft : theme.inkMute, opacity: id ? 1 : 0.5 }]}>Cycle</Text>
+          <Pressable onPress={() => send('archive')} disabled={!id} accessibilityRole="button" accessibilityHint="Deletes it; the Archive keeps it" style={s.minorBtn}>
+            <Text style={[s.minorText, { color: id ? theme.inkSoft : theme.inkMute, opacity: id ? 1 : 0.5 }]}>Archive</Text>
           </Pressable>
         </View>
         <View style={[s.targets, { borderTopColor: theme.rule }]}>

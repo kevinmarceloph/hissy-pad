@@ -22,18 +22,18 @@ describe('sort', () => {
     Element.prototype.scrollIntoView = () => {}
   })
 
-  it('down deletes the card: the arrow key or the Archive button sends it to the Archive, Back restores it', async () => {
+  it('Archive (the button after Skip, or A) sends the card to the Archive, Back restores it', async () => {
     const user = userEvent.setup()
     await mount('A\nB\nC')
     await user.click(button('Sort'))
-    await user.keyboard('{ArrowDown}')
+    await user.keyboard('a')
     expect(card().value).toBe('B')
     expect(whole()).toBe('B\nC')
-    await user.click(button('Down: archive'))
+    await user.click(button(/^Archive/))
     expect(whole()).toBe('C')
     await user.click(button('Back'))
     expect(card().value).toBe('B')
-    await user.keyboard('{ArrowDown}{ArrowDown}')
+    await user.keyboard('aa')
     expect(screen.getByText('3 archived')).toBeInTheDocument()
   })
 
@@ -158,17 +158,17 @@ describe('sort', () => {
     expect(button('Left: Someday')).toBeInTheDocument()
   })
 
-  it('Cycle moves the card to the bottom of the pad and deals it again at the end; it still counts as to go', async () => {
+  it('down cycles: the card goes to the bottom of the pad and is dealt again at the end; it still counts as to go', async () => {
     const user = userEvent.setup()
     await mount('A\nB\nC')
     await user.click(button('Sort'))
     expect(screen.getByText(/3 to go/)).toBeInTheDocument()
-    await user.click(button(/^Cycle/))
+    await user.click(button('Down: cycle'))
     expect(card().value).toBe('B')
     expect(whole()).toBe('B\nC\nA')
     expect(screen.getByText(/3 to go/)).toBeInTheDocument()
     expect(screen.getByText('1 of 3')).toBeInTheDocument()
-    await user.keyboard('c')
+    await user.keyboard('{ArrowDown}')
     expect(card().value).toBe('C')
     expect(whole()).toBe('C\nA\nB')
     await user.keyboard('{ArrowRight}')

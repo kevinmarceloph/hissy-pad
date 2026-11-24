@@ -147,9 +147,9 @@ describe('sort', () => {
   it('down deletes the card: the line and its children go to the Archive, and Back brings them back', () => {
     let session = sortSessionStart()
     const a = id('A')
-    session = sortSessionSend(session, 'down')
+    session = sortSessionSend(session, 'archive')
     expect(all()[a]!.deletedAt).not.toBeNull()
-    expect(session.sent.at(-1)).toMatchObject({ dir: 'down', moved: false })
+    expect(session.sent.at(-1)).toMatchObject({ dir: 'archive', moved: false })
     expect(listPads(all())).toHaveLength(2) // Today and Later; no pad is made for a delete
     expect(sortSummary(session)).toBe('1 archived')
     session = sortSessionBack(session)
@@ -221,7 +221,7 @@ describe('sort', () => {
     expect(swipeDir(-120, -30)).toBe('left')
     expect(swipeDir(30, -120)).toBe('up')
     expect(swipeDir(130, -120)).toBe('right')
-    expect(swipeDir(0, 200)).toBe('down')
+    expect(swipeDir(0, 200)).toBe('cycle')
     expect(swipeDir(130, 120)).toBe('right')
     expect(swipeDir(-10, 60)).toBeNull()
     expect(swipeDir(40, 0, 30)).toBe('right')

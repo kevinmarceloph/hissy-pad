@@ -1,7 +1,7 @@
 // Sort: the pad's top-level lines one card at a time. Swipe (or arrow keys, or the buttons)
 // left for Later (or the pad picked below: picking one sends the card there too), right
-// for Today, up for Today and crossed out. Skip leaves a card; Cycle sends it to the bottom
-// of the pad to come round again. The card is live: its
+// for Today, up for Today and crossed out, down to cycle it: to the bottom of the pad, to
+// come round again. Skip leaves a card; Archive deletes it. The card is live: its
 // text and sub items edit the real rows, so a line can be fixed up before it goes. Every
 // send is one undo step; Back takes the last card back.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from 'react'
@@ -100,7 +100,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
       if (inField || e.altKey) return
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); back(); return }
       if (e.metaKey || e.ctrlKey) return
-      const dir: SortDir | null = e.key === 'ArrowLeft' ? 'left' : e.key === 'ArrowRight' ? 'right' : e.key === 'ArrowUp' ? 'up' : e.key === 'ArrowDown' ? 'down' : e.key.toLowerCase() === 's' ? 'skip' : e.key.toLowerCase() === 'c' ? 'cycle' : null
+      const dir: SortDir | null = e.key === 'ArrowLeft' ? 'left' : e.key === 'ArrowRight' ? 'right' : e.key === 'ArrowUp' ? 'up' : e.key === 'ArrowDown' || e.key.toLowerCase() === 'c' ? 'cycle' : e.key.toLowerCase() === 's' ? 'skip' : e.key.toLowerCase() === 'a' ? 'archive' : null
       if (dir) { e.preventDefault(); send(dir) }
       else if (e.key === 'Backspace') { e.preventDefault(); back() }
     }
@@ -251,7 +251,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
               {!pads.some((p) => p.id === padId) && <option value={padId ?? ''}>{padName(all, padId)}</option>}
             </select>
           </h2>
-          <p>{id ? `${progress.left} to go. Swipe the card, or use the arrow keys.` : 'One line at a time: later, today, already done, or archive.'}</p>
+          <p>{id ? `${progress.left} to go. Swipe the card, or use the arrow keys.` : 'One line at a time: later, today, already done, or round again.'}</p>
         </div>
       </header>
 
@@ -281,7 +281,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
             <span className="stamp stamp-left" style={{ opacity: pull('left') }} aria-hidden="true">{left.name}</span>
             <span className="stamp stamp-right" style={{ opacity: pull('right') }} aria-hidden="true">{right.name}</span>
             <span className="stamp stamp-up" style={{ opacity: pull('up') }} aria-hidden="true">Done</span>
-            <span className="stamp stamp-down" style={{ opacity: pull('down') }} aria-hidden="true">Archive</span>
+            <span className="stamp stamp-down" style={{ opacity: pull('cycle') }} aria-hidden="true">Cycle</span>
             <div className="sort-top">
               <p className="sort-count">{progress.at} of {progress.total}</p>
               {row.slot && <span className="slot" title="The hour this line is in">{slotLabel(row.slot, todayKey())}</span>}
@@ -343,12 +343,12 @@ export function Sort({ onClose }: { onClose: () => void }) {
         <button type="button" onClick={() => send('right')} disabled={!id} aria-label={`Right: ${right.name}`}>{right.name} <kbd>→</kbd></button>
       </div>
       <div className="sort-actions sort-down">
-        <button type="button" onClick={() => send('down')} disabled={!id} aria-label="Down: archive"><kbd>↓</kbd> Archive</button>
+        <button type="button" onClick={() => send('cycle')} disabled={!id} aria-label="Down: cycle" title="Move it to the bottom of the pad and see it again at the end"><kbd>↓</kbd> Cycle</button>
       </div>
       <div className="sort-minor">
         <button type="button" onClick={back} disabled={sent.length === 0}>Back</button>
         <button type="button" onClick={() => send('skip')} disabled={!id}>Skip <kbd>S</kbd></button>
-        <button type="button" onClick={() => send('cycle')} disabled={!id} title="Move it to the bottom of the pad and see it again at the end">Cycle <kbd>C</kbd></button>
+        <button type="button" onClick={() => send('archive')} disabled={!id} title="Delete it: the Archive keeps it">Archive <kbd>A</kbd></button>
       </div>
       <div className="sort-targets">
         {targetSelect()}
