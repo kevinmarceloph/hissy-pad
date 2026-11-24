@@ -230,7 +230,8 @@ export function cmdDeleteSelection() {
   apply((rows, ctx) => {
     const out = remove(rows, ctx, selection)
     // Never leave the pad with nothing to type into.
-    const anyLive = Object.values(out).some((r) => r.deletedAt === null)
+    // (An open hour is left empty: a line made for it would land in Today.)
+    const anyLive = usePad.getState().slotId !== null || Object.values(out).some((r) => r.deletedAt === null)
     return anyLive ? out : insertAt(out, ctx, { parentId: null, afterId: null }, '').rows
   }, { label: 'cmdDeleteSelection' })
   const left = new Set(visibleIds())
@@ -345,7 +346,8 @@ export function cmdDeleteDone(): number {
   const before = countLines(Object.values(usePad.getState().rows).filter((r) => r.deletedAt === null))
   apply((rows, ctx) => {
     const out = removeDone(rows, ctx)
-    const anyLive = Object.values(out).some((r) => r.deletedAt === null)
+    // (An open hour is left empty: a line made for it would land in Today.)
+    const anyLive = usePad.getState().slotId !== null || Object.values(out).some((r) => r.deletedAt === null)
     return anyLive ? out : insertAt(out, ctx, { parentId: null, afterId: null }, '').rows
   }, { label: 'cmdDeleteDone' })
   const after = countLines(Object.values(usePad.getState().rows).filter((r) => r.deletedAt === null))

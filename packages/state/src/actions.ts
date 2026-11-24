@@ -11,7 +11,9 @@ import {
   cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdMoveToTop, cmdPaste, cmdToggleCollapsed, cmdSplitOpen, cmdToggleDone, cmdUngroup,
 } from './commands'
 import { cmdLineToPad } from './pads'
-import { cmdPickSlot } from './hours/slots'
+import { cmdPickSlot, cmdSetSlot } from './hours/slots'
+import { clearSelection } from './selection'
+import { usePad } from './store'
 import { cmdPickCategory } from './hours/line-categories'
 
 // What the current targets allow, so an impossible action reads as disabled instead of
@@ -25,20 +27,24 @@ export interface LineAbilities {
   folded: boolean   // every target with lines under it is folded (so Fold reads Unfold)
   single: boolean   // the targets come down to one line with its subtree (make pad)
   mixed: boolean    // some target has both done and open sub items (split off open)
+  hour: boolean     // the lines are an open hour's (the store shows that hour, not a pad)
 }
 
-export function lineAbilities(rows: Rows, ids: readonly string[]): LineAbilities {
+// `hour`: the rows are an open hour's lines. Its own lines, at the root, have no order to
+// change (an hour lists them as the pads have them), so up, down and top are off for them.
+export function lineAbilities(rows: Rows, ids: readonly string[], hour: boolean = usePad.getState().slotId !== null): LineAbilities {
   const index = buildIndex(rows)
   const tops = topmost(index, ids)
   const set = new Set(tops)
-  const can: LineAbilities = { indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: tops.length === 1, mixed: false }
+  const can: LineAbilities = { indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: tops.length === 1, mixed: false, hour }
   let open = false
   for (const id of tops) {
     const parent = index.parentOf.get(id) ?? null
     const sibs = childrenOf(index, parent)
     const i = sibs.findIndex((s) => s.id === id)
-    if (sibs.slice(0, i).some((s) => !set.has(s.id))) { can.indent = true; can.up = true }
-    if (sibs.slice(i + 1).some((s) => !set.has(s.id))) can.down = true
+    const ordered = !(hour && parent === null)
+    if (sibs.slice(0, i).some((s) => !set.has(s.id))) { can.indent = true; if (ordered) can.up = true }
+    if (ordered && sibs.slice(i + 1).some((s) => !set.has(s.id))) can.down = true
     if (parent !== null) can.dedent = true
     const kids = childrenOf(index, id)
     if (kids.length > 0) {
@@ -71,6 +77,9 @@ export interface LineAction {
   // Drawn floating above the bar instead of on it (see the header).
   floats?: boolean
   enabled?: (can: LineAbilities) => boolean
+  // Where the action is offered at all: absent means everywhere. "Out of this hour" is only
+  // in an open hour, "Make pad" everywhere but there.
+  offered?: (can: LineAbilities) => boolean
   // What the button reads instead when the targets call for the opposite (Fold: Unfold).
   flip?: { when: (can: LineAbilities) => boolean; label: string; name: string; hint: string; icon?: LineIcon }
   // Returns a line to show the user (a toast on the web), or nothing. A promise when the
@@ -119,7 +128,20 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   { id: 'slot', group: 'pad', label: 'Hour…', name: 'Put in an hour', hint: 'Put in an hour of a day (Hours counts what is done there)', icon: 'hour', floats: true, run: cmdPickSlot },
   { id: 'category', group: 'pad', label: 'Category…', name: 'Give a category', hint: 'Give it one of Hours\' categories (its icon shows before the text)', icon: 'category', floats: true, run: cmdPickCategory },
   {
+    // The lines leave the hour and stay where they are in their pads (the same as Hour…,
+    // then No hour, in one press). The selection goes with them: they are out of view.
+    id: 'outOfHour', group: 'pad', label: 'Out of this hour', name: 'Take out of this hour', hint: 'Take out of this hour: the line stays in its pad', more: true,
+    offered: (c) => c.hour,
+    run: () => {
+      const n = cmdSetSlot(null)
+      clearSelection()
+      return n ? `Took ${lineCount(n)} out of the hour.` : undefined
+    },
+  },
+  {
     id: 'makePad', group: 'pad', label: 'Make pad', name: 'Make pad', hint: 'Make this line a pad: its text is the name, its sub items the lines', more: true,
+    // Not in an hour: a pad is not a line, so it would drop out of the hour it was made in.
+    offered: (c) => !c.hour,
     enabled: (c) => c.single,
     run: () => {
       const res = cmdLineToPad()
@@ -128,6 +150,11 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   },
   { id: 'delete', group: 'remove', label: 'Archive', name: 'Archive', hint: 'Archive (undo brings it back)', icon: 'archive', keys: 'Backspace', danger: true, run: cmdDeleteSelection },
 ]
+
+// The actions offered for these targets, in order: what both toolbars draw from.
+export function lineActions(can: LineAbilities): readonly LineAction[] {
+  return LINE_ACTIONS.filter((a) => !a.offered || a.offered(can))
+}
 
 // The three line types, for the switcher both toolbars draw.
 export const LINE_KINDS: readonly { kind: NodeKind; glyph: string; name: string; hint: string; keys?: string }[] = [

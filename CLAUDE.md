@@ -23,7 +23,7 @@ apps/mobile      Expo SDK 58 shell: expo-sqlite store, screens in src/ui, the sa
 supabase/        migrations (nodes, RLS, LWW trigger), pgTAP tests, functions (watch-token: the watch's sign-in), local stack on ports 54421-54429
 ```
 
-Platform logic goes in `packages/state` or `packages/core`, never in an app. If web and mobile would both need it, it belongs in a package. A toolbar button is an entry in `LINE_ACTIONS` (`packages/state/src/actions.ts`), not markup in either app.
+Platform logic goes in `packages/state` or `packages/core`, never in an app. If web and mobile would both need it, it belongs in a package. A toolbar button is an entry in `LINE_ACTIONS` (`packages/state/src/actions.ts`), not markup in either app. Both toolbars draw `lineActions(can)`; an action that belongs only in an open hour in Hours (or only outside one) says so with `offered` and `can.hour`.
 
 ## Hours
 

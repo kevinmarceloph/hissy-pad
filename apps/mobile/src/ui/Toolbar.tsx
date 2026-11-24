@@ -7,7 +7,7 @@ import { useMemo } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { kindOf } from '@hissypad/core'
 import {
-  actionFace, cmdMoveTo, cmdSetKind, countOf, lineAbilities, lineCount, placeList, usePad,
+  actionFace, cmdMoveTo, cmdSetKind, countOf, lineAbilities, lineActions, lineCount, placeList, usePad,
   LINE_ACTIONS, LINE_KINDS, type LineActionGroup, type LineIcon as LineIconId,
 } from '@hissypad/state'
 import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
@@ -33,14 +33,17 @@ export function Toolbar({ theme }: { theme: Theme }) {
   const rows = usePad((s) => s.rows)
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
+  const inHour = usePad((s) => s.slotId !== null)
   const ids = selection.length > 0 ? selection : editing ? [editing.id] : []
   const can = useMemo(() => lineAbilities(rows, ids), [rows, ids])
   // Everywhere the lines can go: the other pads, and every sub-pad (this pad's included).
-  const others = useMemo(() => placeList(all).filter((p) => p.subId !== null || p.padId !== padId), [all, padId])
+  // In an open hour, every pad: its lines come from any of them.
+  const others = useMemo(() => placeList(all).filter((p) => inHour || p.subId !== null || p.padId !== padId), [all, padId, inHour])
   if (ids.length === 0) return null
   // Done, Hour… and Category… float above the bar (FloatingButtons.tsx).
-  const shown = LINE_ACTIONS.filter((a) => !a.floats && !a.more)
-  const tucked = LINE_ACTIONS.filter((a) => a.more && (a.enabled ? a.enabled(can) : true))
+  const offered = lineActions(can)
+  const shown = offered.filter((a) => !a.floats && !a.more)
+  const tucked = offered.filter((a) => a.more && (a.enabled ? a.enabled(can) : true))
 
   // What an action says back (Paste could not read the clipboard) is shown as an alert.
   function run(a: (typeof LINE_ACTIONS)[number]) {

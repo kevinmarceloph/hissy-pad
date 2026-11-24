@@ -2,7 +2,7 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type R
 import { createPortal } from 'react-dom'
 import { kindOf, sharedState, type LineState } from '@hissypad/core'
 import {
-  actionFace, clearSelection, cmdMoveTo, cmdSetState, countOf, cmdSetKind, lineAbilities, lineCount, placeList, stopEditing, usePad, type PlaceItem,
+  actionFace, clearSelection, cmdMoveTo, cmdSetState, countOf, cmdSetKind, lineAbilities, lineActions, lineCount, placeList, stopEditing, usePad, type PlaceItem,
   LINE_ACTIONS, LINE_KINDS, type LineAction, type LineActionGroup,
 } from '@hissypad/state'
 import { showToast } from '../app/toast'
@@ -112,8 +112,10 @@ export function SelectionBar() {
   const rows = usePad((s) => s.rows)
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
+  const inHour = usePad((s) => s.slotId !== null)
   // Everywhere the lines can go: the other pads, and every sub-pad (this pad's included).
-  const places = useMemo(() => placeList(all).filter((p) => p.subId !== null || p.padId !== padId), [all, padId])
+  // In an open hour, every pad: its lines come from any of them.
+  const places = useMemo(() => placeList(all).filter((p) => inHour || p.subId !== null || p.padId !== padId), [all, padId, inHour])
   const ids = selection.length > 0 ? selection : editing ? [editing.id] : []
   const can = useMemo(() => lineAbilities(rows, ids), [rows, ids])
   const ref = useRef<HTMLDivElement>(null)
@@ -175,8 +177,9 @@ export function SelectionBar() {
       ))}
     </span>
   )
-  const shown = LINE_ACTIONS.filter((a) => !a.more && !a.floats)
-  const tucked = LINE_ACTIONS.filter((a) => a.more)
+  const offered = lineActions(can)
+  const shown = offered.filter((a) => !a.more && !a.floats)
+  const tucked = offered.filter((a) => a.more)
   const menus = (
     <>
       {places.length > 0 && (

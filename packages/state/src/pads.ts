@@ -99,6 +99,8 @@ export function countOf(ids: Iterable<string>, rows: Rows = usePad.getState().ro
 // A pad shown with nothing in it gets one blank line to type into (the same rule as
 // deleting the last line). Returns that line's id, or null when the pad has lines.
 export function ensureLine(): string | null {
+  // An open hour may be empty: a line made for it would land in Today, in the hour.
+  if (usePad.getState().slotId !== null) return null
   if (Object.keys(usePad.getState().rows).length > 0) return null
   let id = ''
   apply((rows, ctx) => {
@@ -163,8 +165,9 @@ export function cmdMoveToPad(padId: PadId): number {
 // The same for any place: a pad, or a sub-pad (one of the pad shown included). Returns how
 // many lines moved, subtrees included and blank ones not counted; 0 when nothing moved.
 export function cmdMoveTo(place: Place): number {
-  const { padId: current, all, rows } = usePad.getState()
-  if (!isPlace(all, place) || (place.subId === null && place.padId === current)) return 0
+  const { padId: current, all, rows, slotId } = usePad.getState()
+  // In an open hour the lines come from any pad, the open one included.
+  if (!isPlace(all, place) || (slotId === null && place.subId === null && place.padId === current)) return 0
   const index = buildIndex(rows)
   const ids = topmost(index, targets()).filter((id) => place.subId === null || (id !== place.subId && rows[id]?.parentId !== place.subId))
   if (ids.length === 0) return 0

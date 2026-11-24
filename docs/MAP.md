@@ -59,7 +59,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `history.ts` | `undo` and `redo` |
 | `selection.ts` | selecting and editing: `select`, `clickSelect`, `selectRange`, `stepSelection`, `edit`, `targets`, `neighbor` |
 | `commands.ts` | the editor commands (`cmd…`): what a key or button does to lines, and where the caret or selection goes after |
-| `actions.ts` | the line toolbar as data: `LINE_ACTIONS` (each with its icon, `more` for the ones in the dropdown, `floats` for the ones drawn as floating buttons), `actionFace` (Fold reads Unfold), `LINE_KINDS`, `lineAbilities`. Web and the phone both draw from it |
+| `actions.ts` | the line toolbar as data: `LINE_ACTIONS` (each with its icon, `offered` for the ones that belong only in an open hour or only outside one: the toolbars draw `lineActions(can)`, `more` for the ones in the dropdown, `floats` for the ones drawn as floating buttons), `actionFace` (Fold reads Unfold), `LINE_KINDS`, `lineAbilities`. Web and the phone both draw from it |
 | `pads.ts` | pad commands: new, rename, delete, reorder, move to, make pad from a line, fold a pad back into a line, the list of places (`placeList`: pads and "Pad → Sub-pad"), move to a place, jump to a sub-pad, Fresh start; `padList` puts Today, Inbox (the root) and Later first (the store's `settleFixed` keeps Today and Later there and folds a pad named Inbox into the root; tested in `fixed.test.ts`) |
 | `lists.ts` | the Archive and Recently done panels: entries, restore, un-done, day grouping |
 | `search.ts` | Search across every pad: the lines found, grouped by pad with the words marked (`search`), and the jump to one (`cmdOpenHit`) |

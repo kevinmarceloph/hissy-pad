@@ -4,6 +4,10 @@ import { dedent, findFixedPad, idOf, indent, insertAfter, insertAt, moveSibling,
 import { resetStore, tableShape } from './testing'
 import { apply, applyAll, closeSlot, loadPad, openPad, openSlot, usePad, zoomTo } from './store'
 import { redo, undo } from './history'
+import { LINE_ACTIONS, lineAbilities, lineActions } from './actions'
+import { cmdAddAbove, cmdAddBelow, cmdDeleteSelection, cmdPasteAfterSelection, cmdSetText } from './commands'
+import { cmdMoveToPad } from './pads'
+import { edit, select } from './selection'
 
 const H = slotKey('2026-11-25', 9)
 const all = () => usePad.getState().all
@@ -110,14 +114,21 @@ describe('an hour as a view of the store', () => {
     expect(view()).toBe('U\nA\n  A1\n  A2')
   })
 
-  it('sends a line made above every line of the hour to the top of Today', () => {
+  it('puts a line made above every line of the hour before the first one, in that line\'s pad', () => {
     openSlot(H)
-    const first = Object.values(usePad.getState().rows).filter((r) => r.parentId === null).sort((a, b) => (a.rank < b.rank ? -1 : 1))[0]!
     const made = apply((rows, ctx) => insertAt(rows, ctx, { parentId: null, afterId: null }, 'first').rows)
-    expect(first.text).toBe('U')
     expect(all()[idOf(made, 'first')]).toMatchObject({ parentId: today(), slot: H })
-    expect(tableShape()).toContain('@Today\n  first\n  T\n  U')
+    expect(tableShape()).toContain('@Today\n  T\n  first\n  U')
     expect(view()).toBe('first\nU\nA\n  A1\n  A2')
+  })
+
+  it('sends a line made in an empty hour to the top of Today', () => {
+    const empty = slotKey('2026-11-25', 11)
+    openSlot(empty)
+    expect(view()).toBe('')
+    const made = apply((rows, ctx) => insertAt(rows, ctx, { parentId: null, afterId: null }, 'first').rows)
+    expect(all()[idOf(made, 'first')]).toMatchObject({ parentId: today(), slot: empty })
+    expect(tableShape()).toContain('@Today\n  first\n  T\n  U')
   })
 
   it('archives a line with what is under it, and follows a change made from outside', () => {
@@ -131,5 +142,82 @@ describe('an hour as a view of the store', () => {
     // A line put in the hour from the pad's side shows up in the open hour.
     applyAll((rows, ctx) => setSlot(rows, ctx, [id('C')], H))
     expect(view()).toBe('U\nA\n  A1\n  A2\nC')
+  })
+})
+
+describe('the toolbar in an open hour', () => {
+  const offered = (can: ReturnType<typeof lineAbilities>) => lineActions(can).map((a) => a.id)
+
+  it('offers Out of this hour and not Make pad, and the other way round in a pad', () => {
+    const inPad = lineAbilities(usePad.getState().rows, [id('B')])
+    expect(inPad.hour).toBe(false)
+    expect(offered(inPad)).toContain('makePad')
+    expect(offered(inPad)).not.toContain('outOfHour')
+
+    openSlot(H)
+    const inHour = lineAbilities(usePad.getState().rows, [id('A')])
+    expect(inHour.hour).toBe(true)
+    expect(offered(inHour)).toContain('outOfHour')
+    expect(offered(inHour)).not.toContain('makePad')
+  })
+
+  it('has no up, down or top for the hour\'s own lines, which keep no order, and has them for lines under one', () => {
+    openSlot(H)
+    // A is the second of the hour's two lines: it can go in under U, and nowhere else.
+    expect(lineAbilities(usePad.getState().rows, [id('A')])).toMatchObject({ up: false, down: false, indent: true, dedent: false })
+    expect(lineAbilities(usePad.getState().rows, [id('U')])).toMatchObject({ up: false, down: false, indent: false })
+    expect(lineAbilities(usePad.getState().rows, [id('A2')])).toMatchObject({ up: true, down: false, indent: true, dedent: true })
+  })
+
+  it('takes the selected lines out of the hour and leaves them in their pads', () => {
+    openSlot(H)
+    const a = all()[id('A')]!
+    select([a.id], a.id)
+    const said = LINE_ACTIONS.find((x) => x.id === 'outOfHour')!.run()
+    expect(said).toBe('Took 1 line out of the hour.')
+    expect(all()[a.id]).toMatchObject({ slot: null, parentId: a.parentId, rank: a.rank, deletedAt: null })
+    expect(usePad.getState().selection).toEqual([])
+    expect(view()).toBe('U')
+    undo()
+    expect(view()).toBe('U\nA\n  A1\n  A2')
+  })
+
+  it('leaves an hour empty when its last line is archived, instead of making a line for it', () => {
+    openSlot(H)
+    const before = Object.keys(all()).length
+    select([id('U'), id('A')], id('U'))
+    cmdDeleteSelection()
+    expect(view()).toBe('')
+    // Nothing new was made, in Today or anywhere.
+    expect(Object.keys(all()).length).toBe(before)
+  })
+
+  it('puts a line added above the hour\'s first line before it in its pad, and one added below after it', () => {
+    openSlot(H)
+    edit(id('U'), 'end')
+    cmdAddAbove()
+    cmdSetText(usePad.getState().editing!.id, 'above U')
+    edit(id('U'), 'end')
+    cmdAddBelow()
+    cmdSetText(usePad.getState().editing!.id, 'below U')
+    expect(tableShape()).toContain('@Today\n  T\n  above U\n  U\n  below U')
+    expect(view()).toBe('above U\nU\nbelow U\nA\n  A1\n  A2')
+  })
+
+  it('moves an hour\'s line to another pad, the open one included, and it stays in the hour', () => {
+    openSlot(H)
+    select([id('U')], id('U'))
+    // U is in Today; the Inbox is the pad that is open behind the hour.
+    expect(cmdMoveToPad(null)).toBe(1)
+    expect(all()[id('U')]).toMatchObject({ parentId: null, slot: H })
+    expect(view()).toContain('U')
+  })
+
+  it('pastes an outline below a line of the hour as lines of the hour, after it in its pad', () => {
+    openSlot(H)
+    select([id('U')], id('U'))
+    cmdPasteAfterSelection('one\n  under one\ntwo')
+    expect(tableShape()).toContain('@Today\n  T\n  U\n  one\n    under one\n  two')
+    expect(view()).toBe('U\none\n  under one\ntwo\nA\n  A1\n  A2')
   })
 })

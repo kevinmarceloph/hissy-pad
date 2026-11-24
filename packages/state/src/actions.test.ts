@@ -14,7 +14,7 @@ describe('line abilities', () => {
   const can = (...texts: string[]) => lineAbilities(rows, texts.map((t) => idOf(rows, t)))
 
   it('says what the targets allow', () => {
-    expect(can('A')).toEqual({ indent: false, dedent: false, up: false, down: true, children: false, folded: false, single: true, mixed: false })
+    expect(can('A')).toEqual({ indent: false, dedent: false, up: false, down: true, children: false, folded: false, single: true, mixed: false, hour: false })
     expect(can('B')).toMatchObject({ indent: true, up: true, down: true, children: true, dedent: false })
     expect(can('B1')).toMatchObject({ indent: false, dedent: true, up: false, down: true })
     expect(can('C')).toMatchObject({ indent: true, up: true, down: false })
@@ -23,7 +23,7 @@ describe('line abilities', () => {
     expect(can('B', 'B1').single).toBe(true)
     expect(can('A', 'B').single).toBe(false)
     expect(can('A', 'B', 'C')).toMatchObject({ indent: false, up: false, down: false }) // every sibling selected
-    expect(lineAbilities(rows, [])).toEqual({ indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: false, mixed: false })
+    expect(lineAbilities(rows, [])).toEqual({ indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: false, mixed: false, hour: false })
   })
 })
 

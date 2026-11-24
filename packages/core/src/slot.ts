@@ -234,8 +234,9 @@ export function scopeSlot(all: Rows, slot: string): SlotView {
 //     the one it came out from under (the hour's line above it in the view).
 //   - a line made at the root is new, and in this hour: in its pad it is the line after the
 //     hour's line above it in the view, so Return on a line opens the next one right under
-//     it. With no line above it, it goes to the top of Today (of the pad given, with no
-//     Today yet).
+//     it. With none above it, it is the line before the hour's line below it ("add a line
+//     above" on the first one). In an empty hour it goes to the top of Today (of the pad
+//     given, with no Today yet).
 // Anything else (a line under another, one of the hour's own moved in under a line) is
 // stored as the op left it. A row that ends up as the table has it is left out.
 export function unscopeSlot(all: Rows, slot: string, view: SlotView, changed: readonly NodeRow[], fallbackPad: string | null = null): NodeRow[] {
@@ -258,25 +259,42 @@ export function unscopeSlot(all: Rows, slot: string, view: SlotView, changed: re
     first = between(null, first)
     fresh.set(r.id, first)
   }
-  // The hour's own line right above a rank at the root of the view.
-  const above = (rank: string) => {
+  // The hour's own line right above a rank at the root of the view, or right below it.
+  const beside = (rank: string, dir: 'above' | 'below') => {
     let best: NodeRow | undefined
     for (const id of homes.keys()) {
       const top = rows[id]
-      if (top && top.rank < rank && (!best || top.rank > best.rank)) best = top
+      if (!top) continue
+      if (dir === 'above' ? top.rank < rank && (!best || top.rank > best.rank) : top.rank > rank && (!best || top.rank < best.rank)) best = top
     }
     return best
+  }
+  // The highest rank among the live lines right under `parentId` that is below `before`.
+  const prevRank = (parentId: string | null, before: string) => {
+    let found: string | null = null
+    for (const id in all) {
+      const r = all[id]!
+      if (isLive(r) && r.parentId === parentId && r.rank < before && (found === null || r.rank > found)) found = r.rank
+    }
+    return found
   }
   // Where a line at the root lands in the table: after the hour's line above it, in that
   // line's pad. Several after the same line keep the order the view had them in.
   const last = new Map<string, string>()
   const after = (r: NodeRow): SlotHome | null => {
-    const from = above(r.rank)
+    const from = beside(r.rank, 'above')
     const at = from && homes.get(from.id)
-    if (!from || !at) return null
-    const rank = between(last.get(from.id) ?? at.rank, nextRank(at.parentId, at.rank))
-    last.set(from.id, rank)
-    return { parentId: at.parentId, rank }
+    if (from && at) {
+      const rank = between(last.get(from.id) ?? at.rank, nextRank(at.parentId, at.rank))
+      last.set(from.id, rank)
+      return { parentId: at.parentId, rank }
+    }
+    const next = beside(r.rank, 'below')
+    const to = next && homes.get(next.id)
+    if (!next || !to) return null
+    const rank = between(last.get(`<${next.id}`) ?? prevRank(to.parentId, to.rank), to.rank)
+    last.set(`<${next.id}`, rank)
+    return { parentId: to.parentId, rank }
   }
   const out: NodeRow[] = []
   for (const r of [...changed].sort((a, b) => (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0))) {
