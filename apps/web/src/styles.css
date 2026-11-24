@@ -681,6 +681,7 @@ button.link { color: var(--link); text-decoration: underline; text-underline-off
 button.link:hover { color: var(--ink); }
 dialog.import .field { display: grid; gap: 0.3rem; margin: 0.75rem 0; }
 dialog.import .field span { color: var(--ink-soft); font-size: 0.9rem; }
+dialog.import .field.check-field { display: flex; align-items: center; gap: 0.5rem; }
 dialog.import input[type='email'] {
   width: 100%;
   padding: 0.55rem 0.6rem;

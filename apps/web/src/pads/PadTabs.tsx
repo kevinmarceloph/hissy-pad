@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactElement } from 'react'
 import { createPortal } from 'react-dom'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, countShown, openPad, openSubPad, padList, padTopLines, placeList, usePad, usePrefs } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, countKey, countShown, toggleCount, openPad, openSubPad, padList, padTopLines, placeList, usePad, usePrefs } from '@hissypad/state'
 import type { FixedPad, PadId } from '@hissypad/core'
 import { showToast } from '../app/toast'
 import { MOD } from '../platform/os'
@@ -175,6 +175,12 @@ export function PadTabs() {
               </div>
             )
           })()}
+          {sheet?.mode === 'edit' && (
+            <label className="field check-field">
+              <input type="checkbox" checked={countShown(hidden, countKey(all, sheet.padId))} onChange={() => toggleCount(countKey(all, sheet.padId))} />
+              <span>Show the count of open lines on this tab</span>
+            </label>
+          )}
           {sheet?.mode === 'edit' && (
             <div className="field order">
               <span>Fold into another pad, as a line with this pad's lines under it</span>
