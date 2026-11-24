@@ -4,7 +4,7 @@
 // pad to come round again; the buttons do the same. Skip leaves a card; Archive deletes it. The card's text and sub items are live fields. Same queue, targets and commands as
 // the web (state/sort.ts); only the gesture is drawn here, with PanResponder and Animated
 // so it ships as a JS-only update. The pad icon on the card goes to the line in the pad.
-import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef, type Ref } from 'react'
 import { Alert, Animated, Dimensions, Keyboard, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
@@ -27,8 +27,8 @@ const oneLine = (t: string) => t.replace(/\r?\n/g, ' ')
 // (rejectResponderTermination), so a swipe begun on the card's text never reached the card.
 // With it off the field still takes a tap (focus, cursor where the finger landed) and the
 // card's pan takes the touch once it turns into a drag.
-function CardField({ row: _row, ...props }: ComponentProps<typeof TextInput> & { row?: boolean }) {
-  return <TextInput rejectResponderTermination={false} {...props} />
+export function CardField({ row: _row, ref, ...props }: ComponentProps<typeof TextInput> & { row?: boolean; ref?: Ref<ComponentRef<typeof TextInput>> }) {
+  return <TextInput ref={ref} rejectResponderTermination={false} {...props} />
 }
 
 // Drawn under the app's top bar, with no pad chips: the title picks which pad is sorted, and
@@ -349,3 +349,6 @@ const s = StyleSheet.create({
   targets: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', borderTopWidth: StyleSheet.hairlineWidth, marginTop: 4, paddingTop: 4 },
   targetText: { fontFamily: serif, fontSize: 14 },
 })
+
+// The card's look, shared with the new item's sheet (Create.tsx): the same card, no swipe.
+export const card = { card: s.card, top: s.top, slot: s.slot, hour: s.hour, text: s.text, subs: s.subs }

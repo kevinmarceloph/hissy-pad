@@ -13,7 +13,9 @@ import { MOD } from '../platform/os'
 // The placeholder row of a + drag, in the displayed list.
 const NEW_ROW = '\u0000new'
 
-export function Pad() {
+// `embedded`: drawn inside the new item's card, over the lines under that item (the store is
+// zoomed into it). No hint, no tail and no floating +: the card has its own way to add one.
+export function Pad({ embedded = false }: { embedded?: boolean }) {
   const rows = usePad((s) => s.rows)
   const editing = usePad((s) => s.editing)
   const selection = usePad((s) => s.selection)
@@ -113,7 +115,7 @@ export function Pad() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const t = e.target as HTMLElement
-      const inField = t.closest?.('textarea, input, [contenteditable="true"], dialog')
+      const inField = t.closest?.('textarea, input, [contenteditable="true"], dialog:not(.create)')
       const mod = e.metaKey || e.ctrlKey
       // Cmd+S: swallow the browser's save dialog and sync now instead.
       if (mod && e.key.toLowerCase() === 's') {
@@ -152,6 +154,8 @@ export function Pad() {
           else edit(focusId ?? selection[0]!, 'end')
           break
         case 'Escape':
+          // Taken here, so a dialog the pad is drawn in (the new item's card) stays open.
+          e.preventDefault()
           clearSelection()
           break
         case 'Tab':
@@ -195,7 +199,7 @@ export function Pad() {
     }
     function onPaste(e: ClipboardEvent) {
       const t = e.target as HTMLElement
-      if (t.closest?.('textarea, input, dialog')) return
+      if (t.closest?.('textarea, input, dialog:not(.create)')) return
       if (usePad.getState().selection.length === 0) return
       const text = e.clipboardData?.getData('text/plain') ?? ''
       if (!text) return
@@ -216,7 +220,7 @@ export function Pad() {
   const lone = visible.length === 1 && rows[visible[0]!.id]!.text === ''
 
   return (
-    <section className="pad" aria-label="Pad">
+    <section className="pad" aria-label={embedded ? 'Sub items' : 'Pad'}>
       <div className="rows" role="tree" aria-multiselectable="true" ref={rowsRef}>
         {displayed.map(({ id, depth, preview }) => (
           <Fragment key={id}>
@@ -257,17 +261,17 @@ export function Pad() {
           {drag.count > 1 ? `${drag.count} lines` : drag.label}
         </div>
       )}
-      {lone && (
+      {lone && !embedded && (
         <p className="hint">
           Type anything. <kbd>Enter</kbd> for a new line, <kbd>Tab</kbd> to nest, <kbd>Esc</kbd> to select a line,
           {' '}<kbd>{MOD}</kbd>+<kbd>Enter</kbd> to cross it out, <kbd>{MOD}</kbd>+<kbd>Shift</kbd>+<kbd>7</kbd> to number it. Paste an outline and it keeps its shape.
         </p>
       )}
-      <button type="button" className="tail" aria-label="Add a line at the end" onClick={cmdAppendAtEnd} />
+      {!embedded && <button type="button" className="tail" aria-label="Add a line at the end" onClick={cmdAppendAtEnd} />}
       {/* Phone width only (CSS), like the phone app's +: a tap adds a line at the top, a drag
           carries it onto the pad and adds the line where it is let go. Away while a line is
           being edited or lines are selected: the toolbar's floating buttons sit there then. */}
-      {!editing && selection.length === 0 && (
+      {!embedded && !editing && selection.length === 0 && (
         <button
           type="button"
           className="fab-add"

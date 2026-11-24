@@ -5,6 +5,7 @@ import { dayDate, dayKey, dayOf, daySlots, dayTitle, hourLabel, shiftDay, type E
 import { usePad } from '@hissypad/state';
 import { hoursIfOpen, openHours, type HoursStores } from '@hissypad/state/hours';
 
+import { CalendarIcon, Chevron, DayPicker } from './DayScreen';
 import { drawHours } from './drawn';
 import { hourBox, Mark } from './Mark';
 import { Tap } from './Tap';
@@ -173,9 +174,11 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
     }),
   ).current;
 
-  const step = (label: string, name: string, to: string) => (
-    <Tap aria-label={name} onPress={() => setDay(to)} style={styles.nav} activeStyle={{ backgroundColor: theme.paperRaised }}>
-      <Text style={[styles.body, { color: theme.ink }]}>{label}</Text>
+  // The calendar under the day line, open or not.
+  const [calendar, setCalendar] = useState(false);
+  const step = (name: string, to: string, forward: boolean) => (
+    <Tap aria-label={name} onPress={() => setDay(to)} style={styles.iconButton} activeStyle={{ backgroundColor: theme.paperRaised }}>
+      <Chevron color={theme.ink} forward={forward} />
     </Tap>
   );
 
@@ -193,16 +196,41 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
             ? `Now in ${slotLabel(value, today)}. Tap an hour, or swipe across several.`
             : 'Tap an hour, or swipe across several.'}
       </Text>
-      <View style={styles.dayRow}>
-        <Text aria-live="polite" style={[styles.body, styles.day, { color: theme.ink }]}>
-          {dayTitle(day, now, start)}, {dayDate(day)}
-        </Text>
-        <View role="navigation" aria-label="Days" style={styles.navs}>
-          {step('Earlier', 'The day before', shiftDay(day, -1))}
-          {step('Later', 'The day after', shiftDay(day, 1))}
-          {day !== today && step('Today', 'Back to today', today)}
+      {/* One line, as on the Hours screen: earlier, the day, the calendar, later. */}
+      <View role="navigation" aria-label="Days" style={styles.days}>
+        {step('The day before', shiftDay(day, -1), false)}
+        <View aria-live="polite" style={styles.titleRow}>
+          <Text numberOfLines={1} style={[styles.body, styles.day, { color: theme.ink }]}>
+            {dayTitle(day, now, start)}
+          </Text>
+          {dayTitle(day, now, start) !== dayDate(day) && (
+            <Text numberOfLines={1} style={[styles.body, styles.date, { color: theme.inkSoft }]}>
+              {dayDate(day)}
+            </Text>
+          )}
         </View>
+        <Tap
+          aria-label="Pick a day"
+          aria-expanded={calendar}
+          onPress={() => setCalendar((open) => !open)}
+          style={[styles.iconButton, calendar && { backgroundColor: theme.paperRaised }]}
+          activeStyle={{ backgroundColor: theme.paperRaised }}>
+          <CalendarIcon color={theme.ink} />
+        </Tap>
+        {step('The day after', shiftDay(day, 1), true)}
       </View>
+      {calendar && (
+        <View style={[styles.calendar, { backgroundColor: theme.paperRaised, borderColor: theme.line }]}>
+          <DayPicker
+            day={day}
+            today={today}
+            onPick={(to) => {
+              setDay(to);
+              setCalendar(false);
+            }}
+          />
+        </View>
+      )}
       <View>
         <View
           role="radiogroup"
@@ -266,10 +294,12 @@ const styles = StyleSheet.create({
   title: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE, fontWeight: '700' },
   body: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
   small: { fontFamily: serif, fontSize: SMALL, lineHeight: 20 },
-  dayRow: { gap: 2 },
-  day: { fontWeight: '700' },
-  navs: { flexDirection: 'row', flexWrap: 'wrap', marginLeft: -10 },
-  nav: { minHeight: ROW, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 4 },
+  days: { flexDirection: 'row', alignItems: 'center', marginHorizontal: -10 },
+  titleRow: { flexShrink: 1, flexDirection: 'row', alignItems: 'baseline', columnGap: 8, paddingHorizontal: 4 },
+  day: { fontWeight: '700', flexShrink: 0 },
+  date: { flexShrink: 1 },
+  iconButton: { width: 40, height: ROW, alignItems: 'center', justifyContent: 'center', borderRadius: 4 },
+  calendar: { alignSelf: 'flex-start', width: 300, maxWidth: '100%', padding: 6, borderWidth: 1, borderRadius: 6 },
   hours: { flexDirection: 'row', gap: GAP },
   // A column per hour: the picked bar, the box, the now bar. Tall enough for a finger.
   hour: { flex: 1, gap: 2, paddingVertical: 4, borderRadius: 2 },

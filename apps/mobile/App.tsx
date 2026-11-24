@@ -7,7 +7,6 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { loadPad } from '@hissypad/state'
 import { setupApp } from './src/setup'
 import { Pad } from './src/ui/Pad'
-import { AddSheet } from './src/ui/AddSheet'
 import { completeAuthFromUrl } from './src/ui/Account'
 import { useTheme } from './src/theme'
 import { useShakeToUndo } from './src/shake'
@@ -41,7 +40,6 @@ export default function App() {
         <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
           <StatusBar style="auto" />
           {ready && <Pad />}
-          {ready && <AddSheet theme={theme} />}
         </SafeAreaView>
       </SafeAreaProvider>
     </GestureHandlerRootView>

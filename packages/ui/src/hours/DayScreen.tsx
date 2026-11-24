@@ -283,7 +283,7 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
 
 // ---- the header's icons, drawn with Views so both apps have them without an icon font ----
 
-function Chevron({ color, forward = false }: { color: string; forward?: boolean }) {
+export function Chevron({ color, forward = false }: { color: string; forward?: boolean }) {
   return (
     <View
       style={{
@@ -300,7 +300,7 @@ function Chevron({ color, forward = false }: { color: string; forward?: boolean 
   );
 }
 
-function CalendarIcon({ color }: { color: string }) {
+export function CalendarIcon({ color }: { color: string }) {
   return (
     <View style={{ width: 17, height: 16, borderWidth: 1.5, borderColor: color, borderRadius: 2.5 }}>
       <View style={{ height: 1.5, marginTop: 3, backgroundColor: color }} />
@@ -328,7 +328,7 @@ function MenuIcon({ color }: { color: string }) {
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-function DayPicker({ day, today, onPick }: { day: DayKey; today: DayKey; onPick(day: DayKey): void }) {
+export function DayPicker({ day, today, onPick }: { day: DayKey; today: DayKey; onPick(day: DayKey): void }) {
   const theme = useTheme();
   const shownDay = fromDayKey(day);
   const [month, setMonth] = useState({ year: shownDay.getFullYear(), month: shownDay.getMonth() });

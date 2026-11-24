@@ -55,6 +55,8 @@ export const HoursIcon = () => <LineIcon icon="hour" />
 // Sort: a line on its way into a tray. The same icon as the toolbar's Move to….
 export const SortIcon = () => <LineIcon icon="move" />
 export const SearchIcon = () => <Icon d="M13 13l4 4"><circle cx="8.5" cy="8.5" r="5" /></Icon>
+// New item: a plus.
+export const PlusIcon = () => <Icon d="M10 4v12M4 10h12" />
 export const MenuIcon = () => <Icon d="M3.5 5.5h13M3.5 10h13M3.5 14.5h13" />
 // Later: a calendar page, rings at the top.
 export const CalendarIcon = () => <Icon d="M3.5 8h13M7 2.5v3M13 2.5v3"><rect x="3.5" y="4" width="13" height="12.5" rx="1.5" /></Icon>

@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { fireEvent as dom } from '@testing-library/react';
 import { idOf, slotCounts, slotKey } from '@hissypad/core';
-import { MemoryStore } from '@hissypad/core/hours';
+import { dayDate, MemoryStore } from '@hissypad/core/hours';
 import { cmdDeleteSelection, loadPad, resetStore, select, usePad } from '@hissypad/state';
 import { cmdSetSlot, cmdSlotBreak, cmdSlotDone, cmdSlotText, createCategoryStore, createDayStore, createFlagStore, openHours } from '@hissypad/state/hours';
 
@@ -249,6 +249,19 @@ describe('SlotPicker', () => {
     expect(onPick).toHaveBeenCalledWith('2026-11-20T09');
   });
 
+  it('shows the day on one line and jumps to a day picked from the calendar', async () => {
+    const onPick = vi.fn();
+    await render(<SlotPicker value={null} onPick={onPick} onCancel={() => {}} clock={clock} />);
+    const days = screen.getByRole('navigation', { name: 'Days' });
+    expect(days).toHaveTextContent('Today');
+    expect(days).toHaveTextContent(dayDate('2026-11-19'));
+    await fireEvent.press(screen.getByLabelText('Pick a day'));
+    await fireEvent.press(screen.getByLabelText(dayDate('2026-11-27')));
+    expect(screen.queryByLabelText('Later month')).toBeNull();
+    await fireEvent.press(screen.getByRole('radio', { name: '9am' }));
+    expect(onPick).toHaveBeenCalledWith('2026-11-27T09');
+  });
+
   it('opens on the hour the lines are in and can take them out of it', async () => {
     const onPick = vi.fn();
     await render(<SlotPicker value="2026-11-21T08" count={3} onPick={onPick} onCancel={() => {}} clock={clock} />);
@@ -328,7 +341,7 @@ describe('SlotPicker', () => {
       const hours = screen.getAllByRole('radio').map((el) => el.getAttribute('aria-label'));
       expect(hours.slice(0, 3)).toEqual(['6am', '7am', '8am']);
       expect(hours.at(-1)).toBe('5am');
-      expect(screen.getByText('Today, Thu, Nov 19')).toBeTruthy();
+      expect(screen.getByRole('navigation', { name: 'Days' })).toHaveTextContent('TodayThu, Nov 19');
       // An hour after midnight is still Thursday's, and is stored under Friday.
       await fireEvent.press(screen.getByRole('radio', { name: '1am' }));
       expect(onPick).toHaveBeenCalledWith('2026-11-20T01');
@@ -349,7 +362,7 @@ describe('SlotPicker', () => {
     });
     try {
       await render(<SlotPicker value="2026-11-21T02" onPick={() => {}} onCancel={() => {}} clock={clock} />);
-      expect(screen.getByText('Tomorrow, Fri, Nov 20')).toBeTruthy();
+      expect(screen.getByRole('navigation', { name: 'Days' })).toHaveTextContent('TomorrowFri, Nov 20');
       expect(screen.getByRole('radio', { name: '2am' })).toHaveAttribute('aria-checked', 'true');
     } finally {
       await act(async () => {

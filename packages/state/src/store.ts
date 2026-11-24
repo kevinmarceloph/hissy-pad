@@ -7,7 +7,7 @@ import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import {
   buildIndex, changedRows, childrenOf, createClock, createMemoryStore, isPadNode, settleFixedPads,
-  insertAt, insertOutline, newUuid, normalizeRow, parseOutline, sameRow, scopePad, unscopeRow,
+  insertAt, insertOutline, isLive, newUuid, normalizeRow, parseOutline, sameRow, scopeNode, scopePad, unscopeRow,
   type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus,
 } from '@hissypad/core'
 import { log, rowBrief } from './log'
@@ -37,6 +37,7 @@ export interface PadState {
   all: Rows                 // the whole table, every pad, tombstones included
   rows: Rows                // the current pad, live rows only, scoped (scopePad)
   padId: PadId              // null = the main pad
+  zoomId: string | null     // a line shown as a pad of its own: `rows` is what is under it (the new item's card)
   load: LoadState
   storageError: string | null
   editing: Editing | null
@@ -76,6 +77,7 @@ export const usePad = create<PadState>(() => ({
   all: {},
   rows: {},
   padId: null,
+  zoomId: null,
   load: 'loading',
   storageError: null,
   editing: null,
@@ -91,6 +93,11 @@ export const usePad = create<PadState>(() => ({
 
 const get = usePad.getState
 const set = usePad.setState
+
+// What `rows` holds: the pad shown, or, while zoomed, the lines under the zoomed one.
+function view(all: Rows, padId: PadId, zoomId: string | null = get().zoomId): Rows {
+  return zoomId !== null && isLive(all[zoomId]) ? scopeNode(all, zoomId) : scopePad(all, padId)
+}
 
 // Write whatever differs between two versions of the table to local storage as dirty.
 export function persist(prev: Rows, next: Rows) {
@@ -120,14 +127,15 @@ export function breakCoalesce() {
   lastCoalesce = null
 }
 export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { label?: string; coalesce?: string } = {}): Rows {
-  const { rows, all, padId } = get()
+  const { rows, all, padId, zoomId } = get()
+  const root = zoomId !== null && isLive(all[zoomId]) ? zoomId : padId
   const next = fn(rows, ctx)
   const label = opts.label ?? 'op'
   if (next === rows) {
     log(`op:${label}`, { changed: 0 })
     return rows
   }
-  const changed = changedRows(rows, next).map((r) => unscopeRow(r, padId))
+  const changed = changedRows(rows, next).map((r) => unscopeRow(r, root))
   for (const id in rows) if (!(id in next)) changed.push(tombstone(all[id]!))
   const nextAll: Record<string, NodeRow> = { ...all }
   for (const r of changed) nextAll[r.id] = r
@@ -179,7 +187,7 @@ function commit(all: Rows, nextAll: Rows, label: string, coalesce?: string) {
     }
   }
   const newPast = merge ? [...past.slice(0, -1), entry] : [...past.slice(-UNDO_LIMIT + 1), entry]
-  set({ all: nextAll, rows: scopePad(nextAll, padId), past: newPast, future: [] })
+  set({ all: nextAll, rows: view(nextAll, padId), past: newPast, future: [] })
   log(`op:${label}`, {
     changed: changed.map((r) => ({ before: rowBrief(all[r.id]), after: rowBrief(nextAll[r.id]) })),
     merged: merge,
@@ -246,7 +254,7 @@ export function settleFixed() {
   if (next === all) return
   log('pad:settle', { changed: changedRows(all, next).length })
   const shown = padId === null || isPadNode(next[padId]) ? padId : null
-  set({ all: next, padId: shown, rows: scopePad(next, shown) })
+  set({ all: next, padId: shown, rows: view(next, shown) })
   if (shown !== padId) void local.setMeta(PAD_KEY, '').catch(() => {})
   persist(all, next)
 }
@@ -257,9 +265,17 @@ export function openPad(padId: PadId): boolean {
   const { all } = get()
   if (padId !== null && !isPadNode(all[padId])) return false
   log('pad:open', { padId: padId?.slice(0, 8) ?? 'main' })
-  set({ padId, rows: scopePad(all, padId), editing: null, selection: [], anchorId: null, focusId: null })
+  set({ padId, zoomId: null, rows: scopePad(all, padId), editing: null, selection: [], anchorId: null, focusId: null })
   void local.setMeta(PAD_KEY, padId ?? '').catch(() => {})
   return true
+}
+
+// Show the lines under one line as if it were a pad (null: back to the pad). Editing and
+// selection belong to what was shown, so they clear. The pad that is open stays the same.
+export function zoomTo(id: string | null) {
+  const { all, padId } = get()
+  const zoomId = id !== null && isLive(all[id]) ? id : null
+  set({ zoomId, rows: view(all, padId, zoomId), editing: null, selection: [], anchorId: null, focusId: null })
 }
 
 // Ask the pad on screen to scroll to a row. The apps watch `reveal` and do the scrolling.
@@ -273,7 +289,9 @@ export function setAll(all: Rows, extra: Partial<PadState> = {}) {
   // The open pad may have been deleted on another device: fall back to the Inbox.
   const stillThere = padId === null || isPadNode(all[padId])
   const nextPad = stillThere ? padId : null
-  set({ all, padId: nextPad, rows: scopePad(all, nextPad), ...extra })
+  // The same for a zoomed line (an undo can take a new item away while its card is open).
+  const zoomId = get().zoomId !== null && isLive(all[get().zoomId!]) ? get().zoomId : null
+  set({ all, padId: nextPad, zoomId, rows: view(all, nextPad, zoomId), ...extra })
   if (!stillThere) void local.setMeta(PAD_KEY, '').catch(() => {})
 }
 

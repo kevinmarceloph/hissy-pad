@@ -59,6 +59,16 @@ export function MenuIcon({ color }: { color: string }) {
   )
 }
 
+// New item: a plus.
+export function PlusIcon({ color }: { color: string }) {
+  return (
+    <View style={i.box}>
+      <View style={{ position: 'absolute', width: 14, height: W, borderRadius: 1, backgroundColor: color }} />
+      <View style={{ position: 'absolute', width: W, height: 14, borderRadius: 1, backgroundColor: color }} />
+    </View>
+  )
+}
+
 const MODES: { mode: Mode; label: string }[] = [
   { mode: 'hours', label: 'Hours: the day, one row per hour' },
   { mode: 'pad', label: 'Pad: the outline' },

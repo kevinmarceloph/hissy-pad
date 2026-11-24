@@ -35,7 +35,7 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | `rank.ts` | fractional ranks: a rank between two others, re-ranking a run |
 | `ops.ts` | every edit to lines: insert, split, set text, done, the three states (open, doing, done: `setState`, `sharedState`), kind, fold, remove, restore, move, move to top, indent, dedent, ungroup, split off open (`splitOpen`: a copy below takes the open sub items), merge, delete done |
 | `inline.ts` | inline marks drawn from the text, never stored: `inlineSpans` (bold, italic, underline, strikethrough, highlight, code, backslash escapes, symbols kept) and the shared `URL_RE` |
-| `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), sub-pads and places (`isSubPad`, `listSubPads`, `Place`, `moveToPlace`), the fixed tabs (`FIXED_PADS`: Today and Later are pad rows, `findFixedPad`; Inbox is the root; `settleFixedPads` keeps them so), Fresh start |
+| `pads.ts` | several pads in one table: the scoped view (`scopePad`), the same view under any one line (`scopeNode`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), sub-pads and places (`isSubPad`, `listSubPads`, `Place`, `moveToPlace`), the fixed tabs (`FIXED_PADS`: Today and Later are pad rows, `findFixedPad`; Inbox is the root; `settleFixedPads` keeps them so), Fresh start |
 | `drop.ts` | `resolveDrop`: where a dragged line lands, from pointer position and row layout |
 | `paste.ts` | text to outline and back: `parseOutline`, `insertOutline`, `toOutline`, `toOutlineHtml` |
 | `ops.ts` (again) | `setCategory`: a line's category, one of Hours' (`NodeRow.category`) |
@@ -55,7 +55,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 
 | file | what is in it |
 |---|---|
-| `store.ts` | the state (`all` rows, the scoped `rows` of the pad shown, `padId`, selection, editing, undo stacks), `apply` and `applyAll`, loading, `openPad`, `setAll`, `importOutline` |
+| `store.ts` | the state (`all` rows, the scoped `rows` of the pad shown, `padId`, `zoomId`: one line shown as a pad, selection, editing, undo stacks), `apply` and `applyAll`, loading, `openPad`, `zoomTo`, `setAll`, `importOutline` |
 | `history.ts` | `undo` and `redo` |
 | `selection.ts` | selecting and editing: `select`, `clickSelect`, `selectRange`, `stepSelection`, `edit`, `targets`, `neighbor` |
 | `commands.ts` | the editor commands (`cmd…`): what a key or button does to lines, and where the caret or selection goes after |
@@ -63,6 +63,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `pads.ts` | pad commands: new, rename, delete, reorder, move to, make pad from a line, fold a pad back into a line, the list of places (`placeList`: pads and "Pad → Sub-pad"), move to a place, jump to a sub-pad, Fresh start; `padList` puts Today, Inbox (the root) and Later first (the store's `settleFixed` keeps Today and Later there and folds a pad named Inbox into the root; tested in `fixed.test.ts`) |
 | `lists.ts` | the Archive and Recently done panels: entries, restore, un-done, day grouping |
 | `search.ts` | Search across every pad: the lines found, grouped by pad with the words marked (`search`), and the jump to one (`cmdOpenHit`) |
+| `create.ts` | a new item on its card: make the line at the top of a place and zoom into it, set its text, move it to another place, and close the card keeping it or taking it all back |
 | `sort.ts` | Sort: the queue, the two targets, sending a card, the session a sort screen holds, the swipe rule |
 | `shake.ts` | shake detection from accelerometer samples |
 | `widget.ts` | the home-screen widget's data: the snapshot it draws from, applying the buttons pressed on it, adding a line to a pad |
@@ -87,7 +88,7 @@ Screens written once in React Native. The phone draws them natively; the web app
 | `src/hours/MiniPad.tsx` | the open hour as a small pad: the lines put in it and everything under them, typed in place (Return, Tab, Backspace, the bullet, the three-state switch), and the field that adds a line or finds one in any pad (`slotFinds`) |
 | `src/hours/StateMark.tsx` | the three bullets (open, doing, done) for a line and for an hour, and the switch that sets one |
 | `src/hours/drawn.ts` | `drawHours`: each hour of a day as a screen draws it (recurring plan, top line, count, its box in a strip), for the day screen and the hour picker |
-| `src/hours/SlotPicker.tsx` | the hour picker the pad's toolbar opens |
+| `src/hours/SlotPicker.tsx` | the hour picker the pad's toolbar opens: the day on one line (earlier, the day, a calendar, later: `DayPicker` from `DayScreen.tsx`) over the strip of hours |
 | `src/hours/CategoryPicker.tsx` | the category picker the pad's toolbar opens ("Category…"), with "New category" in place (the form is `NewCategory` from `CategoriesScreen.tsx`) |
 | `src/hours/CategoriesScreen.tsx`, `FlagsScreen.tsx`, `RecurringScreen.tsx` | the user's own lists; categories open from the app's top menu through `CategoriesApp` (`HoursApp.tsx`), flags and plans from Hours' menu |
 | `src/hours/provider.tsx` | the stores as React context, and `useSync` (signed in or not, the sync line) |
@@ -103,10 +104,10 @@ Vite, React 19, a PWA. `src/main.tsx` wires the platform (IndexedDB, clipboard, 
 
 | folder | what is in it |
 |---|---|
-| `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start, Sort or Hours), `icons.tsx` (every icon as SVG: the top bar's and the line toolbar's `LineIcon`), `TopBar.tsx` (the mode switcher, Search, the menu with Done, Archive, Log, Fresh start and the theme, the pad tabs, "Archive N completed"), `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
+| `src/app/` | the shell: `App.tsx` (which view is open: pad, Fresh start, Sort or Hours), `icons.tsx` (every icon as SVG: the top bar's and the line toolbar's `LineIcon`), `TopBar.tsx` (the mode switcher, the + for a new item, Search, the menu with Done, Archive, Log, Fresh start and the theme, the pad tabs, "Archive N completed"), `Account.tsx` (the footer), `PullToRefresh.tsx`, `toast.ts` |
 | `src/pad/` | the editor: `Pad.tsx` (the list and the selection-mode keys), `Row.tsx` (one line and its keys while editing), `SelectionBar.tsx` (the toolbar: icons, the Move to… and ⋯ menus, and floating above its right end Hour…, Category…, the open / doing / done switch and "done editing"; at phone width two rows that do not scroll), `useDrag.ts` (pointer drag, of rows and of the floating +), `categoryColors.ts` (the label palette as `.cat-<key>` CSS variables for the category badge before a line). The floating + itself is in `Pad.tsx` |
 | `src/pads/` | `PadTabs.tsx` (tabs, the pad sheet) and `FreshStart.tsx` |
-| `src/panels/` | `Lists.tsx` (Archive, Recently done), `Search.tsx` (Cmd+K, the top bar's Search), `Sort.tsx` and `Hours.tsx` (mounts the shared Hours screens, loaded on first use; the hour picker's dialog; the page's light or dark scheme) |
+| `src/panels/` | `Lists.tsx` (Archive, Recently done), `Search.tsx` (Cmd+K, the top bar's Search), `Sort.tsx`, `Create.tsx` (the new item's card: Sort's card in a dialog over the page, with the pad's rows and toolbar for its sub items) and `Hours.tsx` (mounts the shared Hours screens, loaded on first use; the hour picker's dialog; the page's light or dark scheme) |
 | `src/platform/` | what only a browser has: `idb.ts` (LocalStore on IndexedDB), `clipboard.ts`, `supabase.ts`, `os.ts` (Mac or not, shortcut hints), `chimes.ts` (Hours' chimes in a browser: a timer, a sound, a notification) |
 | `e2e/` | Playwright with real pointers and touches: `drag.spec.ts`, `sort.spec.ts`, `toolbar.spec.ts` (the Move to… menu is really on screen; at phone width the bar does not scroll and the floating buttons work) |
 | `test/setup.ts` | jsdom gaps filled in (dialogs) |
@@ -117,8 +118,8 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 
 | file | what is in it |
 |---|---|
-| `src/ui/Pad.tsx` | the screen: top bar (mode switcher, Search, the menu), pad chips, "Archive N completed", then the pad's list (long-press drag, pull to sync: the web's line of words on iOS, the platform spinner on Android), Sort or Hours by mode |
-| `src/ui/TopIcons.tsx` | the top bar's icons, drawn with Views (no icon font, no SVG module), and the Pad, Hours, Sort switcher |
+| `src/ui/Pad.tsx` | the screen: top bar (mode switcher, the + for a new item, Search, the menu), pad chips, "Archive N completed", then the pad's list (long-press drag, pull to sync: the web's line of words on iOS, the platform spinner on Android), Sort or Hours by mode |
+| `src/ui/TopIcons.tsx` | the top bar's icons (the + included), drawn with Views (no icon font, no SVG module), and the Pad, Hours, Sort switcher |
 | `src/ui/LineIcons.tsx` | the line toolbar's icons, drawn with Views: the same set as the web's `icons.tsx`, change both together |
 | `src/ui/Row.tsx` | one line |
 | `src/ui/Toolbar.tsx` | the line toolbar above the keyboard, drawn from `LINE_ACTIONS` as two rows (no sideways scroll); the tray icon lists the pads to move to, the three dots the actions marked `more` |
@@ -127,6 +128,8 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 | `src/ui/Lists.tsx` | Archive and Recently done sheets |
 | `src/ui/Search.tsx` | the Search sheet |
 | `src/ui/Sort.tsx` | the Sort screen (PanResponder swipe) |
+| `src/ui/Create.tsx` | the new item's sheet: Sort's card with the place, the hour and the pad icon, and the pad's rows, toolbar and floating buttons for its sub items. The top bar's + opens it, and so do the widget's + and the Add control (`openCreate`) |
+| `src/keyboard.ts` | the keyboard's height, for a toolbar that sits right above it |
 | `src/ui/Account.tsx` | sign in and the sync line |
 | `src/chimes.ts` | Hours' chimes on the phone: local notifications with a text reply (needs a build with `expo-notifications`) |
 | `src/shake.ts` | shake to undo (needs a build with `expo-sensors`) |
@@ -152,7 +155,7 @@ The widget runs in its own process and cannot run any of the JavaScript. The two
 
 - `widget.open`: a link the Add control leaves for the app to follow as it opens (`add?pad=inbox`). The app clears it.
 
-A widget cannot take typing, so its + opens the app at `hissypad://add?pad=…` with a prompt. The Add control (iOS 18+) does the same through `widget.open`, since a control's intent opens the app and runs inside it. The shapes are defined once in `packages/state/src/widget.ts` and mirrored by the Codable structs in `targets/_shared/Models.swift`: change both together.
+A widget cannot take typing, so its + opens the app at `hissypad://add?pad=…` on the new item's sheet (`ui/Create.tsx`), set to that pad. The Add control (iOS 18+) does the same through `widget.open`, since a control's intent opens the app and runs inside it. The shapes are defined once in `packages/state/src/widget.ts` and mirrored by the Codable structs in `targets/_shared/Models.swift`: change both together.
 
 ### The watch
 
@@ -180,6 +183,8 @@ A watch whose phone app is not signed in has no server to talk to. It falls back
 **A new edit to lines.** A pure function in `packages/core/src/ops.ts` (rows in, rows out, `ctx.now()` on every row it changes), exported from `index.ts`, tested in `ops.test.ts` with `pad()` and `shape()`. Then a `cmd…` in state that calls it through `apply`. Anything that moves rows between pads goes through `applyAll` and lives in `pads.ts`.
 
 **A keyboard shortcut (web).** While editing a line: `onKeyDown` in `apps/web/src/pad/Row.tsx`. With lines selected: the window handler in `apps/web/src/pad/Pad.tsx`. Both call the same command. Add it to the keys table in the README, to the action's `keys` if it has a button, and to `Keys.test.tsx`.
+
+**Something that edits the lines under one line.** Zoom the store into it (`zoomTo(id)`, `zoomTo(null)` to leave) and draw the pad's rows and toolbar: every command then works on that subtree only. Write to the line itself through `applyAll`, since it is outside the view. See `state/create.ts`.
 
 **A top-bar panel or view.** A panel is a `<dialog>` opened from `TopBar.tsx` (see `Lists.tsx`). A view that replaces the pad adds a value to the `view` state in `App.tsx` and, if it is a mode, an icon to `MODES` in `TopBar.tsx` and in the phone's `TopIcons.tsx` (see `Sort.tsx`). What is looked at now and then goes in the menu, not on the bar. Its data and commands go in a file of their own in `packages/state/src`, so the phone can draw the same thing from `apps/mobile/src/ui`.
 

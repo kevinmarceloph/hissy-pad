@@ -28,7 +28,7 @@ interface MenuItem {
 
 // A button of the bar that opens a small menu above itself. The menu is drawn outside the
 // bar (a portal on <body>): the bar scrolls sideways on a desktop too narrow for it, and a
-// scrolling box clips anything positioned inside it. It sits above the button, kept inside
+// scrolling box clips anything positioned inside it (or on the dialog the bar is in). It sits above the button, kept inside
 // the window, and follows the button if the bar scrolls or the window resizes.
 function BarMenu({ name, title, menuLabel, className, items, children }: { name: string; title: string; menuLabel: string; className: string; items: MenuItem[]; children: ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -70,6 +70,7 @@ function BarMenu({ name, title, menuLabel, className, items, children }: { name:
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       e.stopPropagation()
+      e.preventDefault() // a dialog the bar is in (the new item's card) stays open
       setOpen(false)
     }
     document.addEventListener('pointerdown', close)
@@ -89,7 +90,8 @@ function BarMenu({ name, title, menuLabel, className, items, children }: { name:
             <button key={it.key} type="button" role="menuitem" className={it.className} title={it.title ?? it.label} disabled={it.disabled} onClick={() => { setOpen(false); it.run() }}>{it.label}</button>
           ))}
         </div>,
-        document.body,
+        // Inside a modal dialog (the new item's card) the page behind is inert and under it.
+        button.current?.closest('dialog') ?? document.body,
       )}
     </span>
   )

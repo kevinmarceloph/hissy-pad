@@ -3,21 +3,22 @@
 // the pad's own store, so each one is an undo step and syncs like any other edit.
 import { buildIndex, childrenOf, dedent, indent, insertAfter, insertAt, isLive, remove, setDone, setSlot, setState, setText, slotCovers, slotKey, slotLabel, slotLines, slotOutline, splitNode, todayKey, type LineState, type NodeRow } from '@hissypad/core';
 
-import { apply, applyAll, usePad } from '../store';
+import { applyAll, usePad } from '../store';
 import { search, type SearchPart } from '../search';
 import { holdEditing, targets } from '../selection';
 
 // The pad's toolbar: put the selected lines (or the one being edited) in an hour, or take
 // them out of theirs with null. Returns how many lines it was asked about.
 export function cmdSetSlot(slot: string | null, ids: readonly string[] = targets()): number {
-  if (ids.length) apply((rows, ctx) => setSlot(rows, ctx, [...ids], slot), { label: 'cmdSetSlot' });
+  // The whole table: the line may not be in the view (a new item's card shows only what is under it).
+  if (ids.length) applyAll((all, ctx) => setSlot(all, ctx, [...ids], slot), { label: 'cmdSetSlot' });
   return ids.length;
 }
 
 // The slot the targets share, null when they have none or differ: what the picker opens on.
 export function targetSlot(ids: readonly string[] = targets()): string | null {
-  const { rows } = usePad.getState();
-  const slots = new Set(ids.map((id) => rows[id]?.slot ?? null));
+  const { all } = usePad.getState();
+  const slots = new Set(ids.map((id) => all[id]?.slot ?? null));
   return slots.size === 1 ? [...slots][0]! : null;
 }
 

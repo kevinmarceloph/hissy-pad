@@ -90,6 +90,7 @@ export {
   fixedPadOf,
   findFixedPad,
   settleFixedPads,
+  scopeNode,
 } from './pads'
 export { parseOutline, insertOutline, toOutline, toOutlineHtml, type OutlineLine, type OutlineFormat } from './paste'
 export { testCtx, pad, shape, idOf } from './testing'

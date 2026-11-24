@@ -21,10 +21,10 @@ interface Ghost { key: number; text: string; dir: SortDir; dx: number; dy: numbe
 
 // A card's fields are one line each: the textarea only wraps. Return closes the field and a
 // pasted line break becomes a space.
-const oneLine = (t: string) => t.replace(/\r?\n/g, ' ')
+export const oneLine = (t: string) => t.replace(/\r?\n/g, ' ')
 
 // A textarea as tall as its text, snapped to whole lines (a line is 25.5px, see CLAUDE.md).
-function AutoText(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function AutoText(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const ref = useRef<HTMLTextAreaElement>(null)
   useLayoutEffect(() => {
     const ta = ref.current

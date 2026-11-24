@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { dismissStorageError, loadPad, resumeEditing, usePad } from '@hissypad/state'
+import { cmdCreateBegin, dismissStorageError, loadPad, resumeEditing, usePad } from '@hissypad/state'
 import { Pad } from '../pad/Pad'
 import { SelectionBar } from '../pad/SelectionBar'
 import { TopBar, type View } from './TopBar'
@@ -7,6 +7,7 @@ import { Account } from './Account'
 import { PullToRefresh } from './PullToRefresh'
 import { FreshStart } from '../pads/FreshStart'
 import { Sort } from '../panels/Sort'
+import { CreateDialog } from '../panels/Create'
 import { CategoryDialog, Hours, SlotDialog } from '../panels/Hours'
 import {
   cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot,
@@ -42,6 +43,11 @@ export function App() {
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
   // The same for "Category…".
   const [categorizing, setCategorizing] = useState<{ value: string | null; count: number } | null>(null)
+  // The new item's card (the + in the top bar). The pad is taken off the page under it: the
+  // card draws the pad's own rows and toolbar for the sub items, and two pads would both
+  // answer the keys.
+  // It holds the undo depth the card opened at.
+  const [creating, setCreating] = useState<number | null>(null)
 
   useEffect(() => {
     void loadPad()
@@ -58,15 +64,16 @@ export function App() {
   return (
     <main className={view === 'fresh' ? 'app is-wide' : view === 'hours' ? 'app is-hours' : 'app'}>
       <PullToRefresh />
-      <TopBar view={view} onView={setView} />
+      <TopBar view={view} onView={setView} onCreate={() => setCreating(cmdCreateBegin())} />
       {storageError && (
         <div className="banner" role="alert">
           <span>{storageError}</span>
           <button type="button" onClick={dismissStorageError} aria-label="Dismiss">×</button>
         </div>
       )}
-      {load === 'loading' ? <p className="hint" aria-busy="true">Opening your pad…</p> : view === 'fresh' ? <FreshStart onClose={() => setView('pad')} /> : view === 'sort' ? <Sort key={padId ?? 'main'} onClose={() => setView('pad')} /> : view === 'hours' ? <Hours /> : <Pad />}
-      {view === 'pad' && <SelectionBar />}
+      {load === 'loading' ? <p className="hint" aria-busy="true">Opening your pad…</p> : view === 'fresh' ? <FreshStart onClose={() => setView('pad')} /> : view === 'sort' ? <Sort key={padId ?? 'main'} onClose={() => setView('pad')} /> : view === 'hours' ? <Hours /> : creating !== null ? null : <Pad />}
+      {view === 'pad' && creating === null && <SelectionBar />}
+      {creating !== null && <CreateDialog depth={creating} onClose={() => setCreating(null)} onOpen={() => { setCreating(null); setView('pad') }} />}
       {picking && (
         <SlotDialog
           value={picking.value}

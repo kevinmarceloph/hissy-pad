@@ -21,7 +21,9 @@ import {
 } from '@hissypad/state/hours'
 import { SearchSheet } from './Search'
 import { PadChips } from './PadChips'
-import { MenuIcon, ModeBar, SearchIcon, type Mode } from './TopIcons'
+import { MenuIcon, ModeBar, PlusIcon, SearchIcon, type Mode } from './TopIcons'
+import { CreateSheet, openCreate, useCreating } from './Create'
+import { useKeyboardHeight } from '../keyboard'
 
 interface Drag {
   ids: string[]
@@ -51,24 +53,6 @@ const NEW_ROW = '\u0000new'
 // A + drag let go this close to where it began adds nothing.
 const ADD_CANCEL = 36
 
-// Keyboard height, so the toolbar can sit right above it (KeyboardAvoidingView was not
-// reliable here).
-function useKeyboardHeight() {
-  const [h, setH] = useState(0)
-  useEffect(() => {
-    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillChangeFrame' : 'keyboardDidShow', (e) => {
-      const screenH = e.endCoordinates.screenY + e.endCoordinates.height
-      setH(Math.max(0, screenH - e.endCoordinates.screenY))
-    })
-    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setH(0))
-    return () => {
-      show.remove()
-      hide.remove()
-    }
-  }, [])
-  return h
-}
-
 export function Pad() {
   const theme = useTheme()
   const kb = useKeyboardHeight()
@@ -79,6 +63,9 @@ export function Pad() {
   const load = usePad((s) => s.load)
   const session = usePad((s) => s.session)
   const padId = usePad((s) => s.padId)
+  // The new item's sheet is up: it draws the pad's rows and toolbar itself (zoomed into the
+  // new line), so this screen draws neither behind it.
+  const creating = useCreating()
   const [refreshing, setRefreshing] = useState(false)
   const [drag, setDrag] = useState<Drag | null>(null)
   const dragRef = useRef<Drag | null>(null)
@@ -375,42 +362,10 @@ export function Pad() {
   const doneCount = Object.values(rows).filter((r) => r.deletedAt === null && r.done).length
   const lone = visible.length === 1 && rows[visible[0]!.id]!.text === ''
 
-  return (
-    <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: mode === 'pad' && kb > 0 ? kb : insets.bottom }]}>
-      <View style={s.top}>
-        <Text style={[s.title, { color: theme.inkSoft }]}>HissyPad</Text>
-        <ModeBar mode={mode} onMode={switchMode} theme={theme} />
-        <View style={s.grow} />
-        <Pressable onPress={() => { stopEditing(); setSheet('search') }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Search every pad"><SearchIcon color={theme.inkSoft} /></Pressable>
-        <Pressable onPress={openMenu} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="More: Done, Archive and Categories"><MenuIcon color={theme.inkSoft} /></Pressable>
-      </View>
-      {/* The pad chips are the pad's only: Sort picks its pad in its own title. */}
-      {mode === 'pad' && <PadChips theme={theme} />}
-      {/* The pad's status line: the toast on the left, Archive x completed flush right. It keeps
-          its height when both are empty, so neither one pushes the pad down when it shows up. */}
-      {mode === 'pad' && (
-        <View style={s.status}>
-          <Text style={[s.statusToast, { color: theme.inkSoft }]} numberOfLines={1} accessibilityLiveRegion="polite">{toast ?? ''}</Text>
-          {doneCount > 0 && (
-            <Pressable onPress={deleteDone} style={s.clear} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="button" accessibilityLabel={`Archive ${doneCount} completed`} accessibilityHint="Archives every crossed-out line in this pad. Shake to undo.">
-              <Text style={[s.clearText, { color: theme.inkMute }]}>Archive {doneCount} completed</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-      <Modal visible={logText !== null} animationType="slide" onRequestClose={() => setLogText(null)}>
-        <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 48 }}>
-          <View style={[s.top, { gap: 16 }]}>
-            <Text style={[s.title, { color: theme.inkSoft }]}>Debug log</Text>
-            <Pressable onPress={() => { clearLog(); setLogText('') }} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Clear</Text></Pressable>
-            <Pressable onPress={() => setLogText(null)} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Close</Text></Pressable>
-          </View>
-          <ScrollView contentContainerStyle={{ padding: 12 }}>
-            <Text selectable style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 10, lineHeight: 14, color: theme.ink }}>{logText}</Text>
-          </ScrollView>
-        </View>
-      </Modal>
-      <TrashSheet visible={sheet === 'trash'} onClose={() => setSheet(null)} theme={theme} />
+  // The hour and category pickers. They are drawn here, or inside the new item's sheet
+  // while it is up, so they open over it.
+  const pickers = (
+    <>
       <Modal visible={picking !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPicking(null)} onDismiss={resumeEditing}>
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
           {picking && (
@@ -453,6 +408,48 @@ export function Pad() {
           )}
         </View>
       </Modal>
+    </>
+  )
+
+  return (
+    <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: mode === 'pad' && kb > 0 ? kb : insets.bottom }]}>
+      <View style={s.top}>
+        <Text style={[s.title, { color: theme.inkSoft }]}>HissyPad</Text>
+        <ModeBar mode={mode} onMode={switchMode} theme={theme} />
+        <View style={s.grow} />
+        <Pressable onPress={() => { stopEditing(); openCreate() }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="New item"><PlusIcon color={theme.inkSoft} /></Pressable>
+        <Pressable onPress={() => { stopEditing(); setSheet('search') }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Search every pad"><SearchIcon color={theme.inkSoft} /></Pressable>
+        <Pressable onPress={openMenu} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="More: Done, Archive and Categories"><MenuIcon color={theme.inkSoft} /></Pressable>
+      </View>
+      {/* The pad chips are the pad's only: Sort picks its pad in its own title. */}
+      {mode === 'pad' && <PadChips theme={theme} />}
+      {/* The pad's status line: the toast on the left, Archive x completed flush right. It keeps
+          its height when both are empty, so neither one pushes the pad down when it shows up. */}
+      {mode === 'pad' && (
+        <View style={s.status}>
+          <Text style={[s.statusToast, { color: theme.inkSoft }]} numberOfLines={1} accessibilityLiveRegion="polite">{toast ?? ''}</Text>
+          {doneCount > 0 && (
+            <Pressable onPress={deleteDone} style={s.clear} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="button" accessibilityLabel={`Archive ${doneCount} completed`} accessibilityHint="Archives every crossed-out line in this pad. Shake to undo.">
+              <Text style={[s.clearText, { color: theme.inkMute }]}>Archive {doneCount} completed</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+      <Modal visible={logText !== null} animationType="slide" onRequestClose={() => setLogText(null)}>
+        <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 48 }}>
+          <View style={[s.top, { gap: 16 }]}>
+            <Text style={[s.title, { color: theme.inkSoft }]}>Debug log</Text>
+            <Pressable onPress={() => { clearLog(); setLogText('') }} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Clear</Text></Pressable>
+            <Pressable onPress={() => setLogText(null)} style={s.topBtn}><Text style={[s.topText, { color: theme.inkSoft }]}>Close</Text></Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 12 }}>
+            <Text selectable style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 10, lineHeight: 14, color: theme.ink }}>{logText}</Text>
+          </ScrollView>
+        </View>
+      </Modal>
+      <TrashSheet visible={sheet === 'trash'} onClose={() => setSheet(null)} theme={theme} />
+      {!creating && pickers}
+      <CreateSheet theme={theme} onOpen={() => setMode('pad')}>{pickers}</CreateSheet>
       <Modal visible={sheet === 'categories'} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSheet(null)}>
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
           {sheet === 'categories' && <CategoriesApp onClose={() => setSheet(null)} />}
@@ -484,7 +481,7 @@ export function Pad() {
             onScrollEndDrag={() => void onPullEnd()}
             refreshControl={session && !PULL_WORDS_OK ? <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={theme.inkMute} colors={[theme.accent]} progressBackgroundColor={theme.paperRaised} /> : undefined}
           >
-            {displayed.map(({ id, depth, preview }) => (
+            {!creating && displayed.map(({ id, depth, preview }) => (
               <Fragment key={id}>
               {id === NEW_ROW ? (
                 <View style={[s.newRow, { marginLeft: depth * INDENT, backgroundColor: theme.accentSoft }]}>
@@ -512,7 +509,7 @@ export function Pad() {
               ))}
               </Fragment>
             ))}
-            {lone && (
+            {lone && !creating && (
               <Text style={[s.hint, { color: theme.inkMute }]}>Type anything. Return for a new line, the toolbar for nesting and crossing out. Press and hold a bullet to drag.</Text>
             )}
             <Pressable style={s.tail} onPress={cmdAppendAtEnd} accessibilityLabel="Add a line at the end" />
@@ -525,7 +522,7 @@ export function Pad() {
               </Animated.View>
             </View>
           )}
-          <FloatingButtons theme={theme} onAdd={() => scroller.current?.scrollTo({ y: 0, animated: true })} addDrag={addDrag} dragging={!!drag?.add} />
+          {!creating && <FloatingButtons theme={theme} onAdd={() => scroller.current?.scrollTo({ y: 0, animated: true })} addDrag={addDrag} dragging={!!drag?.add} />}
           </View>
         </GestureDetector>
       )}
@@ -534,7 +531,7 @@ export function Pad() {
           <Text numberOfLines={1} style={[s.ghostText, { color: theme.ink }]}>{drag.label}</Text>
         </View>
       )}
-      {mode === 'pad' && <Toolbar theme={theme} />}
+      {mode === 'pad' && !creating && <Toolbar theme={theme} />}
     </View>
   )
 }

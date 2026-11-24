@@ -23,12 +23,12 @@ import { useEffect } from 'react'
 import { AppState, Platform } from 'react-native'
 import { ExtensionStorage } from '@bacons/apple-targets'
 import {
-  cmdWidgetActions, loadSortTargets, log, openPad, usePad, useSort, watchHandoffDue, watchSignedIn, widgetPadName,
+  cmdWidgetActions, loadSortTargets, log, openPad, usePad, useSort, watchHandoffDue, watchSignedIn,
   widgetSnapshot, WIDGET_MAIN,
   type WidgetAction,
 } from '@hissypad/state'
 import { supabase } from './supabase'
-import { openAddSheet } from './ui/AddSheet'
+import { openCreate } from './ui/Create'
 
 export const APP_GROUP = 'group.ph.marcelo.hissypad'
 const SNAPSHOT_KEY = 'widget.snapshot'
@@ -167,12 +167,11 @@ export function handleWidgetUrl(url: string): boolean {
   const key = /[?&]pad=([^&#]+)/.exec(url)?.[1]
   const pad = key ? decodeURIComponent(key) : WIDGET_MAIN
   const all = usePad.getState().all
-  const name = widgetPadName(pad, all)
   if (m[1] === 'pad') {
     openPad(pad === WIDGET_MAIN || !all[pad] ? null : pad)
     return true
   }
-  openAddSheet(pad, name)
+  openCreate(pad)
   return true
 }
 

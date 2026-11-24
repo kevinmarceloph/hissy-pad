@@ -9,7 +9,7 @@ import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
 import { PadTabs } from '../pads/PadTabs'
 import { showToast, useToast } from './toast'
 import { MOD } from '../platform/os'
-import { HoursIcon, MenuIcon, PadIcon, SearchIcon, SortIcon } from './icons'
+import { HoursIcon, MenuIcon, PadIcon, PlusIcon, SearchIcon, SortIcon } from './icons'
 
 type Theme = 'system' | 'light' | 'dark'
 export type View = 'pad' | 'fresh' | 'sort' | 'hours'
@@ -34,7 +34,8 @@ const MODES: { view: 'pad' | 'hours' | 'sort'; label: string; title: string; ico
   { view: 'sort', label: 'Sort', title: 'Sort: one line of the open pad at a time. Left for later, right for today, up for done, down to archive', icon: SortIcon },
 ]
 
-export function TopBar({ view, onView }: { view: View; onView: (view: View) => void }) {
+// `onCreate` opens the new item's card (the + beside Search).
+export function TopBar({ view, onView, onCreate }: { view: View; onView: (view: View) => void; onCreate: () => void }) {
   const rows = usePad((s) => s.rows)
   const [theme, setTheme] = useState<Theme>(readTheme)
   const toast = useToast((s) => s.text)
@@ -118,7 +119,10 @@ export function TopBar({ view, onView }: { view: View; onView: (view: View) => v
           </button>
         ))}
       </div>
-      <nav className="tools" aria-label="Search and more">
+      <nav className="tools" aria-label="New item, search and more">
+        <button type="button" className="icon" aria-label="New item" title="A new item: its words, its pad, its hour and its sub items" onClick={onCreate}>
+          <PlusIcon />
+        </button>
         <button type="button" className="icon" aria-label="Search" title={`Find a line in any pad (${MOD}+K)`} onClick={() => searchDialog.current?.showModal()}>
           <SearchIcon />
         </button>

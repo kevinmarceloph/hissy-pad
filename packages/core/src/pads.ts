@@ -112,6 +112,24 @@ export function scopePad(all: Rows, padId: PadId): Rows {
   return out
 }
 
+// The live rows under any one line as a pad of their own, its children lifted to the root:
+// the store's zoom (the card of a new item edits its sub items this way). The line itself
+// is left out, as a pad's row is.
+export function scopeNode(all: Rows, id: string): Rows {
+  const index = buildIndex(all)
+  const out: Record<string, NodeRow> = {}
+  if (!isLive(all[id])) return out
+  for (const r of childrenOf(index, id)) {
+    out[r.id] = lift(r)
+    for (const d of descendantIds(index, r.id)) {
+      const row = all[d]!
+      const p = index.parentOf.get(d) ?? null
+      out[d] = row.parentId === p ? row : { ...row, parentId: p }
+    }
+  }
+  return out
+}
+
 // A changed scoped row back in table terms: a root row of pad P has parentId P.
 export function unscopeRow(r: NodeRow, padId: PadId): NodeRow {
   return padId !== null && r.parentId === null ? { ...r, parentId: padId } : r
