@@ -22,19 +22,19 @@ describe('sort', () => {
     Element.prototype.scrollIntoView = () => {}
   })
 
-  it('down deletes the card: the arrow key or the Delete button sends it to the Archive, Back restores it', async () => {
+  it('down deletes the card: the arrow key or the Archive button sends it to the Archive, Back restores it', async () => {
     const user = userEvent.setup()
     await mount('A\nB\nC')
     await user.click(button('Sort'))
     await user.keyboard('{ArrowDown}')
     expect(card().value).toBe('B')
     expect(whole()).toBe('B\nC')
-    await user.click(button('Down: delete'))
+    await user.click(button('Down: archive'))
     expect(whole()).toBe('C')
     await user.click(button('Back'))
     expect(card().value).toBe('B')
     await user.keyboard('{ArrowDown}{ArrowDown}')
-    expect(screen.getByText('3 deleted')).toBeInTheDocument()
+    expect(screen.getByText('3 archived')).toBeInTheDocument()
   })
 
   it('arrow keys and buttons send cards left, right and up; Back takes one back; the end shows a tally', async () => {

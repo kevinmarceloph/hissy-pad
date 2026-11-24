@@ -50,7 +50,7 @@ export type LineActionGroup = 'mark' | 'add' | 'move' | 'tree' | 'clip' | 'pad' 
 
 // The icons the toolbars draw. 'move' is also the Sort mode's icon in the top bar, and the
 // "Move to…" menu's button.
-export type LineIcon = 'addAbove' | 'addBelow' | 'top' | 'fold' | 'unfold' | 'copy' | 'cut' | 'pasteAbove' | 'pasteBelow' | 'move' | 'delete' | 'more'
+export type LineIcon = 'addAbove' | 'addBelow' | 'top' | 'fold' | 'unfold' | 'copy' | 'cut' | 'pasteAbove' | 'pasteBelow' | 'move' | 'archive' | 'more'
 
 export interface LineAction {
   id: string
@@ -111,7 +111,7 @@ export const LINE_ACTIONS: readonly LineAction[] = [
       return res ? `“${res.name}” is a pad now.` : undefined
     },
   },
-  { id: 'delete', group: 'remove', label: 'Delete', name: 'Delete', hint: 'Delete', icon: 'delete', keys: 'Backspace', danger: true, run: cmdDeleteSelection },
+  { id: 'delete', group: 'remove', label: 'Archive', name: 'Archive', hint: 'Archive (undo brings it back)', icon: 'archive', keys: 'Backspace', danger: true, run: cmdDeleteSelection },
 ]
 
 // The three line types, for the switcher both toolbars draw.

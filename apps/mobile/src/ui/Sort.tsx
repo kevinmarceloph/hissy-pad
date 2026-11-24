@@ -183,7 +183,7 @@ export function SortView({ theme }: { theme: Theme }) {
               {stamp(left.name, stampLeft, s.stampLeft)}
               {stamp(right.name, stampRight, s.stampRight)}
               {stamp('Done', stampUp, s.stampUp)}
-              {stamp('Delete', stampDown, s.stampDown)}
+              {stamp('Archive', stampDown, s.stampDown)}
               <View style={s.top}>
                 <Text style={[s.count, { color: theme.inkMute }]}>{progress.at} of {progress.total}</Text>
                 {row.slot && <Text style={[s.slot, { color: theme.inkSoft, borderColor: theme.rule }]}>{slotLabel(row.slot, todayKey())}</Text>}
@@ -264,7 +264,7 @@ export function SortView({ theme }: { theme: Theme }) {
           {action(`${right.name} →`, `Right: ${right.name}`, () => send('right'), !id)}
         </View>
         <View style={[s.actions, s.actionsDown]}>
-          {action('↓ Delete', 'Down: delete', () => send('down'), !id)}
+          {action('↓ Archive', 'Down: archive', () => send('down'), !id)}
         </View>
         <View style={s.minor}>
           <Pressable onPress={back} disabled={sent.length === 0} accessibilityRole="button" style={s.minorBtn}>

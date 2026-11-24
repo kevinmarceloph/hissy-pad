@@ -30,7 +30,8 @@ const LINE_ICONS: Record<LineIconId, ReactNode> = {
   pasteBelow: <Icon d="M7.5 4H5.5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1h-2M10 9v5M7.5 12l2.5 2.5 2.5-2.5"><rect x="7.5" y="2.5" width="5" height="3" rx="0.5" /></Icon>,
   // An arrow into a tray: put it somewhere. Also the Sort mode.
   move: <Icon d="M3 11v4.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V11M10 3v9M6.5 8.5L10 12l3.5-3.5" />,
-  delete: <Icon d="M3.5 5.5h13M8 5.5v-2h4v2M5.5 5.5l.7 10.1a1 1 0 0 0 1 .9h5.6a1 1 0 0 0 1-.9l.7-10.1M8.5 9v4.5M11.5 9v4.5" />,
+  // A box with a lid: put it away (the Archive).
+  archive: <Icon d="M3 4.5h14v3H3zM4.5 7.5v8a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-8M8 10.5h4" />,
   more: <svg viewBox="0 0 20 20" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="4.5" cy="10" r="1.4" /><circle cx="10" cy="10" r="1.4" /><circle cx="15.5" cy="10" r="1.4" /></svg>,
 }
 

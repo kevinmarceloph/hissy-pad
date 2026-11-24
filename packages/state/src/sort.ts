@@ -286,7 +286,7 @@ export function sortSessionProgress(session: SortSession, rows: Rows = usePad.ge
   return { at: total - left + 1, total, left }
 }
 
-// "2 to Today, 1 done, 1 to Later, 1 to Someday, 1 deleted, 1 skipped", for the end of a
+// "2 to Today, 1 done, 1 to Later, 1 to Someday, 1 archived, 1 skipped", for the end of a
 // sort. Sends are counted by the pad each went to, since the left target can change
 // mid-sort. Cycles are not counted: a cycled card comes round again.
 export function sortSummary(session: SortSession): string {
@@ -300,7 +300,7 @@ export function sortSummary(session: SortSession): string {
     ...byPad('right'),
     n('up') && `${n('up')} done`,
     ...byPad('left'),
-    n('down') && `${n('down')} deleted`,
+    n('down') && `${n('down')} archived`,
     n('skip') && `${n('skip')} skipped`,
   ].filter(Boolean).join(', ')
 }

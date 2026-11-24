@@ -237,7 +237,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
       <header className="sort-head">
         <div>
           <h2 id="sort-title">Sort {padName(all, padId)}</h2>
-          <p>{id ? `${progress.left} to go. Swipe the card, or use the arrow keys.` : 'One line at a time: later, today, already done, or delete.'}</p>
+          <p>{id ? `${progress.left} to go. Swipe the card, or use the arrow keys.` : 'One line at a time: later, today, already done, or archive.'}</p>
         </div>
       </header>
 
@@ -267,7 +267,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
             <span className="stamp stamp-left" style={{ opacity: pull('left') }} aria-hidden="true">{left.name}</span>
             <span className="stamp stamp-right" style={{ opacity: pull('right') }} aria-hidden="true">{right.name}</span>
             <span className="stamp stamp-up" style={{ opacity: pull('up') }} aria-hidden="true">Done</span>
-            <span className="stamp stamp-down" style={{ opacity: pull('down') }} aria-hidden="true">Delete</span>
+            <span className="stamp stamp-down" style={{ opacity: pull('down') }} aria-hidden="true">Archive</span>
             <div className="sort-top">
               <p className="sort-count">{progress.at} of {progress.total}</p>
               {row.slot && <span className="slot" title="The hour this line is in">{slotLabel(row.slot, todayKey())}</span>}
@@ -329,7 +329,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
         <button type="button" onClick={() => send('right')} disabled={!id} aria-label={`Right: ${right.name}`}>{right.name} <kbd>→</kbd></button>
       </div>
       <div className="sort-actions sort-down">
-        <button type="button" onClick={() => send('down')} disabled={!id} aria-label="Down: delete"><kbd>↓</kbd> Delete</button>
+        <button type="button" onClick={() => send('down')} disabled={!id} aria-label="Down: archive"><kbd>↓</kbd> Archive</button>
       </div>
       <div className="sort-minor">
         <button type="button" onClick={back} disabled={sent.length === 0}>Back</button>

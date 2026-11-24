@@ -77,7 +77,7 @@ test('at phone width the toolbar does not scroll, and the floating buttons are t
   const bar = page.getByRole('toolbar', { name: 'Selected lines' })
   const view = page.viewportSize()!
   expect(await bar.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
-  for (const name of ['Outdent', 'Move to top', 'Add a line below', 'Fold', 'Copy', 'Cut', 'Paste above', 'Paste below', 'More actions', 'Delete']) {
+  for (const name of ['Outdent', 'Move to top', 'Add a line below', 'Fold', 'Copy', 'Cut', 'Paste above', 'Paste below', 'More actions', 'Archive']) {
     const box = (await bar.getByRole('button', { name, exact: true }).boundingBox())!
     expect(box.x).toBeGreaterThanOrEqual(0)
     expect(box.x + box.width).toBeLessThanOrEqual(view.width)

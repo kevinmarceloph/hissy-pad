@@ -142,7 +142,7 @@ describe('sort', () => {
     expect(all()[a]!.deletedAt).not.toBeNull()
     expect(session.sent.at(-1)).toMatchObject({ dir: 'down', moved: false })
     expect(listPads(all())).toHaveLength(0) // no pad is made for a delete
-    expect(sortSummary(session)).toBe('1 deleted')
+    expect(sortSummary(session)).toBe('1 archived')
     session = sortSessionBack(session)
     expect(all()[a]!.deletedAt).toBeNull()
     expect(sortSessionCard(session).id).toBe(a)

@@ -263,13 +263,13 @@ describe('toolbar iteration', () => {
     expect(texts()).toBe('a\na1\na2\nb')
   })
 
-  it('toolbar Done and Delete act on the line being edited', async () => {
+  it('toolbar Done and Archive act on the line being edited', async () => {
     const user = userEvent.setup()
     await mount('x\ny')
     await startEditing('x')
     await user.click(screen.getByRole('button', { name: 'Done' }))
     expect(texts()).toBe('~x\ny')
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Archive' }))
     expect(texts()).toBe('y')
   })
 
@@ -357,7 +357,7 @@ describe('Archive and Done panels', () => {
     await mount('a\nb\n  b1\nc')
     await startEditing('b')
     const bar = screen.getByRole('toolbar', { name: 'Current line' })
-    for (const name of ['Add a line above', 'Add a line below', 'Outdent', 'Indent', 'Move down', 'Move up', 'Move to top', 'Fold', 'Copy', 'Cut', 'Paste above', 'Paste below', 'Delete']) {
+    for (const name of ['Add a line above', 'Add a line below', 'Outdent', 'Indent', 'Move down', 'Move up', 'Move to top', 'Fold', 'Copy', 'Cut', 'Paste above', 'Paste below', 'Archive']) {
       expect(within(bar).getByRole('button', { name })).toBeInTheDocument()
     }
     await user.click(within(bar).getByRole('button', { name: 'Fold' }))

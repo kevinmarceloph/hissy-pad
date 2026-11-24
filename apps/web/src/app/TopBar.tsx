@@ -30,7 +30,7 @@ export function applyTheme(t: Theme) {
 const MODES: { view: 'pad' | 'hours' | 'sort'; label: string; title: string; icon: () => ReactNode }[] = [
   { view: 'hours', label: 'Hours', title: 'Hours: the day, one row per hour, with what each was for, what happened, and the lines you put in it', icon: HoursIcon },
   { view: 'pad', label: 'Pad', title: 'Pad: the outline', icon: PadIcon },
-  { view: 'sort', label: 'Sort', title: 'Sort: one line of the open pad at a time. Left for later, right for today, up for done, down to delete', icon: SortIcon },
+  { view: 'sort', label: 'Sort', title: 'Sort: one line of the open pad at a time. Left for later, right for today, up for done, down to archive', icon: SortIcon },
 ]
 
 export function TopBar({ view, onView }: { view: View; onView: (view: View) => void }) {

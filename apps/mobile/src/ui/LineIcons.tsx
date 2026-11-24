@@ -92,14 +92,13 @@ export function LineIcon({ icon, color, ground }: { icon: LineIconId; color: str
         </>
       )
       break
-    case 'delete':
+    // A box with a lid: put it away (the Archive).
+    case 'archive':
       body = (
         <>
-          <H x={3.5} y={5.5} len={13} color={color} />
-          <View style={{ position: 'absolute', left: 8, top: 3, width: 4, height: 2.5, borderWidth: W, borderBottomWidth: 0, borderTopLeftRadius: 1, borderTopRightRadius: 1, borderColor: color }} />
-          <View style={{ position: 'absolute', left: 5.5, top: 5.5, width: 9, height: 11.5, borderWidth: W, borderTopWidth: 0, borderBottomLeftRadius: 1.5, borderBottomRightRadius: 1.5, borderColor: color }} />
-          <V x={8.5} y={8.5} len={5} color={color} />
-          <V x={11.5} y={8.5} len={5} color={color} />
+          <View style={{ position: 'absolute', left: 3, top: 4.5, width: 14, height: 3, borderWidth: W, borderRadius: 1, borderColor: color }} />
+          <View style={{ position: 'absolute', left: 4.5, top: 7.5, width: 11, height: 9, borderWidth: W, borderTopWidth: 0, borderBottomLeftRadius: 1.5, borderBottomRightRadius: 1.5, borderColor: color }} />
+          <H x={8} y={10.5} len={4} color={color} />
         </>
       )
       break
