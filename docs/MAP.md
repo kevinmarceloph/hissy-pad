@@ -33,7 +33,7 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | `types.ts` | `NodeRow` (one row of the `nodes` table), `normalizeRow` for rows from an older build, `ROW_KEYS` and `sameRow`, `kindOf` |
 | `tree.ts` | the tree derived from `parentId` + `rank`: `buildIndex`, `childrenOf`, `flatten`, `descendantIds`, `topmost`, list numbers, and the counting rule (`isBlank`, `countLines`: a blank line is never counted), and where the line of space under each header's group goes (`headerGaps`) |
 | `rank.ts` | fractional ranks: a rank between two others, re-ranking a run |
-| `ops.ts` | every edit to lines: insert, split, set text, done, the three states (open, doing, done: `setState`, `statesOf`, `cycleState`), kind, fold, remove, restore, move, move to top, indent, dedent, ungroup, split off open (`splitOpen`: a copy below takes the open sub items), merge, delete done |
+| `ops.ts` | every edit to lines: insert, split, set text, done, the three states (open, doing, done: `setState`, `sharedState`), kind, fold, remove, restore, move, move to top, indent, dedent, ungroup, split off open (`splitOpen`: a copy below takes the open sub items), merge, delete done |
 | `inline.ts` | inline marks drawn from the text, never stored: `inlineSpans` (bold, italic, underline, strikethrough, highlight, code, backslash escapes, symbols kept) and the shared `URL_RE` |
 | `pads.ts` | several pads in one table: the scoped view (`scopePad`), create, reorder (`movePad`), move lines across, line to pad, pad to line, the open lines and count of a pad (`padLines`, `padCounts`), sub-pads and places (`isSubPad`, `listSubPads`, `Place`, `moveToPlace`), the fixed tabs (`FIXED_PADS`: Today and Later are pad rows, `findFixedPad`; Inbox is the root; `settleFixedPads` keeps them so), Fresh start |
 | `drop.ts` | `resolveDrop`: where a dragged line lands, from pointer position and row layout |
@@ -120,7 +120,7 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 | `src/ui/LineIcons.tsx` | the line toolbar's icons, drawn with Views: the same set as the web's `icons.tsx`, change both together |
 | `src/ui/Row.tsx` | one line |
 | `src/ui/Toolbar.tsx` | the line toolbar above the keyboard, drawn from `LINE_ACTIONS` as two rows (no sideways scroll); the tray icon lists the pads to move to, the three dots the actions marked `more` |
-| `src/ui/FloatingButtons.tsx` | the round buttons at the bottom right: + when nothing is targeted (tap for a line at the top, drag it onto the pad for a line where it is dropped; the drag itself is `addDrag` in `Pad.tsx`); while editing or selecting, Hour… and Category… (the actions marked `floats`), a three-sided switch (• open, a dot in a ring for doing, × crossed out) and a chevron (done editing) |
+| `src/ui/FloatingButtons.tsx` | the round buttons at the bottom right: + when nothing is targeted (tap for a line at the top, drag it onto the pad for a line where it is dropped; the drag itself is `addDrag` in `Pad.tsx`); while editing or selecting, Hour… and Category… (the actions marked `floats`), a switch of three sides, each a button for its state (• open, a dot in a ring for doing, × crossed out) and a chevron (done editing) |
 | `src/ui/PadChips.tsx` | the pads as chips, with rename, reorder and delete |
 | `src/ui/Lists.tsx` | Archive and Recently done sheets |
 | `src/ui/Search.tsx` | the Search sheet |

@@ -87,11 +87,11 @@ test('at phone width the toolbar does not scroll, and the floating buttons are t
   }
   // Done floats as a switch with three sides, not a button on the bar.
   await expect(bar.getByRole('button', { name: 'Done', exact: true })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Line state: Open' }).click()
+  await page.getByRole('radio', { name: 'Doing' }).click()
   await expect(page.locator('.row.is-doing')).toHaveCount(1)
-  await page.getByRole('button', { name: 'Line state: Doing' }).click()
+  await page.getByRole('radio', { name: 'Done' }).click()
   await expect(page.locator('.row.is-done')).toHaveCount(2)
-  await page.getByRole('button', { name: 'Line state: Done' }).click()
+  await page.getByRole('radio', { name: 'Open' }).click()
   await page.getByRole('button', { name: 'Clear selection', exact: true }).click()
   await expect(bar).toHaveCount(0)
   await expect(add).toBeVisible()
@@ -131,11 +131,11 @@ test('on a desktop the floating buttons sit above the bar, on screen', async ({ 
   await page.getByRole('button', { name: 'Select line' }).first().click()
   const bar = (await page.getByRole('toolbar', { name: 'Selected lines' }).boundingBox())!
   const view = page.viewportSize()!
-  for (const name of ['Put in an hour', 'Give a category', 'Line state: Open', 'Clear selection']) {
-    const box = (await page.getByRole('button', { name, exact: true }).boundingBox())!
+  for (const el of [...['Put in an hour', 'Give a category', 'Clear selection'].map((name) => page.getByRole('button', { name, exact: true })), page.getByRole('radiogroup', { name: 'Line state' })]) {
+    const box = (await el.boundingBox())!
     expect(box.y + box.height).toBeLessThanOrEqual(bar.y)
     expect(box.x + box.width).toBeLessThanOrEqual(Math.min(view.width, bar.x + bar.width + 1))
   }
-  await page.getByRole('button', { name: 'Line state: Open' }).click()
+  await page.getByRole('radio', { name: 'Doing' }).click()
   await expect(page.locator('.row.is-doing')).toHaveCount(1)
 })

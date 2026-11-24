@@ -3,7 +3,7 @@
 // selection goes afterwards.
 import {
   buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, moveToTop, remove, removeDone, ungroup, splitOpen,
-  setKind, setText as setTextOp, splitNode, toggleDone, cycleState, toggleNumbered, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
+  setKind, setText as setTextOp, splitNode, toggleDone, setState, toggleNumbered, type LineState, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
 // dialog fallback; mobile: expo-clipboard). `html` is the same outline as nested lists,
@@ -197,10 +197,10 @@ export function cmdToggleDone() {
   if (ids.length) apply((rows, ctx) => toggleDone(rows, ctx, ids), { label: 'cmdToggleDone' })
 }
 
-// The floating switch: open, doing, done, open again (see cycleState).
-export function cmdCycleState() {
+// The floating switch: each side puts the lines in its state (open, doing, done).
+export function cmdSetState(state: LineState) {
   const ids = targets()
-  if (ids.length) apply((rows, ctx) => cycleState(rows, ctx, ids), { label: 'cmdCycleState' })
+  if (ids.length) apply((rows, ctx) => setState(rows, ctx, ids, state), { label: 'cmdSetState' })
 }
 
 // Fold or unfold. With every target that has lines under it already folded, they all

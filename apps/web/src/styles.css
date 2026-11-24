@@ -500,16 +500,17 @@ dialog.categories-dialog[open] { height: min(44rem, calc(100dvh - 3rem)); displa
 }
 .fab .round { width: 44px; padding: 0; }
 .fab .switch { width: 120px; padding: 3px; gap: 2px; }
-.fab .switch span { flex: 1; align-self: stretch; display: grid; place-items: center; border-radius: 19px; border: 1px solid transparent; font-size: 1.4rem; line-height: 1; color: var(--ink-mute); }
-.fab .switch span.on { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
-.fab .switch span.s-done.on { color: var(--accent); }
+.fab .switch button { flex: 1; align-self: stretch; display: grid; place-items: center; border-radius: 19px; border: 1px solid transparent; font-size: 1.4rem; line-height: 1; color: var(--ink-mute); }
+.fab .switch button:hover:not(.on) { color: var(--ink); background: var(--accent-faint); }
+.fab .switch button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+.fab .switch button.s-done.on { color: var(--accent); }
 /* Doing: a dot inside a ring, drawn so it does not depend on a font. */
 .fab .switch .s-doing::before {
   content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor;
   outline: 1.5px solid currentColor; outline-offset: 3px;
 }
 .fab .chevron { width: 11px; height: 11px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-3px) rotate(45deg); }
-.fab button:hover { border-color: var(--accent); }
+.fab .round:hover { border-color: var(--accent); }
 .fab button:focus-visible, .fab-add:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Where a dragged + would open its line. */
 .new-row {

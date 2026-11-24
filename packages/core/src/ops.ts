@@ -139,19 +139,11 @@ export function setState(rows: Rows, ctx: OpCtx, ids: Iterable<string>, state: L
   return out
 }
 
-// What a set of lines reads as: their state when they all share one, else the earliest of
-// theirs (open before doing before done), so a mixed set steps forward together.
-export function statesOf(rows: Rows, ids: Iterable<string>): LineState {
+// The state a set of lines shares, or null when they differ (or there are none): the
+// floating switch lights that side, and no side for a mixed set.
+export function sharedState(rows: Rows, ids: Iterable<string>): LineState | null {
   const seen = new Set([...ids].filter((id) => isLive(rows[id])).map((id) => stateOf(rows[id]!)))
-  return seen.has('open') || seen.size === 0 ? 'open' : seen.has('doing') ? 'doing' : 'done'
-}
-
-const NEXT_STATE: Record<LineState, LineState> = { open: 'doing', doing: 'done', done: 'open' }
-
-// The floating switch: open, then doing, then done, then open again.
-export function cycleState(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
-  const list = [...ids]
-  return setState(rows, ctx, list, NEXT_STATE[statesOf(rows, list)])
+  return seen.size === 1 ? [...seen][0]! : null
 }
 
 // Give lines one of Hours' categories (its id), or take theirs away with null.

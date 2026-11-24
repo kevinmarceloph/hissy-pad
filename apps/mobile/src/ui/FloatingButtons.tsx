@@ -1,15 +1,15 @@
 // The round buttons floating at the bottom right of the pad, above the toolbar and the
 // keyboard. While editing, Hour… and Category… (LINE_ACTIONS marked `floats`) come first. With nothing targeted: + adds a line at the top when tapped, or where it is
 // dropped when dragged onto the pad (like the + in Things). While a line is being edited
-// (or lines are selected): a three-sided switch steps it open, doing, done (• for open, a
-// dot in a ring for doing, × for crossed out; the side the line is on is filled), and a
+// (or lines are selected): a switch of three sides, each a button that puts it in that state
+// (• open, a dot in a ring for doing, × crossed out; the side the line is on is filled), and a
 // chevron ends editing and puts the keyboard away (or clears the selection).
 import { useMemo } from 'react'
 import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
-import { statesOf, type LineState } from '@hissypad/core'
-import { clearSelection, cmdAddAtTop, cmdCycleState, stopEditing, usePad, LINE_ACTIONS } from '@hissypad/state'
+import { sharedState, type LineState } from '@hissypad/core'
+import { clearSelection, cmdAddAtTop, cmdSetState, stopEditing, usePad, LINE_ACTIONS } from '@hissypad/state'
 import { LineIcon } from './LineIcons'
 import { serif, type Theme } from '../theme'
 
@@ -81,7 +81,7 @@ export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Th
     )
   }
 
-  const state = statesOf(rows, targets)
+  const state = sharedState(rows, targets)
   const finish = () => {
     if (selection.length > 0) clearSelection()
     stopEditing()
@@ -98,24 +98,25 @@ export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Th
           <LineIcon icon={a.icon!} color={theme.ink} ground={theme.paperRaised} />
         </Round>
       ))}
-      {/* A switch with three sides: • (open), a dot in a ring (doing), × (crossed out). The
-          side the line is on is filled; a tap anywhere on it steps to the next. */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Line state: ${STATE_NAME[state]}`}
-        accessibilityHint={`Marks it ${STATE_NAME[NEXT[state]].toLowerCase()}`}
-        hitSlop={6}
-        onPress={() => {
-          void Haptics.selectionAsync().catch(() => {})
-          cmdCycleState()
-        }}
-        style={[s.round, s.switch, { backgroundColor: theme.paperRaised, borderColor: theme.rule }]}
-      >
+      {/* Three sides, each its own button: • (open), a dot in a ring (doing), × (crossed
+          out). The side the lines are on is filled; none for a mixed set. */}
+      <View accessibilityRole="radiogroup" accessibilityLabel="Line state" style={[s.round, s.switch, { backgroundColor: theme.paperRaised, borderColor: theme.rule }]}>
         {SIDES.map((side) => {
           const on = side === state
           const ink = on ? (side === 'done' ? theme.accent : theme.ink) : theme.inkMute
           return (
-            <View key={side} style={[s.side, on && { backgroundColor: theme.accentSoft, borderColor: theme.accent }]}>
+            <Pressable
+              key={side}
+              accessibilityRole="radio"
+              accessibilityLabel={STATE_NAME[side]}
+              accessibilityState={{ checked: on }}
+              hitSlop={{ top: 6, bottom: 6 }}
+              onPress={() => {
+                void Haptics.selectionAsync().catch(() => {})
+                cmdSetState(side)
+              }}
+              style={({ pressed }) => [s.side, on && { backgroundColor: theme.accentSoft, borderColor: theme.accent }, pressed && !on && { backgroundColor: theme.accentFaint }]}
+            >
               {side === 'open' ? (
                 <Text style={[s.glyph, s.mark, { color: ink }]}>•</Text>
               ) : side === 'doing' ? (
@@ -123,10 +124,10 @@ export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Th
               ) : (
                 <Text style={[s.glyph, s.mark, { color: ink }]}>×</Text>
               )}
-            </View>
+            </Pressable>
           )
         })}
-      </Pressable>
+      </View>
       <Round theme={theme} label={selection.length > 0 ? 'Clear selection' : 'Done editing'} onPress={finish}>
         {/* A chevron pointing down, drawn so it does not depend on a font having the glyph. */}
         <View style={[s.chevron, { borderColor: theme.ink }]} />
@@ -138,7 +139,6 @@ export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Th
 const FLOATING = LINE_ACTIONS.filter((a) => a.floats && a.icon)
 const SIDES: LineState[] = ['open', 'doing', 'done']
 const STATE_NAME: Record<LineState, string> = { open: 'Open', doing: 'Doing', done: 'Done' }
-const NEXT: Record<LineState, LineState> = { open: 'doing', doing: 'done', done: 'open' }
 
 const s = StyleSheet.create({
   wrap: { position: 'absolute', bottom: 12, right: 12, zIndex: 5, flexDirection: 'row', gap: 10 },

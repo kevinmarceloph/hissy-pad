@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   dedent, indent, insertAfter, insertAtTop, insertBefore, mergeIntoPrev, moveNodes, moveSibling, moveToTop,
   remove, removeDone, setCollapsed, setDone, setKind, setNumbered, setText, splitNode, sweepDone, toggleDone, toggleNumbered, ungroup, splitOpen,
-  cycleState, setState, statesOf,
+  setState, sharedState,
 } from './ops'
 import { idOf, pad, shape, testCtx } from './testing'
 import type { Rows } from './types'
@@ -81,29 +81,29 @@ describe('text, done, collapse', () => {
     expect(shape(rows)).toBe('A\n~B\n  B1\n  B2\nC')
   })
 
-  it('cycleState steps a line open, doing, done and open again', () => {
+  it('setState puts lines straight into any of the three states', () => {
     const ctx = testCtx()
     let rows = pad(OUTLINE, ctx)
     const a = idOf(rows, 'A')
-    rows = cycleState(rows, ctx, [a])
-    expect(rows[a]).toMatchObject({ done: false, doing: true })
-    rows = cycleState(rows, ctx, [a])
+    rows = setState(rows, ctx, [a], 'done')
     expect(rows[a]).toMatchObject({ done: true, doing: false })
     expect(rows[a]!.doneAt).not.toBeNull()
-    rows = cycleState(rows, ctx, [a])
-    expect(rows[a]).toMatchObject({ done: false, doing: false, doneAt: null })
+    rows = setState(rows, ctx, [a], 'doing')
+    expect(rows[a]).toMatchObject({ done: false, doing: true, doneAt: null })
+    rows = setState(rows, ctx, [a], 'open')
+    expect(rows[a]).toMatchObject({ done: false, doing: false })
   })
 
-  it('a mixed set reads as its earliest state and steps forward together', () => {
+  it('sharedState is the state every line has, or null for a mixed set', () => {
     const ctx = testCtx()
     let rows = pad(OUTLINE, ctx)
     const [a, c] = [idOf(rows, 'A'), idOf(rows, 'C')]
+    expect(sharedState(rows, [a, c])).toBe('open')
     rows = setState(rows, ctx, [a], 'doing')
-    rows = setState(rows, ctx, [c], 'done')
-    expect(statesOf(rows, [a, c])).toBe('doing')
-    rows = cycleState(rows, ctx, [a, c])
-    expect(statesOf(rows, [a, c])).toBe('done')
-    expect(statesOf(rows, [a, idOf(rows, 'B')])).toBe('open')
+    expect(sharedState(rows, [a, c])).toBeNull()
+    rows = setState(rows, ctx, [a, c], 'done')
+    expect(sharedState(rows, [a, c])).toBe('done')
+    expect(sharedState(rows, [])).toBeNull()
   })
 
   it('crossing out a doing line clears doing, and setState leaves an unchanged line alone', () => {

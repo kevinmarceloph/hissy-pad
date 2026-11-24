@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { kindOf, statesOf, type LineState } from '@hissypad/core'
+import { kindOf, sharedState, type LineState } from '@hissypad/core'
 import {
-  actionFace, clearSelection, cmdCycleState, cmdMoveTo, countOf, cmdSetKind, lineAbilities, lineCount, placeList, stopEditing, usePad, type PlaceItem,
+  actionFace, clearSelection, cmdMoveTo, cmdSetState, countOf, cmdSetKind, lineAbilities, lineCount, placeList, stopEditing, usePad, type PlaceItem,
   LINE_ACTIONS, LINE_KINDS, type LineAction, type LineActionGroup,
 } from '@hissypad/state'
 import { showToast } from '../app/toast'
@@ -12,7 +12,7 @@ import { MOD, shortcut } from '../platform/os'
 const FLOATING = LINE_ACTIONS.filter((a) => a.floats && a.icon)
 const SIDES: LineState[] = ['open', 'doing', 'done']
 const STATE_NAME: Record<LineState, string> = { open: 'Open', doing: 'Doing', done: 'Done' }
-const NEXT: Record<LineState, LineState> = { open: 'doing', doing: 'done', done: 'open' }
+const GLYPH: Record<LineState, string> = { open: '•', doing: '', done: '×' }
 
 // A rule is drawn before the first button of these groups.
 const RULE_BEFORE: ReadonlySet<LineActionGroup> = new Set(['add', 'move', 'tree', 'clip', 'pad', 'remove'])
@@ -158,7 +158,7 @@ export function SelectionBar() {
   const current = first ? kindOf(first) : 'plain'
   const counted = countOf(selection, rows)
   const label = n === 0 ? 'Editing' : counted > 0 ? lineCount(counted) : n === 1 ? 'Blank line' : 'Blank lines'
-  const state = statesOf(rows, ids)
+  const state = sharedState(rows, ids)
   const close = () => {
     if (n > 0) clearSelection()
     else {
@@ -209,20 +209,24 @@ export function SelectionBar() {
             <LineIcon icon={a.icon!} />
           </button>
         ))}
-        {/* A switch with three sides: • (open), a dot in a ring (doing), × (crossed out); the
-            side the line is on is filled, and a click steps to the next. */}
-        <button
-          type="button"
-          className="switch"
-          data-state={state}
-          aria-label={`Line state: ${STATE_NAME[state]}`}
-          title={`Open, doing, done: click to mark it ${STATE_NAME[NEXT[state]].toLowerCase()} (${shortcut('⌘Enter')} crosses out)`}
-          onClick={() => cmdCycleState()}
-        >
+        {/* Three sides, each its own button: • (open), a dot in a ring (doing), × (crossed
+            out). The side the lines are on is filled; none for a mixed set. */}
+        <div className="switch" role="radiogroup" aria-label="Line state">
           {SIDES.map((side) => (
-            <span key={side} className={side === state ? `s-${side} on` : `s-${side}`} aria-hidden="true">{side === 'open' ? '•' : side === 'done' ? '×' : ''}</span>
+            <button
+              key={side}
+              type="button"
+              role="radio"
+              aria-checked={side === state}
+              aria-label={STATE_NAME[side]}
+              title={side === 'done' ? `Done (${shortcut('⌘Enter')})` : STATE_NAME[side]}
+              className={side === state ? `s-${side} on` : `s-${side}`}
+              onClick={() => cmdSetState(side)}
+            >
+              {GLYPH[side]}
+            </button>
           ))}
-        </button>
+        </div>
         <button type="button" className="round" onClick={close} aria-label={n > 0 ? 'Clear selection' : 'Done editing'} title={n > 0 ? 'Clear selection (Esc)' : 'Done editing (Esc)'}>
           <span className="chevron" aria-hidden="true" />
         </button>
