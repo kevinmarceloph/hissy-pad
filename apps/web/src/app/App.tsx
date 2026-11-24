@@ -8,7 +8,7 @@ import { PullToRefresh } from './PullToRefresh'
 import { FreshStart } from '../pads/FreshStart'
 import { Sort } from '../panels/Sort'
 import { CreateDialog } from '../panels/Create'
-import { CategoryDialog, Hours, SlotDialog } from '../panels/Hours'
+import { CategoryDialog, Hours, preloadHours, SlotDialog } from '../panels/Hours'
 import {
   cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot,
 } from '@hissypad/state/hours'
@@ -53,9 +53,13 @@ export function App() {
     void loadPad()
     // Hours' rows are opened with the pad: a line's category icon comes from its list.
     void openHours()
+    // And Hours' screens are fetched once the page is idle, so switching to Hours does not
+    // wait for them. Not under test: nothing there waits for the fetch to finish.
+    const idle = import.meta.env.MODE === 'test' ? null : setTimeout(preloadHours, 1200)
     setSlotPickerOpener((ids) => setPicking({ value: targetSlot(ids), count: ids.length }))
     setCategoryPickerOpener((ids) => setCategorizing({ value: targetCategory(ids), count: ids.length }))
     return () => {
+      if (idle) clearTimeout(idle)
       setSlotPickerOpener(null)
       setCategoryPickerOpener(null)
     }

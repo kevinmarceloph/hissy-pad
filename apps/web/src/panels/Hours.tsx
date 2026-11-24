@@ -6,6 +6,14 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { useCategoryChoices } from '@hissypad/state/hours'
 import type { ColorKey } from '@hissypad/core/hours'
 
+// The screens' code is a chunk of its own (react-native-web and packages/ui, about 180 KB).
+// It used to be fetched on the first switch to Hours, which is what "Opening your hours…"
+// waited on: the hours' rows are already open by then (App opens them with the pad). The
+// app now asks for it once the pad is up, so the switch finds it loaded.
+export function preloadHours() {
+  void import('@hissypad/ui').catch(() => {})
+}
+
 const HoursApp = lazy(() => import('@hissypad/ui').then((m) => ({ default: m.HoursApp })))
 const SlotPicker = lazy(() => import('@hissypad/ui').then((m) => ({ default: m.SlotPicker })))
 const CategoriesApp = lazy(() => import('@hissypad/ui').then((m) => ({ default: m.CategoriesApp })))
