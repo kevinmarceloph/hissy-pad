@@ -1,8 +1,8 @@
-// The Remote interface over PostgREST and Realtime. The snake_case row shapes of the four
+// The Remote interface over PostgREST and Realtime. The snake_case row shapes of the hours
 // tables (supabase/migrations) live here and nowhere else.
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { cleanIcon, isColorKey, type Category } from '@hissypad/core/hours';
+import { cleanIcon, isColorKey, type Category, type Setting } from '@hissypad/core/hours';
 import { withState, type Entry } from '@hissypad/core/hours';
 import { cleanFlagIds, cleanOptions, type Flag, type FlagOption } from '@hissypad/core/hours';
 import { cleanDays, cleanHour, type RecurringPlan } from '@hissypad/core/hours';
@@ -50,6 +50,20 @@ type WireRecurring = {
   updated_at: number;
   synced_at?: string;
 };
+
+type WireSetting = {
+  key: string;
+  value: string;
+  updated_at: number;
+  synced_at?: string;
+};
+
+export const settingToWire = (r: Setting): WireSetting => ({ key: r.key, value: r.value, updated_at: r.updatedAt });
+
+export const settingFromWire = (w: WireSetting): Pulled<Setting> => ({
+  row: { key: w.key, value: w.value, updatedAt: Number(w.updated_at) },
+  syncedAt: new Date(w.synced_at ?? 0).toISOString(),
+});
 
 type WireCategory = {
   id: string;
@@ -176,6 +190,13 @@ export function createSupabaseRemote(client: SupabaseClient, userId: string): Re
   }
 
   return {
+    settings: {
+      async push(rows) {
+        const { error } = await client.from('hour_settings').upsert(rows.map(settingToWire), { onConflict: 'user_id,key' });
+        if (error) throw new Error(error.message);
+      },
+      pull: async (since, limit) => (await pull<WireSetting>('hour_settings', since, limit)).map(settingFromWire),
+    },
     entries: {
       async push(rows) {
         // user_id is filled in by the table's default (auth.uid()).
@@ -213,6 +234,7 @@ export function createSupabaseRemote(client: SupabaseClient, userId: string): Re
         .on('postgres_changes', { ...mine, table: 'hour_categories' }, () => nudge())
         .on('postgres_changes', { ...mine, table: 'hour_flags' }, () => nudge())
         .on('postgres_changes', { ...mine, table: 'recurring_plans' }, () => nudge())
+        .on('postgres_changes', { ...mine, table: 'hour_settings' }, () => nudge())
         .subscribe();
       return () => {
         void client.removeChannel(channel);

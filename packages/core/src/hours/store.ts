@@ -44,7 +44,12 @@ export interface SyncTable<Row> {
   markAllDirty(): Promise<void>;
 }
 
+// A setting of the Hours mode that follows the account (the day start, the chime minutes),
+// one row per key, so a change to one never overwrites another made elsewhere.
+export type Setting = { key: string; value: string; updatedAt: number };
+
 export interface SyncLocal {
+  settings: SyncTable<Setting>;
   entries: SyncTable<Entry>;
   categories: SyncTable<Category>;
   flags: SyncTable<Flag>;
@@ -56,7 +61,7 @@ export interface SyncLocal {
 
 type Tracked<Row> = { row: Row; dirty: boolean };
 
-export type HoursTable = 'entries' | 'categories' | 'flags' | 'recurring';
+export type HoursTable = 'entries' | 'categories' | 'flags' | 'recurring' | 'settings';
 
 // One stored row as the backend keeps it: which table, its key there, the row as JSON-able
 // data and whether sync still has to push it.
@@ -140,6 +145,7 @@ export class HoursStore implements EntryStore, CategoryStore, FlagStore, Recurri
   private categories = new Map<string, Tracked<Category>>();
   private flags = new Map<string, Tracked<Flag>>();
   private recurring = new Map<string, Tracked<RecurringPlan>>();
+  private settings = new Map<string, Tracked<Setting>>();
   private backend: HoursBackend;
   private onLocalChange: () => void;
 
@@ -150,6 +156,7 @@ export class HoursStore implements EntryStore, CategoryStore, FlagStore, Recurri
     this.backend = backend;
     this.onLocalChange = onLocalChange;
     this.sync = {
+      settings: syncTable(this.settings, (r) => r.key, (keys) => this.save('settings', this.settings, keys)),
       entries: syncTable(this.rows, (e) => slotKey(e.day, e.hour), (keys) => this.save('entries', this.rows, keys)),
       categories: syncTable(this.categories, (c) => c.id, (keys) => this.save('categories', this.categories, keys)),
       flags: syncTable(this.flags, (f) => f.id, (keys) => this.save('flags', this.flags, keys)),
@@ -166,6 +173,7 @@ export class HoursStore implements EntryStore, CategoryStore, FlagStore, Recurri
       categories: this.categories as Map<string, Tracked<never>>,
       flags: this.flags as Map<string, Tracked<never>>,
       recurring: this.recurring as Map<string, Tracked<never>>,
+      settings: this.settings as Map<string, Tracked<never>>,
     };
     for (const stored of await this.backend.load()) {
       // A category saved before categories had an icon has none.
@@ -229,6 +237,15 @@ export class HoursStore implements EntryStore, CategoryStore, FlagStore, Recurri
 
   putRecurring(plan: RecurringPlan): Promise<void> {
     return this.write('recurring', this.recurring, plan.id, plan);
+  }
+
+  // A setting's value, or null where it was never set on any device this one has heard from.
+  getSetting(key: string): string | null {
+    return this.settings.get(key)?.row.value ?? null;
+  }
+
+  putSetting(key: string, value: string, updatedAt: number): Promise<void> {
+    return this.write('settings', this.settings, key, { key, value, updatedAt });
   }
 }
 

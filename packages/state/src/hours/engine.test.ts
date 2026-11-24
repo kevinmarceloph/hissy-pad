@@ -280,6 +280,35 @@ describe('sync engine', () => {
     expect(second.categoryRows.size).toBe(8);
   });
 
+  it('carries a setting to the other device, one key at a time', async () => {
+    const remote = createFakeRemote();
+    const a = device(remote);
+    const b = device(remote);
+    await a.store.putSetting('day.start', '6', 1000);
+    await b.store.putSetting('chime.minutes', '30,55', 1100);
+    await a.engine.sync();
+    await b.engine.sync();
+    await a.engine.sync();
+    expect(b.store.getSetting('day.start')).toBe('6');
+    expect(a.store.getSetting('chime.minutes')).toBe('30,55');
+    // Neither change overwrote the other: they are separate rows.
+    expect(remote.settingRows.size).toBe(2);
+    expect(await a.store.sync.settings.dirty()).toEqual([]);
+  });
+
+  it('a setting kept on the device before settings synced gives way to the account\'s', async () => {
+    const remote = createFakeRemote();
+    const a = device(remote);
+    const b = device(remote);
+    await a.store.putSetting('day.start', '5', 2000);
+    await a.engine.sync();
+    // B's old device-only value comes in stamped 0.
+    await b.store.putSetting('day.start', '4', 0);
+    await b.engine.sync();
+    expect(b.store.getSetting('day.start')).toBe('5');
+    expect(remote.settingRows.get('day.start')?.row.value).toBe('5');
+  });
+
   it('syncs again on a realtime nudge once started, and not after stop', async () => {
     vi.useFakeTimers();
     try {

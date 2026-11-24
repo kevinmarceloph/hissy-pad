@@ -1,10 +1,10 @@
-// An in-memory stand-in for the four Supabase tables with the same rules as the
+// An in-memory stand-in for the Supabase hours tables with the same rules as the
 // migrations: last write wins on updatedAt, synced_at stamped by the server, realtime
 // nudges. Used by the engine tests and the screen tests.
 import type { Category } from '@hissypad/core/hours';
 import type { Entry } from '@hissypad/core/hours';
 import type { Flag } from '@hissypad/core/hours';
-import type { RecurringPlan } from '@hissypad/core/hours';
+import type { RecurringPlan, Setting } from '@hissypad/core/hours';
 
 import type { Pulled, Remote, RemoteTable } from './engine';
 
@@ -15,6 +15,7 @@ export interface FakeRemote extends Remote {
   categoryRows: Stored<Category>;
   flagRows: Stored<Flag>;
   recurringRows: Stored<RecurringPlan>;
+  settingRows: Stored<Setting>;
   pushes: number;
   failNextPush(error: Error): void;
   // The next push waits until the returned function is called.
@@ -65,13 +66,16 @@ export function createFakeRemote(): FakeRemote {
   const categoryRows: Stored<Category> = new Map();
   const flagRows: Stored<Flag> = new Map();
   const recurringRows: Stored<RecurringPlan> = new Map();
+  const settingRows: Stored<Setting> = new Map();
 
   const remote: FakeRemote = {
     entryRows,
     categoryRows,
     flagRows,
     recurringRows,
+    settingRows,
     pushes: 0,
+    settings: table(settingRows, (r) => r.key),
     entries: table(entryRows, (e) => `${e.day}T${e.hour}`),
     categories: table(categoryRows, (c) => c.id),
     flags: table(flagRows, (f) => f.id),

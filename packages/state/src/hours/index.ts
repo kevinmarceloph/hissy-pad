@@ -1,9 +1,9 @@
 // The Hours mode's state, wired: the local store over a platform backend, the day,
-// category, flag, recurring plan and chime stores, and sync for the four hours tables.
+// category, flag, recurring plan and chime stores, and sync for the hours tables and settings.
 // Imported as '@hissypad/state/hours'. The screens are in packages/ui.
 //
 // Sync here is a second engine beside the pad's (state/sync.ts): the same push, pull and
-// last-write-wins, over four tables, with a millisecond `updated_at` as Oras-oras has it.
+// last-write-wins, over the four hours tables and the settings, with a millisecond `updated_at` as Oras-oras has it.
 // The pad's `bindAuth` starts and stops both.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
@@ -62,6 +62,8 @@ export function getChimePlatform(): ChimePlatform | null {
 
 // ---- the stores -------------------------------------------------------------------------
 
+// Settings that follow the account: a row each in hour_settings. Until 2026-11-24 they were
+// kept on the device only, in meta under the same keys.
 const DAY_START_KEY = 'day.start';
 const CHIMES_KEY = 'chime.minutes';
 const USER_KEY = 'sync.user';
@@ -96,8 +98,9 @@ export function openHours(): Promise<HoursStores> {
   return (opened ??= (async () => {
     const store = new HoursStore(backend, () => engine?.requestSync());
     await store.open();
+    await adoptDeviceSettings(store);
     const day = createDayStore(store, undefined, {
-      saveStart: (start) => store.sync.setMeta(DAY_START_KEY, String(start)),
+      saveStart: (start) => store.putSetting(DAY_START_KEY, String(start), Date.now()),
     });
     const categories = createCategoryStore(store);
     const flags = createFlagStore(store);
@@ -107,7 +110,7 @@ export function openHours(): Promise<HoursStores> {
       ? createChimeStore({
           apply: platform.apply,
           resume: platform.resume,
-          save: (minutes) => store.sync.setMeta(CHIMES_KEY, formatChimes(minutes)),
+          save: (minutes) => store.putSetting(CHIMES_KEY, formatChimes(minutes), Date.now()),
         })
       : createStaticChimeStore();
     await Promise.all([categories.getState().load(), flags.getState().load(), recurring.getState().load()]);
@@ -117,11 +120,8 @@ export function openHours(): Promise<HoursStores> {
       if (s.list !== before.list) adoptLineCategories(s.list);
     });
     // The day on the screen depends on the day start, so it is read before anything draws.
-    day.getState().adoptStart(cleanDayStart(await store.sync.getMeta(DAY_START_KEY).catch(() => null)));
-    void store.sync
-      .getMeta(CHIMES_KEY)
-      .then((value) => chimes.getState().adopt(parseChimes(value)))
-      .catch(() => {});
+    day.getState().adoptStart(cleanDayStart(store.getSetting(DAY_START_KEY)));
+    chimes.getState().adopt(parseChimes(store.getSetting(CHIMES_KEY)));
     // A reply typed into a chime's notification lands in its hour, then the open day refreshes.
     platform?.listenForReplies?.((slotDay, hour, note) => {
       void (async () => {
@@ -143,6 +143,32 @@ export async function cmdAddCategory(label: string, icon: string, color: ColorKe
   return (await openHours()).categories.getState().add(label, icon, color);
 }
 
+// ---- settings -----------------------------------------------------------------------------
+
+// A device that kept its settings before they synced: each becomes a row stamped 0, so it
+// reaches an account that has none yet and gives way to one set on any other device.
+export async function adoptDeviceSettings(store: HoursStore) {
+  for (const key of [DAY_START_KEY, CHIMES_KEY]) {
+    const value = await store.sync.getMeta(key).catch(() => null);
+    if (value === null) continue;
+    if (store.getSetting(key) === null) await store.putSetting(key, value, 0);
+    await store.sync.setMeta(key, null);
+  }
+}
+
+// Settings pulled from another device take effect here: the day moves to the new start,
+// and the chimes are taken up the way a saved setting is at open, with no permission prompt.
+export function followSettings(stores: Pick<HoursStores, 'store' | 'day' | 'chimes'>) {
+  const start = cleanDayStart(stores.store.getSetting(DAY_START_KEY));
+  const day = stores.day.getState();
+  if (start !== day.start) {
+    day.adoptStart(start);
+    void stores.day.getState().open(stores.day.getState().day);
+  }
+  const minutes = parseChimes(stores.store.getSetting(CHIMES_KEY));
+  if (formatChimes(minutes) !== formatChimes(stores.chimes.getState().minutes)) stores.chimes.getState().adopt(minutes);
+}
+
 // ---- sync ---------------------------------------------------------------------------------
 
 // This device's rows belong to whoever signs in. The first account gets them as they are
@@ -157,7 +183,8 @@ async function claimFor(stores: HoursStores, user: string) {
     await local.categories.markAllDirty();
     await local.flags.markAllDirty();
     await local.recurring.markAllDirty();
-    for (const table of ['entries', 'categories', 'flags', 'recurring']) await local.setMeta(cursorKey(table), null);
+    await local.settings.markAllDirty();
+    for (const table of ['entries', 'categories', 'flags', 'recurring', 'settings']) await local.setMeta(cursorKey(table), null);
   }
   await local.setMeta(USER_KEY, user);
 }
@@ -172,6 +199,7 @@ async function startEngine(stores: HoursStores, remote: Remote, userId: string) 
     local: stores.store.sync,
     remote,
     onPulled: () => {
+      followSettings(stores);
       void stores.categories.getState().refresh();
       void stores.flags.getState().refresh();
       void stores.recurring.getState().refresh();

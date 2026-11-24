@@ -1,4 +1,5 @@
-// Offline-first sync, per row, last write wins. HissyPad's engine, over four tables.
+// Offline-first sync, per row, last write wins. HissyPad's engine, over the four hours
+// tables and the settings.
 //
 //   push: every dirty local row is upserted; the server keeps the newer updatedAt
 //   pull: everything whose server-side synced_at is past our cursor, merged by updatedAt
@@ -11,7 +12,7 @@ import type { Category } from '@hissypad/core/hours';
 import type { Entry } from '@hissypad/core/hours';
 import type { Flag } from '@hissypad/core/hours';
 import type { RecurringPlan } from '@hissypad/core/hours';
-import type { SyncLocal, SyncTable } from '@hissypad/core/hours';
+import type { Setting, SyncLocal, SyncTable } from '@hissypad/core/hours';
 
 export type Pulled<Row> = { row: Row; syncedAt: string }; // syncedAt: server time, ISO
 
@@ -22,6 +23,7 @@ export interface RemoteTable<Row> {
 }
 
 export interface Remote {
+  settings: RemoteTable<Setting>;
   entries: RemoteTable<Entry>;
   categories: RemoteTable<Category>;
   flags: RemoteTable<Flag>;
@@ -71,7 +73,7 @@ export const cursorKey = (table: string) => `sync.cursor.${table}`;
 // 4: 2026-11-24, hours got a state (open, doing, done): a device on the older code pulled them without it.
 export const PULL_EPOCH = '4';
 const EPOCH_KEY = 'sync.epoch';
-const TABLES = ['categories', 'flags', 'recurring', 'entries'];
+const TABLES = ['settings', 'categories', 'flags', 'recurring', 'entries'];
 
 type Table<Row> = { name: string; local: SyncTable<Row>; remote: RemoteTable<Row> };
 
@@ -96,6 +98,7 @@ export function createSyncEngine(o: SyncEngineOptions): SyncEngine {
   };
 
   const pending = async () =>
+    (await o.local.settings.dirty()).length +
     (await o.local.categories.dirty()).length +
     (await o.local.flags.dirty()).length +
     (await o.local.recurring.dirty()).length +
@@ -130,6 +133,7 @@ export function createSyncEngine(o: SyncEngineOptions): SyncEngine {
   }
 
   async function runOnce(): Promise<void> {
+    const settings: Table<Setting> = { name: 'settings', local: o.local.settings, remote: o.remote.settings };
     const categories: Table<Category> = { name: 'categories', local: o.local.categories, remote: o.remote.categories };
     const flags: Table<Flag> = { name: 'flags', local: o.local.flags, remote: o.remote.flags };
     const recurring: Table<RecurringPlan> = { name: 'recurring', local: o.local.recurring, remote: o.remote.recurring };
@@ -141,13 +145,14 @@ export function createSyncEngine(o: SyncEngineOptions): SyncEngine {
       // runs. The first failure is reported once what could be done is done.
       const failures: unknown[] = [];
       const attempt = (work: Promise<void>) => work.catch((cause: unknown) => void failures.push(cause));
+      await attempt(push(settings));
       await attempt(push(categories));
       await attempt(push(flags));
       await attempt(push(recurring));
       await attempt(push(entries));
       const repull = (await o.local.getMeta(EPOCH_KEY)) !== PULL_EPOCH;
       if (repull) for (const name of TABLES) await o.local.setMeta(cursorKey(name), null);
-      const landed = (await pull(categories)) + (await pull(flags)) + (await pull(recurring)) + (await pull(entries));
+      const landed = (await pull(settings)) + (await pull(categories)) + (await pull(flags)) + (await pull(recurring)) + (await pull(entries));
       // Only once every table has been read through: a pull that failed half way starts over.
       if (repull) await o.local.setMeta(EPOCH_KEY, PULL_EPOCH);
       if (landed > 0) o.onPulled?.();
