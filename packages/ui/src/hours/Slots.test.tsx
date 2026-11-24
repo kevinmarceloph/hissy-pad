@@ -203,6 +203,29 @@ describe('SlotPicker', () => {
     expect(onPick).toHaveBeenCalledTimes(2);
   });
 
+  // The web dialog holds focus as it opens. A browser moves focus to what a mouse presses
+  // unless the press is default-prevented, and the blur of an ancestor ended the swipe.
+  it('swipes with a mouse while the box around the picker holds focus', async () => {
+    const onPick = vi.fn();
+    await render(
+      <div tabIndex={-1} aria-label="Pick an hour">
+        <SlotPicker value={null} onPick={onPick} onCancel={() => {}} clock={clock} />
+      </div>,
+    );
+    screen.getByLabelText('Pick an hour').focus();
+    const cell = screen.getAllByRole('radio')[14]!;
+    const moveFocus = (event: MouseEvent) => {
+      if (!event.defaultPrevented) cell.focus();
+    };
+    document.addEventListener('mousedown', moveFocus);
+    try {
+      await swipe(14, 16);
+    } finally {
+      document.removeEventListener('mousedown', moveFocus);
+    }
+    expect(onPick).toHaveBeenLastCalledWith('2026-11-19T14+3');
+  });
+
   it('opens a run with its hours checked', async () => {
     await render(<SlotPicker value="2026-11-19T14+2" onPick={() => {}} onCancel={() => {}} clock={clock} />);
     expect(screen.getByRole('radio', { name: '2pm, now' })).toHaveAttribute('aria-checked', 'true');

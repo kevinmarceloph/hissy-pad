@@ -25,6 +25,10 @@ const GAP = 6;
 const SLOP = 8;
 // Web: the swipe is ours, not the page's scroll.
 const NO_SCROLL = Platform.OS === 'web' ? ({ touchAction: 'none', userSelect: 'none' } as unknown as ViewStyle) : null;
+// Web, mouse: a press on an hour keeps focus where it is. Moving it blurs whatever had it,
+// and react-native-web ends a gesture when an ancestor of its view blurs. The dialog holds
+// focus as it opens, so without this the first swipe with a mouse died on the press.
+const KEEP_FOCUS = Platform.OS === 'web' ? { onMouseDown: (event: { preventDefault(): void }) => event.preventDefault() } : null;
 
 // Puts lines of the pad in an hour of a day: step to the day, tap the hour, or swipe across
 // the hours from the first to the last for a run of them. The pad's toolbar opens it on web
@@ -141,6 +145,7 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
         aria-label="Hour"
         ref={grid}
         style={[styles.hours, NO_SCROLL]}
+        {...(KEEP_FOCUS as object)}
         {...responder.panHandlers}>
         {HOURS.map((hour) => {
           const on = run
