@@ -115,7 +115,7 @@ export function PadTabs() {
         {pads.map((p) => {
           const key = p.id ?? 'main'
           const Glyph = p.fixed ? FIXED_ICON[p.fixed] : null
-          const showCounts = countShown(hidden, p.fixed ?? p.id!)
+          const showCounts = p.fixed !== null || countShown(hidden, p.id!)
           return (
             <span key={key} className={p.fixed ? 'pad-tab fixed' : 'pad-tab'}>
               <button

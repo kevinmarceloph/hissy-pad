@@ -7,7 +7,7 @@
 import { useMemo } from 'react'
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import type { FixedPad, PadId } from '@hissypad/core'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, countShown, openPad, openSubPad, padList, padTopLines, placeList, usePad, usePrefs, type PadItem } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, countKey, countShown, toggleCount, openPad, openSubPad, padList, padTopLines, placeList, usePad, usePrefs, type PadItem } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 import { CalendarIcon, HoursIcon } from './TopIcons'
 import { LineIcon } from './LineIcons'
@@ -34,7 +34,7 @@ export function PadChips({ theme }: { theme: Theme }) {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
   const hidden = usePrefs((s) => s.hiddenCounts)
-  const shown = (p: PadItem) => countShown(hidden, p.fixed ?? p.id!)
+  const shown = (p: PadItem) => p.fixed !== null || countShown(hidden, p.id!)
   const pads = useMemo(() => padList(all), [all])
 
   function manage(id: string, name: string) {
@@ -45,6 +45,8 @@ export function PadChips({ theme }: { theme: Theme }) {
       ...(i > first ? [{ text: '← Move left', onPress: () => void cmdMovePad(id, -1) }] : []),
       ...(i >= 0 && i < pads.length - 1 ? [{ text: 'Move right →', onPress: () => void cmdMovePad(id, 1) }] : []),
       { text: 'Rename…', onPress: () => ask('Rename pad', undefined, name, (n) => cmdRenamePad(id, n)) },
+      // The count of open lines on this pad's tab, on or off for this pad only.
+      { text: countShown(hidden, countKey(all, id)) ? 'Hide the count on this tab' : 'Show the count on this tab', onPress: () => toggleCount(countKey(all, id)) },
       {
         // The opposite of Make pad: the pad becomes a line at the top of the pad picked.
         text: 'Fold into…',

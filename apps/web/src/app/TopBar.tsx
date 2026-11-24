@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { countKey, countShown, padList, toggleCount, usePad, usePrefs } from '@hissypad/state'
+import { usePad } from '@hissypad/state'
 import { cmdDeleteDone } from '@hissypad/state'
 import { copyText } from '../platform/clipboard'
 import { DonePanel, TrashPanel } from '../panels/Lists'
@@ -48,13 +48,8 @@ export function TopBar({ view, onView, onCreate }: { view: View; onView: (view: 
   const [logText, setLogText] = useState('')
   const [menu, setMenu] = useState(false)
   const [categories, setCategories] = useState(false)
-  const all = usePad((s) => s.all)
-  const padId = usePad((s) => s.padId)
   // Sort's card or the new item's: `rows` is only what is under one line then.
   const zoomed = usePad((s) => s.zoomId !== null)
-  const hidden = usePrefs((s) => s.hiddenCounts)
-  const thisCount = countKey(all, padId)
-  const padName = padList(all).find((p) => p.id === padId)?.name ?? 'This pad'
 
   useEffect(() => {
     applyTheme(theme)
@@ -130,7 +125,7 @@ export function TopBar({ view, onView, onCreate }: { view: View; onView: (view: 
           <SearchIcon />
         </button>
         <span className="more">
-          <button type="button" className="icon" aria-label="More" aria-haspopup="menu" aria-expanded={menu} title="Done, Archive, Categories, Fresh start, this pad's count and the theme" onClick={() => setMenu((open) => !open)}>
+          <button type="button" className="icon" aria-label="More" aria-haspopup="menu" aria-expanded={menu} title="Done, Archive, Categories, Fresh start and the theme" onClick={() => setMenu((open) => !open)}>
             <MenuIcon />
           </button>
           {menu && (
@@ -142,7 +137,6 @@ export function TopBar({ view, onView, onCreate }: { view: View; onView: (view: 
                 <button type="button" role="menuitem" title="Debug log (?debug=1 turned this on)" onClick={() => pick(() => { setLogText(dumpLog()); logDialog.current?.showModal() })}>Log</button>
               )}
               <button type="button" role="menuitem" disabled={(liveCount === 0 && !zoomed) || view === 'fresh'} title="Pick what stays in the open pad; the rest moves to a new pad" onClick={() => pick(() => onView('fresh'))}>Fresh start…</button>
-              <button type="button" role="menuitemcheckbox" aria-checked={countShown(hidden, thisCount)} className="check" title={`The number of open lines beside ${padName} in the tabs; each pad has its own`} onClick={() => toggleCount(thisCount)}>Count on {padName}</button>
               <label className="select">
                 <span>Theme</span>
                 <select value={theme} onChange={(e) => setTheme(e.target.value as Theme)} aria-label="Theme">
