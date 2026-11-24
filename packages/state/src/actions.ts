@@ -40,7 +40,9 @@ export function lineAbilities(
   rows: Rows, ids: readonly string[], hour: boolean = usePad.getState().slotId !== null, zoomed: boolean = usePad.getState().zoomId !== null,
 ): LineAbilities {
   const index = buildIndex(rows)
-  const tops = topmost(index, ids)
+  // A target can be gone from the rows for a moment: an hour's last line, just archived, is
+  // still the selection while the hour's view no longer holds it.
+  const tops = topmost(index, ids).filter((id) => rows[id] !== undefined)
   const set = new Set(tops)
   const pads = !hour && !zoomed
   const can: LineAbilities = { indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: tops.length === 1, mixed: false, hour, pads, pin: false, pinned: false }

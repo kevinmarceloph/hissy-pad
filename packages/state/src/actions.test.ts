@@ -25,6 +25,11 @@ describe('line abilities', () => {
     expect(can('A', 'B', 'C')).toMatchObject({ indent: false, up: false, down: false }) // every sibling selected
     expect(lineAbilities(rows, [])).toEqual({ indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: false, mixed: false, hour: false, pads: true, pin: false, pinned: false })
   })
+
+  it('a target that is not among the rows is passed over (a line just archived out of an open hour)', () => {
+    expect(lineAbilities(rows, ['gone'])).toEqual(lineAbilities(rows, []))
+    expect(lineAbilities(rows, ['gone', idOf(rows, 'B')])).toEqual(can('B'))
+  })
 })
 
 describe('split off open', () => {
