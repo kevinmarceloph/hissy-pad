@@ -73,6 +73,23 @@ describe('sort', () => {
     expect(whole()).toBe('B\n@Today\n  !A\n    first step\n    second')
   })
 
+  it('the card fields are one line: Return closes the text field, Shift+Return in a sub item adds no break, a pasted break becomes a space', async () => {
+    const user = userEvent.setup()
+    await mount('A\n  A1\nB')
+    await user.click(button('Sort'))
+    await user.click(card())
+    await user.keyboard('{End}x{Enter}')
+    expect(card().value).toBe('Ax')
+    expect(document.activeElement).not.toBe(card())
+    const sub = screen.getByRole('textbox', { name: 'Sub item' })
+    await user.click(sub)
+    await user.keyboard('{End}{Shift>}{Enter}{/Shift}')
+    expect(sub).toHaveValue('A1')
+    fireEvent.change(card(), { target: { value: 'one\ntwo' } })
+    expect(card().value).toBe('one two')
+    expect(whole()).toBe('one two\n  A1\nB')
+  })
+
   it('a drag past the threshold is a swipe; a short one springs back', async () => {
     const user = userEvent.setup()
     await mount('A\nB')

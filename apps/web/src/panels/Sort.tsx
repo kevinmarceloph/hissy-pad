@@ -18,6 +18,10 @@ const SLOP = 8   // px before a press becomes a drag
 
 interface Ghost { key: number; text: string; dir: SortDir; dx: number; dy: number }
 
+// A card's fields are one line each: the textarea only wraps. Return closes the field and a
+// pasted line break becomes a space.
+const oneLine = (t: string) => t.replace(/\r?\n/g, ' ')
+
 // A textarea as tall as its text, snapped to whole lines (a line is 25.5px, see CLAUDE.md).
 function AutoText(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const ref = useRef<HTMLTextAreaElement>(null)
@@ -153,7 +157,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
   }
 
   function onSubKey(e: ReactKeyboardEvent<HTMLTextAreaElement>, subId: string) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter') {
       e.preventDefault()
       addRef.current?.focus()
     } else if (e.key === 'Backspace' && e.currentTarget.value === '') {
@@ -272,7 +276,8 @@ export function Sort({ onClose }: { onClose: () => void }) {
             <AutoText
               className="sort-text"
               value={row.text}
-              onChange={(e) => cmdSortSetText(id, e.target.value)}
+              onChange={(e) => cmdSortSetText(id, oneLine(e.target.value))}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }}
               aria-label="Line text"
               placeholder="Empty line"
             />
@@ -283,7 +288,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
                   <li key={s.id} style={{ '--depth': s.depth } as CSSProperties} className={sub.done ? 'is-done' : undefined}>
                     <AutoText
                       value={sub.text}
-                      onChange={(e) => cmdSortSetText(s.id, e.target.value)}
+                      onChange={(e) => cmdSortSetText(s.id, oneLine(e.target.value))}
                       onKeyDown={(e) => onSubKey(e, s.id)}
                       aria-label="Sub item"
                     />

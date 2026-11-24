@@ -19,6 +19,10 @@ import { HoursIcon } from './TopIcons'
 
 const SLOP = 10 // px before a touch on the card becomes a drag
 
+// A card's fields are one line each: multiline only so they wrap. Return closes the field
+// (blurAndSubmit) and a pasted line break becomes a space.
+const oneLine = (t: string) => t.replace(/\r?\n/g, ' ')
+
 // A field on the card. On iOS a native text view keeps every touch that starts on it, so a
 // swipe begun on the card's text never reached the card. Until it is focused the field takes
 // no touches (pointerEvents on a wrapping View: iOS ignores it on the TextInput itself); a
@@ -212,9 +216,11 @@ export function SortView({ theme }: { theme: Theme }) {
               </View>
               <CardField
                 value={row.text}
-                onChangeText={(t) => cmdSortSetText(id, t)}
+                onChangeText={(t) => cmdSortSetText(id, oneLine(t))}
                 multiline
                 scrollEnabled={false}
+                submitBehavior="blurAndSubmit"
+                returnKeyType="done"
                 placeholder="Empty line"
                 placeholderTextColor={theme.inkMute}
                 accessibilityLabel="Line text"
@@ -230,11 +236,12 @@ export function SortView({ theme }: { theme: Theme }) {
                         <CardField
                           row
                           value={r.text}
-                          onChangeText={(t) => cmdSortSetText(sub.id, t)}
+                          onChangeText={(t) => cmdSortSetText(sub.id, oneLine(t))}
                           onKeyPress={(e) => { if (e.nativeEvent.key === 'Backspace' && r.text === '') cmdSortRemoveSub(sub.id) }}
                           multiline
                           scrollEnabled={false}
                           submitBehavior="blurAndSubmit"
+                          returnKeyType="done"
                           accessibilityLabel="Sub item"
                           style={[s.subText, { color: r.done ? theme.inkMute : theme.ink }, r.done && { textDecorationLine: 'line-through' }]}
                         />
