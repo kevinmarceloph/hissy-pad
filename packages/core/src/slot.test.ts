@@ -94,15 +94,13 @@ describe('an hour as a pad of its own', () => {
     expect(slotOutline(all, H).map((r) => r.row.id)).toEqual(['a'])
   })
 
-  it('counts the lines under its one line, or its lines when there are several', () => {
-    // One big item: the hour counts what is right under it, blank lines and deeper ones left out.
-    const one = table(row('a', H), under('a1', 'a', { done: true }), under('a2', 'a'), under('a3', 'a', { text: '' }), under('a2x', 'a2', { done: true }))
-    expect(slotProgress(one, H)).toMatchObject({ top: { id: 'a' }, count: { done: 1, open: 1 } })
-    // One item with nothing under it counts for itself.
-    expect(slotProgress(table(row('a', H, true)), H).count).toEqual({ done: 1, open: 0 })
-    // Several: the hour's own lines.
-    const many = table(row('a', H), under('a1', 'a', { done: true }), row('b', H, true))
-    expect(slotProgress(many, H)).toMatchObject({ top: { id: 'a' }, count: { done: 1, open: 1 } })
+  it('counts its own lines only, never what is under them', () => {
+    const one = table(row('a', H), under('a1', 'a', { done: true }), under('a2', 'a'))
+    expect(slotProgress(one, H)).toMatchObject({ top: { id: 'a' }, count: { done: 0, open: 1 } })
+    const many = table(row('a', H), under('a1', 'a', { done: true }), row('b', H, true), row('c', H, true))
+    expect(slotProgress(many, H)).toMatchObject({ top: { id: 'a' }, count: { done: 2, open: 1 } })
+    // A line under another line of the same hour is listed under it, not counted beside it.
+    expect(slotProgress(table(row('a', H), under('a1', 'a', { slot: H, done: true })), H).count).toEqual({ done: 0, open: 1 })
     expect(slotProgress(table(), H)).toEqual({ top: undefined, count: { done: 0, open: 0 } })
   })
 })

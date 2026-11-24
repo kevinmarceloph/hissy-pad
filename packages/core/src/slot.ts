@@ -143,22 +143,13 @@ export function slotOutline(all: Rows, slot: string): SlotRow[] {
   return out
 }
 
-// What an hour's row counts. With several lines in the hour it is those lines. With one
-// line that has lines under it, it is the lines right under it: the big item worked through
-// over the hour (Kevin, 2026-11-24). Blank lines never count.
+// What an hour's row shows and counts: the line on top of its list, and its own lines,
+// crossed out and open. Only the lines put in the hour count; what is under them is theirs
+// (Kevin, 2026-11-25: a few items picked for the hour, done or not).
 export function slotProgress(all: Rows, slot: string): { top: NodeRow | undefined; count: SlotCount } {
   const tops = slotTops(all, slot)
-  let counted = tops
-  if (tops.length === 1) {
-    const under: NodeRow[] = []
-    for (const id in all) {
-      const r = all[id]!
-      if (r.parentId === tops[0]!.id && isLive(r) && !isBlank(r)) under.push(r)
-    }
-    if (under.length > 0) counted = under
-  }
-  const done = counted.filter((r) => r.done).length
-  return { top: tops[0], count: { done, open: counted.length - done } }
+  const done = tops.filter((r) => r.done).length
+  return { top: tops[0], count: { done, open: tops.length - done } }
 }
 
 function hourWord(hour: number): string {

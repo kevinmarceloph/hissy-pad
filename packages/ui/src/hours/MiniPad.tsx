@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentRef } from 'react';
-import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { slotKey, slotLabel, slotOutline, stateOf, todayKey, type SlotRow } from '@hissypad/core';
 import { usePad } from '@hissypad/state';
 import {
-  cmdSlotAdd, cmdSlotBreak, cmdSlotClear, cmdSlotDone, cmdSlotErase, cmdSlotPut, cmdSlotShift, cmdSlotState, cmdSlotText, slotFinds,
+  cmdSlotAdd, cmdSlotBreak, cmdSlotClear, cmdSlotErase, cmdSlotPut, cmdSlotShift, cmdSlotText, slotFinds,
 } from '@hissypad/state/hours';
 
-import { StateMark, StateSwitch } from './StateMark';
+import { closeLineDrawer, lineDrawer } from './LineDrawer';
+import { StateMark } from './StateMark';
 import { Tap } from './Tap';
 import { ROW, serif, SIZE, SMALL, LINE, useTheme } from './theme';
 
@@ -25,22 +26,29 @@ const INDENT = 22;
 
 // The open hour as a small pad: only the lines put in this hour and everything under them.
 // A line is typed in place; Return starts a new one under it, Tab and Shift+Tab move it in
-// and out, Backspace on an empty one takes it away, and the bullet crosses it out. The
-// switch under the list puts the line being typed in one of its three states. A line may
-// sit in any pad, and every change here is a change to that pad.
+// and out, and Backspace on an empty one takes it away. A bullet selects its line, as in
+// the pad (Kevin, 2026-11-25), and more bullets add to the selection: the drawer at the
+// foot of the screen (LineDrawer) acts on what is selected, or on the line being typed.
+// A line may sit in any pad, and every change here is a change to that pad.
 //
-// Under it, the field that brings lines in: a new one (it lands at the top of the pad that
-// is open) or one found in any pad (the universal search), put in this hour with a tap, or
-// with the arrow keys and Return on the web. A line archived from its pad stays listed,
-// marked "archived", and can still be crossed out.
+// Under it, the field that brings lines in: a new one (it lands at the top of Today) or
+// one found in any pad (the universal search), put in this hour with a tap, or with the
+// arrow keys and Return on the web. A line archived from its pad stays listed, marked
+// "archived", and can still be selected and crossed out.
 export function MiniPad({ day, hour, onClose }: Props) {
   const theme = useTheme();
   const all = usePad((s) => s.all);
   const rows = slotOutline(all, slotKey(day, hour));
 
-  // The line last typed in: the one the switch and the arrows under the list act on.
+  // The line last typed in, and the lines selected by their bullets. The drawer acts on
+  // the selection, or else on the line being typed.
   const [active, setActive] = useState<string | null>(null);
-  const current = rows.find((r) => r.row.id === active);
+  const [selected, setSelected] = useState<string[]>([]);
+  const toggle = (id: string) => {
+    // The phone's keyboard would sit over the drawer.
+    if (Platform.OS !== 'web') Keyboard.dismiss();
+    setSelected((was) => (was.includes(id) ? was.filter((x) => x !== id) : [...was, id]));
+  };
   // A line to put the caret in once it is drawn: a new one, or one that just moved.
   const [focusOn, setFocusOn] = useState<string | null>(null);
   // The same, with the caret after the line's last word: the line above one just taken away.
@@ -63,6 +71,27 @@ export function MiniPad({ day, hour, onClose }: Props) {
     const made = cmdSlotBreak(row.id, depth === 0, caret);
     if (made) setFocusOn(made);
   };
+  // What the drawer acts on, kept in its store while this hour is open.
+  const targets = rows.filter((r) => (selected.length > 0 ? selected.includes(r.row.id) : r.row.id === active && r.row.deletedAt === null));
+  const targetsKey = targets.map((t) => `${t.row.id}:${t.depth}`).join(' ');
+  useEffect(() => {
+    lineDrawer.setState({
+      targets: targets.map((t) => ({ id: t.row.id, depth: t.depth })),
+      selecting: selected.length > 0,
+      clear: () => setSelected([]),
+      // A press on the drawer took the caret out of the line being typed, and a move in or
+      // out redrew it elsewhere on the page.
+      after: () => selected.length === 0 && active && setFocusOn(active),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetsKey, selected.length, active]);
+  useEffect(() => closeLineDrawer, []);
+  // A selected line that left the hour is no longer selected.
+  const listed = rows.map((r) => r.row.id).join(' ');
+  useEffect(() => {
+    setSelected((was) => (was.every((id) => listed.includes(id)) ? was : was.filter((id) => listed.includes(id))));
+  }, [listed]);
+
   const shift = ({ row, depth }: SlotRow, dir: 'in' | 'out') => {
     cmdSlotShift(row.id, depth, dir);
     // The line was moved on the page, which takes the caret out of it.
@@ -126,47 +155,23 @@ export function MiniPad({ day, hour, onClose }: Props) {
             <Line
               key={entry.row.id}
               entry={entry}
-              active={entry.row.id === active}
+              active={entry.row.id === active && selected.length === 0}
+              selected={selected.includes(entry.row.id)}
+              onSelect={() => toggle(entry.row.id)}
               register={(field) => {
                 if (field) fields.current.set(entry.row.id, field);
                 else fields.current.delete(entry.row.id);
               }}
               onCaret={(caret) => carets.current.set(entry.row.id, caret)}
-              onFocus={() => setActive(entry.row.id)}
+              onFocus={() => {
+                // Typing in a line ends a selection, as in the pad.
+                setSelected([]);
+                setActive(entry.row.id);
+              }}
               onKey={(e) => onKey(e, i)}
               onBreak={() => breakLine(entry)}
             />
           ))}
-        </View>
-      )}
-
-      {current && (
-        // What the line being typed is: open, doing or done, and how far in it sits.
-        <View style={styles.bar}>
-          <StateSwitch
-            label="This line"
-            value={stateOf(current.row)}
-            onChange={(state) => {
-              cmdSlotState(current.row.id, state);
-              setFocusOn(current.row.id);
-            }}
-          />
-          <Tap
-            aria-label="Move this line out"
-            disabled={current.depth < 2}
-            onPress={() => shift(current, 'out')}
-            style={[styles.shift, { borderColor: theme.line }]}
-            activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paper }}>
-            <Text style={[styles.text, { color: theme.ink }]}>←</Text>
-          </Tap>
-          <Tap
-            aria-label="Move this line in"
-            disabled={current.depth < 1}
-            onPress={() => shift(current, 'in')}
-            style={[styles.shift, { borderColor: theme.line }]}
-            activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paper }}>
-            <Text style={[styles.text, { color: theme.ink }]}>→</Text>
-          </Tap>
         </View>
       )}
 
@@ -232,6 +237,8 @@ export function MiniPad({ day, hour, onClose }: Props) {
 type LineProps = {
   entry: SlotRow;
   active: boolean;
+  selected: boolean;
+  onSelect(): void;
   register(field: Field | null): void;
   onCaret(caret: number): void;
   onFocus(): void;
@@ -241,7 +248,7 @@ type LineProps = {
 
 // One line of the hour: its bullet, its words, and on one of the hour's own lines the way
 // out of the hour.
-function Line({ entry, active, register, onCaret, onFocus, onKey, onBreak }: LineProps) {
+function Line({ entry, active, selected, onSelect, register, onCaret, onFocus, onKey, onBreak }: LineProps) {
   const theme = useTheme();
   const { row, depth } = entry;
   const archived = row.deletedAt !== null;
@@ -261,15 +268,17 @@ function Line({ entry, active, register, onCaret, onFocus, onKey, onBreak }: Lin
   }, [row.text, width]);
 
   return (
-    <View role="listitem" style={[styles.line, { paddingLeft: depth * INDENT }]}>
+    <View role="listitem" style={[styles.line, { paddingLeft: depth * INDENT }, selected && { backgroundColor: theme.accentSoft }]}>
+      {/* The bullet says the line's state and selects it. It does not change it: the
+          drawer at the foot of the screen does. */}
       <Tap
         role="checkbox"
-        aria-checked={row.done}
-        aria-label={`${words}${state === 'doing' ? ', doing' : ''}${archived ? ', archived' : ''}`}
-        onPress={() => cmdSlotDone(row.id, !row.done)}
+        aria-checked={selected}
+        aria-label={`Select “${words}”${state === 'open' ? '' : `, ${state}`}${archived ? ', archived' : ''}`}
+        onPress={onSelect}
         style={styles.bullet}
         activeStyle={{ backgroundColor: theme.paper }}>
-        <StateMark state={state} color={state === 'done' ? theme.inkQuiet : active ? theme.accent : theme.inkSoft} />
+        <StateMark state={state} color={state === 'done' ? theme.inkQuiet : active || selected ? theme.accent : theme.inkSoft} />
       </Tap>
       <TextInput
         ref={(node) => {
@@ -316,7 +325,7 @@ const LINE_ROW = 36;
 
 const styles = StyleSheet.create({
   group: { gap: 8 },
-  line: { flexDirection: 'row', alignItems: 'flex-start', minHeight: LINE_ROW },
+  line: { flexDirection: 'row', alignItems: 'flex-start', minHeight: LINE_ROW, borderRadius: 4 },
   bullet: { width: 36, marginRight: 3, height: LINE_ROW, alignItems: 'center', justifyContent: 'center', borderRadius: 4 },
   words: {
     flex: 1,
@@ -333,8 +342,6 @@ const styles = StyleSheet.create({
   top: { fontWeight: '700' },
   tag: { marginTop: (LINE_ROW - 20) / 2, marginLeft: 6 },
   out: { width: LINE_ROW, height: LINE_ROW, alignItems: 'center', justifyContent: 'center', borderRadius: 4 },
-  bar: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  shift: { width: 42, height: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 18 },
   adder: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   text: { flexShrink: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
   struck: { textDecorationLine: 'line-through' },

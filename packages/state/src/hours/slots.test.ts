@@ -74,11 +74,17 @@ describe('lines in an hour', () => {
     expect(usePad.getState().all[made]).toMatchObject({ slot: SLOT, deletedAt: null });
   });
 
-  it('adds a new line at the top of the open pad, already in the hour', () => {
+  it('adds a new line at the top of Today, already in the hour, whichever pad is open', () => {
+    const all = () => usePad.getState().all;
+    const today = Object.values(all()).find((r) => r.pad && r.text === 'Today')!;
     const made = cmdSlotAdd('2026-11-23', 9, '  call the bank ');
-    const row = usePad.getState().rows[made]!;
-    expect(row).toMatchObject({ text: 'call the bank', slot: SLOT, parentId: null });
-    expect(shape(usePad.getState().rows).split('\n')[0]).toBe('call the bank');
+    expect(all()[made]).toMatchObject({ text: 'call the bank', slot: SLOT, parentId: today.id });
+    // The next one goes above it.
+    const next = cmdSlotAdd('2026-11-23', 9, 'send invoice');
+    expect(all()[next]!.parentId).toBe(today.id);
+    expect(all()[next]!.rank < all()[made]!.rank).toBe(true);
+    // The open pad, the Inbox here, did not take either.
+    expect(shape(usePad.getState().rows).split('\n')[0]).toBe('A');
     expect(cmdSlotAdd('2026-11-23', 9, '   ')).toBe('');
   });
 

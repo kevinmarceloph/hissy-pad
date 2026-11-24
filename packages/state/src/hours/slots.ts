@@ -1,7 +1,7 @@
 // Lines of the pad inside an hour. A line carries the slot it is assigned to (core/slot.ts);
 // these are the commands the pad's toolbar and the Hours screen run on it. They go through
 // the pad's own store, so each one is an undo step and syncs like any other edit.
-import { buildIndex, childrenOf, dedent, indent, insertAfter, insertAt, isLive, remove, setDone, setSlot, setState, setText, slotCovers, slotKey, slotLabel, slotLines, slotOutline, splitNode, todayKey, type LineState, type NodeRow } from '@hissypad/core';
+import { buildIndex, childrenOf, dedent, fixedPadOf, indent, insertAfter, insertAt, isLive, remove, setDone, setSlot, setState, setText, slotCovers, slotKey, slotLabel, slotLines, slotOutline, splitNode, todayKey, type LineState, type NodeRow } from '@hissypad/core';
 
 import { applyAll, usePad } from '../store';
 import { search, type SearchPart } from '../search';
@@ -28,8 +28,9 @@ export function cmdSlotDone(id: string, done: boolean) {
   applyAll((all, ctx) => setDone(all, ctx, [id], done, true), { label: 'cmdSlotDone' });
 }
 
-export function cmdSlotClear(id: string) {
-  applyAll((all, ctx) => setSlot(all, ctx, [id], null, true), { label: 'cmdSlotClear' });
+export function cmdSlotClear(ids: string | readonly string[]) {
+  const list = typeof ids === 'string' ? [ids] : [...ids];
+  applyAll((all, ctx) => setSlot(all, ctx, list, null, true), { label: 'cmdSlotClear' });
 }
 
 // A line found by search, put in this hour from the Hours screen. It may sit in any pad, so
@@ -47,9 +48,10 @@ export function cmdSlotText(id: string, text: string) {
   applyAll((all, ctx) => (isLive(all[id]) ? setText(all, ctx, id, text.replace(/\n/g, ' ')) : all), { label: 'cmdSlotText', coalesce: `slot-text:${id}` });
 }
 
-// One of the three states, from the hour's switch.
-export function cmdSlotState(id: string, state: LineState) {
-  applyAll((all, ctx) => setState(all, ctx, [id], state), { label: 'cmdSlotState' });
+// One of the three states, for the lines selected in the hour (or the one being typed).
+export function cmdSlotState(ids: string | readonly string[], state: LineState) {
+  const list = typeof ids === 'string' ? [ids] : [...ids];
+  applyAll((all, ctx) => setState(all, ctx, list, state), { label: 'cmdSlotState' });
 }
 
 // Return on a line of the hour. On one of the hour's own lines (`top`) the new line goes
@@ -116,15 +118,21 @@ export function slotFinds(day: string, hour: number, query: string, limit = 6): 
   return out.sort((a, b) => Number(a.done) - Number(b.done)).slice(0, limit);
 }
 
-// A new line typed into an hour: it goes to the top of the pad that is open, already
-// assigned. Returns its id ('' for blank text).
+// A new line typed into an hour: it goes to the top of Today, already assigned (Kevin,
+// 2026-11-25: whichever pad is open, an item made for an hour is for today's list). The
+// open pad takes it only while there is no Today yet. Returns its id ('' for blank text).
 export function cmdSlotAdd(day: string, hour: number, text: string): string {
   const clean = text.trim();
   if (!clean) return '';
   const { padId } = usePad.getState();
   let id = '';
   applyAll((all, ctx) => {
-    const made = insertAt(all, ctx, { parentId: padId, afterId: null }, clean);
+    let today: string | null = padId;
+    for (const key in all) {
+      const r = all[key]!;
+      if (r.pad && isLive(r) && fixedPadOf(all, r.id) === 'Today') today = r.id;
+    }
+    const made = insertAt(all, ctx, { parentId: today, afterId: null }, clean);
     id = made.newId;
     return setSlot(made.rows, ctx, [id], slotKey(day, hour));
   }, { label: 'cmdSlotAdd' });

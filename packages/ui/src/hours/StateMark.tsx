@@ -41,7 +41,8 @@ const SIDES: { state: MarkState; name: string }[] = [
 type SwitchProps = {
   // What the switch is for, for a screen reader: "This hour", or a line's words.
   label: string;
-  value: MarkState;
+  // Null lights no side: lines that are not all in the same state.
+  value: MarkState | null;
   onChange(state: MarkState): void;
   disabled?: boolean;
 };

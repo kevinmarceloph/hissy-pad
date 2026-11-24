@@ -14,6 +14,7 @@ import { getChimePlatform } from '@hissypad/state/hours';
 import { DayStrip } from './DayStrip';
 import { drawHours } from './drawn';
 import { HourRow } from './HourRow';
+import { LineDrawer } from './LineDrawer';
 import type { HourCell } from './Mark';
 import { PullIndicator, useRefreshControl } from './PullRefresh';
 import { Tap } from './Tap';
@@ -246,6 +247,9 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
               </ScrollView>
             </>
           )}
+
+          {/* The lines selected in the open hour, and what can be done to them. */}
+          {status === 'ready' && <LineDrawer />}
 
           {/* The calendar and the menu open over the hours; a press outside closes them. */}
           {panel && <Pressable aria-hidden onPress={() => setPanel(null)} style={styles.away} />}
