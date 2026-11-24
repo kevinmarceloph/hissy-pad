@@ -368,10 +368,17 @@ export function Pad() {
       </View>
       {/* The pad chips are the pad's only: Sort picks its pad in its own title. */}
       {mode === 'pad' && <PadChips theme={theme} />}
-      {mode === 'pad' && doneCount > 0 && (
-        <Pressable onPress={deleteDone} style={s.clear} accessibilityRole="button" accessibilityLabel={`Archive ${doneCount} completed`} accessibilityHint="Archives every crossed-out line in this pad. Shake to undo.">
-          <Text style={[s.clearText, { color: theme.inkMute }]}>Archive {doneCount} completed</Text>
-        </Pressable>
+      {/* The pad's status line: the toast on the left, Archive x completed flush right. It keeps
+          its height when both are empty, so neither one pushes the pad down when it shows up. */}
+      {mode === 'pad' && (
+        <View style={s.status}>
+          <Text style={[s.statusToast, { color: theme.inkSoft }]} numberOfLines={1} accessibilityLiveRegion="polite">{toast ?? ''}</Text>
+          {doneCount > 0 && (
+            <Pressable onPress={deleteDone} style={s.clear} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="button" accessibilityLabel={`Archive ${doneCount} completed`} accessibilityHint="Archives every crossed-out line in this pad. Shake to undo.">
+              <Text style={[s.clearText, { color: theme.inkMute }]}>Archive {doneCount} completed</Text>
+            </Pressable>
+          )}
+        </View>
       )}
       <Modal visible={logText !== null} animationType="slide" onRequestClose={() => setLogText(null)}>
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 48 }}>
@@ -423,7 +430,7 @@ export function Pad() {
       </Modal>
       <SearchSheet visible={sheet === 'search'} onClose={() => setSheet(null)} onOpen={() => setMode('pad')} theme={theme} />
       <DoneSheet visible={sheet === 'done'} onClose={() => setSheet(null)} theme={theme} />
-      {toast && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
+      {toast && mode !== 'pad' && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
       {/* Hours: the shared screens (packages/ui). Sort starts over when the pad changes. */}
       {mode === 'hours' && <View style={s.scroll}><HoursApp /></View>}
       {mode === 'sort' && <SortView key={padId ?? 'main'} theme={theme} />}
@@ -505,7 +512,9 @@ const s = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6 },
   grow: { flex: 1 },
   iconBtn: { width: 40, height: 36, alignItems: 'center', justifyContent: 'center' },
-  clear: { alignSelf: 'flex-start', minHeight: 30, paddingHorizontal: 22, justifyContent: 'center' },
+  status: { flexDirection: 'row', alignItems: 'center', height: 24, paddingLeft: 16, paddingRight: 6, gap: 12 },
+  statusToast: { flex: 1, fontFamily: serif, fontStyle: 'italic', fontSize: 14 },
+  clear: { height: 24, paddingHorizontal: 10, justifyContent: 'center' },
   clearText: { fontFamily: serif, fontSize: 13 },
   hidden: { display: 'none' },
   title: { fontFamily: serif, fontStyle: 'italic', fontSize: 19 },
