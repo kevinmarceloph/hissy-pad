@@ -91,7 +91,7 @@ export function Pad() {
   const [logText, setLogText] = useState<string | null>(null)
   // Pad, Hours or Sort: the switcher in the top bar. The pad stays mounted under the other
   // two, so it is where it was left on the way back.
-  const [mode, setMode] = useState<Mode>('pad')
+  const [mode, setMode] = useState<Mode>('hours')
   const [sheet, setSheet] = useState<'trash' | 'done' | 'search' | null>(null)
   // The hour picker the toolbar's "Hour…" (behind More) opens.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)

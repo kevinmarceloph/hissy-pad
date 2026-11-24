@@ -6,7 +6,7 @@ const SHOTS = process.env.TOOLBAR_SHOTS // a directory: save a screenshot of the
 // positioned inside it. The Move to… menu once opened inside the bar and was cut off, so
 // this checks what jsdom cannot: that each item is really the thing under its own centre.
 test('the Move to… menu opens above the toolbar, fully on screen, and moves the line', async ({ page }, info) => {
-  await page.goto('/')
+  await page.goto('/#pads')
   for (const name of ['Work', 'Ideas', 'A pad with a much longer name than the others']) {
     await page.getByRole('button', { name: 'New pad' }).click()
     await page.getByLabel('Pad name').fill(name)
@@ -46,7 +46,7 @@ test('the Move to… menu opens above the toolbar, fully on screen, and moves th
 })
 
 test('the Move to… menu closes on Escape and on a click elsewhere', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/#pads')
   await page.getByRole('button', { name: 'New pad' }).click()
   await page.getByLabel('Pad name').fill('Work')
   await page.getByRole('button', { name: 'Create' }).click()
@@ -69,7 +69,7 @@ test('the Move to… menu closes on Escape and on a click elsewhere', async ({ p
 // switch and "done editing" floating above it, and a + over the pad when nothing is open.
 test('at phone width the toolbar does not scroll, and the floating buttons are there', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone', 'phone width only')
-  await page.goto('/')
+  await page.goto('/#pads')
   const add = page.getByRole('button', { name: 'Add a line at the top' })
   await expect(add).toBeVisible()
   await page.getByRole('button', { name: 'Select line' }).first().click()
@@ -95,7 +95,7 @@ test('at phone width the toolbar does not scroll, and the floating buttons are t
 
 test('the floating + adds a line at the top on a tap, and where it is dropped on a drag', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone', 'phone width only')
-  await page.goto('/')
+  await page.goto('/#pads')
   const add = page.getByRole('button', { name: 'Add a line at the top' })
   const before = await page.locator('.row').count()
   const from = (await add.boundingBox())!

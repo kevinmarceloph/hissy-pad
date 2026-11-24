@@ -15,7 +15,7 @@ import { showToast } from './toast'
 
 const VIEWS: Record<string, View> = { '#hours': 'hours', '#pads': 'pad', '#sort': 'sort' }
 const HASHES: Record<View, string> = { hours: '#hours', pad: '#pads', fresh: '#pads', sort: '#sort' }
-const viewFromHash = (): View => VIEWS[location.hash] ?? 'pad'
+const viewFromHash = (): View => VIEWS[location.hash] ?? 'hours'
 
 export function App() {
   const load = usePad((s) => s.load)

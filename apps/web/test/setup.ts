@@ -1,11 +1,15 @@
 import '@testing-library/jest-dom/vitest'
-import { afterEach } from 'vitest'
+import { afterEach, beforeEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
+
+// The app opens on Hours when the address has no mode in it; the tests are about the pad
+// unless they set a hash of their own.
+beforeEach(() => {
+  history.replaceState(null, '', '/#pads')
+})
 
 afterEach(() => {
   cleanup()
-  // The app writes its mode into the hash (#sort); start every test back on the pad.
-  history.replaceState(null, '', '/')
 })
 
 // jsdom has no <dialog> behaviour: the open attribute stands in for showModal/close.

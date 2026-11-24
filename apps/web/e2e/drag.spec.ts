@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 // Fresh IndexedDB per test (each Playwright context is a clean profile). Lines are typed
 // through the real editor, then dragged by their bullets with real pointer coordinates.
 async function typeOutline(page: Page, lines: string[]) {
-  await page.goto('/')
+  await page.goto('/#pads')
   // A first visit is seeded with the welcome pad: clear it down to one blank line.
   await page.getByRole('button', { name: 'Select line' }).first().click()
   await page.keyboard.press('Control+a')

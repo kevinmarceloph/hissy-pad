@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 const SHOTS = process.env.SORT_SHOTS // a directory: save screenshots of the walk-through
 
 async function typeOutline(page: Page, lines: string[]) {
-  await page.goto('/')
+  await page.goto('/#pads')
   await page.getByRole('button', { name: 'Select line' }).first().click()
   await page.keyboard.press('Control+a')
   await page.keyboard.press('Delete')

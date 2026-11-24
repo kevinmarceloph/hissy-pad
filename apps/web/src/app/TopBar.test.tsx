@@ -62,6 +62,14 @@ describe('top bar', () => {
     expect(screen.getByRole('tree')).toBeInTheDocument()
   })
 
+  it('with no mode in the address the app opens on Hours', async () => {
+    history.replaceState(null, '', '/')
+    resetStore('a\nb')
+    render(<App />)
+    expect(await screen.findByRole('button', { name: 'Hours', pressed: true })).toBeInTheDocument()
+    expect(screen.queryByRole('tree')).toBeNull()
+  })
+
   it('Hours comes first, and #hours, #pads and #sort open each mode and follow the switcher', async () => {
     const user = userEvent.setup()
     history.replaceState(null, '', '/#sort')
