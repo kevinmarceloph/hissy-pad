@@ -1,4 +1,4 @@
-// "Add to HissyPad" for Siri, Spotlight and the Shortcuts app. Compiled into the app
+// "HissyPad inbox" for Siri, Spotlight and the Shortcuts app. Compiled into the app
 // itself (plugins/withNativeSources.js adds this file and Shared.swift to the app target),
 // because the system only looks for App Shortcuts in the app, not in its widget.
 //
@@ -34,11 +34,20 @@ struct AddToInboxIntent: AppIntent {
   }
 }
 
+// The phrases, said as they are: Siri asks for the line after. The first ones are the ones
+// to use. "Add to …" and "New line in …" came first and are kept, but Siri tends to hear
+// them as its own (add a song to a playlist, a search), 2026-11-24. The watch app has the
+// same list (targets/watch/WatchShortcuts.swift): keep them the same.
 struct HissyPadShortcuts: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
     AppShortcut(
       intent: AddToInboxIntent(),
       phrases: [
+        "\(.applicationName) inbox",
+        "Jot in \(.applicationName)",
+        "Capture in \(.applicationName)",
+        "Write in \(.applicationName)",
+        "New \(.applicationName) line",
         "Add to \(.applicationName)",
         "Add to my \(.applicationName) Inbox",
         "New line in \(.applicationName)",

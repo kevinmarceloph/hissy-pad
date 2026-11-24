@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-  <dict/>
+  <dict>
+    <!-- Siri writes the name down as two words as often as one. -->
+    <key>INAlternativeAppNames</key>
+    <array>
+      <dict>
+        <key>INAlternativeAppName</key>
+        <string>Hissy Pad</string>
+      </dict>
+    </array>
+  </dict>
 </plist>

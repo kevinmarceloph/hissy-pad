@@ -10,7 +10,12 @@
       "bundleIdentifier": "ph.marcelo.hissypad",
       "supportsTablet": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "INAlternativeAppNames": [
+          {
+            "INAlternativeAppName": "Hissy Pad"
+          }
+        ]
       },
       "appleTeamId": "22M56484D3",
       "entitlements": {

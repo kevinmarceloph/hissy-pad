@@ -9,7 +9,7 @@ module.exports = {
   bundleIdentifier: '.watch',
   deploymentTarget: '10.0',
   icon: '../../assets/icon.png',
-  frameworks: ['SwiftUI', 'WatchConnectivity', 'Security'],
+  frameworks: ['SwiftUI', 'WatchConnectivity', 'Security', 'AppIntents'],
   colors: {
     $accent: '#e0755a', // the app's accent as it is on a dark ground: a watch is always dark
   },

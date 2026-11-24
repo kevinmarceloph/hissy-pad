@@ -97,6 +97,33 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
     return true
   }
 
+  // Siri on the watch (WatchShortcuts.swift): a new line at the top of the pad named
+  // Inbox, then a sync that is waited for, a few seconds at most, because the watch app may
+  // be put back to sleep as soon as Siri has its answer. The line is kept here either way.
+  // False when no pad here is named Inbox.
+  func addToInbox(_ text: String) async -> Bool {
+    guard let pad = pads.first(where: { $0.id != mainPadId && $0.name.lowercased() == "inbox" }) else { return false }
+    guard add(text, to: pad.id) else { return false }
+    guard sync.copy != nil else { return true }
+    await withCheckedContinuation { (waiting: CheckedContinuation<Void, Never>) in
+      var over = false
+      let finish = {
+        if over { return }
+        over = true
+        waiting.resume()
+      }
+      Task { @MainActor in
+        await self.sync.sync()
+        finish()
+      }
+      Task { @MainActor in
+        try? await Task.sleep(nanoseconds: 8_000_000_000)
+        finish()
+      }
+    }
+    return true
+  }
+
   private func keep(_ actions: [QueuedAction]) {
     added = actions
     if let data = try? JSONEncoder().encode(actions) { store.set(data, forKey: addedKey) }
