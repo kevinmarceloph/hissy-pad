@@ -23,15 +23,9 @@ export function PadIcon({ color }: { color: string }) {
   )
 }
 
-// Hours: a clock at about four.
+// Hours: a clock, the toolbar's Hour… icon.
 export function HoursIcon({ color }: { color: string }) {
-  return (
-    <View style={i.box}>
-      <View style={{ width: 17, height: 17, borderRadius: 9, borderWidth: W, borderColor: color }} />
-      <View style={{ position: 'absolute', left: 9.25, top: 5, width: W, height: 5.5, borderRadius: 1, backgroundColor: color }} />
-      <View style={{ position: 'absolute', left: 9.25, top: 9.5, width: 4.5, height: W, borderRadius: 1, backgroundColor: color }} />
-    </View>
-  )
+  return <LineIcon icon="hour" color={color} ground="transparent" />
 }
 
 // Later: a calendar page, rings at the top.

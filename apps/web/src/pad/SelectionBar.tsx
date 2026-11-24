@@ -10,7 +10,7 @@ import { LineIcon } from '../app/icons'
 import { MOD, shortcut } from '../platform/os'
 
 // A rule is drawn before the first button of these groups.
-const RULE_BEFORE: ReadonlySet<LineActionGroup> = new Set(['add', 'move', 'tree', 'clip', 'remove'])
+const RULE_BEFORE: ReadonlySet<LineActionGroup> = new Set(['add', 'move', 'tree', 'clip', 'pad', 'remove'])
 
 interface MenuItem {
   key: string

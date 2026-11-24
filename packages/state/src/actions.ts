@@ -50,7 +50,7 @@ export type LineActionGroup = 'mark' | 'add' | 'move' | 'tree' | 'clip' | 'pad' 
 
 // The icons the toolbars draw. 'move' is also the Sort mode's icon in the top bar, and the
 // "Move to…" menu's button.
-export type LineIcon = 'addAbove' | 'addBelow' | 'top' | 'fold' | 'unfold' | 'copy' | 'cut' | 'pasteAbove' | 'pasteBelow' | 'move' | 'archive' | 'more'
+export type LineIcon = 'addAbove' | 'addBelow' | 'top' | 'fold' | 'unfold' | 'copy' | 'cut' | 'pasteAbove' | 'pasteBelow' | 'move' | 'archive' | 'hour' | 'category' | 'more'
 
 export interface LineAction {
   id: string
@@ -101,8 +101,8 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   { id: 'cut', group: 'clip', label: 'Cut', name: 'Cut', hint: 'Cut: copy as outline, then delete', icon: 'cut', keys: '⌘X', run: cmdCutSelection },
   { id: 'pasteAbove', group: 'clip', label: 'Paste above', name: 'Paste above', hint: 'Paste the clipboard as lines above', icon: 'pasteAbove', run: () => paste('above') },
   { id: 'pasteBelow', group: 'clip', label: 'Paste below', name: 'Paste below', hint: 'Paste the clipboard as lines below', icon: 'pasteBelow', run: () => paste('below') },
-  { id: 'slot', group: 'pad', label: 'Hour…', name: 'Put in an hour', hint: 'Put in an hour of a day (Hours counts what is done there)', more: true, run: cmdPickSlot },
-  { id: 'category', group: 'pad', label: 'Category…', name: 'Give a category', hint: 'Give it one of Hours\' categories (its icon shows before the text)', more: true, run: cmdPickCategory },
+  { id: 'slot', group: 'pad', label: 'Hour…', name: 'Put in an hour', hint: 'Put in an hour of a day (Hours counts what is done there)', icon: 'hour', run: cmdPickSlot },
+  { id: 'category', group: 'pad', label: 'Category…', name: 'Give a category', hint: 'Give it one of Hours\' categories (its icon shows before the text)', icon: 'category', run: cmdPickCategory },
   {
     id: 'makePad', group: 'pad', label: 'Make pad', name: 'Make pad', hint: 'Make this line a pad: its text is the name, its sub items the lines', more: true,
     enabled: (c) => c.single,

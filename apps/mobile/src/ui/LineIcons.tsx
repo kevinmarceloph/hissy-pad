@@ -102,6 +102,28 @@ export function LineIcon({ icon, color, ground }: { icon: LineIconId; color: str
         </>
       )
       break
+    // A clock: put it in an hour. Also the Hours mode.
+    case 'hour':
+      body = (
+        <>
+          <View style={{ position: 'absolute', left: 1.5, top: 1.5, width: 17, height: 17, borderRadius: 8.5, borderWidth: W, borderColor: color }} />
+          <V x={10} y={5} len={5.75} color={color} />
+          <Stroke x={9.7} y={11} len={3.6} deg={33.7} color={color} />
+        </>
+      )
+      break
+    // A tag with its hole, point up and to the left: give it a category. Drawn pointing
+    // left, then turned.
+    case 'category':
+      body = (
+        <View style={{ position: 'absolute', left: 0, top: 0, width: 20, height: 20, transform: [{ rotate: '45deg' }] }}>
+          <View style={{ position: 'absolute', left: 5.5, top: 4.75, width: 11.75, height: 10.5, borderWidth: W, borderLeftWidth: 0, borderTopRightRadius: 1.5, borderBottomRightRadius: 1.5, borderColor: color }} />
+          <Stroke x={0.07} y={7.75} len={6.36} deg={-45} color={color} />
+          <Stroke x={0.07} y={12.25} len={6.36} deg={45} color={color} />
+          <View style={{ position: 'absolute', left: 3.95, top: 7.95, width: 4.1, height: 4.1, borderRadius: 2.05, borderWidth: W, borderColor: color }} />
+        </View>
+      )
+      break
     case 'more':
       body = <>{[4.5, 10, 15.5].map((x) => <View key={x} style={{ position: 'absolute', left: x - 1.4, top: 8.6, width: 2.8, height: 2.8, borderRadius: 1.4, backgroundColor: color }} />)}</>
       break

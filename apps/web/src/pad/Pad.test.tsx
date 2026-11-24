@@ -346,7 +346,7 @@ describe('Archive and Done panels', () => {
     await user.keyboard('{Escape}')
     await startEditing('top')
     await user.click(within(bar).getByRole('button', { name: 'More actions' }))
-    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Ungroup', 'Hour…', 'Category…', 'Make pad'])
+    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Ungroup', 'Make pad'])
     await user.click(screen.getByRole('menuitem', { name: 'Ungroup' }))
     expect(texts()).toBe('top\nchild\n  grand\nother\nlast')
     expect(usePad.getState().past.at(-1)?.label).toBe('cmdUngroup')
@@ -357,7 +357,7 @@ describe('Archive and Done panels', () => {
     await mount('a\nb\n  b1\nc')
     await startEditing('b')
     const bar = screen.getByRole('toolbar', { name: 'Current line' })
-    for (const name of ['Add a line above', 'Add a line below', 'Outdent', 'Indent', 'Move down', 'Move up', 'Move to top', 'Fold', 'Copy', 'Cut', 'Paste above', 'Paste below', 'Archive']) {
+    for (const name of ['Add a line above', 'Add a line below', 'Outdent', 'Indent', 'Move down', 'Move up', 'Move to top', 'Fold', 'Copy', 'Cut', 'Paste above', 'Paste below', 'Put in an hour', 'Give a category', 'Archive']) {
       expect(within(bar).getByRole('button', { name })).toBeInTheDocument()
     }
     await user.click(within(bar).getByRole('button', { name: 'Fold' }))

@@ -108,7 +108,7 @@ const s = StyleSheet.create({
   bar: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 6, paddingVertical: 2 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   second: { flexWrap: 'wrap' },
-  btn: { minWidth: 38, minHeight: 40, paddingHorizontal: 7, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
+  btn: { minWidth: 36, minHeight: 40, paddingHorizontal: 6, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   arrow: { minWidth: 34, paddingHorizontal: 3 },
   kind: { flexDirection: 'row', borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, overflow: 'hidden' },
   kindBtn: { minWidth: 32, minHeight: 34, borderRadius: 0 },

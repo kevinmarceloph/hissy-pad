@@ -32,6 +32,10 @@ const LINE_ICONS: Record<LineIconId, ReactNode> = {
   move: <Icon d="M3 11v4.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V11M10 3v9M6.5 8.5L10 12l3.5-3.5" />,
   // A box with a lid: put it away (the Archive).
   archive: <Icon d="M3 4.5h14v3H3zM4.5 7.5v8a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-8M8 10.5h4" />,
+  // A clock: put it in an hour. Also the Hours mode.
+  hour: <Icon d="M10 5.5V10l3 2"><circle cx="10" cy="10" r="7" /></Icon>,
+  // A tag with its hole, point up and to the left: give it a category.
+  category: <Icon><g transform="rotate(45 10 10)"><path d="M5.5 5.5H15a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H5.5L1 10z" /><circle cx="6" cy="10" r="1.3" /></g></Icon>,
   more: <svg viewBox="0 0 20 20" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="4.5" cy="10" r="1.4" /><circle cx="10" cy="10" r="1.4" /><circle cx="15.5" cy="10" r="1.4" /></svg>,
 }
 
@@ -42,7 +46,7 @@ export function LineIcon({ icon }: { icon: LineIconId }) {
 // Pad: an outline, three lines with their bullets.
 export const PadIcon = () => <Icon d="M7.5 5h9M7.5 10h9M7.5 15h9M3.5 5h.01M3.5 10h.01M3.5 15h.01" />
 // Hours: a clock.
-export const HoursIcon = () => <Icon d="M10 5.5V10l3 2"><circle cx="10" cy="10" r="7" /></Icon>
+export const HoursIcon = () => <LineIcon icon="hour" />
 // Sort: a line on its way into a tray. The same icon as the toolbar's Move to….
 export const SortIcon = () => <LineIcon icon="move" />
 export const SearchIcon = () => <Icon d="M13 13l4 4"><circle cx="8.5" cy="8.5" r="5" /></Icon>
