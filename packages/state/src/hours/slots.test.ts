@@ -18,7 +18,7 @@ describe('lines in an hour', () => {
 
   it('writes a slot as a calendar day and a two-digit hour, and reads it back', () => {
     expect(SLOT).toBe('2026-11-23T09');
-    expect(parseSlot(SLOT)).toEqual({ day: '2026-11-23', hour: 9 });
+    expect(parseSlot(SLOT)).toEqual({ day: '2026-11-23', hour: 9, hours: 1 });
     expect(parseSlot('2026-11-23T24')).toBeNull();
     expect(parseSlot(null)).toBeNull();
     expect(slotLabel(SLOT, '2026-11-23')).toBe('Today 9am');

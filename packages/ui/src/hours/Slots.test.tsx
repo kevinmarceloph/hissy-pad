@@ -137,4 +137,42 @@ describe('SlotPicker', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'No hour' }));
     expect(onPick).toHaveBeenCalledWith(null);
   });
+
+  it('picks a run of hours with two taps, across midnight too', async () => {
+    const onPick = vi.fn();
+    await render(<SlotPicker value={null} onPick={onPick} onCancel={() => {}} clock={clock} />);
+    await fireEvent.press(screen.getByRole('switch', { name: 'Several hours' }));
+    await fireEvent.press(screen.getByRole('radio', { name: '4pm' }));
+    expect(onPick).not.toHaveBeenCalled();
+    expect(screen.getByText('From Today 4pm: tap the last hour.')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('radio', { name: '2pm, now' }));
+    expect(onPick).toHaveBeenLastCalledWith('2026-11-19T14+3');
+
+    await fireEvent.press(screen.getByRole('radio', { name: '10pm' }));
+    await fireEvent.press(screen.getByLabelText('The day after'));
+    await fireEvent.press(screen.getByRole('radio', { name: '1am' }));
+    expect(onPick).toHaveBeenLastCalledWith('2026-11-19T22+4');
+  });
+
+  it('opens a run with its hours checked and Several hours on', async () => {
+    await render(<SlotPicker value="2026-11-19T14+2" onPick={() => {}} onCancel={() => {}} clock={clock} />);
+    expect(screen.getByRole('switch', { name: 'Several hours' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: '2pm, now' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: '3pm' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: '4pm' })).toHaveAttribute('aria-checked', 'false');
+  });
+});
+
+describe('a line in a run of hours', () => {
+  it('counts on every hour of the run', async () => {
+    await setup();
+    await act(async () => {
+      select([id('call the bank')]);
+      cmdSetSlot(slotKey('2026-11-19', 13, 3));
+    });
+    expect(screen.getByLabelText('1pm: blank, 0 of 1 item done')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: blank, 0 of 1 item done')).toBeTruthy();
+    expect(screen.getByLabelText('3pm: not yet, 0 of 1 item done')).toBeTruthy();
+    expect(screen.getByLabelText('4pm: not yet')).toBeTruthy();
+  });
 });

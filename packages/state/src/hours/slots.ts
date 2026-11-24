@@ -1,7 +1,7 @@
 // Lines of the pad inside an hour. A line carries the slot it is assigned to (core/slot.ts);
 // these are the commands the pad's toolbar and the Hours screen run on it. They go through
 // the pad's own store, so each one is an undo step and syncs like any other edit.
-import { insertAt, isLive, setDone, setSlot, slotKey, slotLabel, slotLines, todayKey, type NodeRow } from '@hissypad/core';
+import { insertAt, isLive, setDone, setSlot, slotCovers, slotKey, slotLabel, slotLines, todayKey, type NodeRow } from '@hissypad/core';
 
 import { apply, applyAll, usePad } from '../store';
 import { search, type SearchPart } from '../search';
@@ -53,7 +53,7 @@ export function slotFinds(day: string, hour: number, query: string, limit = 6): 
   for (const g of search(all, query, padId, 200).groups) {
     for (const h of g.hits) {
       const row = all[h.id];
-      if (h.isPad || !row || row.slot === here || row.text.trim() === '') continue;
+      if (h.isPad || !row || slotCovers(row.slot, here) || row.text.trim() === '') continue;
       out.push({ id: h.id, parts: h.parts, done: h.done, where: [g.name, ...h.path].join(' › '), slot: row.slot });
     }
   }
