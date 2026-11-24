@@ -134,7 +134,7 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
       e.preventDefault()
       ta.blur()
       select([row.id], row.id)
-    } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.altKey) {
+    } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && (e.altKey || (mod(e) && e.shiftKey))) {
       e.preventDefault()
       cmdMove(e.key === 'ArrowUp' ? 'up' : 'down')
     } else if (e.key === 'ArrowUp' && !e.shiftKey && !value.slice(0, selectionStart).includes('\n') && onFirstVisualLine(ta)) {

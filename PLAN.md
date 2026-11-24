@@ -82,7 +82,7 @@ Auth is real even though there is one user. RLS is `user_id = (select auth.uid()
 Simpler than Hissycal's Normal/Edit modes. Always editing, like Workflowy, with a selection mode one keypress away.
 
 - One auto-growing `<textarea>` per node. Enter: new sibling below (splits text at the caret). Shift+Enter: newline inside the node. Backspace at the start of an empty node: delete it and move the caret up.
-- Tab / Shift+Tab: indent and outdent. Alt+Up / Alt+Down: move among siblings. Cmd+Enter: toggle done. Cmd+. : collapse and expand.
+- Tab / Shift+Tab: indent and outdent. Alt+Up / Alt+Down (or Cmd+Shift+Up / Cmd+Shift+Down): move among siblings. Cmd+Enter: toggle done. Cmd+. : collapse and expand.
 - Escape: leave the textarea and select the node. Shift+Up/Down extends the selection. Cmd+click toggles, Shift+click ranges. Every keyboard action above works on the selection as a batch. Enter or typing goes back to editing.
 - Drag: pointer-based, hand-rolled, no dnd-kit. The pad is a flat list of visible rows, so a drop resolves from pointer y (which gap) and pointer x (which depth, snapped to indent width). That resolver is a pure function in core, `resolveDrop(rows, y, x)`, and both platforms call it. Hissycal's band engine is the same idea with more cases; this one has one list and one axis of depth.
 - Mobile: long-press selects, a drag handle on the bullet moves, swipe right marks done. Keyboard shortcuts work with an external keyboard.

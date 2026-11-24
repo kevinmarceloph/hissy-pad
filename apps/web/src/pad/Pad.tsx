@@ -123,12 +123,12 @@ export function Pad() {
       switch (e.key) {
         case 'ArrowUp':
           e.preventDefault()
-          if (e.altKey) cmdMove('up')
+          if (e.altKey || (mod && e.shiftKey)) cmdMove('up')
           else stepSelection(-1, e.shiftKey)
           break
         case 'ArrowDown':
           e.preventDefault()
-          if (e.altKey) cmdMove('down')
+          if (e.altKey || (mod && e.shiftKey)) cmdMove('down')
           else stepSelection(1, e.shiftKey)
           break
         case 'Enter':

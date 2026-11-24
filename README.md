@@ -60,7 +60,7 @@ Sign in from the footer (magic link lands in Mailpit at http://127.0.0.1:54424, 
 |---|---|
 | Enter / Shift+Enter | new line / newline inside the line |
 | Tab / Shift+Tab | nest / unnest |
-| Alt+Up / Alt+Down | move among siblings |
+| Alt+Up / Alt+Down, Cmd+Shift+Up / Cmd+Shift+Down | move among siblings |
 | Cmd+Enter (or Ctrl) | cross out |
 | Cmd+. | fold / unfold |
 | Cmd+Shift+7 | numbered list on / off (a run of numbered siblings counts 1, 2, 3) |

@@ -29,7 +29,7 @@ describe('keys while editing a line', () => {
     Element.prototype.scrollIntoView = () => {}
   })
 
-  it('Tab nests, Shift+Tab unnests, Alt+arrows move, Cmd+. folds, Cmd+Shift+7 numbers', async () => {
+  it('Tab nests, Shift+Tab unnests, Alt+arrows and Cmd+Shift+arrows move, Cmd+. folds, Cmd+Shift+7 numbers', async () => {
     const user = userEvent.setup()
     await mount('a\nb\n  b1\nc')
     await editLine('c')
@@ -40,6 +40,10 @@ describe('keys while editing a line', () => {
     await user.keyboard('{Alt>}{ArrowUp}{/Alt}')
     expect(texts()).toBe('a\nc\nb\n  b1')
     await user.keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(texts()).toBe('a\nb\n  b1\nc')
+    await user.keyboard('{Meta>}{Shift>}{ArrowUp}{/Shift}{/Meta}')
+    expect(texts()).toBe('a\nc\nb\n  b1')
+    await user.keyboard('{Control>}{Shift>}{ArrowDown}{/Shift}{/Control}')
     expect(texts()).toBe('a\nb\n  b1\nc')
     await user.keyboard('{Control>}{Shift>}7{/Shift}{/Control}')
     expect(texts()).toBe('a\nb\n  b1\n1.c')
