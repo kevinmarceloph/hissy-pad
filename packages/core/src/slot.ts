@@ -71,6 +71,24 @@ export function slotCounts(all: Rows): Record<string, SlotCount> {
   return out
 }
 
+// How many lines were crossed out during each hour (by doneAt, device local time) beyond the
+// ones assigned to that hour, which slotCounts already has. A line cleared or deleted since
+// still counts: the work was done then. Blank lines and pad rows never count, nor a line
+// crossed out before doneAt existed.
+export function slotDoneExtra(all: Rows): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const id in all) {
+    const r = all[id]!
+    if (!r.done || !r.doneAt || isBlank(r) || r.pad) continue
+    const at = new Date(r.doneAt)
+    if (Number.isNaN(at.getTime())) continue
+    const key = slotKey(todayKey(at), at.getHours())
+    if (slotCovers(r.slot, key)) continue
+    out[key] = (out[key] ?? 0) + 1
+  }
+  return out
+}
+
 // The lines in one hour (a single-hour key), a run of hours that takes it in included: open ones first, then crossed out, each group by rank
 // (a line's place among its siblings), which is steady enough across pads.
 export function slotLines(all: Rows, slot: string): NodeRow[] {

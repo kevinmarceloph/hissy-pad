@@ -7,7 +7,7 @@ import { toggleDone, type Deed, type Entry, type EntryPatch } from '@hissypad/co
 import { pinRecurring, recurringAt, withRecurring } from '@hissypad/core/hours';
 import { summarize } from '@hissypad/core/hours';
 import { useCategories, useChimes, useDay, useFlags, useRecurring, useSync } from './provider';
-import { slotCounts, slotKey } from '@hissypad/core';
+import { slotCounts, slotDoneExtra, slotKey } from '@hissypad/core';
 import { usePad } from '@hissypad/state';
 import { getChimePlatform } from '@hissypad/state/hours';
 
@@ -61,6 +61,8 @@ export function DayScreen({ clock = realClock, onEditCategories, onEditFlags, on
   // The pad's lines assigned to an hour, counted by slot across every pad.
   const all = usePad((s) => s.all);
   const counts = slotCounts(all);
+  // And the lines crossed out during an hour that were not assigned to it, cleared ones too.
+  const extras = slotDoneExtra(all);
   const refreshDay = useDay((s) => s.refresh);
   const pulled = async () => {
     await syncNow();
@@ -235,6 +237,7 @@ export function DayScreen({ clock = realClock, onEditCategories, onEditFlags, on
                         day={on}
                         hour={hour}
                         count={counts[slotKey(on, hour)]}
+                        extra={extras[slotKey(on, hour)]}
                         entry={shown[hour]}
                         recurring={shown[hour] !== byHour[hour]}
                         state={state}

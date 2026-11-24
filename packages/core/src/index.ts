@@ -52,7 +52,7 @@ export {
   setSlot,
   setCategory,
 } from './ops'
-export { slotKey, parseSlot, slotHours, slotCovers, slotCounts, slotLines, slotLabel, todayKey, MAX_SLOT_HOURS, type SlotCount } from './slot'
+export { slotKey, parseSlot, slotHours, slotCovers, slotCounts, slotDoneExtra, slotLines, slotLabel, todayKey, MAX_SLOT_HOURS, type SlotCount } from './slot'
 export {
   type PadId,
   type Side,

@@ -20,6 +20,8 @@ type Props = {
   hour: number;
   // The pad's lines assigned to this hour: how many are crossed out and how many are open.
   count?: SlotCount | undefined;
+  // Lines crossed out during this hour that were not assigned to it (cleared ones too).
+  extra?: number | undefined;
   entry: Entry | undefined;
   // The plan in `entry` is a recurring one, drawn on this hour and not stored on it.
   recurring?: boolean;
@@ -38,7 +40,7 @@ type Props = {
 };
 
 export function HourRow(props: Props) {
-  const { hour, entry, state, open, categories, flags, count, onOpen, onClose, onMark } = props;
+  const { hour, entry, state, open, categories, flags, count, extra = 0, onOpen, onClose, onMark } = props;
   const theme = useTheme();
   const label = hourLabel(hour);
   const logged = isLogged(entry);
@@ -84,7 +86,8 @@ export function HourRow(props: Props) {
         : 'blank';
   const items = count ? count.done + count.open : 0;
   const itemsSpoken = items > 0 ? `, ${count!.done} of ${items} ${items === 1 ? 'item' : 'items'} done` : '';
-  const spoken = (logged && aside ? `${main}, ${aside}` : main) + itemsSpoken;
+  const extraSpoken = extra > 0 ? `, ${extra} more done` : '';
+  const spoken = (logged && aside ? `${main}, ${aside}` : main) + itemsSpoken + extraSpoken;
 
   return (
     <View style={[styles.wrap, { borderBottomColor: theme.rule }, open && { backgroundColor: theme.paperRaised }]}>
@@ -128,12 +131,19 @@ export function HourRow(props: Props) {
             {isNow ? 'happening now' : state === 'past' ? 'blank' : ''}
           </Text>
         )}
-        {items > 0 && (
+        {(items > 0 || extra > 0) && (
           // The pad's lines in this hour: done out of all. A tick leads when every one is done,
-          // so the count never rests on its weight alone.
-          <Text aria-hidden style={[styles.items, { color: count!.open === 0 ? theme.ink : theme.inkSoft }, count!.open === 0 && { fontWeight: '700' }]}>
-            {count!.open === 0 ? '✓ ' : ''}
-            {count!.done}/{items}
+          // so the count never rests on its weight alone. "+N" after it is the lines crossed
+          // out in this hour that were assigned elsewhere or nowhere, cleared ones too.
+          <Text aria-hidden style={[styles.items, { color: theme.inkSoft }]}>
+            {items > 0 && (
+              <Text style={[{ color: count!.open === 0 ? theme.ink : theme.inkSoft }, count!.open === 0 && { fontWeight: '700' }]}>
+                {count!.open === 0 ? '✓ ' : ''}
+                {count!.done}/{items}
+              </Text>
+            )}
+            {items > 0 && extra > 0 ? ' ' : ''}
+            {extra > 0 ? `+${extra}` : ''}
           </Text>
         )}
         {carried.length > 0 && (

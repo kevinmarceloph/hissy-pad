@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSlot, slotCounts, slotCovers, slotHours, slotKey, slotLabel, slotLines } from './slot'
+import { parseSlot, slotCounts, slotCovers, slotDoneExtra, slotHours, slotKey, slotLabel, slotLines } from './slot'
 import type { NodeRow, Rows } from './types'
 
 const row = (id: string, slot: string | null, done = false): NodeRow => ({
@@ -40,5 +40,27 @@ describe('a run of hours', () => {
     expect(slotLabel('2026-11-24T14+3', '2026-11-24')).toBe('Today 2pm-5pm')
     expect(slotLabel('2026-11-24T22+4', '2026-11-24')).toBe('Today 10pm-2am')
     expect(slotLabel('2026-11-24T09', '2026-11-24')).toBe('Today 9am')
+  })
+})
+
+describe('lines crossed out during an hour', () => {
+  // Local time, as the slots are: 2:10pm and 3:40pm on 24 Nov.
+  const at = (h: number, m: number) => new Date(2026, 10, 24, h, m).toISOString()
+  const done = (id: string, slot: string | null, when: string, extra: Partial<NodeRow> = {}): NodeRow =>
+    ({ ...row(id, slot, true), doneAt: when, ...extra })
+
+  it('counts them by the hour they were crossed out, cleared ones too, leaving out the ones assigned there', () => {
+    const all = table(
+      done('a', null, at(14, 10)),
+      done('b', '2026-11-23T09', at(14, 50)),
+      done('c', '2026-11-24T14', at(14, 20)),          // assigned to 2pm: already in 2pm's count
+      done('d', '2026-11-24T13+2', at(14, 5)),         // a run that takes in 2pm: same
+      done('e', null, at(15, 40), { deletedAt: at(16, 0) }), // cleared since: still counts
+      done('f', null, at(15, 41), { text: '  ' }),     // blank: never
+      done('g', null, at(15, 42), { pad: true }),      // a pad row: never
+      { ...row('h', null, true), doneAt: null },       // crossed out before doneAt existed
+      row('i', null),                                  // open
+    )
+    expect(slotDoneExtra(all)).toEqual({ '2026-11-24T14': 2, '2026-11-24T15': 1 })
   })
 })

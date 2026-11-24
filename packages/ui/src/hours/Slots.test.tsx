@@ -46,6 +46,23 @@ describe('the pad\'s lines in an hour', () => {
     expect(screen.getByLabelText('1pm: blank')).toBeTruthy();
   });
 
+  it('adds the lines crossed out during an hour that were not assigned to it, cleared ones too', async () => {
+    await setup();
+    await act(async () => {
+      select([id('call the bank')]);
+      cmdSetSlot(slotKey('2026-11-19', 14));
+      cmdSlotDone(id('call the bank'), true);
+      // Crossed out at 2:25pm (the clock) without an hour of its own, then cleared.
+      const t = clock().toISOString();
+      usePad.setState((s) => {
+        const r = { ...s.all[id('buy milk')]!, done: true, doneAt: t, deletedAt: t };
+        return { all: { ...s.all, [r.id]: r } };
+      });
+    });
+    expect(screen.getByLabelText('2pm, now: blank, 1 of 1 item done, 1 more done')).toBeTruthy();
+    expect(screen.getByText('+1')).toBeTruthy();
+  });
+
   it('ticks a line, takes one out and adds a new one from the open hour', async () => {
     await setup();
     await act(async () => {
