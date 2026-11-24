@@ -16,3 +16,6 @@ apps/mobile/android/
 *.p12
 *.key
 *.mobileprovision
+
+# Claude Code worktrees (kept out of the EAS upload too)
+.claude/worktrees/
