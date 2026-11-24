@@ -463,6 +463,8 @@ body.is-dragging-rows .row .category { cursor: grabbing; }
   /* "Archive N completed" hangs under the top section; it stays inside the fixed part, in
      the gap that was the margin under it, so it never sits over a line. */
   .app:not(.is-hours) .top .clear-done { top: auto; bottom: 0.05rem; right: 16px; margin-top: 0; }
+  /* The toast hangs under the top section too, at the left: the same gap, the same fix. */
+  .app:not(.is-hours) .top .toast { top: auto; bottom: 0.1rem; left: 16px; margin-top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: calc(100% - 32px); }
   html { scroll-padding-top: 8rem; }
 }
 /* Hours fills the window under the header. Its screens are React Native (packages/ui),
