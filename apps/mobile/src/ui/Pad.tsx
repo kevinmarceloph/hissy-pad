@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, flatten, listNumbers, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, select, setPref, stopEditing, usePad, usePrefs, visibleIds } from '@hissypad/state'
+import { apply, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, countKey, countShown, refresh, select, stopEditing, toggleCount, usePad, usePrefs, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -361,7 +361,12 @@ export function Pad() {
       { text: 'Done', onPress: () => setSheet('done') },
       { text: 'Archive', onPress: () => setSheet('trash') },
       { text: 'Categories', onPress: () => setSheet('categories') },
-      { text: usePrefs.getState().padCounts ? 'Hide pad counts' : 'Show pad counts', onPress: () => setPref('padCounts', !usePrefs.getState().padCounts) },
+      (() => {
+        // This pad's count in the tabs, on or off for this pad only.
+        const key = countKey(usePad.getState().all, usePad.getState().padId)
+        const on = countShown(usePrefs.getState().hiddenCounts, key)
+        return { text: on ? "Hide this pad's count" : "Show this pad's count", onPress: () => toggleCount(key) }
+      })(),
       ...(logEnabled() ? [{ text: 'Log', onPress: () => setLogText(dumpLog()) }] : []),
       { text: 'Cancel', style: 'cancel' as const },
     ])

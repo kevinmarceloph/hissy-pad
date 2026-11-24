@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { DEFAULT_PREFS, initPrefs, setPref, usePrefs } from './prefs'
+import { countShown, DEFAULT_PREFS, initPrefs, toggleCount, usePrefs } from './prefs'
 
 function memory(initial: Record<string, string> = {}) {
   const m = { ...initial }
@@ -9,17 +9,22 @@ function memory(initial: Record<string, string> = {}) {
 describe('prefs', () => {
   beforeEach(() => initPrefs(memory().store))
 
-  it('pad counts are on until turned off', () => {
-    expect(usePrefs.getState().padCounts).toBe(true)
-  })
-
-  it('a change is saved and read back on the next start', () => {
+  it('every pad count is on until turned off on that pad, and the choice is kept', () => {
     const { m, store } = memory()
     initPrefs(store)
-    setPref('padCounts', false)
-    expect(usePrefs.getState().padCounts).toBe(false)
+    expect(countShown(usePrefs.getState().hiddenCounts, 'Today')).toBe(true)
+    toggleCount('Today')
+    toggleCount('p1')
+    expect(countShown(usePrefs.getState().hiddenCounts, 'Today')).toBe(false)
+    expect(countShown(usePrefs.getState().hiddenCounts, 'Later')).toBe(true)
+    toggleCount('Today')
     initPrefs(memory(m).store)
-    expect(usePrefs.getState().padCounts).toBe(false)
+    expect(usePrefs.getState().hiddenCounts).toEqual(['p1'])
+  })
+
+  it('the old global switch reads as every count on', () => {
+    initPrefs(memory({ 'hissypad.prefs': '{"padCounts":false}' }).store)
+    expect(usePrefs.getState()).toEqual(DEFAULT_PREFS)
   })
 
   it('a bad saved value reads as the defaults', () => {

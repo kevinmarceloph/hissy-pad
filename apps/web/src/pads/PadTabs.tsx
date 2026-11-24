@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactElement } from 'react'
 import { createPortal } from 'react-dom'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, openPad, openSubPad, padList, padTopLines, placeList, usePad, usePrefs } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, countShown, openPad, openSubPad, padList, padTopLines, placeList, usePad, usePrefs } from '@hissypad/state'
 import type { FixedPad, PadId } from '@hissypad/core'
 import { showToast } from '../app/toast'
 import { MOD } from '../platform/os'
@@ -19,7 +19,7 @@ type Sheet = { mode: 'new' } | { mode: 'edit'; padId: string }
 export function PadTabs() {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
-  const showCounts = usePrefs((s) => s.padCounts)
+  const hidden = usePrefs((s) => s.hiddenCounts)
   const pads = useMemo(() => padList(all), [all])
   const dialog = useRef<HTMLDialogElement>(null)
   const input = useRef<HTMLInputElement>(null)
@@ -115,6 +115,7 @@ export function PadTabs() {
         {pads.map((p) => {
           const key = p.id ?? 'main'
           const Glyph = p.fixed ? FIXED_ICON[p.fixed] : null
+          const showCounts = countShown(hidden, p.fixed ?? p.id!)
           return (
             <span key={key} className={p.fixed ? 'pad-tab fixed' : 'pad-tab'}>
               <button

@@ -70,7 +70,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `sync.ts` | wires the engine to the store and to Supabase auth; `refresh`, `forceSync`, the status line (`syncLine`) |
 | `remote.ts` | the `Remote` the engine talks to, over Supabase |
 | `log.ts` | the debug log (`?debug=1`) |
-| `prefs.ts` | per-device preferences, not synced (pad counts on the tabs): `usePrefs`, `setPref`; each app hands in its storage with `initPrefs` |
+| `prefs.ts` | per-device preferences, not synced (which pads leave their count off the tabs: `hiddenCounts`, keyed by `countKey`, flipped with `toggleCount`): `usePrefs`, `setPref`; each app hands in its storage with `initPrefs` |
 | `hours/` | the Hours mode's state, exported as `@hissypad/state/hours`: `index.ts` (opens the store, wires the stores, starts and stops hours sync, `configureHoursBackend`, `configureChimes`), the day, category, flag, recurring plan and chime stores, `engine.ts` and `remote.ts` (sync for the four hours tables), `slots.ts` (lines in an hour: assign, cross out, take out, add, find one to put in, the picker's opener), `line-categories.ts` (a line's category: the list the pad draws icons from, `useLineCategory`, set it, the picker's opener) |
 | `sample.ts` | the welcome pad a new device starts with |
 | `testing.ts` | `resetStore(outline)` for tests here and in the apps (the outline lands in the Inbox, the root), and `tableShape()`: the whole table as one outline, Inbox first, then each pad as `@Name`, an empty Today or Later left out |
