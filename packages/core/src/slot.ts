@@ -157,26 +157,6 @@ export function slotTops(all: Rows, slot: string, blank = false): NodeRow[] {
   })
 }
 
-// An hour as a pad of its own: each top line, then everything under it, depth first.
-// Folds are not kept: the hour shows the whole of what was put in it. An archived line
-// stays listed with nothing under it.
-export interface SlotRow {
-  row: NodeRow
-  depth: number
-}
-export function slotOutline(all: Rows, slot: string): SlotRow[] {
-  const tops = slotTops(all, slot)
-  if (tops.length === 0) return []
-  const index = buildIndex(all)
-  const out: SlotRow[] = []
-  const walk = (row: NodeRow, depth: number) => {
-    out.push({ row, depth })
-    for (const child of childrenOf(index, row.id)) walk(child, depth + 1)
-  }
-  for (const top of tops) walk(top, 0)
-  return out
-}
-
 // ---- an hour as a view of the store ----------------------------------------------------------
 // The live lines of one hour as a pad of their own, the way scopePad and scopeNode make one
 // (pads.ts): the hour's own lines (slotTops) at the root, each with everything under it.

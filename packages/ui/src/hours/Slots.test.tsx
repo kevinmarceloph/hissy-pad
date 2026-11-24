@@ -1,9 +1,9 @@
 import { vi } from 'vitest';
 import { fireEvent as dom } from '@testing-library/react';
-import { idOf, slotCounts, slotKey } from '@hissypad/core';
+import { idOf, insertAt, slotCounts, slotKey } from '@hissypad/core';
 import { dayDate, MemoryStore } from '@hissypad/core/hours';
-import { cmdDeleteSelection, loadPad, resetStore, select, usePad, zoomTo } from '@hissypad/state';
-import { cmdApplySlot, cmdSetSlot, setSlotPickerOpener, cmdSlotBreak, cmdSlotDone, cmdSlotText, createCategoryStore, createDayStore, createFlagStore, openHours } from '@hissypad/state/hours';
+import { applyAll, cmdDeleteSelection, loadPad, resetStore, select, usePad, zoomTo } from '@hissypad/state';
+import { cmdSetSlot, cmdSlotDone, createCategoryStore, createDayStore, createFlagStore, openHours } from '@hissypad/state/hours';
 
 import { act, fireEvent, render, screen } from '../testing/rntl';
 import { DayScreen } from './DayScreen';
@@ -60,14 +60,13 @@ describe('the pad\'s lines in an hour', () => {
     expect(day.getState().byHour[14]).toBeUndefined();
 
     await act(async () => {
-      cmdSlotText(cmdSlotBreak(id('send invoice'), true), 'find the PO number');
-      cmdSlotText(cmdSlotBreak(id('send invoice'), true), 'export the PDF');
+      const invoice = id('send invoice');
+      applyAll((rows, ctx) => insertAt(insertAt(rows, ctx, { parentId: invoice, afterId: null }, 'find the PO number').rows, ctx, { parentId: invoice, afterId: null }, 'export the PDF').rows);
       cmdSlotDone(id('export the PDF'), true);
       cmdSlotDone(id('buy milk'), true);
     });
-    // The lines under one are in the hour's list. They are not counted, nor as extra.
+    // The lines under one are not counted, nor as extra.
     expect(screen.getByLabelText('2pm, now: send invoice, 1 of 2 items done')).toBeTruthy();
-    expect(screen.getByRole('checkbox', { name: 'Select “export the PDF”, done' })).toBeTruthy();
     expect(screen.queryByText(/^\+/)).toBeNull();
 
     // Done is the hour's own, said by hand; the line stays what the row shows.
@@ -93,67 +92,6 @@ describe('the pad\'s lines in an hour', () => {
     expect(screen.getByText('+1')).toBeTruthy();
   });
 
-  it('is a small pad: a bullet selects its line, and the drawer at the foot acts on the selection', async () => {
-    await setup();
-    await act(async () => {
-      select([id('call the bank'), id('send invoice')]);
-      cmdSetSlot(slotKey('2026-11-19', 14));
-    });
-    // The hour in progress is open: its lines are listed, and nothing else of the pad.
-    expect(screen.getAllByRole('listitem')).toHaveLength(2);
-    expect(screen.queryByLabelText('Line: buy milk')).toBeNull();
-    expect(screen.queryByRole('toolbar', { name: 'Selected lines' })).toBeNull();
-
-    // A bullet selects. It does not cross the line out.
-    await fireEvent.press(screen.getByRole('checkbox', { name: 'Select “send invoice”' }));
-    expect(all()[id('send invoice')]!.done).toBe(false);
-    expect(screen.getByRole('checkbox', { name: 'Select “send invoice”', checked: true })).toBeTruthy();
-    expect(screen.getByText('1 selected')).toBeTruthy();
-    await fireEvent.press(screen.getByRole('radio', { name: 'This line: Done' }));
-    expect(all()[id('send invoice')]!.done).toBe(true);
-    expect(screen.getByLabelText('2pm, now: call the bank, 1 of 2 items done')).toBeTruthy();
-
-    // More bullets add to the selection: the switch lights no side for a mixed set, and
-    // sets them all.
-    await fireEvent.press(screen.getByRole('checkbox', { name: 'Select “call the bank”' }));
-    expect(screen.getByText('2 selected')).toBeTruthy();
-    expect(screen.queryByRole('radio', { name: /^These lines/, checked: true })).toBeNull();
-    await fireEvent.press(screen.getByRole('radio', { name: 'These lines: Doing' }));
-    expect(all()[id('call the bank')]).toMatchObject({ doing: true });
-    expect(all()[id('send invoice')]).toMatchObject({ doing: true, done: false });
-
-    // The same bullet again takes its line out of the selection; the drawer's x clears it.
-    await fireEvent.press(screen.getByRole('checkbox', { name: 'Select “send invoice”, doing' }));
-    expect(screen.getByText('1 selected')).toBeTruthy();
-    await fireEvent.press(screen.getByLabelText('Take this line out of the hour'));
-    expect(all()[id('call the bank')]!.slot).toBeNull();
-    expect(screen.getAllByRole('listitem')).toHaveLength(1);
-    expect(screen.queryByRole('toolbar', { name: 'Selected lines' })).toBeNull();
-  });
-
-  it('moves the selected lines to another hour through the pad\'s picker', async () => {
-    await setup();
-    await act(async () => {
-      cmdSetSlot(slotKey('2026-11-19', 14), [id('send invoice'), id('buy milk')]);
-    });
-    const asked: (readonly string[])[] = [];
-    setSlotPickerOpener((ids) => asked.push(ids));
-    try {
-      await fireEvent.press(screen.getByRole('checkbox', { name: 'Select “buy milk”' }));
-      await fireEvent.press(screen.getByLabelText('Move this line to another hour'));
-      expect(asked).toEqual([[id('buy milk')]]);
-      // The picker's answer moves the line: it leaves this hour's list.
-      await act(async () => {
-        cmdApplySlot(slotKey('2026-11-19', 16));
-      });
-      expect(all()[id('buy milk')]!.slot).toBe('2026-11-19T16');
-      expect(screen.getAllByRole('listitem')).toHaveLength(1);
-      expect(screen.queryByRole('toolbar', { name: 'Selected lines' })).toBeNull();
-    } finally {
-      setSlotPickerOpener(null);
-    }
-  });
-
   it('puts a new item at the top of Today, already in the hour', async () => {
     await setup();
     await fireEvent.changeText(screen.getByLabelText('Add an item to this hour'), 'renew passport');
@@ -162,74 +100,6 @@ describe('the pad\'s lines in an hour', () => {
     expect(made.slot).toBe('2026-11-19T14');
     expect(all()[made.parentId!]).toMatchObject({ pad: true, text: 'Today' });
     expect(slotCounts(all())).toEqual({ '2026-11-19T14': { done: 0, open: 1 } });
-    // Each top line still has its own way out of the hour.
-    await fireEvent.press(screen.getByLabelText('Take “renew passport” out of this hour'));
-    expect(all()[made.id]!.slot).toBeNull();
-  });
-
-  it('types into a line, starts new ones under it with Return, and moves them with Tab', async () => {
-    await setup();
-    await act(async () => {
-      cmdSetSlot(slotKey('2026-11-19', 14), [id('send invoice')]);
-    });
-    const invoice = id('send invoice');
-    await fireEvent.changeText(screen.getByLabelText('Line: send invoice'), 'send the invoice');
-    expect(all()[invoice]!.text).toBe('send the invoice');
-
-    // Return on the hour's own line starts a line under it; Return there, one after it.
-    const key = async (label: string, init: object) => {
-      await act(async () => {
-        dom.keyDown(screen.getByLabelText(label), init);
-      });
-    };
-    await key('Line: send the invoice', { key: 'Enter' });
-    await fireEvent.changeText(screen.getByLabelText('Line: An empty line'), 'find the PO number');
-    await key('Line: find the PO number', { key: 'Enter' });
-    await fireEvent.changeText(screen.getByLabelText('Line: An empty line'), 'export the PDF');
-    const po = id('find the PO number');
-    const pdf = id('export the PDF');
-    expect(all()[po]!.parentId).toBe(invoice);
-    expect(all()[pdf]!.parentId).toBe(invoice);
-    expect(screen.getAllByRole('listitem').map((el) => el.querySelector('textarea')!.value)).toEqual(['send the invoice', 'find the PO number', 'export the PDF']);
-
-    // Tab puts a line under the one above it, Shift+Tab brings it back, and never past
-    // the hour's own line.
-    await key('Line: export the PDF', { key: 'Tab' });
-    expect(all()[pdf]!.parentId).toBe(po);
-    await key('Line: export the PDF', { key: 'Tab', shiftKey: true });
-    expect(all()[pdf]!.parentId).toBe(invoice);
-    await key('Line: export the PDF', { key: 'Tab', shiftKey: true });
-    expect(all()[pdf]!.parentId).toBe(invoice);
-
-    // Backspace on an empty line takes it away.
-    await key('Line: export the PDF', { key: 'Enter' });
-    expect(screen.getAllByRole('listitem')).toHaveLength(4);
-    await key('Line: An empty line', { key: 'Backspace' });
-    expect(screen.getAllByRole('listitem')).toHaveLength(3);
-  });
-
-  it('offers the drawer for the line being typed, and typing ends a selection', async () => {
-    await setup();
-    await act(async () => {
-      cmdSetSlot(slotKey('2026-11-19', 14), [id('send invoice'), id('buy milk')]);
-    });
-    await act(async () => {
-      dom.focus(screen.getByLabelText('Line: send invoice'));
-    });
-    expect(screen.getByText('This line')).toBeTruthy();
-    await fireEvent.press(screen.getByRole('radio', { name: 'This line: Doing' }));
-    expect(all()[id('send invoice')]).toMatchObject({ doing: true, done: false });
-    expect(screen.getByRole('checkbox', { name: 'Select “send invoice”, doing' })).toBeTruthy();
-    await fireEvent.press(screen.getByRole('radio', { name: 'This line: Open' }));
-    expect(all()[id('send invoice')]).toMatchObject({ doing: false, done: false });
-
-    await fireEvent.press(screen.getByRole('checkbox', { name: 'Select “buy milk”' }));
-    expect(screen.getByText('1 selected')).toBeTruthy();
-    await act(async () => {
-      dom.focus(screen.getByLabelText('Line: send invoice'));
-    });
-    expect(screen.getByRole('checkbox', { name: 'Select “buy milk”', checked: false })).toBeTruthy();
-    expect(screen.getByText('This line')).toBeTruthy();
   });
 
   it('keeps an archived line in its hour, marked archived, and crosses it out there', async () => {
@@ -244,8 +114,7 @@ describe('the pad\'s lines in an hour', () => {
     expect(all()[invoice]!.deletedAt).not.toBeNull();
     expect(screen.getByLabelText('2pm, now: call the bank, 0 of 2 items done')).toBeTruthy();
     expect(screen.getAllByText('archived')).toHaveLength(1);
-    await fireEvent.press(screen.getByRole('checkbox', { name: 'Select “send invoice”, archived' }));
-    await fireEvent.press(screen.getByRole('radio', { name: 'This line: Done' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'send invoice, archived' }));
     expect(all()[invoice]!.done).toBe(true);
     expect(screen.getByLabelText('2pm, now: call the bank, 1 of 2 items done')).toBeTruthy();
   });
@@ -273,7 +142,6 @@ describe('finding a line for an hour', () => {
     expect(screen.queryByRole('option', { name: /buy milk/ })).toBeNull();
     await fireEvent.press(found);
     expect(all()[id('call the bank')]!.slot).toBe('2026-11-19T14');
-    expect(screen.getByRole('checkbox', { name: 'Select “call the bank”' })).toBeTruthy();
     // The field is cleared, and a line already in the hour is not offered again.
     await fireEvent.changeText(screen.getByLabelText('Add an item to this hour'), 'bank');
     expect(screen.queryByRole('option')).toBeNull();

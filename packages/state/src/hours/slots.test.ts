@@ -6,7 +6,7 @@ import { loadPad, usePad } from '../store';
 import { edit, select, stopEditing } from '../selection';
 import { redo, undo } from '../history';
 import { cmdDeleteSelection } from '../commands';
-import { cmdApplySlot, cmdPickSlot, cmdSetSlot, cmdSlotAdd, cmdSlotBreak, cmdSlotClear, cmdSlotDone, cmdSlotErase, cmdSlotShift, cmdSlotState, cmdSlotText, linesInSlot, outlineOfSlot, setSlotPickerOpener, targetSlot } from './slots';
+import { cmdApplySlot, cmdPickSlot, cmdSetSlot, cmdSlotAdd, cmdSlotClear, cmdSlotDone, linesInSlot, setSlotPickerOpener, targetSlot } from './slots';
 
 const SLOT = slotKey('2026-11-23', 9);
 const id = (text: string) => idOf(usePad.getState().rows, text);
@@ -108,64 +108,5 @@ describe('lines in an hour', () => {
     cmdApplySlot(SLOT);
     expect(usePad.getState().rows[id('D')]?.slot).toBe(SLOT);
     setSlotPickerOpener(null);
-  });
-});
-
-describe('the hour as a pad of its own', () => {
-  const texts = () => outlineOfSlot('2026-11-23', 9).map((r) => `${'  '.repeat(r.depth)}${r.row.text}`);
-  const all = () => usePad.getState().all;
-  const at = (text: string) => idOf(all(), text);
-
-  beforeEach(async () => {
-    resetStore('A\n  B\n  C\nD');
-    await loadPad();
-    cmdSetSlot(SLOT, [id('A')]);
-  });
-
-  it('lists the hour\'s line with what is under it, and types into a line as one undo step', () => {
-    expect(texts()).toEqual(['A', '  B', '  C']);
-    cmdSlotText(at('B'), 'Bx');
-    cmdSlotText(at('Bx'), 'Bxy');
-    expect(texts()).toEqual(['A', '  Bxy', '  C']);
-    undo();
-    expect(texts()).toEqual(['A', '  B', '  C']);
-  });
-
-  it('starts a new line under the hour\'s own line, and after a line further in', () => {
-    const first = cmdSlotBreak(at('A'), true);
-    cmdSlotText(first, 'new');
-    expect(texts()).toEqual(['A', '  new', '  B', '  C']);
-    const next = cmdSlotBreak(at('B'), false);
-    cmdSlotText(next, 'after B');
-    expect(texts()).toEqual(['A', '  new', '  B', '  after B', '  C']);
-    // Mid-text, the line splits at the caret.
-    cmdSlotBreak(at('after B'), false, 5);
-    expect(texts()).toEqual(['A', '  new', '  B', '  after', '   B', '  C']);
-  });
-
-  it('puts a line in one of the three states', () => {
-    cmdSlotState(at('B'), 'doing');
-    expect(all()[at('B')]).toMatchObject({ doing: true, done: false });
-    cmdSlotState(at('B'), 'done');
-    expect(all()[at('B')]).toMatchObject({ doing: false, done: true });
-    cmdSlotState(at('B'), 'open');
-    expect(all()[at('B')]).toMatchObject({ doing: false, done: false });
-  });
-
-  it('moves a line in and out, never out from under the hour\'s own line', () => {
-    cmdSlotShift(at('C'), 1, 'in');
-    expect(texts()).toEqual(['A', '  B', '    C']);
-    cmdSlotShift(at('C'), 2, 'out');
-    expect(texts()).toEqual(['A', '  B', '  C']);
-    cmdSlotShift(at('C'), 1, 'out');
-    cmdSlotShift(at('A'), 0, 'in');
-    expect(texts()).toEqual(['A', '  B', '  C']);
-  });
-
-  it('takes away an empty line with nothing under it, and no other', () => {
-    expect(cmdSlotErase(at('B'))).toBe(false);
-    const made = cmdSlotBreak(at('B'), false);
-    expect(cmdSlotErase(made)).toBe(true);
-    expect(texts()).toEqual(['A', '  B', '  C']);
   });
 });

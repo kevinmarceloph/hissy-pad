@@ -10,8 +10,7 @@ import type { NodeRow, SlotCount } from '@hissypad/core';
 
 import { FlagMark } from './FlagMark';
 import { Mark } from './Mark';
-import { HostedLines, useHostedLines } from './HostedLines';
-import { MiniPad } from './MiniPad';
+import { HostedLines } from './HostedLines';
 import { StateMark, StateSwitch } from './StateMark';
 import { Tap } from './Tap';
 import { LINE, ROW, serif, SIZE, SMALL, useTheme } from './theme';
@@ -142,14 +141,14 @@ export function HourRow(props: Props) {
   );
 }
 
-// The open hour is a small pad: the lines put in it and what is under them (MiniPad). Over
+// The open hour is a small pad: the lines put in it and what is under them, drawn by the
+// app's own pad editor (HostedLines). Over
 // it, the hour's own three states, and a Summary button: behind it, a title for the hour
 // and a category, for an hour that is not about its top line. Under it, the flags. Nothing
 // here is a draft: every change is written as it is made.
 function Editor({ day, hour, entry, top, categories, flags, onEditFlags, onSave, onClose }: Props) {
   const theme = useTheme();
   const at = hourLabel(hour);
-  const hosted = useHostedLines() !== null;
   const on = entry?.flags ?? [];
   // The editor asks about the active flags, plus one answered here that has since been archived.
   const asked = flags.filter((f) => !f.archived || flagChoice(on, f.id) !== null);
@@ -201,8 +200,8 @@ function Editor({ day, hour, entry, top, categories, flags, onEditFlags, onSave,
         </>
       )}
 
-      {/* The app's own pad editor where the host hands one in; the small pad where not. */}
-      {hosted ? <HostedLines day={day} hour={hour} onClose={onClose} /> : <MiniPad day={day} hour={hour} onClose={onClose} />}
+      {/* The hour's lines, drawn by the app's own pad editor (HostedLines). */}
+      <HostedLines day={day} hour={hour} onClose={onClose} />
 
       {(asked.length > 0 || onEditFlags) && (
         <View style={styles.group}>
