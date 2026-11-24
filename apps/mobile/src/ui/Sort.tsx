@@ -13,6 +13,7 @@ import {
   sortSessionSend, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortDir, type SortSide,
 } from '@hissypad/state'
 import { INDENT, serif, type Theme } from '../theme'
+import { HoursIcon } from './TopIcons'
 
 const SLOP = 10 // px before a touch on the card becomes a drag
 
@@ -160,9 +161,9 @@ export function SortView({ theme }: { theme: Theme }) {
                   hitSlop={8}
                   accessibilityRole="button"
                   accessibilityLabel={row.slot ? `Hour: ${slotLabel(row.slot, todayKey())}, change` : 'Put in an hour'}
-                  style={({ pressed }) => [s.hour, { borderColor: theme.rule, opacity: pressed ? 0.5 : 1 }]}
+                  style={({ pressed }) => [s.hour, { opacity: pressed ? 0.5 : 1 }]}
                 >
-                  <Text style={[s.hourText, { color: theme.inkSoft }]}>Hour…</Text>
+                  <HoursIcon color={theme.inkSoft} />
                 </Pressable>
               </View>
               <TextInput
@@ -262,8 +263,7 @@ const s = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   count: { fontFamily: serif, fontSize: 13, marginRight: 'auto' },
   slot: { fontFamily: serif, fontSize: 12, paddingHorizontal: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 3, overflow: 'hidden' },
-  hour: { paddingHorizontal: 8, paddingVertical: 2, borderWidth: StyleSheet.hairlineWidth, borderRadius: 4 },
-  hourText: { fontFamily: serif, fontSize: 13 },
+  hour: { padding: 4, margin: -4 },
   text: { fontFamily: serif, fontSize: 21, lineHeight: 29, padding: 0 },
   subs: { marginTop: 12, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
   subScroll: { maxHeight: 220, flexGrow: 0 },

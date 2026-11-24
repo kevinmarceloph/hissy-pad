@@ -24,7 +24,7 @@ function PadIcon({ color }: { color: string }) {
 }
 
 // Hours: a clock at about four.
-function HoursIcon({ color }: { color: string }) {
+export function HoursIcon({ color }: { color: string }) {
   return (
     <View style={i.box}>
       <View style={{ width: 17, height: 17, borderRadius: 9, borderWidth: W, borderColor: color }} />

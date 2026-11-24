@@ -123,7 +123,7 @@ describe('sort', () => {
     expect(button('Right: Today')).toBeInTheDocument()
   })
 
-  it("the card's top right shows the hour it is in and an Hour… button that opens the picker for that line", async () => {
+  it("the card's top right shows the hour it is in and an Hours-icon button that opens the picker for that line", async () => {
     const user = userEvent.setup()
     await mount('A\nB')
     const a = Object.values(usePad.getState().rows).find((r) => r.text === 'A')!
