@@ -93,5 +93,6 @@ describe('random op sequences keep the pad well formed', () => {
         lastTs = maxTs
       }
     }
-  })
+    // ~1s on a laptop, 4.5-7.5s on a shared CI runner: past Vitest's 5s default.
+  }, 30_000)
 })
