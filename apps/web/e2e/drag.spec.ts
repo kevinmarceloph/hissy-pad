@@ -101,3 +101,32 @@ test('Escape cancels a drag', async ({ page }) => {
   await page.mouse.up()
   expect(await outline(page)).toBe('x\ny')
 })
+
+test('a line drags by its category icon too, and a tap on the icon still selects it', async ({ page }, info) => {
+  await typeOutline(page, ['one', 'two', 'three'])
+  await bullet(page, 'three').click()
+  const give = page.getByRole('button', { name: /categor/i }).first()
+  await give.scrollIntoViewIfNeeded()
+  await give.click()
+  const picker = page.getByRole('dialog', { name: 'Pick a category' })
+  await picker.getByText('New category').click()
+  await picker.getByLabel('Name').fill('Errands')
+  await picker.getByLabel('Icon').fill('🛒')
+  await picker.getByText('Add', { exact: true }).click()
+  await expect(picker).toHaveCount(0)
+  await page.getByRole('button', { name: 'Clear selection' }).click()
+
+  const icon = page.getByRole('button', { name: 'Category: Errands' })
+  const row = page.locator('.row', { has: icon })
+  await expect(row).toHaveAttribute('aria-selected', 'false')
+  await icon.click()
+  await expect(row).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('button', { name: 'Clear selection' }).click()
+
+  const oneBox = (await page.locator('.row').first().boundingBox())!
+  await dragTo(page, icon, oneBox.x + 60, oneBox.y + 2, info.project.name === 'phone')
+  expect(await outline(page)).toBe('three\none\ntwo')
+  // A drop selects what moved, as a drag by the bullet does, and the release does not
+  // toggle it back off.
+  await expect(row).toHaveAttribute('aria-selected', 'true')
+})

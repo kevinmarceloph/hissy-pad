@@ -126,11 +126,15 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
       {bullet}
       {category && (
         // The line's category (toolbar: More, Category…): its icon in a squircle of its color,
-        // or its name where it has none. A tap on it selects the line, as the bullet does.
+        // or its name where it has none. It works as the bullet does: a tap selects the line,
+        // a press and hold drags it (the pad's pan over the left strip; the long press here
+        // only keeps the release from also selecting).
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Category: ${category.label}`}
           onPress={() => clickSelect(row.id, { shift: false, meta: false })}
+          onLongPress={(e) => onBulletLongPress(row.id, e.nativeEvent.pageX, e.nativeEvent.pageY)}
+          delayLongPress={280}
           style={[s.category, row.done && { opacity: 0.55 }]}
         >
           <CategoryBadge category={category} wordWhenBare />

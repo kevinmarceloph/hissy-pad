@@ -195,8 +195,17 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
       />
       {category && (
         // The line's category (toolbar: Category…): its icon in a squircle of its color, or
-        // its name where it has none. A tap on it selects the line, as the bullet does.
-        <button type="button" className={`category cat-${category.color}${category.icon ? '' : ' is-word'}`} title={category.label} aria-label={`Category: ${category.label}`} onClick={onBulletClick}>
+        // its name where it has none. It works as the bullet does: a tap selects the line,
+        // a press and move drags it.
+        <button
+          type="button"
+          className={`category cat-${category.color}${category.icon ? '' : ' is-word'}`}
+          title={category.label}
+          aria-label={`Category: ${category.label}`}
+          onClick={onBulletClick}
+          onClickCapture={onBulletClickCapture}
+          onPointerDown={(e) => onBulletPointerDown(row.id, e)}
+        >
           {category.icon || category.label}
         </button>
       )}
