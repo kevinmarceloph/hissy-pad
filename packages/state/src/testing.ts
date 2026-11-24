@@ -12,6 +12,6 @@ export function resetStore(outline?: string) {
     all: {}, rows: {}, padId: null, load: 'loading', storageError: null, editing: null,
     selection: [], anchorId: null, focusId: null, past: [], future: [], session: null, sync: null,
   })
-  useSort.setState({ left: null, right: null })
+  useSort.setState({ left: null }, true)
   return mem
 }

@@ -1,5 +1,7 @@
 // Sort: the pad's top-level lines one card at a time. Swipe (or arrow keys, or the buttons)
-// left for Later, right for Today, up for Today and crossed out. The card is live: its
+// left for Later (or the pad picked below: picking one sends the card there too), right
+// for Today, up for Today and crossed out. Skip leaves a card; Cycle sends it to the bottom
+// of the pad to come round again. The card is live: its
 // text and sub items edit the real rows, so a line can be fixed up before it goes. Every
 // send is one undo step; Back takes the last card back.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from 'react'
@@ -7,8 +9,8 @@ import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
 import { cmdPickSlot } from '@hissypad/state/hours'
 import { HoursIcon } from '../app/icons'
 import {
-  cmdSortAddSub, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard,
-  sortSessionSend, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortDir, type SortSide,
+  cmdSortAddSub, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
+  sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortChoice, type SortDir,
 } from '@hissypad/state'
 
 const SWIPE = SWIPE_DISTANCE // px of travel that commits a swipe
@@ -38,28 +40,38 @@ export function Sort({ onClose }: { onClose: () => void }) {
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null)
   const [ghost, setGhost] = useState<Ghost | null>(null)
   const [draft, setDraft] = useState('')
-  const [naming, setNaming] = useState<{ side: SortSide; name: string } | null>(null)
+  const [naming, setNaming] = useState<string | null>(null)
   const press = useRef<{ x: number; y: number; pointer: number; inFocusedField: boolean; dragging: boolean } | null>(null)
   const addRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { void loadSortTargets() }, [])
 
   const { queue, sent } = session
-  const { id, index: at } = sortSessionCard(session, rows)
+  const { id } = sortSessionCard(session, rows)
   const row = id ? rows[id]! : null
   const subs = useMemo(() => (id ? flatten(buildIndex(rows), false, id) : []), [rows, id])
   const left = sortTarget(all, 'left', choice.left)
-  const right = sortTarget(all, 'right', choice.right)
-  const remaining = queue.length - at
+  const right = sortTarget(all, 'right')
+  const progress = sortSessionProgress(session, rows)
 
-  function send(dir: SortDir, from = { dx: 0, dy: 0 }) {
-    if (!id || !row) return
-    const next = sortSessionSend(session, dir)
+  // Every way a card leaves goes through here; `next` is what the session becomes.
+  function leave(dir: SortDir, next: typeof session, from = { dx: 0, dy: 0 }) {
     if (next === session) return
-    setGhost({ key: Date.now(), text: row.text, dir, ...from })
+    if (row) setGhost({ key: Date.now(), text: row.text, dir, ...from })
     setSession(next)
     setDrag(null)
     setDraft('')
+  }
+
+  function send(dir: SortDir, from = { dx: 0, dy: 0 }) {
+    if (!id || !row) return
+    leave(dir, sortSessionSend(session, dir), from)
+  }
+
+  // Picking a left pad sends the card there; with no card left it only sets the pad.
+  function pickLeft(next: SortChoice) {
+    if (id) leave('left', sortSessionSendLeftTo(session, next))
+    else setSortTarget(next)
   }
 
   function back() {
@@ -83,7 +95,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
       if (inField || e.altKey) return
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); back(); return }
       if (e.metaKey || e.ctrlKey) return
-      const dir: SortDir | null = e.key === 'ArrowLeft' ? 'left' : e.key === 'ArrowRight' ? 'right' : e.key === 'ArrowUp' ? 'up' : e.key === 'ArrowDown' ? 'down' : e.key.toLowerCase() === 's' ? 'skip' : null
+      const dir: SortDir | null = e.key === 'ArrowLeft' ? 'left' : e.key === 'ArrowRight' ? 'right' : e.key === 'ArrowUp' ? 'up' : e.key === 'ArrowDown' ? 'down' : e.key.toLowerCase() === 's' ? 'skip' : e.key.toLowerCase() === 'c' ? 'cycle' : null
       if (dir) { e.preventDefault(); send(dir) }
       else if (e.key === 'Backspace') { e.preventDefault(); back() }
     }
@@ -164,29 +176,31 @@ export function Sort({ onClose }: { onClose: () => void }) {
   const upLabel = `${right.name}, done`
 
   function createTarget() {
-    if (!naming) return
-    if (cmdSortNewTarget(naming.side, naming.name)) setNaming(null)
+    if (naming === null || !naming.trim()) return
+    if (id) leave('left', sortSessionSendLeftToNew(session, naming))
+    else sortSessionSendLeftToNew(session, naming)
+    setNaming(null)
   }
 
-  const targetSelect = (side: SortSide) => {
-    const t = side === 'left' ? left : right
-    const def = sortTarget(all, side, null)
+  // The left side's pad. Right is always Today. Choosing here sends the card on screen.
+  function targetSelect() {
+    const def = sortTarget(all, 'left', null)
     // Every pad and sub-pad ("Pad → Sub-pad"), without the default pad, which has its own entry.
     const places = placeList(all).filter((p) => p.key !== 'main' && !(p.subId === null && p.padId === def.padId && def.exists))
-    const label = side === 'left' ? '← Left goes to' : '→ Right and ↑ up go to'
-    if (naming?.side === side) {
+    const label = id ? '← Send left to' : '← Left goes to'
+    if (naming !== null) {
       return (
         <form className="sort-target" onSubmit={(e) => { e.preventDefault(); createTarget() }}>
           <span>{label}</span>
           <input
             autoFocus
-            value={naming.name}
-            onChange={(e) => setNaming({ side, name: e.target.value })}
+            value={naming}
+            onChange={(e) => setNaming(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setNaming(null) } }}
             placeholder="Name the new pad"
             aria-label="Name for the new pad"
           />
-          <button type="submit" disabled={!naming.name.trim()}>Create</button>
+          <button type="submit" disabled={!naming.trim()}>Create</button>
           <button type="button" onClick={() => setNaming(null)}>Cancel</button>
         </form>
       )
@@ -195,14 +209,15 @@ export function Sort({ onClose }: { onClose: () => void }) {
       <label className="sort-target">
         <span>{label}</span>
         <select
-          value={choice[side] === 'main' ? 'main' : t.isDefault ? '' : (t.subId ?? t.padId ?? '')}
+          value={choice.left === 'main' ? 'main' : left.isDefault ? '' : (left.subId ?? left.padId ?? '')}
           onChange={(e) => {
             const v = e.target.value
-            if (v === '__new') setNaming({ side, name: '' })
-            else setSortTarget(side, v === '' ? null : v)
+            if (v === '__new') setNaming('')
+            else pickLeft(v === '' ? null : v)
             e.target.blur()
           }}
-          aria-label={side === 'left' ? 'Pad for a left swipe' : 'Pad for a right or up swipe'}
+          aria-label="Pad for a left swipe"
+          title={id ? 'Picking a pad also sends this card there' : undefined}
         >
           <option value="">{def.exists ? def.name : `${def.name} (new pad)`}</option>
           <option value="main">{padName(all, null)}</option>
@@ -218,7 +233,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
       <header className="sort-head">
         <div>
           <h2 id="sort-title">Sort {padName(all, padId)}</h2>
-          <p>{id ? `${remaining} to go. Swipe the card, or use the arrow keys.` : 'One line at a time: later, today, already done, or delete.'}</p>
+          <p>{id ? `${progress.left} to go. Swipe the card, or use the arrow keys.` : 'One line at a time: later, today, already done, or delete.'}</p>
         </div>
       </header>
 
@@ -239,7 +254,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
             key={id}
             className={['sort-card', drag && 'is-dragging', leaning && `leans-${leaning}`].filter(Boolean).join(' ')}
             style={cardStyle}
-            aria-label={`Card ${at + 1} of ${queue.length}`}
+            aria-label={`Card ${progress.at} of ${progress.total}`}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
@@ -250,7 +265,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
             <span className="stamp stamp-up" style={{ opacity: pull('up') }} aria-hidden="true">Done</span>
             <span className="stamp stamp-down" style={{ opacity: pull('down') }} aria-hidden="true">Delete</span>
             <div className="sort-top">
-              <p className="sort-count">{at + 1} of {queue.length}</p>
+              <p className="sort-count">{progress.at} of {progress.total}</p>
               {row.slot && <span className="slot" title="The hour this line is in">{slotLabel(row.slot, todayKey())}</span>}
               <button type="button" className="sort-hour" onClick={() => cmdPickSlot([id])} title="Put in an hour" aria-label={row.slot ? `Hour: ${slotLabel(row.slot, todayKey())}, change` : 'Put in an hour'}><HoursIcon /></button>
             </div>
@@ -296,7 +311,7 @@ export function Sort({ onClose }: { onClose: () => void }) {
             ) : (
               <>
                 <p>All sorted.</p>
-                <p className="tally">{sortSummary(session, left.name, right.name)}</p>
+                <p className="tally">{sortSummary(session)}</p>
               </>
             )}
           </div>
@@ -314,10 +329,10 @@ export function Sort({ onClose }: { onClose: () => void }) {
       <div className="sort-minor">
         <button type="button" onClick={back} disabled={sent.length === 0}>Back</button>
         <button type="button" onClick={() => send('skip')} disabled={!id}>Skip <kbd>S</kbd></button>
+        <button type="button" onClick={() => send('cycle')} disabled={!id} title="Move it to the bottom of the pad and see it again at the end">Cycle <kbd>C</kbd></button>
       </div>
       <div className="sort-targets">
-        {targetSelect('left')}
-        {targetSelect('right')}
+        {targetSelect()}
       </div>
     </section>
   )

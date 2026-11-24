@@ -1,6 +1,7 @@
 // Sort on the phone: the pad's top-level lines one card at a time, under the top bar. Swipe the
-// card left for Later, right for Today, up for Today and crossed out; the buttons do the
-// same. The card's text and sub items are live fields. Same queue, targets and commands as
+// card left for Later (or the pad picked at the bottom: picking one sends the card there
+// too), right for Today, up for Today and crossed out; the buttons do the same. Skip leaves
+// a card; Cycle sends it to the bottom of the pad to come round again. The card's text and sub items are live fields. Same queue, targets and commands as
 // the web (state/sort.ts); only the gesture is drawn here, with PanResponder and Animated
 // so it ships as a JS-only update.
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef } from 'react'
@@ -9,8 +10,9 @@ import * as Haptics from 'expo-haptics'
 import { buildIndex, flatten, slotLabel, todayKey } from '@hissypad/core'
 import { cmdPickSlot } from '@hissypad/state/hours'
 import {
-  cmdSortAddSub, cmdSortNewTarget, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard,
-  sortSessionSend, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, type SortDir, type SortSide,
+  cmdSortAddSub, cmdSortRemoveSub, cmdSortSetText, loadSortTargets, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
+  sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort,
+  type SortChoice, type SortDir, type SortSession,
 } from '@hissypad/state'
 import { INDENT, serif, type Theme } from '../theme'
 import { HoursIcon } from './TopIcons'
@@ -27,7 +29,8 @@ function CardField({ style, onFocus, onBlur, row, ...props }: ComponentProps<typ
   const [focused, setFocused] = useState(false)
   return (
     <Pressable onPress={() => ref.current?.focus()} accessible={false} style={row ? { flex: 1 } : undefined}>
-      <View pointerEvents={focused ? 'auto' : 'none'}>
+      {/* In a row the field's own style is flex: 1, which only fills the width inside a row. */}
+      <View pointerEvents={focused ? 'auto' : 'none'} style={row ? { flexDirection: 'row' } : undefined}>
         <TextInput
           ref={ref}
           {...props}
@@ -55,29 +58,32 @@ export function SortView({ theme }: { theme: Theme }) {
   useEffect(() => { void loadSortTargets() }, [])
 
   const { queue, sent } = session
-  const { id, index: at } = sortSessionCard(session, rows)
+  const { id } = sortSessionCard(session, rows)
+  const progress = sortSessionProgress(session, rows)
   const row = id ? rows[id]! : null
   const subs = useMemo(() => (id ? flatten(buildIndex(rows), false, id) : []), [rows, id])
   const left = sortTarget(all, 'left', choice.left)
-  const right = sortTarget(all, 'right', choice.right)
+  const right = sortTarget(all, 'right')
 
-  function commit(dir: SortDir) {
+  // `run` makes the move and returns the session after it: a plain send unless a left pad
+  // was just picked.
+  function commit(run: () => SortSession) {
     if (!id) return
     if (draft.trim()) cmdSortAddSub(id, draft)
-    setSession(sortSessionSend(session, dir))
+    setSession(run())
     setDraft('')
   }
 
   // Fly the card off its edge, then deal the next one from the middle.
-  function send(dir: SortDir) {
+  function send(dir: SortDir, run = () => sortSessionSend(session, dir)) {
     if (!id || busy.current) return
     busy.current = true
     Keyboard.dismiss()
     void Haptics.selectionAsync().catch(() => {})
     const { width, height } = Dimensions.get('window')
-    const to = dir === 'left' ? { x: -width * 1.2, y: 0 } : dir === 'right' ? { x: width * 1.2, y: 0 } : dir === 'up' ? { x: 0, y: -height * 0.8 } : dir === 'down' ? { x: 0, y: height * 0.8 } : { x: 0, y: 0 }
+    const to = dir === 'left' ? { x: -width * 1.2, y: 0 } : dir === 'right' ? { x: width * 1.2, y: 0 } : dir === 'up' ? { x: 0, y: -height * 0.8 } : dir === 'down' ? { x: 0, y: height * 0.8 } : dir === 'cycle' ? { x: 0, y: height * 0.3 } : { x: 0, y: 0 }
     Animated.timing(pan, { toValue: to, duration: 180, useNativeDriver: true }).start(() => {
-      commit(dir)
+      commit(run)
       pan.setValue({ x: 0, y: 0 })
       busy.current = false
     })
@@ -118,28 +124,38 @@ export function SortView({ theme }: { theme: Theme }) {
     if (id && cmdSortAddSub(id, draft)) setDraft('')
   }
 
-  function pickTarget(side: SortSide) {
-    const def = sortTarget(all, side, null)
+  // The left side's pad. Right is always Today. With a card up, picking a pad sends it there.
+  function pickLeft(next: SortChoice) {
+    if (id) send('left', () => sortSessionSendLeftTo(session, next))
+    else setSortTarget(next)
+  }
+
+  function pickTarget() {
+    const def = sortTarget(all, 'left', null)
     const places = placeList(all).filter((p) => p.key !== 'main' && !(p.subId === null && p.padId === def.padId && def.exists))
-    Alert.alert(side === 'left' ? 'A left swipe goes to' : 'A right or up swipe goes to', undefined, [
-      { text: def.exists ? def.name : `${def.name} (new pad)`, onPress: () => setSortTarget(side, null) },
-      { text: padName(all, null), onPress: () => setSortTarget(side, 'main') },
-      ...places.map((p) => ({ text: p.label, onPress: () => setSortTarget(side, p.key) })),
-      { text: 'New pad…', onPress: () => newTarget(side) },
+    Alert.alert(id ? 'Send left to' : 'A left swipe goes to', id ? 'This line goes there now, and the next left swipes too.' : undefined, [
+      { text: def.exists ? def.name : `${def.name} (new pad)`, onPress: () => pickLeft(null) },
+      { text: padName(all, null), onPress: () => pickLeft('main') },
+      ...places.map((p) => ({ text: p.label, onPress: () => pickLeft(p.key) })),
+      { text: 'New pad…', onPress: newTarget },
       { text: 'Cancel', style: 'cancel' as const },
     ])
   }
 
   // Names come through Alert.prompt on iOS; Android has no prompt, so the pad is called
   // "New pad" there and can be renamed later.
-  function newTarget(side: SortSide) {
+  function newTarget() {
+    const make = (name: string) => {
+      if (id) send('left', () => sortSessionSendLeftToNew(session, name))
+      else sortSessionSendLeftToNew(session, name)
+    }
     if (Platform.OS !== 'ios') {
-      cmdSortNewTarget(side, 'New pad')
+      make('New pad')
       return
     }
     Alert.prompt('New pad', 'A name for it', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Create', onPress: (v?: string) => { if (v) cmdSortNewTarget(side, v) } },
+      { text: 'Create', onPress: (v?: string) => { if (v?.trim()) make(v) } },
     ], 'plain-text')
   }
 
@@ -148,7 +164,7 @@ export function SortView({ theme }: { theme: Theme }) {
   const stampRight = pan.x.interpolate({ inputRange: [0, SWIPE_DISTANCE], outputRange: [0, 1], extrapolate: 'clamp' })
   const stampUp = pan.y.interpolate({ inputRange: [-SWIPE_DISTANCE, -SWIPE_DISTANCE / 3], outputRange: [1, 0], extrapolate: 'clamp' })
   const stampDown = pan.y.interpolate({ inputRange: [SWIPE_DISTANCE / 3, SWIPE_DISTANCE], outputRange: [0, 1], extrapolate: 'clamp' })
-  const summary = sortSummary(session, left.name, right.name)
+  const summary = sortSummary(session)
 
   const stamp = (label: string, opacity: Animated.AnimatedInterpolation<number>, style: object) => (
     <Animated.View pointerEvents="none" style={[s.stamp, style, { borderColor: theme.accent, backgroundColor: theme.paperRaised, opacity }]}>
@@ -166,7 +182,7 @@ export function SortView({ theme }: { theme: Theme }) {
         <View style={s.head}>
           <View style={{ flex: 1 }}>
             <Text style={[s.title, { color: theme.ink }]} numberOfLines={1}>Sort {padName(all, padId)}</Text>
-            <Text style={[s.lede, { color: theme.inkSoft }]}>{id ? `${queue.length - at} to go. Swipe the card.` : 'One line at a time.'}</Text>
+            <Text style={[s.lede, { color: theme.inkSoft }]}>{id ? `${progress.left} to go. Swipe the card.` : 'One line at a time.'}</Text>
           </View>
         </View>
 
@@ -182,7 +198,7 @@ export function SortView({ theme }: { theme: Theme }) {
               {stamp('Done', stampUp, s.stampUp)}
               {stamp('Delete', stampDown, s.stampDown)}
               <View style={s.top}>
-                <Text style={[s.count, { color: theme.inkMute }]}>{at + 1} of {queue.length}</Text>
+                <Text style={[s.count, { color: theme.inkMute }]}>{progress.at} of {progress.total}</Text>
                 {row.slot && <Text style={[s.slot, { color: theme.inkSoft, borderColor: theme.rule }]}>{slotLabel(row.slot, todayKey())}</Text>}
                 <Pressable
                   onPress={() => cmdPickSlot([id])}
@@ -267,13 +283,13 @@ export function SortView({ theme }: { theme: Theme }) {
           <Pressable onPress={() => send('skip')} disabled={!id} accessibilityRole="button" style={s.minorBtn}>
             <Text style={[s.minorText, { color: id ? theme.inkSoft : theme.inkMute, opacity: id ? 1 : 0.5 }]}>Skip</Text>
           </Pressable>
+          <Pressable onPress={() => send('cycle')} disabled={!id} accessibilityRole="button" accessibilityHint="Moves it to the bottom of the pad; it comes round again at the end" style={s.minorBtn}>
+            <Text style={[s.minorText, { color: id ? theme.inkSoft : theme.inkMute, opacity: id ? 1 : 0.5 }]}>Cycle</Text>
+          </Pressable>
         </View>
         <View style={[s.targets, { borderTopColor: theme.rule }]}>
-          <Pressable onPress={() => pickTarget('left')} accessibilityRole="button" accessibilityLabel={`Pad for a left swipe: ${left.name}`} style={s.minorBtn}>
+          <Pressable onPress={pickTarget} accessibilityRole="button" accessibilityLabel={`Pad for a left swipe: ${left.name}`} style={s.minorBtn}>
             <Text style={[s.targetText, { color: theme.inkSoft }]} numberOfLines={1}>← goes to <Text style={{ color: theme.link }}>{left.name}</Text></Text>
-          </Pressable>
-          <Pressable onPress={() => pickTarget('right')} accessibilityRole="button" accessibilityLabel={`Pad for a right or up swipe: ${right.name}`} style={s.minorBtn}>
-            <Text style={[s.targetText, { color: theme.inkSoft }]} numberOfLines={1}>→ and ↑ go to <Text style={{ color: theme.link }}>{right.name}</Text></Text>
           </Pressable>
         </View>
       </Pressable>

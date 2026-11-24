@@ -9,7 +9,7 @@ import { buildIndex, countLines, padLines, createPad, descendantIds, insertAt, i
 import { applyAll, usePad } from './store'
 import { MAIN_PAD_NAME } from './pads'
 import { padOf } from './lists'
-import { sendToTarget, sortTarget, useSort, type SortChoice, type SortSide } from './sort'
+import { sendToTarget, sortTarget, useSort, type SortChoice } from './sort'
 import { log } from './log'
 
 // The main pad's key in the snapshot (every other pad is keyed by its row id).
@@ -53,7 +53,7 @@ const fromKey = (key: string): PadId => (key === WIDGET_MAIN ? null : key)
 
 // What the widget draws from. Per pad: its open top-level lines, top first, without
 // crossed-out lines and blank spacers (the same rule as the Sort queue).
-export function widgetSnapshot(all: Rows = usePad.getState().all, choice: Record<SortSide, SortChoice> = useSort.getState()): WidgetSnapshot {
+export function widgetSnapshot(all: Rows = usePad.getState().all, choice: { left: SortChoice } = useSort.getState()): WidgetSnapshot {
   const index = buildIndex(all)
   const pad = (id: PadId, name: string): WidgetPad => {
     const open = padLines(index, id, true)
@@ -74,7 +74,7 @@ export function widgetSnapshot(all: Rows = usePad.getState().all, choice: Record
     pads: [pad(null, MAIN_PAD_NAME), ...others.map((p) => pad(p.id, p.text.trim() || 'Untitled pad'))],
     inbox: padKey(inbox?.id ?? null),
     left: sortTarget(all, 'left', choice.left).name,
-    right: sortTarget(all, 'right', choice.right).name,
+    right: sortTarget(all, 'right').name,
   }
 }
 

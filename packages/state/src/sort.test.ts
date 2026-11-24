@@ -6,7 +6,7 @@ import { undo } from './history'
 import { cmdNewPad } from './pads'
 import { cmdSetKind } from './commands'
 import {
-  cmdSortAddSub, cmdSortBack, cmdSortNewTarget, sortSessionBack, sortSessionCard, sortSessionSend, sortSessionStart, sortSummary, swipeDir, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, setSortTarget, sortQueue, sortTarget, useSort,
+  cmdSortAddSub, cmdSortBack, cmdSortNewTarget, sortSessionBack, sortSessionProgress, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionCard, sortSessionSend, sortSessionStart, sortSummary, swipeDir, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, setSortTarget, sortQueue, sortTarget, useSort,
 } from './sort'
 
 const reset = resetStore
@@ -52,39 +52,39 @@ describe('sort', () => {
     expect(whole()).toBe('A\nB\n  B1\n\nC\nD')
   })
 
-  it('a side can point at a sub-pad: the line goes to the bottom of its lines, and the header is not sent into itself', () => {
+  it('the left side can point at a sub-pad: the line goes to the bottom of its lines, and the header is not sent into itself', () => {
     const b = id('B')
     usePad.setState({ selection: [b] })
     cmdSetKind('header')
     usePad.setState({ selection: [] })
-    setSortTarget('right', b)
-    expect(sortTarget(all(), 'right')).toMatchObject({ padId: null, subId: b, name: 'Main → B', exists: true })
-    expect(cmdSortSend(id('A'), 'right')).toMatchObject({ pad: 'Main → B', moved: true })
-    expect(cmdSortSend(id('C'), 'up')).toMatchObject({ moved: true })
-    expect(cmdSortSend(b, 'right')).toMatchObject({ moved: false })
-    expect(whole()).toBe('#B\n  B1\n  A\n  ~C\n\nD')
+    setSortTarget(b)
+    expect(sortTarget(all(), 'left')).toMatchObject({ padId: null, subId: b, name: 'Main → B', exists: true })
+    expect(cmdSortSend(id('A'), 'left')).toMatchObject({ pad: 'Main → B', moved: true })
+    expect(cmdSortSend(id('C'), 'left')).toMatchObject({ moved: true })
+    expect(cmdSortSend(b, 'left')).toMatchObject({ moved: false })
+    expect(whole()).toBe('#B\n  B1\n  A\n  C\n\nD')
     // Turned back into a plain line, the choice falls back to the default.
     usePad.setState({ selection: [b] })
     cmdSetKind('plain')
-    expect(sortTarget(all(), 'right')).toMatchObject({ name: 'Today', isDefault: true })
+    expect(sortTarget(all(), 'left')).toMatchObject({ name: 'Later', isDefault: true })
   })
 
   it('a chosen pad or Main is the target, remembered on the device; a deleted choice falls back', async () => {
     const work = cmdNewPad('Work')
-    setSortTarget('left', work)
-    setSortTarget('right', 'main')
+    setSortTarget(work)
     cmdSortAddSub(Object.keys(usePad.getState().rows)[0]!, 'x') // nothing: blank parent still takes a sub item
     openPad(null)
     cmdSortSend(id('A'), 'left')
     expect(all()[id('A')]!.parentId).toBe(work)
-    // Already in the target: stays put, and up only crosses it out.
-    const res = cmdSortSend(id('C'), 'up')!
-    expect(res).toMatchObject({ moved: false, pad: 'Main' })
-    expect(all()[id('C')]).toMatchObject({ parentId: null, done: true })
+    // Already in the target: stays put.
+    setSortTarget('main')
+    expect(cmdSortSend(id('C'), 'left')).toMatchObject({ moved: false, pad: 'Main' })
+    expect(all()[id('C')]).toMatchObject({ parentId: null })
     expect(listPads(all()).map((p) => p.text)).toEqual(['Work'])
-    useSort.setState({ left: null, right: null })
+    setSortTarget(work)
+    useSort.setState({ left: null })
     await loadSortTargets()
-    expect(useSort.getState()).toMatchObject({ left: work, right: 'main' })
+    expect(useSort.getState()).toEqual({ left: work })
     expect(await mem.getMeta('sort.left')).toBe(work)
     expect(sortTarget(all(), 'left', 'gone')).toMatchObject({ name: 'Later', isDefault: true })
   })
@@ -109,8 +109,8 @@ describe('sort', () => {
   })
 
   it('a new pad made from the sort screen becomes the target and the pad being sorted stays open', () => {
-    expect(cmdSortNewTarget('left', '  ')).toBe('')
-    const someday = cmdSortNewTarget('left', ' Someday ')
+    expect(cmdSortNewTarget('  ')).toBe('')
+    const someday = cmdSortNewTarget(' Someday ')
     expect(usePad.getState().padId).toBeNull()
     expect(sortTarget(all(), 'left')).toMatchObject({ padId: someday, name: 'Someday', isDefault: false })
     cmdSortSend(id('A'), 'left')
@@ -130,11 +130,11 @@ describe('sort', () => {
     session = sortSessionSend(session, 'skip')
     expect(sortSessionCard(session)).toEqual({ id: null, index: 4 })
     expect(sortSessionSend(session, 'left')).toBe(session) // no card: nothing happens
-    expect(sortSummary(session, 'Later', 'Today')).toBe('1 done, 1 to Later, 1 skipped')
+    expect(sortSummary(session)).toBe('1 done, 1 to Later, 1 skipped')
     session = sortSessionBack(session)
     expect(sortSessionCard(session).id).toBe(id('D'))
     expect(sortSessionBack(sortSessionStart())).toEqual(sortSessionStart())
-    expect(sortSummary(sortSessionStart(), 'Later', 'Today')).toBe('')
+    expect(sortSummary(sortSessionStart())).toBe('')
   })
 
   it('down deletes the card: the line and its children go to the Trash, and Back brings them back', () => {
@@ -144,10 +144,68 @@ describe('sort', () => {
     expect(all()[a]!.deletedAt).not.toBeNull()
     expect(session.sent.at(-1)).toMatchObject({ dir: 'down', moved: false })
     expect(listPads(all())).toHaveLength(0) // no pad is made for a delete
-    expect(sortSummary(session, 'Later', 'Today')).toBe('1 deleted')
+    expect(sortSummary(session)).toBe('1 deleted')
     session = sortSessionBack(session)
     expect(all()[a]!.deletedAt).toBeNull()
     expect(sortSessionCard(session).id).toBe(a)
+  })
+
+  it('right always goes to Today, whatever the left side points at', () => {
+    setSortTarget('main')
+    expect(sortTarget(all(), 'right')).toMatchObject({ name: 'Today', isDefault: true })
+    expect(cmdSortSend(id('A'), 'right')).toMatchObject({ pad: 'Today', moved: true })
+  })
+
+  it('cycle moves the card to the bottom of the pad and deals it again at the end, still counted as one to go', () => {
+    let session = sortSessionStart()
+    expect(sortSessionProgress(session)).toEqual({ at: 1, total: 4, left: 4 })
+    session = sortSessionSend(session, 'cycle')
+    expect(whole()).toBe('B\n  B1\n\nC\nD\nA')
+    expect(sortSessionCard(session).id).toBe(id('B'))
+    expect(sortSessionProgress(session)).toEqual({ at: 1, total: 4, left: 4 })
+    session = sortSessionSend(session, 'left')
+    expect(sortSessionProgress(session)).toEqual({ at: 2, total: 4, left: 3 })
+    session = sortSessionSend(session, 'skip')
+    session = sortSessionSend(session, 'skip')
+    expect(sortSessionCard(session).id).toBe(id('A')) // round again
+    // The last line cycled stays where it is, and comes round once more.
+    session = sortSessionSend(session, 'cycle')
+    expect(sortSessionCard(session).id).toBe(id('A'))
+    expect(whole()).toBe('\nC\nD\nA\n@Later\n  B\n    B1')
+    session = sortSessionSend(session, 'right')
+    expect(sortSessionCard(session).id).toBeNull()
+    expect(sortSessionProgress(session)).toEqual({ at: 5, total: 4, left: 0 })
+    expect(sortSummary(session)).toBe('1 to Today, 1 to Later, 2 skipped')
+    // Back unwinds in order: the send, then each cycle, which also takes its copy off the queue.
+    session = sortSessionBack(session)
+    session = sortSessionBack(session)
+    expect(session.queue).toHaveLength(5)
+    session = sortSessionBack(session)
+    session = sortSessionBack(session)
+    session = sortSessionBack(session)
+    session = sortSessionBack(session)
+    expect(session.queue).toHaveLength(4)
+    expect(sortSessionCard(session).id).toBe(id('A'))
+    expect(whole()).toBe('A\nB\n  B1\n\nC\nD')
+  })
+
+  it('picking a left pad sends the card there; the tally names each pad a card went to', () => {
+    const work = cmdNewPad('Work')
+    openPad(null)
+    let session = sortSessionStart()
+    session = sortSessionSend(session, 'left')
+    session = sortSessionSendLeftTo(session, work)
+    expect(useSort.getState().left).toBe(work)
+    expect(all()[id('B')]!.parentId).toBe(work)
+    expect(sortSessionCard(session).id).toBe(id('C'))
+    expect(sortSessionSendLeftToNew(session, '  ')).toBe(session)
+    session = sortSessionSendLeftToNew(session, 'Someday')
+    expect(sortTarget(all(), 'left').name).toBe('Someday')
+    session = sortSessionSend(session, 'left')
+    expect(sortSummary(session)).toBe('1 to Later, 1 to Work, 2 to Someday')
+    // With nothing left to sort, picking only sets the target.
+    expect(sortSessionSendLeftTo(session, 'main')).toEqual(session)
+    expect(useSort.getState().left).toBe('main')
   })
 
   it('a drag is a swipe only past the threshold, and up needs to be more vertical than sideways', () => {

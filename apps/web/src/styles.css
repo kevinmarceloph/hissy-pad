@@ -780,6 +780,7 @@ dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-f
 .sort-card.is-ghost.to-up { --tx: 0%; --ty: -140%; --rot: 0deg; }
 .sort-card.is-ghost.to-down { --tx: 0%; --ty: 140%; --rot: 0deg; }
 .sort-card.is-ghost.to-skip { --tx: 0%; --ty: 0%; --rot: 0deg; }
+.sort-card.is-ghost.to-cycle { --tx: 0%; --ty: 60%; --rot: 0deg; }
 @keyframes sort-out {
   from { transform: translate(var(--dx, 0px), var(--dy, 0px)); opacity: 1; }
   to { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)); opacity: 0; }

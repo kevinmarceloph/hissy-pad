@@ -48,11 +48,10 @@ describe('the widget', () => {
     })
   })
 
-  it('the targets in the snapshot follow the Sort settings', () => {
+  it('the targets in the snapshot follow the Sort settings; right is always Today', () => {
     const work = cmdNewPad('Work')
-    setSortTarget('left', work)
-    setSortTarget('right', 'main')
-    expect(widgetSnapshot()).toMatchObject({ left: 'Work', right: 'Main' })
+    setSortTarget(work)
+    expect(widgetSnapshot()).toMatchObject({ left: 'Work', right: 'Today' })
   })
 
   it('queued buttons apply in order, from whichever pad the line is in, one undo step each', () => {

@@ -1,8 +1,9 @@
-// Sort: the lines of the pad shown, one card at a time. Left sends a line to one pad
-// ("Later" unless set otherwise), right to another ("Today"), up to the right-hand pad
-// crossed out, down to the Trash. The card can be edited and given sub items before it goes. This file holds
-// the queue, the two targets (remembered per device) and the commands; the swipe itself is
-// the app's.
+// Sort: the lines of the pad shown, one card at a time. Left sends a line to a pad of the
+// user's choice ("Later" unless set otherwise, remembered per device), right to "Today",
+// up to "Today" crossed out, down to the Trash. Skip leaves a line where it is; Cycle moves
+// it to the bottom of the pad and deals it again at the end. The card can be edited and
+// given sub items before it goes. This file holds the queue, the targets and the commands;
+// the swipe itself is the app's.
 import { create } from 'zustand'
 import {
   buildIndex, childrenOf, createPad, insertAt, isLive, isPadNode, isSubPad, listPads, moveNodes, remove, setDone, setText,
@@ -15,26 +16,27 @@ import { MAIN_PAD_NAME, ensureLine, placeName } from './pads'
 import { log } from './log'
 
 export type SortSide = 'left' | 'right'
-export type SortDir = SortSide | 'up' | 'down' | 'skip'
+export type SortDir = SortSide | 'up' | 'down' | 'skip' | 'cycle'
 
-// Where a side sends its lines: a pad's id, a sub-pad's row id, 'main', or null for the default (the pad
-// named "Later" or "Today", made the first time a line is sent to it).
+// Where the left side sends its lines: a pad's id, a sub-pad's row id, 'main', or null for
+// the default (the pad named "Later", made the first time a line is sent to it). The right
+// side has no choice since 2026-11-24: it is always "Today". A `sort.right` meta key left
+// on a device from before is not read.
 export type SortChoice = string | 'main' | null
 
 export const SORT_DEFAULT_NAME: Record<SortSide, string> = { left: 'Later', right: 'Today' }
-const KEY: Record<SortSide, string> = { left: 'sort.left', right: 'sort.right' }
+const KEY = 'sort.left'
 
-export const useSort = create<Record<SortSide, SortChoice>>(() => ({ left: null, right: null }))
+export const useSort = create<{ left: SortChoice }>(() => ({ left: null }))
 
 export async function loadSortTargets(): Promise<void> {
-  const store = getLocalStore()
-  const [left, right] = await Promise.all([store.getMeta(KEY.left), store.getMeta(KEY.right)])
-  useSort.setState({ left: left || null, right: right || null })
+  const left = await getLocalStore().getMeta(KEY)
+  useSort.setState({ left: left || null })
 }
 
-export function setSortTarget(side: SortSide, choice: SortChoice) {
-  useSort.setState({ [side]: choice } as Pick<Record<SortSide, SortChoice>, SortSide>)
-  void getLocalStore().setMeta(KEY[side], choice ?? '').catch(() => {})
+export function setSortTarget(choice: SortChoice) {
+  useSort.setState({ left: choice })
+  void getLocalStore().setMeta(KEY, choice ?? '').catch(() => {})
 }
 
 // A drag of (dx, dy) as a swipe, or null when it is too short to count. Up and down win
@@ -48,9 +50,9 @@ export function swipeDir(dx: number, dy: number, threshold = SWIPE_DISTANCE): So
   return null
 }
 
-// A new pad made from the sort screen and set as a side's target, without leaving the pad
+// A new pad made from the sort screen and set as the left target, without leaving the pad
 // being sorted. Returns its id ('' for a blank name).
-export function cmdSortNewTarget(side: SortSide, name: string): string {
+export function cmdSortNewTarget(name: string): string {
   const clean = name.trim()
   if (!clean) return ''
   let id = ''
@@ -59,7 +61,7 @@ export function cmdSortNewTarget(side: SortSide, name: string): string {
     id = made.padId
     return made.rows
   }, { label: 'cmdSortNewTarget' })
-  setSortTarget(side, id)
+  setSortTarget(id)
   return id
 }
 
@@ -71,9 +73,10 @@ export interface SortTarget {
   isDefault: boolean
 }
 
-// A side's target as things stand. A chosen pad that is gone (deleted here or on another
-// device) falls back to the default.
-export function sortTarget(all: Rows, side: SortSide, choice: SortChoice = useSort.getState()[side]): SortTarget {
+// A side's target as things stand. Right is always the default; on the left, a chosen pad
+// that is gone (deleted here or on another device) falls back to the default.
+export function sortTarget(all: Rows, side: SortSide, leftChoice: SortChoice = useSort.getState().left): SortTarget {
+  const choice = side === 'left' ? leftChoice : null
   if (choice === 'main') return { padId: null, subId: null, name: MAIN_PAD_NAME, exists: true, isDefault: false }
   if (choice !== null && isPadNode(all[choice])) return { padId: choice, subId: null, name: all[choice].text || 'Untitled pad', exists: true, isDefault: false }
   if (choice !== null && isSubPad(all, all[choice])) {
@@ -104,7 +107,7 @@ export interface SortResult {
 // The move itself, on the whole table: `id` goes to the bottom of the target (a pad, made
 // on the spot when it is a default that does not exist yet, or a sub-pad) unless it is already in it,
 // and is crossed out when the direction is up. `here` is the pad the line is in now.
-export function sendToTarget(all: Rows, ctx: OpCtx, id: string, dir: Exclude<SortDir, 'skip' | 'down'>, target: SortTarget, here: PadId): { rows: Rows; moved: boolean } {
+export function sendToTarget(all: Rows, ctx: OpCtx, id: string, dir: Exclude<SortDir, 'skip' | 'cycle' | 'down'>, target: SortTarget, here: PadId): { rows: Rows; moved: boolean } {
   let out = all
   let padId = target.padId
   let moved = false
@@ -135,6 +138,20 @@ export function cmdSortSend(id: string, dir: SortDir): SortResult | null {
   const here = state.padId
   if (dir === 'skip') return { dir, pad: '', moved: false, undoDepth }
   stopEditing()
+  if (dir === 'cycle') {
+    // Cycle: the line goes to the bottom of the pad it is in (one undo step), and the
+    // session deals it again at the end of the queue.
+    let moved = false
+    apply((rows, ctx) => {
+      const last = childrenOf(buildIndex(rows), null).filter((r) => !r.pad).at(-1)
+      if (!last || last.id === id) return rows
+      moved = true
+      return moveNodes(rows, ctx, [id], { parentId: null, afterId: last.id })
+    }, { label: 'cmdSortSend:cycle' })
+    usePad.setState({ selection: [], anchorId: null, focusId: null })
+    log('sort:send', { id: id.slice(0, 8), dir, moved })
+    return { dir, pad: '', moved, undoDepth }
+  }
   if (dir === 'down') {
     // Down deletes: the line and what is under it go to the Trash, one undo step, so Back
     // (or the Trash itself) brings them back.
@@ -199,7 +216,8 @@ export function cmdSortRemoveSub(id: string) {
 // the user is in it and what has been sent so far. Plain values and functions, so web
 // and the phone keep one in component state and share every rule about it.
 
-export interface SortSent extends SortResult { id: string }
+// `index` is the card's place in the queue when it was sent, where Back shows it again.
+export interface SortSent extends SortResult { id: string; index: number }
 
 export interface SortSession {
   queue: readonly string[]
@@ -225,29 +243,63 @@ export function sortSessionCard(session: SortSession, rows: Rows = usePad.getSta
 }
 
 // Send the current card and move on. Returns the session unchanged when there is no card.
+// A cycled card is queued again at the end, so it comes round once the rest are seen.
 export function sortSessionSend(session: SortSession, dir: SortDir): SortSession {
   const { id, index } = sortSessionCard(session)
   if (!id) return session
   const res = cmdSortSend(id, dir)
   if (!res) return session
-  return { ...session, pos: index + 1, sent: [...session.sent, { ...res, id }] }
+  const queue = dir === 'cycle' ? [...session.queue, id] : session.queue
+  return { queue, pos: index + 1, sent: [...session.sent, { ...res, id, index }] }
 }
 
-// Take the last card back and show it again.
+// Pick a new left target and send the current card there in the same go. With no card left
+// it only sets the target.
+export function sortSessionSendLeftTo(session: SortSession, choice: SortChoice): SortSession {
+  setSortTarget(choice)
+  return sortSessionSend(session, 'left')
+}
+
+// The same with a pad made on the spot; the session is unchanged for a blank name.
+export function sortSessionSendLeftToNew(session: SortSession, name: string): SortSession {
+  if (!cmdSortNewTarget(name)) return session
+  return sortSessionSend(session, 'left')
+}
+
+// Take the last card back and show it again. Backs come off in the order the sends went
+// on, so a cycled card's copy is the last one queued.
 export function sortSessionBack(session: SortSession): SortSession {
   const last = session.sent.at(-1)
   if (!last) return session
   cmdSortBack(last)
-  return { ...session, pos: session.queue.indexOf(last.id), sent: session.sent.slice(0, -1) }
+  const queue = last.dir === 'cycle' ? session.queue.slice(0, -1) : session.queue
+  return { queue, pos: last.index, sent: session.sent.slice(0, -1) }
 }
 
-// "2 to Today, 1 done, 1 to Later, 1 deleted, 1 skipped", for the end of a sort.
-export function sortSummary(session: SortSession, left: string, right: string): string {
+// Where the sort stands, counted in lines rather than queue places: a cycled line is in the
+// queue twice but is one line still to go. `at` is the card's number ("2 of 5"), `total`
+// the lines dealt, `left` the lines not yet sent, skipped or deleted.
+export function sortSessionProgress(session: SortSession, rows: Rows = usePad.getState().rows): { at: number; total: number; left: number } {
+  const { index } = sortSessionCard(session, rows)
+  const total = new Set(session.queue).size
+  const left = new Set(session.queue.slice(index)).size
+  return { at: total - left + 1, total, left }
+}
+
+// "2 to Today, 1 done, 1 to Later, 1 to Someday, 1 deleted, 1 skipped", for the end of a
+// sort. Sends are counted by the pad each went to, since the left target can change
+// mid-sort. Cycles are not counted: a cycled card comes round again.
+export function sortSummary(session: SortSession): string {
   const n = (dir: SortDir) => session.sent.filter((s) => s.dir === dir).length
+  const byPad = (dir: SortDir) => {
+    const counts = new Map<string, number>()
+    for (const s of session.sent) if (s.dir === dir) counts.set(s.pad, (counts.get(s.pad) ?? 0) + 1)
+    return [...counts].map(([pad, c]) => `${c} to ${pad}`)
+  }
   return [
-    n('right') && `${n('right')} to ${right}`,
+    ...byPad('right'),
     n('up') && `${n('up')} done`,
-    n('left') && `${n('left')} to ${left}`,
+    ...byPad('left'),
     n('down') && `${n('down')} deleted`,
     n('skip') && `${n('skip')} skipped`,
   ].filter(Boolean).join(', ')
