@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 import { CHIME_CHOICES, chimesSpoken, minuteLabel, toggleChime } from '@hissypad/core/hours';
 import { dayDate, dayKey, dayOf, daySlots, dayTitle, fromDayKey, hourLabel, HOURS, shiftDay, slotState, type DayKey } from '@hissypad/core/hours';
@@ -32,9 +32,14 @@ function useNow(clock: () => Date): Date {
 
 const realClock = () => new Date();
 
-// Room for the web's scrollbar, taken from the gutter beside the hours.
-const SCROLLBAR = GUTTER - 2;
-const BESIDE = Platform.OS === 'web' ? { marginRight: -SCROLLBAR } : null;
+// On the web the list's scrollbar sits at the window's right edge, as the pad's page
+// scrollbar does, not over the rows: the box around the list reaches from the column out
+// to that edge, and its content is padded back by the same, so the rows still end where
+// the strip does. The distance is the gutter, plus half of what the window has beyond the
+// column.
+const TO_EDGE = `max(${GUTTER}px, calc((100vw - ${MAX_WIDTH}px) / 2 + ${GUTTER}px))`;
+const BESIDE = Platform.OS === 'web' ? ({ marginRight: `calc(-1 * ${TO_EDGE})` } as unknown as ViewStyle) : null;
+const BACK = Platform.OS === 'web' ? ({ paddingRight: TO_EDGE } as unknown as ViewStyle) : null;
 
 // What is open over the hours: the calendar, the menu, or the settings the menu leads to.
 type Panel = 'calendar' | 'menu' | 'settings';
@@ -214,10 +219,7 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
                 keyboardDismissMode="interactive"
                 automaticallyAdjustKeyboardInsets
                 onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
-                // The web draws a scrollbar over the list's right edge, on top of the counts
-                // and flags there: the box around the list reaches out into the gutter, so the bar sits
-                // beside the rows and they still end where the strip does.
-                contentContainerStyle={[{ paddingBottom: Math.max(48, listHeight - ROW) }, BESIDE && { paddingRight: SCROLLBAR }]}>
+                contentContainerStyle={[{ paddingBottom: Math.max(48, listHeight - ROW) }, BACK]}>
                 {hours.map(({ day: on, hour, plan, top, count, entry }) => {
                   const state = slotState(on, hour, now);
                   return (

@@ -72,5 +72,7 @@ export const SMALL = 14;
 export const LINE = Platform.OS === 'web' ? LINE_WEB : LINE_NATIVE;
 // One hour is one row, and a row is a comfortable tap: 44pt.
 export const ROW = 44;
-export const GUTTER = 20;
-export const MAX_WIDTH = 640;
+// On the web the column is the pad's own: 44rem wide with 16px at each side (`.app` in
+// the web's stylesheet), so Hours' rows start and end where the pad's lines do.
+export const GUTTER = Platform.OS === 'web' ? 16 : 20;
+export const MAX_WIDTH = Platform.OS === 'web' ? 704 : 640;
