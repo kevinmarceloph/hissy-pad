@@ -4,10 +4,10 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { CHIME_CHOICES, chimesSpoken, minuteLabel, toggleChime } from '@hissypad/core/hours';
 import { dayDate, dayKey, dayOf, daySlots, dayTitle, fromDayKey, hourLabel, HOURS, shiftDay, slotState, type DayKey } from '@hissypad/core/hours';
 import { toggleDone, type Deed, type Entry, type EntryPatch } from '@hissypad/core/hours';
-import { pinRecurring, recurringAt, withRecurring } from '@hissypad/core/hours';
+import { drawnPlan, pinRecurring, recurringAt, withRecurring } from '@hissypad/core/hours';
 import { summarize } from '@hissypad/core/hours';
 import { useCategories, useChimes, useDay, useFlags, useRecurring, useSync } from './provider';
-import { slotCounts, slotDoneExtra, slotKey } from '@hissypad/core';
+import { slotCounts, slotDoneExtra, slotKey, slotLines } from '@hissypad/core';
 import { usePad } from '@hissypad/state';
 import { getChimePlatform } from '@hissypad/state/hours';
 
@@ -115,9 +115,13 @@ export function DayScreen({ clock = realClock, onEditCategories, onEditFlags, on
     void open(to);
   };
 
-  // Each hour as the screen shows it: its own plan, or the recurring plan that covers it.
+  // Each hour as the screen shows it: its own plan, or the recurring plan that covers it, or
+  // else the words and category of the first line put in it (Kevin, 2026-11-24).
   // `byHour` stays what is stored; `shown` is what is drawn, counted and edited.
-  const slots = daySlots(day, start).map((slot) => ({ ...slot, plan: recurringAt(recurring, slot.day, slot.hour) }));
+  const slots = daySlots(day, start).map((slot) => {
+    const drawn = drawnPlan(recurringAt(recurring, slot.day, slot.hour), slotLines(all, slotKey(slot.day, slot.hour)));
+    return { ...slot, plan: drawn?.plan, from: drawn?.from };
+  });
   const shown: Record<number, Entry> = {};
   for (const { day: on, hour, plan } of slots) {
     const entry = withRecurring(byHour[hour], plan, on, hour);
@@ -215,7 +219,7 @@ export function DayScreen({ clock = realClock, onEditCategories, onEditFlags, on
                 automaticallyAdjustKeyboardInsets
                 onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
                 contentContainerStyle={{ paddingBottom: Math.max(48, listHeight - ROW) }}>
-                {slots.map(({ day: on, hour, plan }) => {
+                {slots.map(({ day: on, hour, plan, from }) => {
                   const slot = `${on}T${hour}`;
                   const state = slotState(on, hour, now);
                   // Only an hour that has started can be marked done.
@@ -239,7 +243,7 @@ export function DayScreen({ clock = realClock, onEditCategories, onEditFlags, on
                         count={counts[slotKey(on, hour)]}
                         extra={extras[slotKey(on, hour)]}
                         entry={shown[hour]}
-                        recurring={shown[hour] !== byHour[hour]}
+                        drawn={shown[hour] !== byHour[hour] ? from : undefined}
                         state={state}
                         open={editing === hour}
                         categories={categories}

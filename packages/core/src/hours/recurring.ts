@@ -149,9 +149,25 @@ export function recurringAt(list: readonly RecurringPlan[], day: DayKey, hour: n
   return best;
 }
 
-// An hour as the screen shows it: its own plan if it has one, the recurring one if not. An
+// A plan drawn on an hour without being stored on it: a recurring plan, or the first of the
+// pad's lines put in that hour (its words and its category).
+export type DrawnPlan = Pick<RecurringPlan, 'note' | 'category'>;
+
+// The plan an hour with none of its own is drawn with: the recurring plan that covers it,
+// or else its first line. A line's text is one line already; a blank one offers nothing.
+export function drawnPlan(
+  recurring: RecurringPlan | undefined,
+  lines: readonly { text: string; category: string | null }[],
+): { plan: DrawnPlan; from: 'recurring' | 'line' } | undefined {
+  if (recurring) return { plan: recurring, from: 'recurring' };
+  const first = lines[0];
+  const note = first?.text.trim() ?? '';
+  return first && note !== '' ? { plan: { note, category: first.category }, from: 'line' } : undefined;
+}
+
+// An hour as the screen shows it: its own plan if it has one, the drawn one if not. An
 // hour with no row of its own gets a blank one to carry the plan.
-export function withRecurring(entry: Entry | undefined, plan: RecurringPlan | undefined, day: DayKey, hour: number): Entry | undefined {
+export function withRecurring(entry: Entry | undefined, plan: DrawnPlan | undefined, day: DayKey, hour: number): Entry | undefined {
   // Not the type guard's narrowing: an entry without a plan is still an entry.
   const planned: boolean = hasPlan(entry);
   if (planned || !plan) return entry;
@@ -163,7 +179,7 @@ export function withRecurring(entry: Entry | undefined, plan: RecurringPlan | un
 // ahead follow. The first write to an hour pins the plan it was showing into the row, so
 // an hour that was lived keeps the plan it was lived against. A patch that sets the plan
 // itself wins.
-export function pinRecurring(patch: EntryPatch, stored: Entry | undefined, plan: RecurringPlan | undefined): EntryPatch {
+export function pinRecurring(patch: EntryPatch, stored: Entry | undefined, plan: DrawnPlan | undefined): EntryPatch {
   const planned: boolean = hasPlan(stored);
   if (planned || !plan) return patch;
   return { planned: plan.category, plannedNote: plan.note, ...patch };

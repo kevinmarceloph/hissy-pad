@@ -23,8 +23,9 @@ type Props = {
   // Lines crossed out during this hour that were not assigned to it (cleared ones too).
   extra?: number | undefined;
   entry: Entry | undefined;
-  // The plan in `entry` is a recurring one, drawn on this hour and not stored on it.
-  recurring?: boolean;
+  // The plan in `entry` is drawn on this hour and not stored on it: a recurring plan's, or
+  // the first line's put in the hour.
+  drawn?: 'recurring' | 'line' | undefined;
   state: SlotState;
   open: boolean;
   // Every category and every flag in order, archived ones included.
@@ -182,7 +183,7 @@ type EditorProps = Omit<Props, 'open' | 'onOpen' | 'onMark'> & { logged: boolean
 // has started the editor asks what happened, starting from the plan's own words. The plan
 // is then shown to be read, and a small Edit button opens it, so the hour in progress (or
 // one already gone) can still be given a plan or have its plan corrected.
-function Editor({ day, hour, entry, recurring, state, logged, categories, flags, onEditFlags, onSave, onClose }: EditorProps) {
+function Editor({ day, hour, entry, drawn, state, logged, categories, flags, onEditFlags, onSave, onClose }: EditorProps) {
   const theme = useTheme();
   const ahead = state === 'future' && !logged;
   const savedNote = entry?.note ?? '';
@@ -230,6 +231,7 @@ function Editor({ day, hour, entry, recurring, state, logged, categories, flags,
   // The editor asks about the active flags, plus one answered here that has since been archived.
   const asked = flags.filter((f) => !f.archived || flagChoice(on, f.id) !== null);
   const plan = findCategory(categories, entry?.planned);
+  const planSource = drawn === 'recurring' ? 'Recurring plan' : drawn === 'line' ? 'Planned from its first line' : 'Planned';
 
   // What is typed and not yet saved. `always` is Done or another choice in the editor; a
   // field merely losing focus leaves an untouched prefill alone.
@@ -346,9 +348,9 @@ function Editor({ day, hour, entry, recurring, state, logged, categories, flags,
         }}
         hold={hold}
       />
-      {recurring && (
+      {drawn && (
         <Text style={[styles.label, { color: theme.inkSoft }]}>
-          From a recurring plan. A change here is for this hour only.
+          {drawn === 'recurring' ? 'From a recurring plan.' : 'From the first line in this hour.'} A change here is for this hour only.
         </Text>
       )}
     </>
@@ -384,11 +386,9 @@ function Editor({ day, hour, entry, recurring, state, logged, categories, flags,
                   />
                   <Text style={[styles.label, styles.italic, { color: theme.inkSoft }]}>
                     {entry?.planned
-                      ? `${recurring ? 'Recurring plan' : 'Planned'}: ${plan ? categoryName(plan) : 'a category not on this device'}`
+                      ? `${planSource}: ${plan ? categoryName(plan) : 'a category not on this device'}`
                       : savedPlan.trim() !== ''
-                        ? recurring
-                          ? 'Recurring plan, with no category'
-                          : 'Planned, with no category'
+                        ? `${planSource}, with no category`
                         : 'No plan for this hour'}
                   </Text>
                 </View>
@@ -476,8 +476,8 @@ function Editor({ day, hour, entry, recurring, state, logged, categories, flags,
       <View style={styles.actions}>
         <Tap
           {...hold}
-          // A recurring plan is not this hour's to clear: there is nothing stored here yet.
-          disabled={ahead ? recurring || (planWords === '' && !entry?.planned) : !logged && note === ''}
+          // A drawn plan is not this hour's to clear: there is nothing stored here yet.
+          disabled={ahead ? !!drawn || (planWords === '' && !entry?.planned) : !logged && note === ''}
           onPress={() => {
             if (ahead) setPlanWords('');
             else setNote('');

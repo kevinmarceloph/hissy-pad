@@ -30,6 +30,7 @@ async function setup() {
     </StoresProvider>,
   );
   await screen.findByLabelText('2pm, now: blank');
+  return { day };
 }
 
 describe('the pad\'s lines in an hour', () => {
@@ -40,7 +41,8 @@ describe('the pad\'s lines in an hour', () => {
       cmdSetSlot(slotKey('2026-11-19', 14));
       cmdSlotDone(id('call the bank'), true);
     });
-    expect(screen.getByLabelText('2pm, now: blank, 1 of 2 items done')).toBeTruthy();
+    // The hour has no plan of its own, so it is drawn with its first open line's.
+    expect(screen.getByLabelText('2pm, now: planned send invoice, 1 of 2 items done')).toBeTruthy();
     expect(screen.getByText('1/2')).toBeTruthy();
     // An hour with nothing assigned says nothing about items.
     expect(screen.getByLabelText('1pm: blank')).toBeTruthy();
@@ -59,7 +61,7 @@ describe('the pad\'s lines in an hour', () => {
         return { all: { ...s.all, [r.id]: r } };
       });
     });
-    expect(screen.getByLabelText('2pm, now: blank, 1 of 1 item done, 1 more done')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: planned call the bank, 1 of 1 item done, 1 more done')).toBeTruthy();
     expect(screen.getByText('+1')).toBeTruthy();
   });
 
@@ -69,7 +71,7 @@ describe('the pad\'s lines in an hour', () => {
       select([id('call the bank'), id('send invoice')]);
       cmdSetSlot(slotKey('2026-11-19', 14));
     });
-    await fireEvent.press(screen.getByLabelText('2pm, now: blank, 0 of 2 items done'));
+    await fireEvent.press(screen.getByLabelText('2pm, now: planned call the bank, 0 of 2 items done'));
     expect(screen.getByText('Items: 0 of 2 done')).toBeTruthy();
 
     await fireEvent.press(screen.getByRole('checkbox', { name: 'send invoice' }));
@@ -187,9 +189,30 @@ describe('a line in a run of hours', () => {
       select([id('call the bank')]);
       cmdSetSlot(slotKey('2026-11-19', 13, 3));
     });
-    expect(screen.getByLabelText('1pm: blank, 0 of 1 item done')).toBeTruthy();
-    expect(screen.getByLabelText('2pm, now: blank, 0 of 1 item done')).toBeTruthy();
-    expect(screen.getByLabelText('3pm: not yet, 0 of 1 item done')).toBeTruthy();
+    expect(screen.getByLabelText('1pm: blank, planned call the bank, 0 of 1 item done')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: planned call the bank, 0 of 1 item done')).toBeTruthy();
+    expect(screen.getByLabelText('3pm: planned call the bank, 0 of 1 item done')).toBeTruthy();
     expect(screen.getByLabelText('4pm: not yet')).toBeTruthy();
+  });
+});
+
+describe('an hour with no plan of its own', () => {
+  it('is drawn with its first line, and keeps it once the hour is marked', async () => {
+    const { day } = await setup();
+    await act(async () => {
+      select([id('send invoice')]);
+      cmdSetSlot(slotKey('2026-11-19', 14));
+    });
+    await fireEvent.press(screen.getByLabelText('2pm, now: planned send invoice, 0 of 1 item done'));
+    expect(screen.getByText('Planned from its first line, with no category')).toBeTruthy();
+    // Nothing is stored until the hour is written to.
+    expect(day.getState().byHour[14]).toBeUndefined();
+
+    await fireEvent.press(screen.getByLabelText('2pm, now: planned send invoice, 0 of 1 item done'));
+    await fireEvent.press(screen.getByRole('checkbox', { name: '2pm done as planned' }));
+    expect(day.getState().byHour[14]).toMatchObject({ plannedNote: 'send invoice', note: 'send invoice' });
+    // Pinned: the line leaving the hour takes nothing from it.
+    await act(async () => cmdSetSlot(null, [id('send invoice')]));
+    expect(day.getState().byHour[14]).toMatchObject({ plannedNote: 'send invoice' });
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyPatch, planState, toggleDone, type Entry } from './entry';
 import {
+  drawnPlan,
   cleanDays,
   covers,
   daysLabel,
@@ -159,6 +160,16 @@ describe('an hour under a recurring plan', () => {
     const own = stored({ plannedNote: 'night out' });
     expect(withRecurring(own, plan(), SAT, 3)).toBe(own);
     expect(withRecurring(undefined, undefined, SAT, 3)).toBeUndefined();
+  });
+
+  it('draws the first line put in the hour where no recurring plan covers it', () => {
+    const lines = [{ text: ' call the bank ', category: 'work' }, { text: 'buy milk', category: null }];
+    expect(drawnPlan(undefined, lines)).toEqual({ plan: { note: 'call the bank', category: 'work' }, from: 'line' });
+    // A recurring plan comes first.
+    expect(drawnPlan(plan(), lines)).toEqual({ plan: plan(), from: 'recurring' });
+    expect(drawnPlan(undefined, [])).toBeUndefined();
+    expect(drawnPlan(undefined, [{ text: '  ', category: 'work' }])).toBeUndefined();
+    expect(withRecurring(undefined, drawnPlan(undefined, lines)!.plan, SAT, 3)).toMatchObject({ planned: 'work', plannedNote: 'call the bank' });
   });
 
   it('is marked done as planned with one tap, and the plan is pinned into the row', () => {
