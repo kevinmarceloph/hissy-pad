@@ -4,12 +4,13 @@ import type { ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { cmdUndone, doneEntries, firstLine, groupByDay, usePad, underLabel } from '@hissypad/state'
-import { serif, type Theme } from '../theme'
+import { serif, type Theme, SHEET_TOP } from '../theme'
 
 function Sheet({ visible, title, note, onClose, theme, children }: { visible: boolean; title: string; note: string; onClose: () => void; theme: Theme; children: ReactNode }) {
   const insets = useSafeAreaInsets()
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      {SHEET_TOP > 0 && <View style={{ height: SHEET_TOP, backgroundColor: theme.paper }} />}
       <View style={[s.root, { backgroundColor: theme.paper, paddingTop: 12 }]}>
         <View style={s.head}>
           <Text style={[s.title, { color: theme.ink }]}>{title}</Text>

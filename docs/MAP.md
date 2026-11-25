@@ -127,6 +127,7 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 |---|---|
 | `src/ui/Pad.tsx` | the screen: top bar (mode switcher, the + for a new item, Search, the menu), pad chips, "Archive N completed", then the pad's list (long-press drag, pull to sync: the web's line of words on iOS, the platform spinner on Android), Sort or Hours by mode |
 | `src/ui/TopIcons.tsx` | the top bar's icons (the + included), drawn with Views (no icon font, no SVG module), and the Pad, Hours, Sort switcher |
+| `src/ui/Menu.tsx` | `menu()` (a list of choices, Alert.alert's arguments) and `askText()` (a line of text): the system's alert and prompt on iOS, a sheet of our own on Android drawn by `MenuHost` at the root |
 | `src/ui/LineIcons.tsx` | the line toolbar's icons, drawn with Views: the same set as the web's `icons.tsx`, change both together |
 | `src/ui/Row.tsx` | one line |
 | `src/ui/Toolbar.tsx` | the line toolbar above the keyboard, drawn from `LINE_ACTIONS` as two rows (no sideways scroll); the three dots the actions marked `more` |

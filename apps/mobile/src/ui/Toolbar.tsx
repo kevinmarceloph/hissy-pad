@@ -4,7 +4,8 @@
 // switch and "done editing" are the floating buttons at the bottom right (FloatingButtons.tsx), and so is
 // Move to… (the tray icon). The three dots open the less used actions (those marked `more`).
 import { useEffect, useMemo } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native'
+import { menu } from './Menu'
 import { kindOf } from '@hissypad/core'
 import {
   actionFace, cmdSetKind, cmdTogglePin, countOf, lineAbilities, lineActions, lineCount, refreshClipboard, useClipboard, usePad,
@@ -50,7 +51,7 @@ export function Toolbar({ theme }: { theme: Theme }) {
   // The less used actions.
   function more() {
     const held = ids
-    Alert.alert('More', undefined, [
+    menu('More', undefined, [
       // The alert can end the edit before an option is tapped; "Hour…" and "Category…" keep the lines it had.
       ...tucked.map((a) => ({ text: actionFace(a, can).label, onPress: () => void (a.id === 'slot' ? cmdPickSlot(held) : a.id === 'category' ? cmdPickCategory(held) : a.id === 'pin' ? cmdTogglePin(held) : a.run()) })),
       { text: 'Cancel', style: 'cancel' as const },
@@ -95,12 +96,16 @@ export function Toolbar({ theme }: { theme: Theme }) {
   )
 }
 
+// The first row needs about 372pt at these sizes; on a narrower phone (the app is portrait
+// only) the buttons give up some of their width so the last one stays on screen.
+const NARROW = Dimensions.get('window').width < 380
+
 const s = StyleSheet.create({
   bar: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 6, paddingVertical: 2 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   second: { flexWrap: 'wrap' },
-  btn: { minWidth: 36, minHeight: 40, paddingHorizontal: 6, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
-  arrow: { minWidth: 34, paddingHorizontal: 3 },
+  btn: { minWidth: NARROW ? 32 : 36, minHeight: 40, paddingHorizontal: NARROW ? 4 : 6, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
+  arrow: { minWidth: NARROW ? 30 : 34, paddingHorizontal: NARROW ? 2 : 3 },
   kind: { flexDirection: 'row', borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, overflow: 'hidden' },
   kindBtn: { minWidth: 32, minHeight: 34, borderRadius: 0 },
   btnText: { fontFamily: serif, fontSize: 16 },

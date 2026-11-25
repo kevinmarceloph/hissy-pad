@@ -1,6 +1,6 @@
 // The web's paper-and-ink tokens, for React Native. Charter ships on iOS; Android falls
 // back to its serif.
-import { Platform, useColorScheme } from 'react-native'
+import { Platform, StatusBar, useColorScheme } from 'react-native'
 import { LINE_NATIVE, PAPER_DARK, PAPER_LIGHT, TEXT_SIZE } from '@hissypad/core'
 
 export const serif = Platform.select({ ios: 'Charter', android: 'serif', default: 'serif' })
@@ -36,3 +36,7 @@ export const GUTTER = 36
 // glyphs, while Text splits it around them, so the same style sits lower while editing.
 // Measured at 8px on a 3x screen with Charter 17 in a 26pt line; shift the input back up.
 export const INPUT_SHIFT = Platform.OS === 'ios' ? 8 / 3 : 0
+
+// Android draws a full-screen sheet (a Modal) under the status bar, where iOS starts its
+// page sheet below it. Each sheet puts a strip this tall, in its paper, above its content.
+export const SHEET_TOP = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) : 0

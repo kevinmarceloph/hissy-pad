@@ -2,13 +2,14 @@
 // via a long press on a bullet. Drop resolution is core's resolveDrop over the rows'
 // measured layouts; this file only measures and draws.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react'
-import { Alert, Animated, Keyboard, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { Animated, Keyboard, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { menu } from './Menu'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, flatten, listNumbers, pinDivider, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
 import { apply, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, resumeEditing, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
-import { GUTTER, INDENT, LINE, serif, useTheme } from '../theme'
+import { GUTTER, INDENT, LINE, serif, useTheme, SHEET_TOP } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
 import { FloatingButtons } from './FloatingButtons'
@@ -51,6 +52,12 @@ const PULL_WORDS: Record<PullPhase, string> = { idle: '', pulling: 'Pull to sync
 // not, so it keeps the platform's own spinner.
 const PULL_WORDS_OK = Platform.OS === 'ios'
 
+// The top bar: its name, the three modes, and three icons need about 420pt in Android's
+// serif (Charter on iOS is narrower). Under that the gaps close up, and on a phone too
+// narrow for that as well (an Oppo A92 is 360 wide) the name goes, never an icon.
+const SNUG_UNDER = Platform.OS === 'android' ? 440 : 0
+const NAME_FITS = Platform.OS === 'android' ? 400 : 380
+
 const NONE: string[] = []
 
 // The placeholder row of a + drag, in the displayed list.
@@ -62,6 +69,8 @@ export function Pad() {
   const theme = useTheme()
   const kb = useKeyboardHeight()
   const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
+  const snug = width < SNUG_UNDER
   const liveRows = usePad((s) => s.rows)
   const liveEditing = usePad((s) => s.editing)
   const liveSelection = usePad((s) => s.selection)
@@ -383,7 +392,7 @@ export function Pad() {
   // The hamburger: the lists that are looked at now and then.
   function openMenu() {
     stopEditing()
-    Alert.alert('HissyPad', undefined, [
+    menu('HissyPad', undefined, [
       { text: 'Done', onPress: () => setSheet('done') },
       { text: 'Archive', onPress: () => openArchive(null) },
       { text: 'Categories', onPress: () => setSheet('categories') },
@@ -422,6 +431,7 @@ export function Pad() {
         </View>
       </Modal>
       <Modal visible={sending !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSending(null)} onDismiss={resumeEditing}>
+        {SHEET_TOP > 0 && <View style={{ height: SHEET_TOP, backgroundColor: theme.paper }} />}
         <ScrollView style={{ flex: 1, backgroundColor: theme.paper }} contentContainerStyle={{ paddingTop: 12 }}>
           {sending && (
             <BoomerangPicker
@@ -440,6 +450,7 @@ export function Pad() {
         </ScrollView>
       </Modal>
       <Modal visible={categorizing !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setCategorizing(null)} onDismiss={resumeEditing}>
+        {SHEET_TOP > 0 && <View style={{ height: SHEET_TOP, backgroundColor: theme.paper }} />}
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
           {categorizing && (
             <CategoryPicker
@@ -469,8 +480,8 @@ export function Pad() {
 
   return (
     <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: kb > 0 ? kb : insets.bottom }]}>
-      <View style={s.top}>
-        <Text style={[s.title, { color: theme.inkSoft }]}>HissyPad</Text>
+      <View style={[s.top, snug && s.topSnug]}>
+        {width >= NAME_FITS ? <Text style={[s.title, { color: theme.inkSoft }]}>HissyPad</Text> : null}
         <ModeBar mode={archive ? null : mode} onMode={switchMode} theme={theme} />
         <View style={s.grow} />
         <Pressable onPress={() => { stopEditing(); openCreate() }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="New item"><PlusIcon color={theme.inkSoft} /></Pressable>
@@ -492,6 +503,7 @@ export function Pad() {
         </View>
       )}
       <Modal visible={logText !== null} animationType="slide" onRequestClose={() => setLogText(null)}>
+        {SHEET_TOP > 0 && <View style={{ height: SHEET_TOP, backgroundColor: theme.paper }} />}
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 48 }}>
           <View style={[s.top, { gap: 16 }]}>
             <Text style={[s.title, { color: theme.inkSoft }]}>Debug log</Text>
@@ -506,6 +518,7 @@ export function Pad() {
       {!creating && pickers}
       <CreateSheet theme={theme} onOpen={() => { setArchive(null); setMode('pad') }}>{pickers}</CreateSheet>
       <Modal visible={sheet === 'categories'} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSheet(null)}>
+        {SHEET_TOP > 0 && <View style={{ height: SHEET_TOP, backgroundColor: theme.paper }} />}
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
           {sheet === 'categories' && <CategoriesApp onClose={() => setSheet(null)} />}
         </View>
@@ -607,6 +620,7 @@ export function Pad() {
 const s = StyleSheet.create({
   root: { flex: 1 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6 },
+  topSnug: { gap: 6 },
   grow: { flex: 1 },
   iconBtn: { width: 40, height: 36, alignItems: 'center', justifyContent: 'center' },
   status: { flexDirection: 'row', alignItems: 'center', height: 24, paddingLeft: 16, paddingRight: 6, gap: 12 },

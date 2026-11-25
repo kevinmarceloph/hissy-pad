@@ -6,7 +6,8 @@
 // the web (state/sort.ts); only the gesture is drawn here, with PanResponder and Animated
 // so it ships as a JS-only update. The pad icon on the card goes to the line in the pad.
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef, type ReactNode, type Ref } from 'react'
-import { Alert, Animated, Dimensions, Keyboard, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Animated, Dimensions, Keyboard, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { askText, menu } from './Menu'
 import * as Haptics from 'expo-haptics'
 import { scopePad, slotLabel, todayKey } from '@hissypad/core'
 import { cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/hours'
@@ -72,7 +73,7 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
   // The pad to sort, from the title, each with its open top-level lines (the cards it would
   // deal). The view is keyed by the pad, so a new one starts over.
   function pickPad() {
-    Alert.alert('Sort which pad?', undefined, [
+    menu('Sort which pad?', undefined, [
       ...padList(all).filter((p) => p.id !== padId).map((p) => ({ text: `${p.name} (${p.count})`, onPress: () => openPad(p.id) })),
       { text: 'Cancel', style: 'cancel' as const },
     ])
@@ -161,7 +162,7 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
   function pickTarget() {
     const def = sortTarget(all, 'left', null)
     const places = placeList(all).filter((p) => p.key !== 'main' && !(p.subId === null && p.padId === def.padId && def.exists))
-    Alert.alert(id ? 'Send left to' : 'A left swipe goes to', id ? 'This line goes there now, and the next left swipes too.' : undefined, [
+    menu(id ? 'Send left to' : 'A left swipe goes to', id ? 'This line goes there now, and the next left swipes too.' : undefined, [
       { text: def.exists ? def.name : `${def.name} (new pad)`, onPress: () => pickLeft(null) },
       { text: padName(all, null), onPress: () => pickLeft('main') },
       ...places.map((p) => ({ text: p.label, onPress: () => pickLeft(p.key) })),
@@ -170,21 +171,12 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
     ])
   }
 
-  // Names come through Alert.prompt on iOS; Android has no prompt, so the pad is called
-  // "New pad" there and can be renamed later.
   function newTarget() {
     const make = (name: string) => {
       if (id) send('left', () => sortSessionSendLeftToNew(session, name))
       else sortSessionSendLeftToNew(session, name)
     }
-    if (Platform.OS !== 'ios') {
-      make('New pad')
-      return
-    }
-    Alert.prompt('New pad', 'A name for it', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Create', onPress: (v?: string) => { if (v?.trim()) make(v) } },
-    ], 'plain-text')
+    askText('New pad', 'A name for it', '', make)
   }
 
   const rotate = pan.x.interpolate({ inputRange: [-300, 300], outputRange: ['-12deg', '12deg'], extrapolate: 'clamp' })
@@ -265,7 +257,7 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
                 </Pressable>
                 {/* Any pad or sub-pad, beside what the swipes offer: the card moves on (iOS stacks them). */}
                 <Pressable
-                  onPress={() => Alert.alert('Move to', undefined, [
+                  onPress={() => menu('Move to', undefined, [
                     ...placeList(all).filter((p) => p.subId !== null || p.padId !== padId).map((p) => ({ text: p.label, onPress: () => void cmdSortMoveTo(id, p) })),
                     { text: 'Cancel', style: 'cancel' as const },
                   ])}

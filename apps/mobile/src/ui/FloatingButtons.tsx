@@ -6,7 +6,8 @@
 // (• open, a dot in a ring for doing, × crossed out; the side the line is on is filled), and a
 // chevron ends editing and puts the keyboard away (or clears the selection).
 import { useMemo } from 'react'
-import { Alert, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Dimensions, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
+import { menu } from './Menu'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { sharedState, type LineState } from '@hissypad/core'
@@ -92,7 +93,7 @@ export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Th
   // The pads and sub-pads to move to (iOS stacks them).
   const moveTo = () => {
     void Haptics.selectionAsync().catch(() => {})
-    Alert.alert('Move to', undefined, [
+    menu('Move to', undefined, [
       ...places.map((p) => ({ text: p.label, onPress: () => void cmdMoveTo(p) })),
       { text: 'Cancel', style: 'cancel' as const },
     ])
@@ -160,8 +161,12 @@ const FLOATING = LINE_ACTIONS.filter((a) => a.floats && a.icon)
 const SIDES: LineState[] = ['open', 'doing', 'done']
 const STATE_NAME: Record<LineState, string> = { open: 'Open', doing: 'Doing', done: 'Done' }
 
+// The row at its widest (four buttons, the switch, the chevron) is 366pt with its margin:
+// on a phone narrower than that (the app is portrait only) it sits closer together.
+const NARROW = Dimensions.get('window').width < 380
+
 const s = StyleSheet.create({
-  wrap: { position: 'absolute', bottom: 12, right: 12, zIndex: 5, flexDirection: 'row', gap: 6 },
+  wrap: { position: 'absolute', bottom: 12, right: NARROW ? 8 : 12, zIndex: 5, flexDirection: 'row', gap: NARROW ? 4 : 6 },
   round: {
     width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth * 2, alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4,

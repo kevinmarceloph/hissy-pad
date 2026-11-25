@@ -4,7 +4,7 @@ import * as WebBrowser from 'expo-web-browser'
 import { usePad, requestSync, syncLine } from '@hissypad/state'
 import { supabase } from '../supabase'
 import { signOutOthers } from '../widget'
-import { serif, type Theme } from '../theme'
+import { serif, type Theme, SHEET_TOP } from '../theme'
 
 WebBrowser.maybeCompleteAuthSession()
 export const AUTH_REDIRECT = 'hissypad://auth'
@@ -90,6 +90,7 @@ export function Account({ theme }: { theme: Theme }) {
           <Text style={[s.foot, { color: theme.link, textDecorationLine: 'underline' }]}>Sign in to sync</Text>
         </Pressable>
         <Modal visible={open} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setOpen(false)}>
+          {SHEET_TOP > 0 && <View style={{ height: SHEET_TOP, backgroundColor: theme.paper }} />}
           <View style={[s.sheet, { backgroundColor: theme.paper }]}>
             <Text style={[s.h2, { color: theme.ink }]}>Sign in</Text>
             <Text style={[s.p, { color: theme.inkSoft }]}>Your lines stay on this phone either way. Signing in copies them to your account and keeps every device the same.</Text>

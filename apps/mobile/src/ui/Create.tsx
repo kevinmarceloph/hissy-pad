@@ -12,7 +12,8 @@
 // no field behind it and the typing went nowhere. So the sheet opens once the app is
 // active, each ask gets a modal of its own, and the field is focused in onShow.
 import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react'
-import { Alert, AppState, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { AppState, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { menu } from './Menu'
 import { isLive, MAIN_PLACE, slotLabel, todayKey, type Place } from '@hissypad/core'
 import {
   cmdAppendAtEnd, cmdCreateBegin, cmdCreateEnd, cmdCreateItem, cmdCreateMove, cmdCreateOpen, cmdCreateSetText, createDefaultPlace, placeFromKey, placeList, placeName, usePad,
@@ -20,7 +21,7 @@ import {
 } from '@hissypad/state'
 import { cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/hours'
 import { useKeyboardHeight } from '../keyboard'
-import { serif, type Theme } from '../theme'
+import { serif, type Theme, SHEET_TOP } from '../theme'
 import { FloatingButtons } from './FloatingButtons'
 import { card, CardField, CardLine } from './Sort'
 import { SubRows } from './SubRows'
@@ -151,7 +152,7 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
 
   // Every pad and sub-pad (iOS stacks them).
   function pickPlace() {
-    Alert.alert('Add to', undefined, [
+    menu('Add to', undefined, [
       ...placeList(all).map((p) => ({
         text: p.label,
         onPress: () => {
@@ -172,6 +173,7 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
 
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={() => finish(true)} onShow={() => input.current?.focus()}>
+      {SHEET_TOP > 0 && <View style={{ height: SHEET_TOP, backgroundColor: theme.paper }} />}
       <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: kb }]}>
         <View style={s.head}>
           <Pressable onPress={() => finish(false)} style={s.btn} hitSlop={12} accessibilityRole="button" accessibilityLabel="Cancel" accessibilityHint="Takes it back: nothing is added">

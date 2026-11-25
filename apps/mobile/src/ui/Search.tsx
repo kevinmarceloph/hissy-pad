@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { cmdOpenHit, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
-import { serif, type Theme } from '../theme'
+import { serif, type Theme, SHEET_TOP } from '../theme'
 
 // `onOpen` runs when a line found is gone to: the app comes back to the pad from Hours or Sort.
 // `onArchived` is handed an archived line that was picked: the app shows it in the Archive.
@@ -32,6 +32,7 @@ export function SearchSheet({ visible, onClose, onOpen, onArchived, theme }: { v
   const typed = query.trim() !== ''
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      {SHEET_TOP > 0 && <View style={{ height: SHEET_TOP, backgroundColor: theme.paper }} />}
       <View style={[s.root, { backgroundColor: theme.paper }]}>
         <View style={s.head}>
           <TextInput
