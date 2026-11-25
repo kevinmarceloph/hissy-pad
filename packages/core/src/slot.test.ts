@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSlot, slotCounts, slotCovers, slotDoneElsewhere, slotDoneExtra, slotHours, slotKey, lineOrder, scopeSlot, slotLabel, slotLines, slotProgress, slotTops } from './slot'
+import { parseSlot, slotCounts, slotCovers, slotDoneElsewhere, slotDoneExtra, slotHours, slotKey, slotOfHours, slotRuns, lineOrder, scopeSlot, slotLabel, slotLines, slotProgress, slotTops } from './slot'
 import type { NodeRow, Rows } from './types'
 
 const row = (id: string, slot: string | null, done = false): NodeRow => ({
@@ -47,6 +47,24 @@ describe('a run of hours', () => {
     expect(slotLabel('2026-11-24T14+3', '2026-11-24')).toBe('Today 2pm-5pm')
     expect(slotLabel('2026-11-24T22+4', '2026-11-24')).toBe('Today 10pm-2am')
     expect(slotLabel('2026-11-24T09', '2026-11-24')).toBe('Today 9am')
+  })
+
+  it('holds hours that are apart as runs with commas between them', () => {
+    // However they were picked: sorted, each once, neighbours joined, over midnight too.
+    expect(slotOfHours(['2026-11-24T14', '2026-11-24T09', '2026-11-24T15', '2026-11-24T09'])).toBe('2026-11-24T09,2026-11-24T14+2')
+    expect(slotOfHours(['2026-11-25T00', '2026-11-24T23'])).toBe('2026-11-24T23+2')
+    expect(slotOfHours(['2026-11-24T09'])).toBe('2026-11-24T09')
+    expect(slotOfHours([])).toBeNull()
+    const apart = '2026-11-24T09,2026-11-24T14+2'
+    expect(slotRuns(apart)).toEqual([{ day: '2026-11-24', hour: 9, hours: 1 }, { day: '2026-11-24', hour: 14, hours: 2 }])
+    expect(slotHours(apart)).toEqual(['2026-11-24T09', '2026-11-24T14', '2026-11-24T15'])
+    expect(slotCovers(apart, '2026-11-24T15')).toBe(true)
+    expect(slotCovers(apart, '2026-11-24T10')).toBe(false)
+    // It is not one hour or one run, and a part that does not read spoils the lot.
+    expect(parseSlot(apart)).toBeNull()
+    expect(slotRuns('2026-11-24T09,nonsense')).toEqual([])
+    expect(slotLabel(apart, '2026-11-24')).toBe('Today 9am, 2pm-4pm')
+    expect(slotLabel('2026-11-24T09,2026-11-24T14,2026-11-25T08', '2026-11-24')).toMatch(/^Today 9am, 2pm; .*, 8am$/)
   })
 })
 

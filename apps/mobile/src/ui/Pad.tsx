@@ -393,8 +393,13 @@ export function Pad() {
   // while it is up, so they open over it.
   const pickers = (
     <>
-      <Modal visible={picking !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPicking(null)} onDismiss={resumeEditing}>
-        <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
+      {/* The hour picker is a sheet of our own at the bottom, not iOS's page sheet: that one
+          follows a finger that moves down or up, and took the swipe from the hours as soon
+          as it crossed from one row of them to the next (Kevin, 2026-11-25). A tap on the
+          dimmed pad above it cancels. */}
+      <Modal visible={picking !== null} animationType="fade" transparent onRequestClose={() => setPicking(null)} onDismiss={resumeEditing}>
+        <Pressable accessibilityLabel="Cancel" onPress={() => setPicking(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' }} />
+        <View style={{ backgroundColor: theme.paper, paddingTop: 4, paddingBottom: insets.bottom }}>
           {picking && (
             <SlotPicker
               value={picking.value}

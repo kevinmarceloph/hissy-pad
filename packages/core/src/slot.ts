@@ -3,7 +3,9 @@
 // hour in the device's local time, 'YYYY-MM-DDTHH', the same slot an hour's own row is
 // stored under: never a day as drawn on a screen whose day starts at 6am. A run of hours
 // adds how many: 'YYYY-MM-DDTHH+3' is that hour and the two after it, and may run past
-// midnight into the next day. A single hour never carries '+1'.
+// midnight into the next day. A single hour never carries '+1'. Hours that do not touch
+// are runs with commas between them, earliest first: 'YYYY-MM-DDT09,YYYY-MM-DDT14+2'
+// (Kevin, 2026-11-25: tap hours that are apart). slotOfHours writes that form.
 import { sameRow, type NodeRow, type Rows } from './types'
 import { buildIndex, childrenOf, isBlank, isLive } from './tree'
 import { findFixedPad, listPads } from './pads'
@@ -16,7 +18,14 @@ export function slotKey(day: string, hour: number, hours = 1): string {
   return hours > 1 ? `${base}+${Math.min(hours, MAX_SLOT_HOURS)}` : base
 }
 
-export function parseSlot(slot: string | null | undefined): { day: string; hour: number; hours: number } | null {
+export interface SlotRun {
+  day: string
+  hour: number
+  hours: number
+}
+
+// One hour or one run of hours. A slot of several runs is not one: see slotRuns.
+export function parseSlot(slot: string | null | undefined): SlotRun | null {
   const m = /^(\d{4}-\d{2}-\d{2})T(\d{2})(?:\+(\d{1,2}))?$/.exec(slot ?? '')
   if (!m) return null
   const hour = Number(m[2])
@@ -32,23 +41,58 @@ function addDays(day: string, n: number): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-// Every single-hour slot a slot covers, in order: one for an hour, several for a run.
+// The runs of a slot, as written: one for an hour or a run, several for hours apart.
+// Nothing for a slot with a part that does not read.
+export function slotRuns(slot: string | null | undefined): SlotRun[] {
+  if (!slot) return []
+  const runs = slot.split(',').map(parseSlot)
+  return runs.every((r) => r !== null) ? (runs as SlotRun[]) : []
+}
+
+// The hour after a single hour, over midnight too.
+function hourAfter(day: string, hour: number): string {
+  return hour === 23 ? slotKey(addDays(day, 1), 0) : slotKey(day, hour + 1)
+}
+
+// Every single-hour slot a slot covers, in order: one for an hour, several for a run or
+// for hours apart. An hour two runs share is listed once.
 export function slotHours(slot: string | null | undefined): string[] {
-  const p = parseSlot(slot)
-  if (!p) return []
   const out: string[] = []
-  for (let i = 0; i < p.hours; i++) {
-    const h = p.hour + i
-    out.push(slotKey(addDays(p.day, Math.floor(h / 24)), h % 24))
+  for (const p of slotRuns(slot)) {
+    for (let i = 0; i < p.hours; i++) {
+      const h = p.hour + i
+      const key = slotKey(addDays(p.day, Math.floor(h / 24)), h % 24)
+      if (!out.includes(key)) out.push(key)
+    }
   }
   return out
+}
+
+// The slot of a set of single hours, however they were picked: sorted, each hour once,
+// hours that follow one another joined into a run. Null for none.
+export function slotOfHours(keys: readonly string[]): string | null {
+  const runs: string[] = []
+  let run: SlotRun | null = null
+  let next = ''
+  for (const key of [...new Set(keys)].sort()) {
+    const p = parseSlot(key)
+    if (!p || p.hours !== 1) continue
+    if (run && key === next && run.hours < MAX_SLOT_HOURS) run.hours++
+    else {
+      if (run) runs.push(slotKey(run.day, run.hour, run.hours))
+      run = p
+    }
+    next = hourAfter(p.day, p.hour)
+  }
+  if (run) runs.push(slotKey(run.day, run.hour, run.hours))
+  return runs.length ? runs.join(',') : null
 }
 
 // Whether a line's slot takes in one hour (a single-hour key, as Hours asks for its rows).
 export function slotCovers(slot: string | null | undefined, hourKey: string): boolean {
   if (!slot) return false
   if (slot === hourKey) return true
-  return slot.includes('+') && slotHours(slot).includes(hourKey)
+  return (slot.includes('+') || slot.includes(',')) && slotHours(slot).includes(hourKey)
 }
 
 export interface SlotCount {
@@ -321,16 +365,24 @@ function hourWord(hour: number): string {
 }
 
 // "Mon 23 Nov, 2pm": how a line's hour reads in the pad; a run reads "Mon 23 Nov, 2pm-5pm",
-// to the hour it ends at. `today` (a day key) turns its own day into "Today".
+// to the hour it ends at. `today` (a day key) turns its own day into "Today". Hours apart
+// read "Today 9am, 2pm-5pm": the day once, and a semicolon before another day.
 export function slotLabel(slot: string, today?: string): string {
-  const p = parseSlot(slot)
-  if (!p) return ''
-  const [y = 1970, m = 1, d = 1] = p.day.split('-').map(Number)
-  const date = new Date(y, m - 1, d)
-  const hour = p.hours > 1 ? `${hourWord(p.hour)}-${hourWord((p.hour + p.hours) % 24)}` : hourWord(p.hour)
-  if (p.day === today) return `Today ${hour}`
-  const day = date.toLocaleDateString('en', { weekday: 'short', day: 'numeric', month: 'short' })
-  return `${day}, ${hour}`
+  const days: { day: string; hours: string[] }[] = []
+  for (const p of slotRuns(slot)) {
+    const hour = p.hours > 1 ? `${hourWord(p.hour)}-${hourWord((p.hour + p.hours) % 24)}` : hourWord(p.hour)
+    const last = days[days.length - 1]
+    if (last?.day === p.day) last.hours.push(hour)
+    else days.push({ day: p.day, hours: [hour] })
+  }
+  return days
+    .map(({ day, hours }) => {
+      if (day === today) return `Today ${hours.join(', ')}`
+      const [y = 1970, m = 1, d = 1] = day.split('-').map(Number)
+      const name = new Date(y, m - 1, d).toLocaleDateString('en', { weekday: 'short', day: 'numeric', month: 'short' })
+      return `${name}, ${hours.join(', ')}`
+    })
+    .join('; ')
 }
 
 // Today's calendar day as a day key, device local time.

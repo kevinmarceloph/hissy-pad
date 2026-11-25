@@ -1,6 +1,6 @@
 -- pgTAP: RLS and last-write-wins on public.nodes. Run with `supabase test db`.
 begin;
-select plan(33);
+select plan(35);
 
 -- Two users, created directly (no GoTrue in a db test).
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
@@ -97,6 +97,11 @@ select is((select slot from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000
 select throws_ok(
   $$ update public.nodes set slot = '2026-11-23T22+', updated_at = '2026-11-23T00:00:03Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001' $$,
   '23514', null, 'a run without its length is rejected');
+update public.nodes set slot = '2026-11-23T09,2026-11-23T14+2', updated_at = '2026-11-23T00:00:04Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select is((select slot from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), '2026-11-23T09,2026-11-23T14+2', 'hours apart round-trip');
+select throws_ok(
+  $$ update public.nodes set slot = '2026-11-23T09,', updated_at = '2026-11-23T00:00:05Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001' $$,
+  '23514', null, 'a list that ends on a comma is rejected');
 
 -- category: the id of one of Hours' categories; null by default, same length rule as its id.
 select is((select category from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), null, 'category defaults to null');

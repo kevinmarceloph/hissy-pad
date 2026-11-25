@@ -206,22 +206,48 @@ describe('SlotPicker', () => {
     const onPick = vi.fn();
     await render(<SlotPicker value={null} onPick={onPick} onCancel={() => {}} clock={clock} />);
     expect(screen.getByText('Which hour is this line for?')).toBeTruthy();
-    expect(screen.getByRole('radio', { name: '2pm, now' })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: '2pm, now' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'No hour' })).toHaveAttribute('aria-disabled', 'true');
     // Nothing is picked yet, so there is nothing to confirm.
     expect(screen.getByRole('button', { name: 'Pick an hour' })).toHaveAttribute('aria-disabled', 'true');
     await fireEvent.press(screen.getByLabelText('The day after'));
-    await fireEvent.press(screen.getByRole('radio', { name: '9am' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: '9am' }));
     // A pick is shown, not sent: the hour is checked and the button says it.
     expect(onPick).not.toHaveBeenCalled();
-    expect(screen.getByRole('radio', { name: '9am' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByText('Picked Fri, Nov 20, 9am. Pick again to change it.')).toBeTruthy();
-    // Another pick replaces it; the button confirms the last one.
-    await fireEvent.press(screen.getByRole('radio', { name: '10am' }));
-    expect(screen.getByRole('radio', { name: '9am' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('checkbox', { name: '9am' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText('Picked Fri, Nov 20, 9am. Tap an hour to add it or take it out.')).toBeTruthy();
+    // Another tap adds its hour, and a tap on a picked one takes it out.
+    await fireEvent.press(screen.getByRole('checkbox', { name: '10am' }));
+    expect(screen.getByRole('checkbox', { name: '9am' })).toHaveAttribute('aria-checked', 'true');
+    await fireEvent.press(screen.getByRole('checkbox', { name: '9am' }));
+    expect(screen.getByRole('checkbox', { name: '9am' })).toHaveAttribute('aria-checked', 'false');
     await fireEvent.press(screen.getByRole('button', { name: 'Put in Fri, Nov 20, 10am' }));
     expect(onPick).toHaveBeenCalledTimes(1);
     expect(onPick).toHaveBeenCalledWith('2026-11-20T10');
+  });
+
+  it('picks hours that are apart with a tap on each, on more than one day', async () => {
+    const onPick = vi.fn();
+    await render(<SlotPicker value="2026-11-19T08" onPick={onPick} onCancel={() => {}} clock={clock} />);
+    // The first tap starts from nothing: the hour the line is in is not kept.
+    await fireEvent.press(screen.getByRole('checkbox', { name: '9am' }));
+    expect(screen.getByRole('checkbox', { name: '8am' })).toHaveAttribute('aria-checked', 'false');
+    await fireEvent.press(screen.getByRole('checkbox', { name: '4pm' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: '3pm' }));
+    expect(screen.getByRole('button', { name: 'Put in Today 9am, 3pm-5pm' })).toBeTruthy();
+    // The hours picked stay while the day is stepped.
+    await fireEvent.press(screen.getByLabelText('The day after'));
+    expect(screen.getByRole('checkbox', { name: '9am' })).toHaveAttribute('aria-checked', 'false');
+    await fireEvent.press(screen.getByRole('checkbox', { name: '7am' }));
+    await fireEvent.press(screen.getByRole('button', { name: /^Put in Today 9am, 3pm-5pm; .*7am$/ }));
+    expect(onPick).toHaveBeenCalledWith('2026-11-19T09,2026-11-19T15+2,2026-11-20T07');
+  });
+
+  it('has nothing to confirm once every hour picked is taken out again', async () => {
+    await render(<SlotPicker value={null} onPick={() => {}} onCancel={() => {}} clock={clock} />);
+    await fireEvent.press(screen.getByRole('checkbox', { name: '9am' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: '9am' }));
+    expect(screen.getByRole('button', { name: 'Pick an hour' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('shows the day on one line and jumps to a day picked from the calendar', async () => {
@@ -233,7 +259,7 @@ describe('SlotPicker', () => {
     await fireEvent.press(screen.getByLabelText('Pick a day'));
     await fireEvent.press(screen.getByLabelText(dayDate('2026-11-27')));
     expect(screen.queryByLabelText('Later month')).toBeNull();
-    await fireEvent.press(screen.getByRole('radio', { name: '9am' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: '9am' }));
     await fireEvent.press(screen.getByRole('button', { name: /^Put in/ }));
     expect(onPick).toHaveBeenCalledWith('2026-11-27T09');
   });
@@ -242,7 +268,7 @@ describe('SlotPicker', () => {
     const onPick = vi.fn();
     await render(<SlotPicker value="2026-11-21T08" count={3} onPick={onPick} onCancel={() => {}} clock={clock} />);
     expect(screen.getByText('Which hour are these 3 lines for?')).toBeTruthy();
-    expect(screen.getByRole('radio', { name: '8am' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('checkbox', { name: '8am' })).toHaveAttribute('aria-checked', 'true');
     await fireEvent.press(screen.getByRole('button', { name: 'No hour' }));
     expect(onPick).toHaveBeenCalledWith(null);
   });
@@ -252,9 +278,9 @@ describe('SlotPicker', () => {
   // takes 20px. The line reads its place on the next tick.
   const at = (place: number) => ({ x: place * 20 + 10, y: 20 });
   const swipe = async (from: number, to: number) => {
-    const grid = screen.getByRole('radiogroup', { name: 'Hour' });
+    const grid = screen.getByRole('group', { name: 'Hours' });
     Object.defineProperty(grid, 'offsetWidth', { configurable: true, value: 480 });
-    const cell = screen.getAllByRole('radio')[from]!;
+    const cell = screen.getAllByRole('checkbox')[from]!;
     const point = (h: number, buttons: number) => ({ clientX: at(h).x, clientY: at(h).y, pageX: at(h).x, pageY: at(h).y, button: 0, buttons });
     await act(async () => {
       dom.mouseDown(cell, point(from, 1));
@@ -267,14 +293,17 @@ describe('SlotPicker', () => {
   it('picks a run of hours with a swipe across them, either way', async () => {
     const onPick = vi.fn();
     await render(<SlotPicker value={null} onPick={onPick} onCancel={() => {}} clock={clock} />);
-    expect(screen.getByText('Tap an hour, or swipe across several.')).toBeTruthy();
+    expect(screen.getByText('Tap the hours, or swipe across several.')).toBeTruthy();
     await swipe(14, 16);
     // The run is shown, its hours checked, and waits for the button.
     expect(onPick).not.toHaveBeenCalled();
-    expect(screen.getByRole('radio', { name: '4pm' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('checkbox', { name: '4pm' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('button', { name: 'Put in Today 2pm-5pm' })).toBeTruthy();
-    // Backwards: the run starts at the earlier hour, and replaces the first.
-    await swipe(17, 11);
+    // Backwards: the run starts at the earlier hour. It is added to the first, and a run
+    // that is apart from it stays apart.
+    await swipe(12, 11);
+    expect(screen.getByRole('button', { name: 'Put in Today 11am-1pm, 2pm-5pm' })).toBeTruthy();
+    await swipe(17, 13);
     await fireEvent.press(screen.getByRole('button', { name: 'Put in Today 11am-6pm' }));
     expect(onPick).toHaveBeenCalledTimes(1);
     expect(onPick).toHaveBeenLastCalledWith('2026-11-19T11+7');
@@ -290,7 +319,7 @@ describe('SlotPicker', () => {
       </div>,
     );
     screen.getByLabelText('Pick an hour').focus();
-    const cell = screen.getAllByRole('radio')[14]!;
+    const cell = screen.getAllByRole('checkbox')[14]!;
     const moveFocus = (event: MouseEvent) => {
       if (!event.defaultPrevented) cell.focus();
     };
@@ -317,11 +346,11 @@ describe('SlotPicker', () => {
       // Each box says its hour, since a row has room for it.
       expect(screen.getByText('2pm')).toBeTruthy();
       // The rows are 66px tall with 4px between; the day is given 300px of width, 50 a box.
-      const grid = screen.getByRole('radiogroup', { name: 'Hour' });
+      const grid = screen.getByRole('group', { name: 'Hours' });
       Object.defineProperty(grid, 'offsetWidth', { configurable: true, value: 300 });
       const at = (place: number) => ({ x: (place % 6) * 50 + 25, y: Math.floor(place / 6) * 70 + 30 });
       const point = (p: number, buttons: number) => ({ clientX: at(p).x, clientY: at(p).y, pageX: at(p).x, pageY: at(p).y, button: 0, buttons });
-      const cell = screen.getAllByRole('radio')[10]!;
+      const cell = screen.getAllByRole('checkbox')[10]!;
       await act(async () => {
         dom.mouseDown(cell, point(10, 1));
         await new Promise((done) => setTimeout(done, 10));
@@ -340,9 +369,9 @@ describe('SlotPicker', () => {
 
   it('opens a run with its hours checked', async () => {
     await render(<SlotPicker value="2026-11-19T14+2" onPick={() => {}} onCancel={() => {}} clock={clock} />);
-    expect(screen.getByRole('radio', { name: '2pm, now' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: '3pm' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: '4pm' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('checkbox', { name: '2pm, now' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('checkbox', { name: '3pm' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('checkbox', { name: '4pm' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('starts its line of hours at the hour the day starts at', async () => {
@@ -353,12 +382,12 @@ describe('SlotPicker', () => {
     try {
       const onPick = vi.fn();
       await render(<SlotPicker value={null} onPick={onPick} onCancel={() => {}} clock={clock} />);
-      const hours = screen.getAllByRole('radio').map((el) => el.getAttribute('aria-label'));
+      const hours = screen.getAllByRole('checkbox').map((el) => el.getAttribute('aria-label'));
       expect(hours.slice(0, 3)).toEqual(['6am', '7am', '8am']);
       expect(hours.at(-1)).toBe('5am');
       expect(screen.getByRole('navigation', { name: 'Days' })).toHaveTextContent('TodayThu, Nov 19');
       // An hour after midnight is still Thursday's, and is stored under Friday.
-      await fireEvent.press(screen.getByRole('radio', { name: '1am' }));
+      await fireEvent.press(screen.getByRole('checkbox', { name: '1am' }));
       await fireEvent.press(screen.getByRole('button', { name: /^Put in/ }));
       expect(onPick).toHaveBeenCalledWith('2026-11-20T01');
       // A swipe across midnight is one run, from the hour it starts at.
@@ -380,7 +409,7 @@ describe('SlotPicker', () => {
     try {
       await render(<SlotPicker value="2026-11-21T02" onPick={() => {}} onCancel={() => {}} clock={clock} />);
       expect(screen.getByRole('navigation', { name: 'Days' })).toHaveTextContent('TomorrowFri, Nov 20');
-      expect(screen.getByRole('radio', { name: '2am' })).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getByRole('checkbox', { name: '2am' })).toHaveAttribute('aria-checked', 'true');
     } finally {
       await act(async () => {
         await stores.day.getState().setStart(0);

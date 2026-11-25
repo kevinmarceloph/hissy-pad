@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { PanResponder, Platform, StyleSheet, Text, useWindowDimensions, View, type ViewStyle } from 'react-native';
-import { parseSlot, slotCovers, slotKey, slotLabel } from '@hissypad/core';
+import { slotCovers, slotHours, slotKey, slotLabel, slotOfHours, slotRuns } from '@hissypad/core';
 import { dayDate, dayKey, dayOf, daySlots, dayTitle, hourLabel, shiftDay, type Entry } from '@hissypad/core/hours';
 import { usePad } from '@hissypad/state';
 import { hoursIfOpen, openHours, type HoursStores } from '@hissypad/state/hours';
@@ -16,7 +16,7 @@ type Props = {
   value: string | null;
   // How many lines are being placed, for the heading.
   count?: number;
-  // An hour or a run of hours was picked, or "No hour" (null).
+  // An hour, a run of hours or hours that are apart were picked, or "No hour" (null).
   onPick(slot: string | null): void;
   onCancel(): void;
   scheme?: 'light' | 'dark' | null;
@@ -41,8 +41,9 @@ const NO_SCROLL = Platform.OS === 'web' ? ({ touchAction: 'none', userSelect: 'n
 // focus as it opens, so without this the first swipe with a mouse died on the press.
 const KEEP_FOCUS = Platform.OS === 'web' ? { onMouseDown: (event: { preventDefault(): void }) => event.preventDefault() } : null;
 
-// Puts lines of the pad in an hour of a day: step to the day, tap the hour, or swipe across
-// the hours from the first to the last for a run of them. The hours are one line of 24
+// Puts lines of the pad in hours of a day: step to the day, then tap each hour (a tap on
+// one that is picked takes it out, and the hours need not touch), or swipe across the
+// hours from the first to the last for a run of them. The hours are one line of 24
 // boxes, the day screen's strip: they start at the hour the day starts at, and each is
 // drawn as that hour stands (see Mark), so what is already in the day shows while picking.
 // The pad's toolbar opens it on web and on the phone.
@@ -75,7 +76,7 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
   // The hour a day starts at: a day runs from it to the same hour of the next.
   const start = stores?.day.getState().start ?? 0;
   const today = dayOf(now, start);
-  const current = parseSlot(value);
+  const current = slotRuns(value)[0] ?? null;
   // The day on the screen: the one picked here, or the one the lines are in, or today.
   const [picked, setDay] = useState<string | null>(null);
   const day = picked ?? (current ? (current.hour < start ? shiftDay(current.day, -1) : current.day) : today);
@@ -119,7 +120,20 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
   const cols = wide > 0 && wide < NARROW ? 6 : 24;
   // What was picked here, shown and not yet confirmed: the button under the hours puts
   // the lines in it (Kevin, 2026-11-25: a pick no longer closes the picker).
-  const [chosen, setChosen] = useState<string | null>(null);
+  // It is a set of single hours, built a tap or a swipe at a time, and may take in hours
+  // that are apart or on other days (Kevin, same day). The first pick starts it from
+  // nothing, not from the hours the lines are in; with every hour taken out again it is
+  // nothing picked.
+  const [hoursPicked, setHoursPicked] = useState<string[] | null>(null);
+  const chosen = hoursPicked ? slotOfHours(hoursPicked) : null;
+  // A tap on an hour puts it in the set, or takes it out.
+  const toggle = (key: string) =>
+    setHoursPicked((was) => {
+      const next = was?.includes(key) ? was.filter((k) => k !== key) : [...(was ?? []), key];
+      return next.length ? next : null;
+    });
+  // A swipe adds its run to the set.
+  const add = (keys: string[]) => setHoursPicked((was) => [...new Set([...(was ?? []), ...keys])]);
 
   // Read inside the responder, which is made once: the latest values through refs.
   const live = useRef({ slots, cols });
@@ -151,9 +165,9 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
     return slotKey(first.day, first.hour, Math.abs(to - from) + 1);
   };
 
-  // A tap is the box's own: one hour. A press that moves is the line's: a run of hours, or
-  // on the phone one hour too, since a finger slides to find its box. Either way the pick
-  // is only shown; the button under the hours confirms it.
+  // A tap is the box's own: one hour, in or out. A press that moves is the line's: a run of
+  // hours, or on the phone one hour too, since a finger slides to find its box. Either way
+  // the pick is only shown; the button under the hours confirms it.
   // On the phone the line claims a press once it moves. react-native-web only lets a parent
   // claim a moving press after it leaves the box, so there the line takes every press as it
   // starts and leaves a tap to the box's click (react-native-web presses on click, which a
@@ -189,7 +203,8 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
         end();
         // The web leaves a press that ends on the box it started on to that box's click.
         if (!s || !s.moved || (Platform.OS === 'web' && s.from === s.to)) return;
-        setChosen(slotOf(s.from, s.to));
+        if (s.from === s.to) toggle(slotOf(s.from, s.to));
+        else add(slotHours(slotOf(s.from, s.to)));
       },
       onPanResponderTerminationRequest: () => false,
       onPanResponderTerminate: end,
@@ -215,10 +230,10 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
           : over !== null
             ? `${slotLabel(slotOf(over, over), today)}.`
             : chosen
-              ? `Picked ${slotLabel(chosen, today)}. Pick again to change it.`
+              ? `Picked ${slotLabel(chosen, today)}. Tap an hour to add it or take it out.`
               : value && current
-                ? `Now in ${slotLabel(value, today)}. Tap an hour, or swipe across several.`
-                : 'Tap an hour, or swipe across several.'}
+                ? `Now in ${slotLabel(value, today)}. Tap the hours, or swipe across several.`
+                : 'Tap the hours, or swipe across several.'}
       </Text>
       {/* One line, as on the Hours screen: earlier, the day, the calendar, later. */}
       <View role="navigation" aria-label="Days" style={styles.days}>
@@ -257,8 +272,8 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
       )}
       <View>
         <View
-          role="radiogroup"
-          aria-label="Hour"
+          role="group"
+          aria-label="Hours"
           ref={grid}
           style={[styles.hours, NO_SCROLL]}
           {...(KEEP_FOCUS as object)}
@@ -267,18 +282,19 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
             <View key={r} style={styles.hourRow}>
               {hours.slice(r * cols, (r + 1) * cols).map((h, c) => {
                 const i = r * cols + c;
-                // The run under the finger, or else what was picked here, or else where the lines are.
-                const on = run
-                  ? i >= Math.min(run.from, run.to) && i <= Math.max(run.from, run.to)
-                  : slotCovers(chosen ?? value, slotKey(h.day, h.hour));
+                // What was picked here with the run under the finger, or else where the lines are.
+                const key = slotKey(h.day, h.hour);
+                const on =
+                  (run !== null && i >= Math.min(run.from, run.to) && i <= Math.max(run.from, run.to)) ||
+                  (hoursPicked ? hoursPicked.includes(key) : run === null && slotCovers(value, key));
                 const isNow = h.day === dayKey(now) && h.hour === now.getHours();
                 return (
                   <Tap
                     key={h.hour}
-                    role="radio"
+                    role="checkbox"
                     aria-checked={on}
                     aria-label={`${hourLabel(h.hour)}${isNow ? ', now' : ''}`}
-                    onPress={() => setChosen(slotKey(h.day, h.hour))}
+                    onPress={() => toggle(key)}
                     onHoverIn={() => setOver(i)}
                     onHoverOut={() => setOver((was) => (was === i ? null : was))}
                     ringInside

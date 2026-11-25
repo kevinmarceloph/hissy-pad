@@ -80,3 +80,36 @@ test('in an open hour the toolbar offers Out of this hour, not Make pad, and no 
   await expect(rows).toHaveCount(1)
   await expect(page.getByRole('heading', { name: 'Archived' })).toHaveCount(0)
 })
+
+// The hour picker in a real browser: hours that are apart with a tap on each, and on a
+// touch screen a swipe that goes down from one row of hours to the next.
+test('the hour picker takes hours that are apart, and a swipe across its rows', async ({ page, hasTouch }) => {
+  await page.goto('/#pads')
+  const row = page.locator('.pad .row').filter({ hasText: 'Kitchen towels' })
+  await row.locator('.text').click()
+  await page.keyboard.press('Escape')
+  const open = page.getByRole('button', { name: 'Put in an hour', exact: true })
+  await open.click()
+  const picker = page.getByRole('dialog', { name: 'Pick an hour' })
+  const hour = (name: string) => picker.getByRole('checkbox', { name: new RegExp(`^${name}(, now)?$`) })
+  await hour('9am').click()
+  await hour('2pm').click()
+  await hour('3pm').click()
+  await hour('3pm').click()
+  await picker.getByRole('button', { name: /^Put in Today 9am, 2pm$/ }).click()
+  await expect(row.locator('.slot')).toHaveText('Today 9am, 2pm')
+
+  test.skip(!hasTouch, 'the swipe below is a finger\'s')
+  await open.click()
+  // 10am is in the second row of six and 1pm in the third.
+  const from = (await hour('10am').boundingBox())!
+  const to = (await hour('1pm').boundingBox())!
+  expect(to.y).toBeGreaterThan(from.y)
+  const cdp = await page.context().newCDPSession(page)
+  const at = (k: number) => ({ x: from.x + from.width / 2 + (to.x - from.x) * k, y: from.y + from.height / 2 + (to.y - from.y) * k })
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at(0)] })
+  for (const k of [0.25, 0.5, 0.75, 1]) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [at(k)] })
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await picker.getByRole('button', { name: /^Put in Today 10am-2pm$/ }).click()
+  await expect(row.locator('.slot')).toHaveText('Today 10am-2pm')
+})
