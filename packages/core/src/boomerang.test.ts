@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { boomerang, boomerangGroups, clearFresh, comeBack, dayStartAt, deliverDue, dueLabel } from './boomerang'
+import { boomerang, boomerangGroups, clearFresh, comeBack, dayStartAt, deliverDue, dueHeads, dueLabel, settleBoomerangs } from './boomerang'
+import { dedent, indent, insertAt, moveNodes } from './ops'
+import { buildIndex, flatten } from './tree'
 import { padCounts, scopePad, settleFixedPads, findFixedPad } from './pads'
 import { idOf, pad, shape, testCtx } from './testing'
 import type { Rows } from './types'
@@ -89,5 +91,73 @@ describe('dueLabel', () => {
     expect(dueLabel('2026-11-26', '2026-11-25')).toBe('Tomorrow')
     expect(dueLabel('2026-11-28', '2026-11-25')).toBe('Sat, Nov 28')
     expect(dueLabel('2027-01-02', '2026-11-25')).toBe('Sat, Jan 2, 2027')
+  })
+})
+
+// Later's own view (scopePad with the lines that are out): rows like any other, in groups.
+describe('settleBoomerangs', () => {
+  function out3() {
+    const { ctx, rows: base } = table('own\nA\n  a1\nB\nC')
+    let rows = boomerang(base, ctx, [idOf(base, 'C')], '2026-12-05')
+    rows = boomerang(rows, ctx, [idOf(base, 'A')], '2026-12-01')
+    rows = boomerang(rows, ctx, [idOf(base, 'B')], '2026-12-01')
+    rows = moveNodes(rows, ctx, [idOf(base, 'own')], { parentId: later(rows), afterId: null })
+    rows = settleBoomerangs(rows, ctx)
+    return { ctx, rows, l: later(rows), id: (t: string) => idOf(rows, t) }
+  }
+  const view = (rows: Rows) => shape(scopePad(rows, later(rows), true))
+
+  it('keeps the groups in day order under Later\'s own lines, whatever order they were sent in', () => {
+    const { rows } = out3()
+    expect(view(rows)).toBe('own\n>2026-12-01 A\n  a1\n>2026-12-01 B\n>2026-12-05 C')
+    const flat = flatten(buildIndex(scopePad(rows, later(rows), true)), true)
+    expect([...dueHeads(flat, rows)]).toEqual([[idOf(rows, 'A'), '2026-12-01'], [idOf(rows, 'C'), '2026-12-05']])
+    expect(settleBoomerangs(rows, testCtx())).toBe(rows)
+  })
+
+  it('a line moves within its group, and one dragged out snaps back to the near edge', () => {
+    const { ctx, rows, l, id } = out3()
+    const prev = rows
+    // B above A: a move within the group stays.
+    let next = moveNodes(rows, ctx, [id('B')], { parentId: l, afterId: id('own') })
+    expect(view(settleBoomerangs(next, ctx, prev))).toBe('own\n>2026-12-01 B\n>2026-12-01 A\n  a1\n>2026-12-05 C')
+    // A below C: back to the bottom of its own day. C to the very top: back to the top of its day.
+    next = moveNodes(rows, ctx, [id('A')], { parentId: l, afterId: id('C') })
+    expect(view(settleBoomerangs(next, ctx, prev))).toBe('own\n>2026-12-01 B\n>2026-12-01 A\n  a1\n>2026-12-05 C')
+    next = moveNodes(rows, ctx, [id('C')], { parentId: l, afterId: null })
+    expect(view(settleBoomerangs(next, ctx, prev))).toBe(view(rows))
+    // One of Later's own lines dropped among the groups goes back to the end of its own.
+    next = moveNodes(rows, ctx, [id('own')], { parentId: l, afterId: id('A') })
+    expect(view(settleBoomerangs(next, ctx, prev))).toBe(view(rows))
+  })
+
+  it('a new line in a group joins its day; a sub item dedented does too; one nested rides along', () => {
+    const { ctx, rows, l, id } = out3()
+    const made = insertAt(rows, ctx, { parentId: l, afterId: id('A') }, 'new')
+    expect(view(settleBoomerangs(made.rows, ctx, rows))).toBe('own\n>2026-12-01 A\n  a1\n>2026-12-01 new\n>2026-12-01 B\n>2026-12-05 C')
+    // After a sync merge (no table from before) nothing joins: it is one of Later's own.
+    expect(view(settleBoomerangs(made.rows, ctx))).toBe('own\nnew\n>2026-12-01 A\n  a1\n>2026-12-01 B\n>2026-12-05 C')
+
+    const scoped = scopePad(rows, l, true)
+    const lifted = dedent(scoped, ctx, [id('a1')])
+    const back = { ...rows, [id('a1')]: { ...lifted[id('a1')]!, parentId: l } }
+    expect(view(settleBoomerangs(back, ctx, rows))).toBe('own\n>2026-12-01 A\n>2026-12-01 a1\n>2026-12-01 B\n>2026-12-05 C')
+
+    const nested = indent(scoped, ctx, [id('B')])
+    const under = { ...rows, [id('B')]: nested[id('B')]! }
+    expect(view(settleBoomerangs(under, ctx, rows))).toBe('own\n>2026-12-01 A\n  a1\n  B\n>2026-12-05 C')
+  })
+
+  it('a line that left Later has no day, and one that is out is never pinned', () => {
+    const { ctx, rows, id } = out3()
+    const moved = moveNodes(rows, ctx, [id('B')], { parentId: null, afterId: null })
+    expect(settleBoomerangs(moved, ctx, rows)[id('B')]!.due).toBeNull()
+    const pinned = { ...rows, [id('C')]: { ...rows[id('C')]!, pinned: true } }
+    expect(settleBoomerangs(pinned, ctx, rows)[id('C')]!.pinned).toBe(false)
+  })
+
+  it('a change of day moves the line to its new group', () => {
+    const { ctx, rows, id } = out3()
+    expect(view(boomerang(rows, ctx, [id('A')], '2026-12-09'))).toBe('own\n>2026-12-01 B\n>2026-12-05 C\n>2026-12-09 A\n  a1')
   })
 })

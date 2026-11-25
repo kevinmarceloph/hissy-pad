@@ -380,14 +380,14 @@ export function cmdDeleteDone(): number {
 
 // Click below the last row: reuse an empty last line or add one.
 export function cmdAppendAtEnd() {
-  const vis = visibleIds()
-  const last = vis.at(-1)
+  // The end of the pad's own lines: in Later, above the lines that are out on a boomerang.
   const rows = usePad.getState().rows
-  if (last && rows[last]!.text === '' && rows[last]!.parentId === null) return edit(last, 'end')
+  const own = childrenOf(buildIndex(rows), null).filter((r) => !r.due)
+  const last = own.at(-1)
+  if (last && last.text === '' && (last.collapsed || childrenOf(buildIndex(rows), last.id).length === 0)) return edit(last.id, 'end')
   let newId = ''
   apply((rows, ctx) => {
-    const index = buildIndex(rows)
-    const res = insertAt(rows, ctx, { parentId: null, afterId: childrenOf(index, null).at(-1)?.id ?? null }, '')
+    const res = insertAt(rows, ctx, { parentId: null, afterId: last?.id ?? null }, '')
     newId = res.newId
     return res.rows
   }, { label: 'cmdAppendAtEnd' })

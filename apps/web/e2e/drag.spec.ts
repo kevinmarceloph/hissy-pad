@@ -130,3 +130,35 @@ test('a line drags by its category icon too, and a tap on the icon still selects
   // toggle it back off.
   await expect(row).toHaveAttribute('aria-selected', 'true')
 })
+
+// In Later the lines out on a boomerang are rows in groups by day: a drag moves a line
+// within its day, and a line dropped outside its day goes back to the edge of it.
+test('lines out on a boomerang drag within their day in Later', async ({ page }, info) => {
+  await typeOutline(page, ['one', 'two', 'three', 'four'])
+  const send = async (text: string, choice: RegExp) => {
+    await bullet(page, text).click()
+    await page.getByRole('button', { name: /^Boomerang/ }).click()
+    await page.getByRole('button', { name: choice }).click()
+    await expect(bullet(page, text)).toHaveCount(0)
+  }
+  await send('one', /^Tomorrow/)
+  await send('two', /^Tomorrow/)
+  await send('three', /^Tomorrow/)
+  await send('four', /^In 3 days/)
+  await page.getByRole('tab', { name: /^Later/ }).click()
+  await expect(page.getByRole('heading', { name: 'Tomorrow' })).toBeVisible()
+  const lines = async () => (await outline(page)).split('\n').filter((l) => l !== '').join('\n')
+  expect(await lines()).toBe('one\ntwo\nthree\nfour')
+  if (process.env.BOOMERANG_SHOTS) await page.screenshot({ path: `${process.env.BOOMERANG_SHOTS}/10-later-rows-${info.project.name}.png` })
+
+  const touch = info.project.name === 'phone'
+  const one = (await bullet(page, 'one').boundingBox())!
+  await dragTo(page, bullet(page, 'three'), one.x + 10, one.y + 2, touch)
+  expect(await lines()).toBe('three\none\ntwo\nfour')
+
+  // Out of its day, above the others: it stays in its own group.
+  const top = (await bullet(page, 'three').boundingBox())!
+  await dragTo(page, bullet(page, 'four'), top.x + 10, top.y + 2, touch)
+  expect(await lines()).toBe('three\none\ntwo\nfour')
+  await expect(page.getByRole('heading', { level: 3 })).toHaveCount(2)
+})

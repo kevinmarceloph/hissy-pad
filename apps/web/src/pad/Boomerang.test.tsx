@@ -32,13 +32,14 @@ describe('Boomerang', () => {
     expect(tableShape()).toMatch(/^B\n>\d{4}-\d\d-\d\d A$/)
     expect(screen.getByRole('status').textContent).toMatch(/1 line is out until tomorrow/)
 
-    // Later shows it under its own lines, by day.
+    // Later has it as a row under its own lines, under its day's heading.
     act(() => void openPad(findFixedPad(usePad.getState().all, 'Later')!.id))
-    const section = await screen.findByRole('region', { name: 'Out on a boomerang' })
-    expect(within(section).getByText('Tomorrow')).toBeInTheDocument()
-    await user.click(within(section).getByRole('button', { name: 'Bring A back to the Inbox now' }))
+    expect(await screen.findByRole('heading', { name: 'Tomorrow' })).toBeInTheDocument()
+    await user.click(within(rowByText('A')).getByRole('button', { name: /Select line/ }))
+    await user.click(screen.getByRole('button', { name: /^Boomerang/ }))
+    await user.click(await screen.findByRole('button', { name: 'Back now' }))
     expect(tableShape()).toBe('A\nB')
-    expect(screen.queryByRole('region', { name: 'Out on a boomerang' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Tomorrow' })).toBeNull()
   })
 
   it('a line that came back has a dot, which a press takes off', async () => {

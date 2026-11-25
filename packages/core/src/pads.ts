@@ -86,9 +86,9 @@ function lift(r: NodeRow): NodeRow {
 // is not a pad, with its subtree. For another pad: its subtree, children lifted to the
 // root. Orphans (a parent missing or deleted, including a deleted pad) sit at the root of
 // the main pad, as buildIndex already places them. A boomeranged line (`due` set, kept
-// under Later until its day) is not in any pad's view: Later lists those in a section of
-// their own (boomerang.ts).
-export function scopePad(all: Rows, padId: PadId): Rows {
+// under Later until its day) is left out, so Sort and the cards never see it; with `withOut`
+// it is kept: Later's own view, where those lines are rows under its own (boomerang.ts).
+export function scopePad(all: Rows, padId: PadId, withOut = false): Rows {
   const index = buildIndex(all)
   const out: Record<string, NodeRow> = {}
   const take = (r: NodeRow) => {
@@ -108,7 +108,7 @@ export function scopePad(all: Rows, padId: PadId): Rows {
   } else {
     if (!isPadNode(all[padId])) return {}
     for (const r of childrenOf(index, padId)) {
-      if (r.due) continue
+      if (r.due && !withOut) continue
       out[r.id] = lift(r)
       take(r)
     }

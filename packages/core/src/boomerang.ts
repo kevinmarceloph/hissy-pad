@@ -1,14 +1,19 @@
 // Boomerang: a line sent out of the pads until a later day. It carries the day in `due`
 // ('YYYY-MM-DD', no hour) and is kept, with everything under it, as a child of the Later pad
-// row, where no pad's view shows it (scopePad and padLines leave out a row with `due`).
-// Later lists these under its own lines, grouped by day (boomerangGroups).
+// row. No pad's own lines count it (padLines) and Sort never deals it (scopePad leaves out a
+// row with `due`), but Later's view shows it (scopePad with `out`): under Later's own lines,
+// grouped by day, as rows like any other, so they can be edited, nested and moved.
+//
+// What keeps the groups is the order of Later's top-level lines (settleBoomerangs): its own
+// lines first, then the lines that are out, earliest day first. A line that is out keeps its
+// day wherever it is dragged: it only moves within its day's group.
 //
 // When its day starts (at the hour a day starts at in Hours), the line comes back to the top
 // of the Inbox with `fresh` set, which the pad draws as a dot before the line, the way Things
 // marks what turned up in Today. The dot goes when the line is next touched (the store
 // clears `fresh` on any edit to the row) or the dot itself is pressed.
 import type { NodeRow, OpCtx, Rows } from './types'
-import { buildIndex, childrenOf, isLive, topmost } from './tree'
+import { buildIndex, childrenOf, isLive, topmost, type FlatRow } from './tree'
 import { lastPinned, moveNodes } from './ops'
 import { createPad, findFixedPad } from './pads'
 
@@ -18,9 +23,9 @@ export function isBoomeranged(r: NodeRow | undefined): r is NodeRow {
   return isLive(r) && !!r.due && !r.pad
 }
 
-// Send lines (each with what is under it) out until `due`. They go under Later, after
-// everything there, out of their hour and off their pin; a line already out only changes
-// its day. Pad rows are never sent. Returns `all` itself for a day that is not one.
+// Send lines (each with what is under it) out until `due`. They go under Later, to the end
+// of that day's group, out of their hour and off their pin; a line already out only changes
+// its day (and so its group). Pad rows are never sent. Returns `all` itself for a day that is not one.
 export function boomerang(all: Rows, ctx: OpCtx, ids: Iterable<string>, due: string): Rows {
   if (!DAY.test(due)) return all
   const tops = topmost(buildIndex(all), ids).filter((id) => isLive(all[id]) && !all[id]!.pad)
@@ -43,6 +48,99 @@ export function boomerang(all: Rows, ctx: OpCtx, ids: Iterable<string>, due: str
     const r = out[id]!
     if (r.due === due && r.slot === null && !r.pinned && !r.fresh) continue
     out = { ...out, [id]: { ...r, due, slot: null, pinned: false, fresh: false, updatedAt: ctx.now() } }
+  }
+  return settleBoomerangs(out, ctx)
+}
+
+// Keep Later's lines in their groups. The rules, over Later's top-level lines:
+//
+//   1. Only a top-level line of Later is out: a line nested under another (or moved to
+//      another pad) loses its `due` and rides with what it is under. A line that is out is
+//      never pinned.
+//   2. A line with no day that sits among the lines that are out joins the day of the line
+//      above it, if it is new or came from inside a line that was out (Enter in a group, a
+//      paste, a sub item dedented). `prev` is the table before the edit; without it (after
+//      a sync merge) nothing joins.
+//   3. Later's own lines rank first, then the lines that are out, earliest day first. A line
+//      found out of place goes to the near edge of where it belongs: a line dragged out of
+//      its day's group snaps back to that group's top or bottom, and one of Later's own
+//      lines dropped among the groups goes back to the end of Later's own.
+//
+// The store runs it after every edit (in the same undo step) and every sync merge, as it
+// does settlePins. Returns `all` itself when nothing needed fixing.
+export function settleBoomerangs(all: Rows, ctx: OpCtx, prev?: Rows, touched?: Iterable<string>): Rows {
+  const later = findFixedPad(all, 'Later')?.id
+  let out = all
+  // Rule 1.
+  const check = touched ?? Object.keys(all)
+  for (const id of check) {
+    const r = out[id]
+    if (!isLive(r) || !r.due) continue
+    if (r.pad || !later || r.parentId !== later) out = { ...out, [id]: { ...r, due: null, updatedAt: ctx.now() } }
+    else if (r.pinned) out = { ...out, [id]: { ...r, pinned: false, updatedAt: ctx.now() } }
+  }
+  if (!later) return out
+  let sibs = childrenOf(buildIndex(out), later).filter((s) => !s.pad)
+  if (!sibs.some((s) => s.due)) return out
+  // Rule 2.
+  if (prev) {
+    let day: string | null = null
+    for (const s of sibs) {
+      if (s.due) day = s.due
+      else if (day && joins(prev, s.id, later)) out = { ...out, [s.id]: { ...out[s.id]!, due: day, pinned: false, slot: null, updatedAt: ctx.now() } }
+    }
+    sibs = sibs.map((s) => out[s.id]!)
+  }
+  // Rule 3. The rows left where they are: a longest run already in order.
+  const key = (r: NodeRow) => r.due ?? ''
+  if (sibs.every((s, i) => i === 0 || key(sibs[i - 1]!) <= key(s))) return out
+  const best: number[] = []
+  const from: number[] = []
+  let end = 0
+  sibs.forEach((s, i) => {
+    best[i] = 1
+    from[i] = -1
+    for (let j = 0; j < i; j++) {
+      if (key(sibs[j]!) <= key(s) && best[j]! + 1 > best[i]!) {
+        best[i] = best[j]! + 1
+        from[i] = j
+      }
+    }
+    if (best[i]! > best[end]!) end = i
+  })
+  const kept = new Set<string>()
+  for (let i = end; i >= 0; i = from[i]!) kept.add(sibs[i]!.id)
+  const target = sibs.map((s, i) => ({ s, i })).sort((a, b) => (key(a.s) < key(b.s) ? -1 : key(a.s) > key(b.s) ? 1 : a.i - b.i))
+  target.forEach(({ s }, at) => {
+    if (!kept.has(s.id)) out = moveNodes(out, ctx, [s.id], { parentId: later, afterId: at > 0 ? target[at - 1]!.s.id : null })
+  })
+  return out
+}
+
+// Rule 2's test: the row is new, or before the edit it was somewhere under a line that was out.
+function joins(prev: Rows, id: string, later: string): boolean {
+  let r = prev[id]
+  if (!isLive(r)) return true
+  if (r.parentId === later) return false
+  for (let hops = 0; r && r.parentId !== null && hops < 1000; hops++) {
+    const p: NodeRow | undefined = prev[r.parentId]
+    if (!p) return false
+    if (p.parentId === later) return !!p.due
+    r = p
+  }
+  return false
+}
+
+// Where a day's heading goes in Later's view: the id of the first top-level row of each
+// group, with its day. `flat` is the rows as drawn.
+export function dueHeads(flat: readonly Pick<FlatRow, 'id' | 'depth'>[], rows: Rows): Map<string, string> {
+  const out = new Map<string, string>()
+  let day: string | null = null
+  for (const f of flat) {
+    if (f.depth !== 0) continue
+    const due = rows[f.id]?.due ?? null
+    if (due && due !== day) out.set(f.id, due)
+    day = due
   }
   return out
 }

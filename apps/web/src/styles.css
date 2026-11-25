@@ -501,16 +501,10 @@ dialog.categories-dialog[open] { height: min(44rem, calc(100dvh - 3rem)); displa
 .row .fresh:hover { box-shadow: 0 0 0 4px var(--accent-soft); }
 
 /* Later's section under its own lines: what is out on a boomerang, by the day it is back. */
-.boomerangs { margin: 0.5rem 0 5rem var(--gutter); padding-top: 0.75rem; border-top: 1px solid var(--rule); }
-.boomerangs h2 { display: flex; align-items: center; gap: 0.4rem; margin: 0; font-size: 1.05rem; font-weight: 400; font-style: italic; color: var(--ink-soft); }
-.boomerangs h3 { margin: 0.9rem 0 0.15rem; font-size: 0.8rem; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mute); }
-.boomerangs ul { list-style: none; margin: 0; padding: 0; }
-.boomerangs li { display: flex; align-items: baseline; gap: 0.5rem; min-height: calc(var(--size) * var(--lh)); padding: 0.1rem 0; }
-.boomerangs .btext { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.boomerangs li.is-done .btext { color: var(--ink-mute); text-decoration: line-through; }
-.boomerangs .chip { margin-left: 0.5rem; }
-.boomerangs li button { flex: none; padding: 0 0.5rem; border: 1px solid var(--rule); border-radius: 4px; color: var(--ink-soft); font-size: 0.8rem; min-height: 1.6rem; }
-.boomerangs li button:hover { color: var(--ink); border-color: var(--ink-soft); }
+.due-head { margin-left: var(--gutter); user-select: none; }
+.due-head.is-first { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--rule); }
+.due-head h2 { display: flex; align-items: center; gap: 0.4rem; margin: 0; font-size: 1.05rem; font-weight: 400; font-style: italic; color: var(--ink-soft); }
+.due-head h3 { margin: 0.9rem 0 0.15rem; font-size: 0.8rem; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mute); }
 
 /* The Archive screen: the pad's rows, not editable, each with the pad it was in at the
    right. A click anywhere on a line selects it. Room at the bottom for the floating bar. */

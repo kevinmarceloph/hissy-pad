@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { dayStartAt, idOf } from '@hissypad/core'
+import { dayStartAt, findFixedPad, idOf, shape } from '@hissypad/core'
 import {
   boomerangChoices, boomerangList, cmdApplyBoomerang, cmdBoomerang, cmdClearFresh, cmdComeBack, cmdPickBoomerang, deliverBoomerangs,
   setBoomerangPickerOpener, stopBoomerangTimer, targetDue,
 } from './boomerang'
-import { cmdSetText, cmdToggleDone } from './commands'
+import { cmdAppendAtEnd, cmdEnter, cmdIndent, cmdMoveToBottom, cmdMoveToTop, cmdSetText, cmdToggleDone } from './commands'
 import { undo } from './history'
 import { openHours, resetHours } from './hours'
 import { edit, select } from './selection'
-import { loadPad, usePad } from './store'
+import { loadPad, openPad, usePad } from './store'
 import { resetStore, tableShape } from './testing'
 import { LINE_ACTIONS } from './actions'
 
@@ -105,5 +105,52 @@ describe('delivery', () => {
     select([id('B')], id('B'))
     cmdToggleDone()
     expect(usePad.getState().all[id('B')]!.fresh).toBe(false)
+  })
+})
+
+// Later shows what is out as rows under its own lines: the pad's commands work on them, and
+// a line stays in its day's group.
+describe('Later\'s view', () => {
+  const view = () => shape(usePad.getState().rows)
+  beforeEach(() => {
+    cmdBoomerang('2026-12-05', [id('C')])
+    cmdBoomerang('2026-12-01', [id('A')])
+    cmdBoomerang('2026-12-01', [id('B')])
+    openPad(findFixedPad(usePad.getState().all, 'Later')!.id)
+  })
+
+  it('holds the lines that are out, by day, and Sort\'s rows do not', async () => {
+    expect(view()).toBe('>2026-12-01 A\n  a1\n>2026-12-01 B\n>2026-12-05 C')
+    const { sortRows } = await import('./sort')
+    expect(shape(sortRows())).toBe('')
+  })
+
+  it('Top and Bottom stop at the edges of the day, and one undo takes a move back', () => {
+    select([id('A')], id('A'))
+    cmdMoveToBottom()
+    expect(view()).toBe('>2026-12-01 B\n>2026-12-01 A\n  a1\n>2026-12-05 C')
+    select([id('C')], id('C'))
+    cmdMoveToTop()
+    expect(view()).toBe('>2026-12-01 B\n>2026-12-01 A\n  a1\n>2026-12-05 C')
+    select([id('A')], id('A'))
+    cmdMoveToTop()
+    expect(view()).toBe('>2026-12-01 A\n  a1\n>2026-12-01 B\n>2026-12-05 C')
+    undo()
+    expect(view()).toBe('>2026-12-01 B\n>2026-12-01 A\n  a1\n>2026-12-05 C')
+  })
+
+  it('Enter in a group makes a line of that day; a line at the end is Later\'s own', () => {
+    cmdEnter(id('B'), 1)
+    cmdSetText(usePad.getState().editing!.id, 'new')
+    expect(view()).toBe('>2026-12-01 A\n  a1\n>2026-12-01 B\n>2026-12-01 new\n>2026-12-05 C')
+    cmdAppendAtEnd()
+    cmdSetText(usePad.getState().editing!.id, 'own')
+    expect(view()).toBe('own\n>2026-12-01 A\n  a1\n>2026-12-01 B\n>2026-12-01 new\n>2026-12-05 C')
+  })
+
+  it('a line nested under another rides with it and has no day of its own', () => {
+    select([id('B')], id('B'))
+    cmdIndent()
+    expect(view()).toBe('>2026-12-01 A\n  a1\n  B\n>2026-12-05 C')
   })
 })

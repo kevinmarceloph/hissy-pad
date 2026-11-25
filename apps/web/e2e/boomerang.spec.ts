@@ -4,7 +4,8 @@ const SHOTS = process.env.BOOMERANG_SHOTS // a directory: save screenshots of ea
 
 // Boomerang, end to end in a real browser: the floating button is on screen with the others
 // (five round buttons and the switch on one line of a phone), the picker sends the line out
-// until tomorrow, and Later lists it under its own lines and brings it back.
+// until tomorrow, and Later has it as a row under its own lines, under the day's heading;
+// the same button's picker calls it back.
 test('a line goes out on a boomerang from the floating button, and Later lists it', async ({ page }, info) => {
   await page.goto('/#pads')
   await page.getByRole('button', { name: 'Select line' }).first().click()
@@ -35,13 +36,15 @@ test('a line goes out on a boomerang from the floating button, and Later lists i
   await expect(page.locator('.row .text').first()).not.toHaveText('Welcome to HissyPad')
 
   await page.getByRole('tab', { name: /^Later/ }).click()
-  const section = page.getByRole('region', { name: 'Out on a boomerang' })
-  await expect(section.getByRole('heading', { name: 'Tomorrow' })).toBeVisible()
-  await expect(section.locator('.btext')).toContainText('Welcome to HissyPad')
+  await expect(page.getByRole('heading', { name: 'Tomorrow' })).toBeVisible()
+  const out = page.locator('.row', { has: page.locator('.text', { hasText: /^Welcome to HissyPad$/ }) })
+  await expect(out).toBeVisible()
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/3-later-${info.project.name}.png` })
 
-  await section.getByRole('button', { name: /^Bring Welcome to HissyPad back/ }).click()
-  await expect(section).toHaveCount(0)
+  await out.getByRole('button', { name: 'Select line' }).click()
+  await page.getByRole('button', { name: /^Boomerang/ }).click()
+  await page.getByRole('button', { name: 'Back now' }).click()
+  await expect(page.getByRole('heading', { name: 'Tomorrow' })).toHaveCount(0)
   await page.getByRole('tab', { name: /^Inbox/ }).click()
   await expect(page.locator('.row .text').first()).toHaveText('Welcome to HissyPad')
 })
@@ -59,7 +62,8 @@ test('Sort\'s card sends its line out on a boomerang and deals the next one', as
   await expect(text).toHaveValue('Today')
   await page.goto('/#pads')
   await page.getByRole('tab', { name: /^Later/ }).click()
-  await expect(page.getByRole('region', { name: 'Out on a boomerang' }).locator('.btext')).toContainText('Welcome to HissyPad')
+  await expect(page.getByRole('heading', { name: 'Boomerang' })).toBeVisible()
+  await expect(page.locator('.row .text', { hasText: /^Welcome to HissyPad$/ })).toBeVisible()
 })
 
 test('the new item\'s card sends the item out from the start, and can call it back', async ({ page }, info) => {
@@ -74,13 +78,14 @@ test('the new item\'s card sends the item out from the start, and can call it ba
   await card.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(page.locator('.row .text').first()).not.toHaveText('renew the passport')
   await page.getByRole('tab', { name: /^Later/ }).click()
-  const section = page.getByRole('region', { name: 'Out on a boomerang' })
-  await expect(section.locator('.btext')).toHaveText('renew the passport')
+  await expect(page.getByRole('heading', { name: 'Tomorrow' })).toBeVisible()
+  const out = page.locator('.row', { has: page.locator('.text', { hasText: /^renew the passport$/ }) })
 
   // The picker for a line that is out offers Back now.
-  await section.getByRole('button', { name: /^Another day for/ }).click()
-  await page.getByRole('button', { name: 'Back now' }).last().click()
-  await expect(section).toHaveCount(0)
+  await out.getByRole('button', { name: 'Select line' }).click()
+  await page.getByRole('button', { name: /^Boomerang/ }).click()
+  await page.getByRole('button', { name: 'Back now' }).click()
+  await expect(page.getByRole('heading', { name: 'Tomorrow' })).toHaveCount(0)
   await page.getByRole('tab', { name: /^Inbox/ }).click()
   await expect(page.locator('.row .text').first()).toHaveText('renew the passport')
 })

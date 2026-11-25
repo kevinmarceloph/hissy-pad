@@ -1,12 +1,12 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { buildIndex, childrenOf, countLines, descendantIds, listNumbers, pinDivider } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, listNumbers, pinDivider } from '@hissypad/core'
 import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
   cmdAddAtTop, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
   cmdPasteAfterSelection, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
 import { Row } from './Row'
-import { Boomerangs } from './Boomerangs'
+import { DueHead } from './Boomerangs'
 import { useDrag } from './useDrag'
 import { forceSync } from '@hissypad/state'
 import { MOD } from '../platform/os'
@@ -219,6 +219,10 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
   // The rule under the pinned lines, in a pad as itself (not in a card or an open hour).
   const pinEnd = useMemo(() => (embedded ? null : pinDivider(displayed, rows)), [embedded, displayed, rows])
 
+  // In Later: a heading before each day's group of lines out on a boomerang.
+  const heads = useMemo(() => (embedded ? new Map<string, string>() : dueHeads(displayed, rows)), [embedded, displayed, rows])
+  const firstHead = heads.keys().next().value
+
   const lone = visible.length === 1 && rows[visible[0]!.id]!.text === ''
 
   return (
@@ -226,6 +230,7 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
       <div className="rows" role="tree" aria-multiselectable="true" ref={rowsRef}>
         {displayed.map(({ id, depth, preview }) => (
           <Fragment key={id}>
+          {heads.has(id) && <DueHead due={heads.get(id)!} first={id === firstHead} />}
           {id === NEW_ROW ? (
             <div className="new-row" style={{ '--depth': depth } as React.CSSProperties} aria-hidden="true">+</div>
           ) : (
@@ -260,8 +265,6 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
         </p>
       )}
       {!embedded && <button type="button" className="tail" aria-label="Add a line at the end" onClick={cmdAppendAtEnd} />}
-      {/* Under Later's own lines: what is out on a boomerang, by the day it comes back. */}
-      {!embedded && <Boomerangs />}
       {/* Phone width only (CSS), like the phone app's +: a tap adds a line at the top, a drag
           carries it onto the pad and adds the line where it is let go. Away while a line is
           being edited or lines are selected: the toolbar's floating buttons sit there then. */}

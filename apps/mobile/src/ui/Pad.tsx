@@ -6,7 +6,7 @@ import { Alert, Animated, Keyboard, LayoutAnimation, Modal, Platform, Pressable,
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
-import { buildIndex, childrenOf, countLines, descendantIds, flatten, listNumbers, pinDivider, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, flatten, listNumbers, pinDivider, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
 import { apply, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, resumeEditing, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme } from '../theme'
 import { Row } from './Row'
@@ -18,7 +18,7 @@ import { ArchiveView } from './Archive'
 import { SortView } from './Sort'
 import { SubRows } from './SubRows'
 import { BoomerangPicker, CategoriesApp, CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
-import { Boomerangs } from './Boomerangs'
+import { DueHead } from './Boomerangs'
 import {
   cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot, useCategoryChoices,
 } from '@hissypad/state/hours'
@@ -153,6 +153,9 @@ export function Pad() {
   }, [visible, drag])
   // The rule under the pinned lines: in a pad as itself, not in an open hour.
   const pinEnd = useMemo(() => (hourOpen ? null : pinDivider(displayed, rows)), [hourOpen, displayed, rows])
+  // In Later: a heading before each day's group of lines out on a boomerang.
+  const heads = useMemo(() => (hourOpen ? new Map<string, string>() : dueHeads(displayed, rows)), [hourOpen, displayed, rows])
+  const firstHead = heads.keys().next().value
 
   // A jump to a line (a sub-pad, a search hit, Sort's pad icon): scroll it to the top. The pad
   // may have just been switched, so wait a beat for the rows to be laid out. `room` is space
@@ -547,6 +550,7 @@ export function Pad() {
           >
             {displayed.map(({ id, depth, preview }) => (
               <Fragment key={id}>
+              {heads.has(id) && <DueHead due={heads.get(id)!} first={id === firstHead} theme={theme} />}
               {id === NEW_ROW ? (
                 <View style={[s.newRow, { marginLeft: depth * INDENT, backgroundColor: theme.accentSoft }]}>
                   <Text style={[s.newBullet, { color: theme.accent }]}>+</Text>
@@ -575,16 +579,6 @@ export function Pad() {
               <Text style={[s.hint, { color: theme.inkMute }]}>Type anything. Return for a new line, the toolbar for nesting and crossing out. Press and hold a bullet to drag.</Text>
             )}
             <Pressable style={s.tail} onPress={cmdAppendAtEnd} accessibilityLabel="Add a line at the end" />
-            {/* Under Later's own lines: what is out on a boomerang, by the day it comes back. */}
-            {!quiet && (
-              <Boomerangs
-                theme={theme}
-                onSaid={(said) => {
-                  setToast(said)
-                  setTimeout(() => setToast(null), 2500)
-                }}
-              />
-            )}
             <Account theme={theme} />
           </ScrollView>
           {pull !== 'idle' && (

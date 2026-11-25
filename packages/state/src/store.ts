@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import {
-  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, fixedPadOf, isPadNode, settleFixedPads, settlePins,
+  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, fixedPadOf, isPadNode, settleBoomerangs, settleFixedPads, settlePins,
   insertAt, insertOutline, isLive, newUuid, normalizeRow, parseOutline, parseSlot, sameRow, scopeNode, scopePad, scopeSlot, unscopeRow, unscopeSlot,
   type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus,
 } from '@hissypad/core'
@@ -102,7 +102,13 @@ const set = usePad.setState
 // hour each end the other.
 function view(all: Rows, padId: PadId, zoomId: string | null = get().zoomId, slotId: string | null = get().slotId): Rows {
   if (slotId !== null) return scopeSlot(all, slotId).rows
-  return zoomId !== null && isLive(all[zoomId]) ? scopeNode(all, zoomId) : scopePad(all, padId)
+  return zoomId !== null && isLive(all[zoomId]) ? scopeNode(all, zoomId) : padView(all, padId)
+}
+
+// A pad as the store shows it. Later's holds the lines that are out on a boomerang too,
+// under its own, as rows (core/boomerang.ts); Sort and the counts read scopePad itself.
+function padView(all: Rows, padId: PadId): Rows {
+  return scopePad(all, padId, fixedPadOf(all, padId) === 'Later')
 }
 
 // Write whatever differs between two versions of the table to local storage as dirty.
@@ -193,6 +199,9 @@ function commit(all: Rows, edited: Rows, label: string, coalesce?: string) {
   // a drag or a paste that breaks that is put right in the same step, so one undo takes it back.
   const moved = placed(all, edited)
   let nextAll = moved.length ? settlePins(edited, ctx, moved) : edited
+  // Lines out on a boomerang stay in their day's group under Later, the same way.
+  const dued = changedRows(all, nextAll).filter((r) => r.due || all[r.id]?.due).map((r) => r.id)
+  if (moved.length || dued.length) nextAll = settleBoomerangs(nextAll, ctx, all, [...moved, ...dued])
   // A line that came back from a boomerang keeps its dot until it is touched: any edit to
   // the row takes the dot off, in the same step.
   for (const r of changedRows(all, nextAll)) {
@@ -263,7 +272,7 @@ async function loadPadOnce() {
     // Reopen the pad this device had open, if it still exists; else the Inbox (the root).
     const remembered = await local.getMeta(PAD_KEY)
     const padId = remembered && isPadNode(state[remembered]) ? remembered : null
-    set({ all: state, rows: scopePad(state, padId), padId, load: 'ready' })
+    set({ all: state, rows: padView(state, padId), padId, load: 'ready' })
     settleFixed()
     adoptLegacyCounts()
   } catch (e) {
@@ -283,7 +292,7 @@ async function loadPadOnce() {
 export function settleFixed() {
   const { all, padId, load } = get()
   if (load !== 'ready') return
-  const next = settlePins(settleFixedPads(all, ctx), ctx)
+  const next = settleBoomerangs(settlePins(settleFixedPads(all, ctx), ctx), ctx)
   if (next === all) return afterSettle?.()
   log('pad:settle', { changed: changedRows(all, next).length })
   const shown = padId === null || isPadNode(next[padId]) ? padId : null
@@ -335,7 +344,7 @@ export function openPad(padId: PadId): boolean {
   const { all } = get()
   if (padId !== null && !isPadNode(all[padId])) return false
   log('pad:open', { padId: padId?.slice(0, 8) ?? 'main' })
-  set({ padId, zoomId: null, slotId: null, rows: scopePad(all, padId), editing: null, selection: [], anchorId: null, focusId: null })
+  set({ padId, zoomId: null, slotId: null, rows: padView(all, padId), editing: null, selection: [], anchorId: null, focusId: null })
   void local.setMeta(PAD_KEY, padId ?? '').catch(() => {})
   return true
 }
