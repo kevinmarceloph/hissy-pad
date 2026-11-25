@@ -129,23 +129,6 @@ export function cmdAddAt(placement: Placement): string {
   return newId
 }
 
-// A tap on the space under a header's group: a new blank line as the header's last sub
-// item, ready to type into. A folded header opens first. Returns the new line's id.
-export function cmdAddUnder(id: string): string {
-  if (!usePad.getState().rows[id]) return ''
-  let newId = ''
-  apply((rows, ctx) => {
-    const open = setCollapsed(rows, ctx, id, false)
-    const last = childrenOf(buildIndex(open), id).at(-1)
-    const res = insertAt(open, ctx, { parentId: id, afterId: last?.id ?? null }, '')
-    newId = res.newId
-    return res.rows
-  }, { label: 'cmdAddUnder' })
-  edit(newId, 0)
-  openedBlank(newId)
-  return newId
-}
-
 export function cmdSetText(id: string, text: string) {
   apply((rows, ctx) => setTextOp(rows, ctx, id, text), { label: 'cmdSetText', coalesce: `text:${id}` })
 }

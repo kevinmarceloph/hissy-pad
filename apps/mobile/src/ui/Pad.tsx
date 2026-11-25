@@ -6,8 +6,8 @@ import { Alert, Animated, Keyboard, LayoutAnimation, Modal, Platform, Pressable,
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
-import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, flatten, listNumbers, pinDivider, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, resumeEditing, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
+import { buildIndex, childrenOf, countLines, descendantIds, flatten, listNumbers, pinDivider, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
+import { apply, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, resumeEditing, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -151,8 +151,6 @@ export function Pad() {
     const placed = moving.map((v) => ({ id: v.id, depth: v.depth - base + t.depth, preview: true }))
     return [...anchors.slice(0, t.gapIndex).map((v) => ({ ...v, preview: false })), ...placed, ...anchors.slice(t.gapIndex).map((v) => ({ ...v, preview: false }))]
   }, [visible, drag])
-  // The line of space under each header's group; a tap adds a sub item to the header.
-  const gaps = useMemo(() => headerGaps(displayed, rows), [displayed, rows])
   // The rule under the pinned lines: in a pad as itself, not in an open hour.
   const pinEnd = useMemo(() => (hourOpen ? null : pinDivider(displayed, rows)), [hourOpen, displayed, rows])
 
@@ -570,9 +568,6 @@ export function Pad() {
                 onBulletLongPress={() => {}}
               />
               )}
-              {gaps.get(id)?.map((h) => (
-                <Pressable key={`gap:${h}`} style={s.gap} onPress={() => cmdAddUnder(h)} accessibilityRole="button" accessibilityLabel="Add a line under this header" />
-              ))}
               {id === pinEnd && <View style={s.pinDivider} accessibilityRole="none" accessibilityLabel="Pinned lines end here"><View style={[s.pinRule, { backgroundColor: theme.rule }]} /></View>}
               </Fragment>
             ))}
@@ -634,7 +629,6 @@ const s = StyleSheet.create({
   hint: { fontFamily: serif, fontStyle: 'italic', fontSize: 15, lineHeight: 22, paddingHorizontal: GUTTER + 8, paddingVertical: 8 },
   newRow: { height: LINE, borderRadius: 4, justifyContent: 'center' }, // where a dragged + would add a line
   newBullet: { width: GUTTER, textAlign: 'center', fontFamily: serif, fontSize: 17, lineHeight: LINE },
-  gap: { height: LINE }, // the line of space under a header's group
   pinDivider: { height: LINE / 2, justifyContent: 'center', paddingLeft: GUTTER }, // under the pinned lines
   pinRule: { height: StyleSheet.hairlineWidth * 2 },
   tail: { height: 56 },

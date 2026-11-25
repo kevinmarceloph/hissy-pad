@@ -476,10 +476,6 @@ dialog.slot-dialog { padding: 0; width: min(34rem, calc(100vw - 1.5rem)); }
 dialog.categories-dialog[open] { height: min(44rem, calc(100dvh - 3rem)); display: flex; flex-direction: column; }
 .row.is-done .chip { color: var(--ink-mute); }
 
-/* The line of space under a header's group: one whole line-height, see the 25.5px gotcha. */
-.gap { display: block; width: 100%; height: calc(var(--size) * var(--lh)); cursor: text; border-radius: 4px; }
-.gap:hover { background: var(--paper-raised); }
-
 .tail {
   display: block;
   width: 100%;

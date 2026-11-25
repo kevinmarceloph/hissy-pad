@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { pad, shape, idOf, testCtx } from './testing'
-import { allRows, buildIndex, countLines, headerGaps, visibleRows } from './tree'
+import { buildIndex, countLines } from './tree'
 import { toggleDone } from './ops'
 import { createPad, findFixedPad, fixedPadOf, isFixedName, settleFixedPads, freshStart, lineToPad, padToLine, MAIN_PLACE, isPlace, isSubPad, listSubPads, moveToPlace, placeOf, listPads, padCounts, padLines, movePad, moveToPad, resolveSides, scopePad, sendTo, sideRows, unscopeRow } from './pads'
 import { dedent, insertAt, remove, setText } from './ops'
@@ -146,18 +146,6 @@ describe('sub-pads', () => {
     const out = padToLine(t.rows, t.ctx, t.w, { padId: null, subId: t.id('B') })!
     expect(shape(scopePad(out, null))).toBe('A\n#B\n  Work\n    W1\n    #W2\n      W2a\n  B1\n  #B2\nC')
     expect(padToLine(t.rows, t.ctx, t.w, { padId: t.w, subId: t.id('W2') })).toBeNull()
-  })
-})
-
-describe('the space under a header', () => {
-  it('follows the last drawn row of its group; nested headers stack, innermost first; a folded header keeps it', () => {
-    const t = table()
-    const id = (s: string) => idOf(t.rows, s)
-    let rows = { ...t.rows, [id('B')]: { ...t.rows[id('B')]!, header: true }, [id('B2')]: { ...t.rows[id('B2')]!, header: true }, [id('C')]: { ...t.rows[id('C')]!, header: true } }
-    expect([...headerGaps(allRows(scopePad(rows, null)), rows)]).toEqual([[id('B2'), [id('B2'), id('B')]], [id('C'), [id('C')]]])
-    rows = { ...rows, [id('B')]: { ...rows[id('B')]!, collapsed: true } }
-    expect([...headerGaps(visibleRows(scopePad(rows, null)), rows)]).toEqual([[id('B'), [id('B')]], [id('C'), [id('C')]]])
-    expect(headerGaps(allRows(t.rows), t.rows).size).toBe(0)
   })
 })
 

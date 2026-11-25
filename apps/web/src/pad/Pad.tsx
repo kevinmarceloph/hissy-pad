@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, listNumbers, pinDivider } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, descendantIds, listNumbers, pinDivider } from '@hissypad/core'
 import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
-  cmdAddAtTop, cmdAddUnder, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
+  cmdAddAtTop, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
   cmdPasteAfterSelection, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
 import { Row } from './Row'
@@ -216,8 +216,6 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
     }
   }, [])
 
-  // The line of space under each header's group; a click adds a sub item to the header.
-  const gaps = useMemo(() => headerGaps(displayed, rows), [displayed, rows])
   // The rule under the pinned lines, in a pad as itself (not in a card or an open hour).
   const pinEnd = useMemo(() => (embedded ? null : pinDivider(displayed, rows)), [embedded, displayed, rows])
 
@@ -246,17 +244,6 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
             onBulletClickCapture={onBulletClickCapture}
           />
           )}
-          {gaps.get(id)?.map((h) => (
-            <button
-              key={`gap:${h}`}
-              type="button"
-              className="gap"
-              tabIndex={-1}
-              aria-label={`Add a line under ${rows[h]!.text.split('\n')[0] || 'the header'}`}
-              title="Add a line under this header"
-              onClick={() => cmdAddUnder(h)}
-            />
-          ))}
           {id === pinEnd && <div className="pin-divider" role="separator" aria-label="Pinned lines end here" />}
           </Fragment>
         ))}
