@@ -78,7 +78,8 @@ export const CURSOR_KEY = 'sync.cursor'
 // 4: 2026-11-24. The `doing` column (a line's middle state), again the same.
 // 5: 2026-11-25. The `pinned` column (a line kept at the top of its pad), the same again.
 // 6: 2026-11-25. The `count_hidden` column (a pad's tab without its count), the same again.
-export const PULL_EPOCH = '6'
+// 7: 2026-11-25. The `due` and `fresh` columns (Boomerang), the same again.
+export const PULL_EPOCH = '7'
 export const EPOCH_KEY = 'sync.epoch'
 
 export function createSyncEngine(o: SyncEngineOptions): SyncEngine {

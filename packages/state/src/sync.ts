@@ -8,6 +8,7 @@ import { applyAll, clock, getLocalStore, SEED_KEY, setAll, setOnLocalChange, set
 import { remove } from '@hissypad/core'
 import { log, rowBrief } from './log'
 import { refreshHours, startHoursSync, stopHoursSync } from './hours'
+import { deliverBoomerangs } from './boomerang'
 
 let engine: SyncEngine | null = null
 let detachWindow: (() => void) | null = null
@@ -91,7 +92,10 @@ export function startSync(remote: Remote) {
     },
   })
   setOnLocalChange(() => engine?.requestSync())
-  detachWindow = triggers(() => void engine?.sync())
+  detachWindow = triggers(() => {
+    void engine?.sync()
+    void deliverBoomerangs().catch(() => {})
+  })
   engine.start()
 }
 
@@ -119,8 +123,9 @@ export function forceSync() {
 // rejects, a failed sync lands in `sync.state` instead.
 export function refresh(): Promise<void> {
   log('sync:refresh', { engine: engine !== null })
-  // The hours tables sync beside the pad's rows; one pull refreshes both.
-  return Promise.all([engine?.sync() ?? Promise.resolve(), refreshHours()]).then(() => undefined)
+  // The hours tables sync beside the pad's rows; one pull refreshes both. Then whatever is
+  // due on a boomerang comes back, the day start being one of the settings just pulled.
+  return Promise.all([engine?.sync() ?? Promise.resolve(), refreshHours()]).then(() => deliverBoomerangs().catch(() => 0)).then(() => undefined)
 }
 
 // Follow auth: a session starts the engine for that user, sign-out stops it.

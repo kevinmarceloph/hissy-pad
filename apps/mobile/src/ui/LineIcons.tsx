@@ -140,6 +140,12 @@ export function LineIcon({ icon, color, ground }: { icon: LineIconId; color: str
         </View>
       )
       break
+    // A boomerang: one thick bend, thrown to the right. Out until a later day.
+    case 'boomerang':
+      body = (
+        <View style={{ position: 'absolute', left: 3.5, top: 5.5, width: 12, height: 12, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 8, borderTopLeftRadius: 2, borderBottomRightRadius: 2, borderColor: color, transform: [{ rotate: '-21deg' }] }} />
+      )
+      break
     case 'more':
       body = <>{[4.5, 10, 15.5].map((x) => <View key={x} style={{ position: 'absolute', left: x - 1.4, top: 8.6, width: 2.8, height: 2.8, borderRadius: 1.4, backgroundColor: color }} />)}</>
       break

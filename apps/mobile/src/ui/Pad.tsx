@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, countLines, descendantIds, headerGaps, flatten, listNumbers, pinDivider, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, clearSelection, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, resumeEditing, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
+import { apply, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAddUnder, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, resumeEditing, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -17,7 +17,8 @@ import { DoneSheet } from './Lists'
 import { ArchiveView } from './Archive'
 import { SortView } from './Sort'
 import { SubRows } from './SubRows'
-import { CategoriesApp, CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
+import { BoomerangPicker, CategoriesApp, CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
+import { Boomerangs } from './Boomerangs'
 import {
   cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot, useCategoryChoices,
 } from '@hissypad/state/hours'
@@ -105,15 +106,19 @@ export function Pad() {
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
   // The same for "Category…".
   const [categorizing, setCategorizing] = useState<{ value: string | null; count: number } | null>(null)
+  // And for the floating Boomerang button: the day the lines are out until, if they are.
+  const [sending, setSending] = useState<{ value: string | null; count: number } | null>(null)
   const categoryChoices = useCategoryChoices()
   useEffect(() => {
     // Hours' rows are opened with the pad: a line's category icon comes from its list.
     void openHours()
     setSlotPickerOpener((ids) => setPicking({ value: targetSlot(ids), count: ids.length }))
     setCategoryPickerOpener((ids) => setCategorizing({ value: targetCategory(ids), count: ids.length }))
+    setBoomerangPickerOpener((ids) => setSending({ value: targetDue(ids), count: ids.length }))
     return () => {
       setSlotPickerOpener(null)
       setCategoryPickerOpener(null)
+      setBoomerangPickerOpener(null)
     }
   }, [])
 
@@ -415,6 +420,24 @@ export function Pad() {
           )}
         </View>
       </Modal>
+      <Modal visible={sending !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSending(null)} onDismiss={resumeEditing}>
+        <ScrollView style={{ flex: 1, backgroundColor: theme.paper }} contentContainerStyle={{ paddingTop: 12 }}>
+          {sending && (
+            <BoomerangPicker
+              value={sending.value}
+              count={sending.count}
+              onCancel={() => setSending(null)}
+              onPick={(due, today) => {
+                const said = cmdApplyBoomerang(due, today)
+                setSending(null)
+                if (!said) return
+                setToast(said)
+                setTimeout(() => setToast(null), 2500)
+              }}
+            />
+          )}
+        </ScrollView>
+      </Modal>
       <Modal visible={categorizing !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setCategorizing(null)} onDismiss={resumeEditing}>
         <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
           {categorizing && (
@@ -557,6 +580,16 @@ export function Pad() {
               <Text style={[s.hint, { color: theme.inkMute }]}>Type anything. Return for a new line, the toolbar for nesting and crossing out. Press and hold a bullet to drag.</Text>
             )}
             <Pressable style={s.tail} onPress={cmdAppendAtEnd} accessibilityLabel="Add a line at the end" />
+            {/* Under Later's own lines: what is out on a boomerang, by the day it comes back. */}
+            {!quiet && (
+              <Boomerangs
+                theme={theme}
+                onSaid={(said) => {
+                  setToast(said)
+                  setTimeout(() => setToast(null), 2500)
+                }}
+              />
+            )}
             <Account theme={theme} />
           </ScrollView>
           {pull !== 'idle' && (

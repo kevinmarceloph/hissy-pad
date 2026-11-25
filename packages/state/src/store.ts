@@ -192,7 +192,12 @@ function commit(all: Rows, edited: Rows, label: string, coalesce?: string) {
   // Pins stay first in their pad, and only a pad's top-level line stays pinned (pins.ts):
   // a drag or a paste that breaks that is put right in the same step, so one undo takes it back.
   const moved = placed(all, edited)
-  const nextAll = moved.length ? settlePins(edited, ctx, moved) : edited
+  let nextAll = moved.length ? settlePins(edited, ctx, moved) : edited
+  // A line that came back from a boomerang keeps its dot until it is touched: any edit to
+  // the row takes the dot off, in the same step.
+  for (const r of changedRows(all, nextAll)) {
+    if (r.fresh && all[r.id]?.fresh) nextAll = { ...nextAll, [r.id]: { ...r, fresh: false } }
+  }
   const now = Date.now()
   const changed = changedRows(all, nextAll)
   const merge = coalesce !== undefined && lastCoalesce?.key === coalesce && now - lastCoalesce.at < 1500 && past.length > 0
@@ -279,12 +284,33 @@ export function settleFixed() {
   const { all, padId, load } = get()
   if (load !== 'ready') return
   const next = settlePins(settleFixedPads(all, ctx), ctx)
-  if (next === all) return
+  if (next === all) return afterSettle?.()
   log('pad:settle', { changed: changedRows(all, next).length })
   const shown = padId === null || isPadNode(next[padId]) ? padId : null
   set({ all: next, padId: shown, rows: view(next, shown) })
   if (shown !== padId) void local.setMeta(PAD_KEY, '').catch(() => {})
   persist(all, next)
+  afterSettle?.()
+}
+
+// A change to the table that is the app's own doing, not an edit (a boomerang coming back
+// when its day starts): written and synced like settleFixed's, and left out of undo.
+export function applyQuiet(fn: (all: Rows, ctx: OpCtx) => Rows, label: string): boolean {
+  const { all, padId, load } = get()
+  if (load !== 'ready') return false
+  const next = fn(all, ctx)
+  if (next === all) return false
+  log(label, { changed: changedRows(all, next).map((r) => rowBrief(r)) })
+  set({ all: next, rows: view(next, padId) })
+  persist(all, next)
+  return true
+}
+
+// Called after every settleFixed (after load and after each sync merge), whether or not it
+// changed anything: boomerang.ts hangs its delivery here so the store never imports it.
+let afterSettle: (() => void) | null = null
+export function setAfterSettle(fn: (() => void) | null) {
+  afterSettle = fn
 }
 
 // The pads this device hid the count of before the choice synced (kept in its prefs until

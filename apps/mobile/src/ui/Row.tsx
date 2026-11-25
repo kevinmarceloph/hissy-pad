@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState, type ComponentRef } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
-import { apply, clickSelect, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
+import { apply, clickSelect, cmdClearFresh, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
 import { inlineSpans, slotLabel, todayKey, toggleCollapsed } from '@hissypad/core'
 import { useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
@@ -148,6 +148,17 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
           <CategoryBadge category={category} wordWhenBare />
         </Pressable>
       )}
+      {row.fresh && (
+        // Back from a boomerang and not touched since (as Things marks what turned up in
+        // Today). A tap on the dot, or any edit to the line, takes it off.
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back from a boomerang. Tap to clear the mark."
+          hitSlop={8}
+          onPress={() => cmdClearFresh(row.id)}
+          style={[s.fresh, { backgroundColor: theme.accent, borderColor: theme.accentSoft }]}
+        />
+      )}
       {isEditing ? (
         <TextInput
           autoFocus
@@ -253,6 +264,7 @@ const s = StyleSheet.create({
   text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, padding: 0, margin: 0, textAlignVertical: 'top' },
   input: { transform: [{ translateY: -INPUT_SHIFT }] },
   category: { marginTop: (LINE - 22) / 2, marginRight: 6 },
+  fresh: { width: 13, height: 13, borderRadius: 6.5, borderWidth: 2.5, marginTop: (LINE - 13) / 2, marginRight: 7 },
   slot: { fontSize: SIZE - 5, fontWeight: '400', fontStyle: 'normal', textDecorationLine: 'none' },
   chip: { fontSize: SIZE - 5, fontWeight: '400', textDecorationLine: 'none', fontVariant: ['tabular-nums'] },
 })

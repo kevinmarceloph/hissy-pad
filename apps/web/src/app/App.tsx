@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { cmdCreateBegin, dismissStorageError, loadPad, resumeEditing, usePad } from '@hissypad/state'
+import { cmdApplyBoomerang, cmdCreateBegin, dismissStorageError, loadPad, resumeEditing, setBoomerangPickerOpener, targetDue, usePad } from '@hissypad/state'
 import { Pad } from '../pad/Pad'
 import { SelectionBar } from '../pad/SelectionBar'
 import { TopBar, type View } from './TopBar'
@@ -9,11 +9,12 @@ import { FreshStart } from '../pads/FreshStart'
 import { Sort } from '../panels/Sort'
 import { Archive } from '../panels/Archive'
 import { CreateDialog } from '../panels/Create'
-import { CategoryDialog, Hours, preloadHours, SlotDialog } from '../panels/Hours'
+import { BoomerangDialog, CategoryDialog, Hours, preloadHours, SlotDialog } from '../panels/Hours'
 import {
   cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot,
 } from '@hissypad/state/hours'
 import { showToast } from './toast'
+import { MOD } from '../platform/os'
 
 const VIEWS: Record<string, View> = { '#hours': 'hours', '#pads': 'pad', '#sort': 'sort', '#archive': 'archive' }
 const HASHES: Record<View, string> = { hours: '#hours', pad: '#pads', fresh: '#pads', sort: '#sort', archive: '#archive' }
@@ -47,6 +48,8 @@ export function App() {
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
   // The same for "Category…".
   const [categorizing, setCategorizing] = useState<{ value: string | null; count: number } | null>(null)
+  // And for the floating Boomerang button: the day the lines are out until, if they are.
+  const [sending, setSending] = useState<{ value: string | null; count: number } | null>(null)
   // The new item's card (the + in the top bar). The pad is taken off the page under it: the
   // card draws the pad's own rows and toolbar for the sub items, and two pads would both
   // answer the keys.
@@ -62,10 +65,12 @@ export function App() {
     const idle = import.meta.env.MODE === 'test' ? null : setTimeout(preloadHours, 1200)
     setSlotPickerOpener((ids) => setPicking({ value: targetSlot(ids), count: ids.length }))
     setCategoryPickerOpener((ids) => setCategorizing({ value: targetCategory(ids), count: ids.length }))
+    setBoomerangPickerOpener((ids) => setSending({ value: targetDue(ids), count: ids.length }))
     return () => {
       if (idle) clearTimeout(idle)
       setSlotPickerOpener(null)
       setCategoryPickerOpener(null)
+      setBoomerangPickerOpener(null)
     }
   }, [])
 
@@ -102,6 +107,22 @@ export function App() {
           onPick={(slot) => {
             showToast(cmdApplySlot(slot))
             setPicking(null)
+            resumeEditing()
+          }}
+        />
+      )}
+      {sending && (
+        <BoomerangDialog
+          value={sending.value}
+          count={sending.count}
+          onClose={() => {
+            setSending(null)
+            resumeEditing()
+          }}
+          onPick={(due, today) => {
+            const said = cmdApplyBoomerang(due, today)
+            if (said) showToast(`${said} ${MOD}+Z undoes it.`)
+            setSending(null)
             resumeEditing()
           }}
         />

@@ -5,7 +5,7 @@ import {
   cmdBackspaceAtStart, cmdDedent, cmdDeleteSelection, cmdEditNeighbor, cmdEnter, cmdIndent, cmdMove, cmdPasteInto, cmdSetText,
   cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
-import { redo, undo } from '@hissypad/state'
+import { cmdClearFresh, redo, undo } from '@hissypad/state'
 import { apply } from '@hissypad/state'
 import { slotLabel, todayKey, inlineSpans, toggleCollapsed, URL_RE } from '@hissypad/core'
 import { useLineCategory } from '@hissypad/state/hours'
@@ -230,6 +230,19 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
         />
       ) : (
         <div className="text" onMouseDown={onTextMouseDown}>
+          {row.fresh && (
+            // Back from a boomerang and not touched since (as Things marks what turned up in
+            // Today). Pressing the dot, or any edit to the line, takes it off.
+            <button
+              type="button"
+              className="fresh"
+              tabIndex={-1}
+              aria-label="Back from a boomerang. Press to clear the mark."
+              title="Back from a boomerang. Press to clear the mark."
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => cmdClearFresh(row.id)}
+            />
+          )}
           {row.text === '' ? <span className="placeholder" aria-hidden="true">{'​'}</span> : <Styled text={row.text} />}
           {row.slot && <span className="slot" data-slot={row.slot} title="The hour this line is in (toolbar: Hour…)">{slotLabel(row.slot, todayKey())}</span>}
           {folded && (

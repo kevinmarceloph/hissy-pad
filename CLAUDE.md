@@ -38,6 +38,16 @@ Platform logic goes in `packages/state` or `packages/core`, never in an app. If 
 - Chimes: the web rings from the page (`apps/web/src/platform/chimes.ts`); the phone uses local notifications (`apps/mobile/src/chimes.ts`, expo-notifications, loaded only when the build has it).
 - The web app aliases `react-native` to `react-native-web` and dedupes `react` (`vite.config.ts`, `vitest.config.ts`). Hours is loaded on first use (`apps/web/src/panels/Hours.tsx`), so the pad does not carry it.
 
+## Boomerang
+
+Since 2026-11-25 a line can be sent out of the pads until a later day (the floating Boomerang button). Details in `PLAN.md` under "Boomerang"; the rules that bite:
+
+- A line that is out has `due` ('YYYY-MM-DD') and sits under the Later pad row. `scopePad` and `padLines` skip a row with `due`, so anything built on them leaves it out for free; anything that walks `all` or `childrenOf(index, later)` itself has to skip it by hand.
+- Delivery (`deliverBoomerangs`) is not an edit: it goes through `applyQuiet`, with no undo step, and stamps the row with the moment its day started (not now), so a device that wakes up late does not overwrite newer edits. Keep that stamp if the delivery changes.
+- A day here is Hours' day: it starts at the day start setting, read from the hours stores (`openHours().day`).
+- `fresh` (the dot on a line that came back) is cleared by `commit` on any edit to the row.
+- The watch does not know `due` yet.
+
 ## Commands
 
 ```bash

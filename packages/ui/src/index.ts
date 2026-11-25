@@ -5,3 +5,4 @@ export { CategoriesApp, HoursApp } from './hours/HoursApp';
 export { SlotPicker } from './hours/SlotPicker';
 export { CategoryPicker } from './hours/CategoryPicker';
 export { CategoryBadge } from './hours/CategoryBadge';
+export { BoomerangPicker } from './hours/BoomerangPicker';

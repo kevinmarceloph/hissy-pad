@@ -1,6 +1,6 @@
 -- pgTAP: RLS and last-write-wins on public.nodes. Run with `supabase test db`.
 begin;
-select plan(35);
+select plan(39);
 
 -- Two users, created directly (no GoTrue in a db test).
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
@@ -125,6 +125,13 @@ select is((select pinned from public.nodes where id = 'aaaaaaaa-0000-0000-0000-0
 select is((select count_hidden from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), false, 'count_hidden defaults to false');
 update public.nodes set count_hidden = true, updated_at = '2026-11-25T01:00:00Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
 select is((select count_hidden from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), true, 'count_hidden round-trips');
+
+-- due and fresh (Boomerang): out until a day, then back with a mark.
+select is((select due from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), null, 'due defaults to null');
+select is((select fresh from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), false, 'fresh defaults to false');
+update public.nodes set due = '2026-12-01', fresh = true, updated_at = '2026-11-25T02:00:00Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select is((select due from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), '2026-12-01', 'due round-trips');
+select is((select fresh from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), true, 'fresh round-trips');
 
 select * from finish();
 rollback;

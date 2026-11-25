@@ -39,6 +39,8 @@ const LINE_ICONS: Record<LineIconId, ReactNode> = {
   archive: <Icon d="M3 4.5h14v3H3zM4.5 7.5v8a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-8M8 10.5h4" />,
   // A clock: put it in an hour. Also the Hours mode.
   hour: <Icon d="M10 5.5V10l3 2"><circle cx="10" cy="10" r="7" /></Icon>,
+  // A boomerang, bent at the top and thrown to the right: out until a later day.
+  boomerang: <Icon><g transform="rotate(24 10 10)"><path d="M3 15.5C3 9.5 6 4 10 4s7 5.5 7 11.5c-2.6-3.4-4.8-5-7-5s-4.4 1.6-7 5z" /></g></Icon>,
   // A tag with its hole, point up and to the left: give it a category.
   category: <Icon><g transform="rotate(45 10 10)"><path d="M5.5 5.5H15a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H5.5L1 10z" /><circle cx="6" cy="10" r="1.3" /></g></Icon>,
   more: <svg viewBox="0 0 20 20" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="4.5" cy="10" r="1.4" /><circle cx="10" cy="10" r="1.4" /><circle cx="15.5" cy="10" r="1.4" /></svg>,

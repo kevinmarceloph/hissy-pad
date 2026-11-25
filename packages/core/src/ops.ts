@@ -48,6 +48,8 @@ function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: strin
     category: null,
     pinned: false,
     countHidden: false,
+    due: null,
+    fresh: false,
     updatedAt: ctx.now(),
     deletedAt: null,
   }

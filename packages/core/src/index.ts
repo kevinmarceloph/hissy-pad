@@ -94,6 +94,7 @@ export {
   scopeNode,
 } from './pads'
 export { settlePins, togglePinned, pinDivider } from './pins'
+export { isBoomeranged, boomerang, comeBack, boomerangGroups, deliverDue, dayStartAt, clearFresh, dueLabel, type BoomerangGroup } from './boomerang'
 export { lastPinned } from './ops'
 export { parseOutline, insertOutline, toOutline, toOutlineHtml, type OutlineLine, type OutlineFormat } from './paste'
 export { testCtx, pad, shape, idOf } from './testing'

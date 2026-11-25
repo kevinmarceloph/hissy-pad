@@ -60,8 +60,9 @@ export function listPads(all: Rows): NodeRow[] {
 // A pad's top-level lines that hold something: text, or sub items under a blank line.
 // Blank spacers are left out (the counting rule, see isBlank). `open` also leaves out
 // crossed-out lines: that is the list the Sort queue, the widgets and the watch show.
+// A boomeranged line (`due`) is out of the pads until its day: never one of a pad's lines.
 export function padLines(index: TreeIndex, padId: PadId, open = false): NodeRow[] {
-  return childrenOf(index, padId).filter((r) => !r.pad && !(open && r.done) && (!isBlank(r) || childrenOf(index, r.id).length > 0))
+  return childrenOf(index, padId).filter((r) => !r.pad && !r.due && !(open && r.done) && (!isBlank(r) || childrenOf(index, r.id).length > 0))
 }
 
 // The number each pad shows: its open top-level lines. Main is under the key null.
@@ -84,7 +85,9 @@ function lift(r: NodeRow): NodeRow {
 // The live rows of one pad as a pad of their own. For the main pad: every root row that
 // is not a pad, with its subtree. For another pad: its subtree, children lifted to the
 // root. Orphans (a parent missing or deleted, including a deleted pad) sit at the root of
-// the main pad, as buildIndex already places them.
+// the main pad, as buildIndex already places them. A boomeranged line (`due` set, kept
+// under Later until its day) is not in any pad's view: Later lists those in a section of
+// their own (boomerang.ts).
 export function scopePad(all: Rows, padId: PadId): Rows {
   const index = buildIndex(all)
   const out: Record<string, NodeRow> = {}
@@ -98,13 +101,14 @@ export function scopePad(all: Rows, padId: PadId): Rows {
   }
   if (padId === null) {
     for (const r of childrenOf(index, null)) {
-      if (r.pad) continue
+      if (r.pad || r.due) continue
       out[r.id] = r.parentId === null ? r : lift(r)
       take(r)
     }
   } else {
     if (!isPadNode(all[padId])) return {}
     for (const r of childrenOf(index, padId)) {
+      if (r.due) continue
       out[r.id] = lift(r)
       take(r)
     }

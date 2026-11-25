@@ -6,6 +6,7 @@ import {
   cmdPasteAfterSelection, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
 import { Row } from './Row'
+import { Boomerangs } from './Boomerangs'
 import { useDrag } from './useDrag'
 import { forceSync } from '@hissypad/state'
 import { MOD } from '../platform/os'
@@ -272,6 +273,8 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
         </p>
       )}
       {!embedded && <button type="button" className="tail" aria-label="Add a line at the end" onClick={cmdAppendAtEnd} />}
+      {/* Under Later's own lines: what is out on a boomerang, by the day it comes back. */}
+      {!embedded && <Boomerangs />}
       {/* Phone width only (CSS), like the phone app's +: a tap adds a line at the top, a drag
           carries it onto the pad and adds the line where it is let go. Away while a line is
           being edited or lines are selected: the toolbar's floating buttons sit there then. */}

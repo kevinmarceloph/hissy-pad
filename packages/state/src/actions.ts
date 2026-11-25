@@ -4,7 +4,7 @@
 // type switcher (drawn after the 'mark' group) and the "Move to…" pad menu (a round button
 // with the 'move' icon, floating beside Hour… and Category…). Actions marked `more` sit in
 // a dropdown (⋯) on both. An action with an `icon` is drawn as that icon, by each app's own
-// icon set. Actions marked `floats` (Done, Hour…, Category…) are not on the bar: both apps
+// icon set. Actions marked `floats` (Done, Hour…, Category…, Boomerang…) are not on the bar: both apps
 // draw them as round buttons floating above it, Done as the open / doing / done switch.
 import { buildIndex, childrenOf, topmost, type NodeKind, type Rows } from '@hissypad/core'
 import {
@@ -15,6 +15,7 @@ import { cmdPickSlot, cmdSetSlot } from './hours/slots'
 import { clearSelection } from './selection'
 import { usePad } from './store'
 import { cmdPickCategory } from './hours/line-categories'
+import { cmdPickBoomerang } from './boomerang'
 
 // What the current targets allow, so an impossible action reads as disabled instead of
 // silently doing nothing.
@@ -75,7 +76,7 @@ export type LineActionGroup = 'mark' | 'add' | 'move' | 'tree' | 'clip' | 'pad' 
 
 // The icons the toolbars draw. 'move' is also the Sort mode's icon in the top bar, and the
 // "Move to…" menu's button.
-export type LineIcon = 'addAbove' | 'addBelow' | 'dedent' | 'indent' | 'down' | 'up' | 'top' | 'fold' | 'unfold' | 'copy' | 'cut' | 'pasteAbove' | 'pasteBelow' | 'move' | 'archive' | 'hour' | 'category' | 'more'
+export type LineIcon = 'addAbove' | 'addBelow' | 'dedent' | 'indent' | 'down' | 'up' | 'top' | 'fold' | 'unfold' | 'copy' | 'cut' | 'pasteAbove' | 'pasteBelow' | 'move' | 'archive' | 'hour' | 'category' | 'boomerang' | 'more'
 
 export interface LineAction {
   id: string
@@ -147,6 +148,8 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   { id: 'pasteBelow', group: 'clip', label: 'Paste below', name: 'Paste below', hint: 'Paste the clipboard as lines below', icon: 'pasteBelow', run: () => paste('below') },
   { id: 'slot', group: 'pad', label: 'Hour…', name: 'Put in an hour', hint: 'Put in an hour of a day (Hours counts what is done there)', icon: 'hour', floats: true, run: cmdPickSlot },
   { id: 'category', group: 'pad', label: 'Category…', name: 'Give a category', hint: 'Give it one of Hours\' categories (its icon shows before the text)', icon: 'category', floats: true, run: cmdPickCategory },
+  // Out of the pads until a later day, then back at the top of the Inbox (boomerang.ts).
+  { id: 'boomerang', group: 'pad', label: 'Boomerang…', name: 'Boomerang: send out until a later day', hint: 'Boomerang: out of the pads until a later day, then back in the Inbox', icon: 'boomerang', floats: true, run: cmdPickBoomerang },
   {
     // The lines leave the hour and stay where they are in their pads (the same as Hour…,
     // then No hour, in one press). The selection goes with them: they are out of view.

@@ -23,7 +23,7 @@ export function pad(outline: string, ctx: OpCtx = testCtx()): Rows {
 
 // Render a pad back to an indented outline of texts (all nodes, ignoring collapse),
 // so a test can assert the whole shape in one string. Markers: "1." numbered, "#" header,
-// "@" a pad node, "^" pinned, "~" done.
+// "@" a pad node, "^" pinned, "~" done, ">2026-11-28 " boomeranged to that day, "*" just back.
 export function shape(rows: Rows, visibleOnly = false): string {
   const index = buildIndex(rows)
   const numbers = listNumbers(index)
@@ -31,7 +31,7 @@ export function shape(rows: Rows, visibleOnly = false): string {
     .map((r) => {
       const row = rows[r.id]!
       const num = numbers.has(r.id) ? `${numbers.get(r.id)}.` : row.header ? '#' : row.pad ? '@' : ''
-      return '  '.repeat(r.depth) + (row.pinned ? '^' : '') + num + (row.done ? '~' : '') + row.text
+      return '  '.repeat(r.depth) + (row.due ? `>${row.due} ` : '') + (row.fresh ? '*' : '') + (row.pinned ? '^' : '') + num + (row.done ? '~' : '') + row.text
     })
     .join('\n')
 }

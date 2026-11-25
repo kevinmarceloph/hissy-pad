@@ -121,6 +121,8 @@ export function insertOutline(
       category: null,
       pinned: false,
       countHidden: false,
+      due: null,
+      fresh: false,
       updatedAt: ctx.now(),
       deletedAt: null,
     }

@@ -18,6 +18,7 @@ export function preloadHours() {
 const HoursApp = lazy(() => import('@hissypad/ui').then((m) => ({ default: m.HoursApp })))
 const SlotPicker = lazy(() => import('@hissypad/ui').then((m) => ({ default: m.SlotPicker })))
 const CategoriesApp = lazy(() => import('@hissypad/ui').then((m) => ({ default: m.CategoriesApp })))
+const BoomerangPicker = lazy(() => import('@hissypad/ui').then((m) => ({ default: m.BoomerangPicker })))
 const CategoryPicker = lazy(() => import('@hissypad/ui').then((m) => ({ default: m.CategoryPicker })))
 
 // The scheme the page is drawn in: the top bar's Light / Dark choice, else the device's.
@@ -80,6 +81,25 @@ export function SlotDialog({ value, count, onPick, onClose }: { value: string | 
     >
       <Suspense fallback={<p className="hint" aria-busy="true">Opening…</p>}>
         <SlotPicker value={value} count={count} scheme={scheme} onPick={onPick} onCancel={onClose} />
+      </Suspense>
+    </dialog>
+  )
+}
+
+// The day picker the pad's floating Boomerang button opens, in a dialog.
+export function BoomerangDialog({ value, count, onPick, onClose }: { value: string | null; count: number; onPick: (due: string, today: string) => void; onClose: () => void }) {
+  const scheme = useScheme()
+  return (
+    <dialog
+      className="import slot-dialog boomerang-dialog"
+      aria-label="Pick a day"
+      ref={(d) => {
+        if (d && !d.open) d.showModal()
+      }}
+      onClose={onClose}
+    >
+      <Suspense fallback={<p className="hint" aria-busy="true">Opening…</p>}>
+        <BoomerangPicker value={value} count={count} scheme={scheme} onPick={onPick} onCancel={onClose} />
       </Suspense>
     </dialog>
   )

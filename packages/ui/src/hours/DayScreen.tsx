@@ -338,7 +338,9 @@ function MenuIcon({ color }: { color: string }) {
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-export function DayPicker({ day, today, onPick }: { day: DayKey; today: DayKey; onPick(day: DayKey): void }) {
+// `from`: the first day that can be picked (the boomerang's picker: tomorrow at the earliest);
+// earlier days are drawn quiet and do nothing, and there is no way back to today.
+export function DayPicker({ day, today, onPick, from }: { day: DayKey; today: DayKey; onPick(day: DayKey): void; from?: DayKey }) {
   const theme = useTheme();
   const shownDay = fromDayKey(day);
   const [month, setMonth] = useState({ year: shownDay.getFullYear(), month: shownDay.getMonth() });
@@ -380,15 +382,17 @@ export function DayPicker({ day, today, onPick }: { day: DayKey; today: DayKey; 
             if (!cell) return <View key={i} style={styles.dayCell} />;
             const on = cell === day;
             const isToday = cell === today;
+            const off = from !== undefined && cell < from;
             return (
               <Tap
                 key={cell}
                 aria-label={`${dayDate(cell)}${isToday ? ', today' : ''}`}
                 aria-current={on ? 'date' : undefined}
+                disabled={off}
                 onPress={() => onPick(cell)}
                 style={[styles.dayCell, styles.dayButton, isToday && { borderColor: theme.ink }, on && { backgroundColor: theme.ink, borderColor: theme.ink }]}
                 activeStyle={{ borderColor: theme.ink }}>
-                <Text style={[styles.dayNumber, { color: on ? theme.paper : theme.ink }, (on || isToday) && { fontWeight: '700' }]}>
+                <Text style={[styles.dayNumber, { color: on ? theme.paper : off ? theme.inkQuiet : theme.ink }, (on || isToday) && { fontWeight: '700' }]}>
                   {fromDayKey(cell).getDate()}
                 </Text>
               </Tap>
@@ -396,7 +400,7 @@ export function DayPicker({ day, today, onPick }: { day: DayKey; today: DayKey; 
           })}
         </View>
       ))}
-      {day !== today && (
+      {day !== today && from === undefined && (
         <Tap onPress={() => onPick(today)} style={styles.menuItem} activeStyle={{ backgroundColor: theme.paper }}>
           <Text style={[styles.navText, { color: theme.accent }]}>Back to today</Text>
         </Tap>
