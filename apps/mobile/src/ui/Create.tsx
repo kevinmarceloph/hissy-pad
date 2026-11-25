@@ -26,6 +26,8 @@ import { card, CardField } from './Sort'
 import { SubRows } from './SubRows'
 import { Toolbar } from './Toolbar'
 import { HoursIcon, PadIcon } from './TopIcons'
+import { LineIcon } from './LineIcons'
+import { cmdPickBoomerang, dueWords } from '@hissypad/state'
 
 // `pad` is a widget pad key ('main', 'inbox' or a pad's row id), or null for the pad shown.
 // `depth` is the undo stack's length as the sheet opens (cmdCreateBegin), for Cancel.
@@ -163,6 +165,7 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
 
   const text = row ? row.text : draft
   const slot = row?.slot ?? null
+  const due = row?.due ?? null
   const can = text.trim() !== '' || hasSubs
   const where = placeName(all, place)
 
@@ -188,6 +191,7 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
                 </Text>
               </Pressable>
               {slot && <Text style={[card.slot, { color: theme.inkSoft, borderColor: theme.rule }]}>{slotLabel(slot, todayKey())}</Text>}
+              {due && <Text style={[card.slot, { color: theme.inkSoft, borderColor: theme.rule }]}>Out until {dueWords(due)}</Text>}
               <Pressable
                 onPress={() => cmdPickSlot([ensure()])}
                 hitSlop={8}
@@ -197,6 +201,16 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
               >
                 <HoursIcon color={theme.inkSoft} />
               </Pressable>
+              {/* Out until a later day from the start: the sheet stays up, the line is under Later. */}
+              <Pressable
+                onPress={() => cmdPickBoomerang([ensure()])}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={due ? `Out until ${dueWords(due)}, change` : 'Boomerang: send out until a later day'}
+                style={({ pressed }) => [card.hour, { opacity: pressed ? 0.5 : 1 }]}
+                >
+                <LineIcon icon="boomerang" color={theme.inkSoft} ground={theme.paperRaised} />
+                </Pressable>
               <Pressable
                 onPress={seeInPad}
                 disabled={!row || !can}

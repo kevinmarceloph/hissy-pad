@@ -45,3 +45,42 @@ test('a line goes out on a boomerang from the floating button, and Later lists i
   await page.getByRole('tab', { name: /^Inbox/ }).click()
   await expect(page.locator('.row .text').first()).toHaveText('Welcome to HissyPad')
 })
+
+// The same button at the top right of a card: Sort's, where the card moves on, and the new
+// item's, where the card stays up with the day on it.
+test('Sort\'s card sends its line out on a boomerang and deals the next one', async ({ page }, info) => {
+  await page.goto('/#sort')
+  const text = page.getByRole('textbox', { name: 'Line text' })
+  await expect(text).toHaveValue('Welcome to HissyPad')
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/4-sort-card-${info.project.name}.png` })
+  await page.locator('.sort-card').getByRole('button', { name: /^Boomerang/ }).click()
+  await page.getByRole('button', { name: /^In 3 days/ }).click()
+  await expect(page.getByRole('status')).toContainText('1 line is out until')
+  await expect(text).toHaveValue('Today')
+  await page.goto('/#pads')
+  await page.getByRole('tab', { name: /^Later/ }).click()
+  await expect(page.getByRole('region', { name: 'Out on a boomerang' }).locator('.btext')).toContainText('Welcome to HissyPad')
+})
+
+test('the new item\'s card sends the item out from the start, and can call it back', async ({ page }, info) => {
+  await page.goto('/#pads')
+  await page.getByRole('button', { name: 'New item' }).click()
+  const card = page.locator('dialog.create')
+  await card.locator('.sort-text').fill('renew the passport')
+  await card.getByRole('button', { name: /^Boomerang/ }).click()
+  await page.getByRole('button', { name: /^Tomorrow/ }).click()
+  await expect(card.locator('.sort-top .slot')).toHaveText('Out until Tomorrow')
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/5-create-card-${info.project.name}.png` })
+  await card.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(page.locator('.row .text').first()).not.toHaveText('renew the passport')
+  await page.getByRole('tab', { name: /^Later/ }).click()
+  const section = page.getByRole('region', { name: 'Out on a boomerang' })
+  await expect(section.locator('.btext')).toHaveText('renew the passport')
+
+  // The picker for a line that is out offers Back now.
+  await section.getByRole('button', { name: /^Another day for/ }).click()
+  await page.getByRole('button', { name: 'Back now' }).last().click()
+  await expect(section).toHaveCount(0)
+  await page.getByRole('tab', { name: /^Inbox/ }).click()
+  await expect(page.locator('.row .text').first()).toHaveText('renew the passport')
+})

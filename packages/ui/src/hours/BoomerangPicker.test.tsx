@@ -30,7 +30,11 @@ describe('the boomerang picker', () => {
   });
 
   it('says the day the lines are out until now', async () => {
-    await render(<BoomerangPicker value="2026-11-30" onPick={() => {}} onCancel={() => {}} clock={clock} />);
+    const onPick = vi.fn();
+    await render(<BoomerangPicker value="2026-11-30" onPick={onPick} onCancel={() => {}} clock={clock} />);
     expect(screen.getByText(/Out until Mon, Nov 30 now/)).toBeTruthy();
+    // And offers to bring them back, which lines of a pad are not offered.
+    await fireEvent.press(screen.getByText('Back now'));
+    expect(onPick).toHaveBeenLastCalledWith(null, '2026-11-25');
   });
 });

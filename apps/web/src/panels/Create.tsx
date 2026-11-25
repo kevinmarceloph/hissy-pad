@@ -10,7 +10,8 @@ import {
   cmdAppendAtEnd, cmdCreateEnd, cmdCreateItem, cmdCreateMove, cmdCreateOpen, cmdCreateSetText, createDefaultPlace, placeFromKey, placeKey, placeList, usePad,
 } from '@hissypad/state'
 import { cmdPickSlot } from '@hissypad/state/hours'
-import { HoursIcon, PadIcon } from '../app/icons'
+import { HoursIcon, LineIcon, PadIcon } from '../app/icons'
+import { cmdPickBoomerang, dueWords } from '@hissypad/state'
 import { Pad } from '../pad/Pad'
 import { SelectionBar } from '../pad/SelectionBar'
 import { AutoText, oneLine } from './Sort'
@@ -85,6 +86,7 @@ export function CreateDialog({ depth, onClose, onOpen }: { depth: number; onClos
 
   const text = row ? row.text : draft
   const slot = row?.slot ?? null
+  const due = row?.due ?? null
   const can = text.trim() !== '' || hasSubs
 
   return (
@@ -113,7 +115,10 @@ export function CreateDialog({ depth, onClose, onOpen }: { depth: number; onClos
             </select>
           </label>
           {slot && <span className="slot" title="The hour this line is in">{slotLabel(slot, todayKey())}</span>}
+          {due && <span className="slot" title="Out on a boomerang until this day">Out until {dueWords(due)}</span>}
           <button type="button" className="sort-hour" onClick={() => cmdPickSlot([ensure()])} title="Put in an hour" aria-label={slot ? `Hour: ${slotLabel(slot, todayKey())}, change` : 'Put in an hour'}><HoursIcon /></button>
+          {/* Out until a later day from the start: the card stays up, the line is under Later. */}
+          <button type="button" className="sort-hour" onClick={() => cmdPickBoomerang([ensure()])} title="Boomerang: out of the pads until a later day" aria-label={due ? `Out until ${dueWords(due)}, change` : 'Boomerang: send out until a later day'}><LineIcon icon="boomerang" /></button>
           <button type="button" className="sort-hour" onClick={seeInPad} disabled={!row || !can} title="Add it and see it in its pad" aria-label="See it in the pad"><PadIcon /></button>
         </div>
         <AutoText

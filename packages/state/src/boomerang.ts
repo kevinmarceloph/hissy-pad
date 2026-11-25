@@ -8,7 +8,7 @@ import { dayOf, shiftDay } from '@hissypad/core/hours'
 
 import { applyAll, applyQuiet, setAfterSettle, usePad } from './store'
 import { clearSelection, holdEditing, stopEditing, targets } from './selection'
-import { openHours } from './hours'
+import { hoursIfOpen, openHours } from './hours'
 
 // The hour a day starts at: Hours' setting, which follows the account.
 async function dayStart(): Promise<number> {
@@ -73,11 +73,19 @@ export function targetDue(ids: readonly string[] = targets()): string | null {
   return days.size === 1 ? [...days][0]! : null
 }
 
+// The day a line is out until, in words, counted from the day this moment belongs to: the
+// chip on a card (Sort's, the new item's).
+export function dueWords(due: string, now: Date = new Date()): string {
+  return dueLabel(due, dayOf(now, hoursIfOpen()?.day.getState().start ?? 0))
+}
+
 // What the picker's answer does, with the line the app shows afterwards. `today` is the day
-// the picker counted from.
-export function cmdApplyBoomerang(due: string, today: string): string {
-  const n = cmdBoomerang(due, picked.length ? picked : targets())
+// the picker counted from. null is the picker's "Back now", offered for lines already out.
+export function cmdApplyBoomerang(due: string | null, today: string): string {
+  const ids = picked.length ? picked : targets()
   picked = []
+  if (due === null) return cmdComeBack(ids) ? 'Back in the Inbox.' : ''
+  const n = cmdBoomerang(due, ids)
   void armDelivery()
   if (n === 0) return ''
   const label = dueLabel(due, today)

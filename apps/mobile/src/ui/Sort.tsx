@@ -20,6 +20,8 @@ import { serif, type Theme } from '../theme'
 import { FloatingButtons } from './FloatingButtons'
 import { SubRows } from './SubRows'
 import { HoursIcon, PadIcon } from './TopIcons'
+import { LineIcon } from './LineIcons'
+import { cmdPickBoomerang, dueWords } from '@hissypad/state'
 
 const SLOP = 10 // px before a touch on the card becomes a drag
 
@@ -223,6 +225,16 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
                   style={({ pressed }) => [s.hour, { opacity: pressed ? 0.5 : 1 }]}
                 >
                   <HoursIcon color={theme.inkSoft} />
+                </Pressable>
+                {/* Out of the pads until a later day: the card moves on, the line is under Later. */}
+                <Pressable
+                  onPress={() => cmdPickBoomerang([id])}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={row.due ? `Out until ${dueWords(row.due)}, change` : 'Boomerang: send out until a later day'}
+                  style={({ pressed }) => [s.hour, { opacity: pressed ? 0.5 : 1 }]}
+                >
+                  <LineIcon icon="boomerang" color={theme.inkSoft} ground={theme.paperRaised} />
                 </Pressable>
                 <Pressable
                   onPress={() => { if (cmdOpenHit(id)) onOpen?.() }}

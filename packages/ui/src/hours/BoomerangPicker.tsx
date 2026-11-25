@@ -14,8 +14,9 @@ type Props = {
   value: string | null;
   // How many lines are being sent, for the heading.
   count?: number;
-  // A day was picked. `today` is the day it was counted from, for the words said back.
-  onPick(due: string, today: string): void;
+  // A day was picked, or "Back now" (null) for lines already out. `today` is the day it was
+  // counted from, for the words said back.
+  onPick(due: string | null, today: string): void;
   onCancel(): void;
   scheme?: 'light' | 'dark' | null;
   clock?: () => Date;
@@ -83,6 +84,11 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
         <DayPicker day={day} today={today} from={first} onPick={setChosen} />
       </View>
       <View style={styles.actions}>
+        {value !== null && (
+          <Tap onPress={() => onPick(null, today)} style={[styles.action, { borderColor: theme.line }]} activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paperRaised }}>
+            <Text style={[styles.body, { color: theme.ink }]}>Back now</Text>
+          </Tap>
+        )}
         <Tap onPress={onCancel} style={[styles.action, { borderColor: theme.line }]} activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paperRaised }}>
           <Text style={[styles.body, { color: theme.ink }]}>Cancel</Text>
         </Tap>

@@ -53,6 +53,14 @@ describe('boomerang commands', () => {
     expect(targetDue([id('B'), id('C')])).toBe('2026-11-26')
   })
 
+  it('the picker\'s Back now brings the lines it was opened for back', () => {
+    setBoomerangPickerOpener(() => {})
+    cmdBoomerang('2026-12-01', [id('C')])
+    cmdPickBoomerang([id('C')])
+    expect(cmdApplyBoomerang(null, '2026-11-25')).toBe('Back in the Inbox.')
+    expect(tableShape()).toBe('C\nA\n  a1\nB')
+  })
+
   it('comes back by hand', () => {
     cmdBoomerang('2026-12-01', [id('C')])
     expect(cmdComeBack([id('C')])).toBe(1)

@@ -87,7 +87,7 @@ export function SlotDialog({ value, count, onPick, onClose }: { value: string | 
 }
 
 // The day picker the pad's floating Boomerang button opens, in a dialog.
-export function BoomerangDialog({ value, count, onPick, onClose }: { value: string | null; count: number; onPick: (due: string, today: string) => void; onClose: () => void }) {
+export function BoomerangDialog({ value, count, onPick, onClose }: { value: string | null; count: number; onPick: (due: string | null, today: string) => void; onClose: () => void }) {
   const scheme = useScheme()
   return (
     <dialog

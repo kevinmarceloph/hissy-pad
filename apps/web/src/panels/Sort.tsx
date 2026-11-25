@@ -9,7 +9,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { scopePad, slotLabel, todayKey } from '@hissypad/core'
 import { cmdPickSlot } from '@hissypad/state/hours'
-import { HoursIcon, PadIcon } from '../app/icons'
+import { HoursIcon, LineIcon, PadIcon } from '../app/icons'
+import { cmdPickBoomerang, dueWords } from '@hissypad/state'
 import { Pad } from '../pad/Pad'
 import { SelectionBar } from '../pad/SelectionBar'
 import {
@@ -284,6 +285,8 @@ export function Sort({ onClose, paused = false }: { onClose: () => void; paused?
               <p className="sort-count">{progress.at} of {progress.total}</p>
               {row.slot && <span className="slot" title="The hour this line is in">{slotLabel(row.slot, todayKey())}</span>}
               <button type="button" className="sort-hour" onClick={() => cmdPickSlot([id])} title="Put in an hour" aria-label={row.slot ? `Hour: ${slotLabel(row.slot, todayKey())}, change` : 'Put in an hour'}><HoursIcon /></button>
+              {/* Out of the pads until a later day: the card moves on, the line is under Later. */}
+              <button type="button" className="sort-hour" onClick={() => cmdPickBoomerang([id])} title="Boomerang: out of the pads until a later day" aria-label={row.due ? `Out until ${dueWords(row.due)}, change` : 'Boomerang: send out until a later day'}><LineIcon icon="boomerang" /></button>
               <button type="button" className="sort-hour" onClick={() => { if (cmdOpenHit(id)) onClose() }} title="See it in the pad" aria-label="See it in the pad"><PadIcon /></button>
             </div>
             <AutoText
