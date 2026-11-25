@@ -5,7 +5,7 @@ import { dayDate, MemoryStore } from '@hissypad/core/hours';
 import { applyAll, cmdDeleteSelection, loadPad, resetStore, select, usePad, zoomTo } from '@hissypad/state';
 import { cmdSetSlot, cmdSlotDone, createCategoryStore, createDayStore, createFlagStore, openHours } from '@hissypad/state/hours';
 
-import { act, fireEvent, render, screen } from '../testing/rntl';
+import { act, fireEvent, render, screen, within } from '../testing/rntl';
 import { DayScreen } from './DayScreen';
 import { LinesContext } from './HostedLines';
 import { StoresProvider } from './provider';
@@ -35,7 +35,7 @@ async function setup() {
 }
 
 describe('the pad\'s lines in an hour', () => {
-  it('shows the line on top of an hour on its row, and counts the hour\'s lines done out of all', async () => {
+  it('shows the line on top of an hour on its row, with no count of its lines done out of all', async () => {
     await setup();
     await act(async () => {
       select([id('call the bank'), id('send invoice')]);
@@ -44,18 +44,18 @@ describe('the pad\'s lines in an hour', () => {
     });
     // No summary was typed, so the row says its first line as the pad has them, crossed
     // out or not: an hour keeps no order of its own.
-    expect(screen.getByLabelText('2pm, now: call the bank, 1 of 2 lines done')).toBeTruthy();
-    expect(screen.getByText('1/2')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: call the bank')).toBeTruthy();
+    expect(screen.queryByText('1/2')).toBeNull();
     // An hour with nothing assigned says nothing about items.
     expect(screen.getByLabelText('1pm: blank')).toBeTruthy();
   });
 
-  it('counts only the lines put in the hour, not what is under them', async () => {
+  it('says the lines put in the hour, not what is under them', async () => {
     const { day } = await setup();
     await act(async () => {
       cmdSetSlot(slotKey('2026-11-19', 14), [id('send invoice'), id('buy milk')]);
     });
-    expect(screen.getByLabelText('2pm, now: send invoice, 0 of 2 lines done')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: send invoice')).toBeTruthy();
     // Nothing is stored on the hour until it is written to.
     expect(day.getState().byHour[14]).toBeUndefined();
 
@@ -66,12 +66,13 @@ describe('the pad\'s lines in an hour', () => {
       cmdSlotDone(id('buy milk'), true);
     });
     // The lines under one are not counted, nor as extra.
-    expect(screen.getByLabelText('2pm, now: send invoice, 1 of 2 lines done')).toBeTruthy();
-    expect(screen.queryByText(/^\+/)).toBeNull();
+    expect(screen.getByLabelText('2pm, now: send invoice')).toBeTruthy();
+    expect(screen.queryByText(/^✕/)).toBeNull();
+    expect(screen.queryByText(/\d\/\d/)).toBeNull();
 
     // Done is the hour's own, said by hand; the line stays what the row shows.
     await fireEvent.press(screen.getByRole('radio', { name: '2pm: Done' }));
-    expect(screen.getByLabelText('2pm, now: send invoice, done, 1 of 2 lines done')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: send invoice, done')).toBeTruthy();
     expect(day.getState().byHour[14]).toMatchObject({ state: 'done', note: '', plannedNote: '' });
   });
 
@@ -88,8 +89,12 @@ describe('the pad\'s lines in an hour', () => {
         return { all: { ...s.all, [r.id]: r } };
       });
     });
-    expect(screen.getByLabelText('2pm, now: call the bank, 1 of 1 line done, 1 more done')).toBeTruthy();
-    expect(screen.getByText('+1')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: call the bank, 1 more done')).toBeTruthy();
+    expect(screen.getByText('✕1')).toBeTruthy();
+    // The open hour lists it under a heading of its own; its own line is not listed there.
+    const list = screen.getByRole('list', { name: 'Lines done in this hour' });
+    expect(within(list).getByText('buy milk')).toBeTruthy();
+    expect(within(list).queryByText('call the bank')).toBeNull();
   });
 
   it('puts a new item at the top of Today, already in the hour', async () => {
@@ -114,7 +119,7 @@ describe('the pad\'s lines in an hour', () => {
     });
     expect(all()[invoice]!.deletedAt).not.toBeNull();
     // It still counts: it was the hour's, and it was done.
-    expect(screen.getByLabelText('2pm, now: call the bank, 1 of 2 lines done')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: call the bank')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Archived' })).toBeTruthy();
     expect(screen.getByText('send invoice')).toBeTruthy();
     // Its way out is back to its pad, not out of the hour.
@@ -133,7 +138,7 @@ describe('the pad\'s lines in an hour', () => {
     await fireEvent.changeText(screen.getByLabelText('Add a line to this hour'), 'pack for the trip');
     await fireEvent.press(screen.getByLabelText('Add the line'));
     expect(all()[id('pack for the trip')]!.slot).toBe('2026-11-19T17');
-    expect(screen.getByLabelText('5pm: pack for the trip, 0 of 1 line done')).toBeTruthy();
+    expect(screen.getByLabelText('5pm: pack for the trip')).toBeTruthy();
   });
 });
 
@@ -367,9 +372,9 @@ describe('a line in a run of hours', () => {
       select([id('call the bank')]);
       cmdSetSlot(slotKey('2026-11-19', 13, 3));
     });
-    expect(screen.getByLabelText('1pm: call the bank, 0 of 1 line done')).toBeTruthy();
-    expect(screen.getByLabelText('2pm, now: call the bank, 0 of 1 line done')).toBeTruthy();
-    expect(screen.getByLabelText('3pm: call the bank, 0 of 1 line done')).toBeTruthy();
+    expect(screen.getByLabelText('1pm: call the bank')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: call the bank')).toBeTruthy();
+    expect(screen.getByLabelText('3pm: call the bank')).toBeTruthy();
     expect(screen.getByLabelText('4pm: not yet')).toBeTruthy();
   });
 });
@@ -414,7 +419,7 @@ describe('an open hour drawn by the host\'s own editor', () => {
     expect(screen.getByLabelText('Add a line to this hour')).toBeTruthy();
 
     // Another hour takes the view; closing it gives the view back to the pad.
-    await fireEvent.press(screen.getByLabelText('3pm: buy milk, 0 of 1 line done'));
+    await fireEvent.press(screen.getByLabelText('3pm: buy milk'));
     expect(usePad.getState().slotId).toBe('2026-11-19T15');
     expect(screen.getByTestId('host-rows').textContent).toBe('buy milk');
     await fireEvent.press(screen.getByText('Close'));

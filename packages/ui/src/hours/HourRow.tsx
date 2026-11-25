@@ -6,7 +6,7 @@ import { hourLabel, type SlotState } from '@hissypad/core/hours';
 import { EMPTY, hourShown, hourState, isLogged, type Entry, type EntryPatch } from '@hissypad/core/hours';
 import { flagChoice, flagOption, setFlagChoice, type Flag } from '@hissypad/core/hours';
 
-import type { NodeRow, SlotCount } from '@hissypad/core';
+import type { NodeRow } from '@hissypad/core';
 
 import { cmdAddCategory } from '@hissypad/state/hours';
 
@@ -25,9 +25,6 @@ type Props = {
   hour: number;
   // The line on top of the hour's list: what the row says when no summary was typed.
   top?: NodeRow | undefined;
-  // What the row counts, crossed out and open: the hour's lines, or the lines right under
-  // its one line (slotProgress).
-  count?: SlotCount | undefined;
   // Lines crossed out during this hour that were not assigned to it (cleared ones too).
   extra?: number | undefined;
   // The hour as drawn: with the recurring plan that covers it, if it has no words of its own.
@@ -44,7 +41,7 @@ type Props = {
 };
 
 export function HourRow(props: Props) {
-  const { hour, entry, state, open, categories, flags, top, count, extra = 0, onOpen, onClose } = props;
+  const { hour, entry, state, open, categories, flags, top, extra = 0, onOpen, onClose } = props;
   const theme = useTheme();
   const label = hourLabel(hour);
   const isNow = state === 'now';
@@ -68,13 +65,11 @@ export function HourRow(props: Props) {
   // A category id this device does not know, on an hour with no words, reads as untagged.
   const untagged = !category && shown.category !== null && !shown.title;
   const words = untagged ? 'Untagged' : [categoryShown, shown.title || null].filter(Boolean).join(': ');
-  const items = count ? count.done + count.open : 0;
   // The row says in words what the mark, the count and the flag icons show.
   const spoken = [
     words || (mark !== 'open' ? null : state === 'future' ? 'not yet' : 'blank'),
     mark === 'open' ? null : mark,
     aside || null,
-    items > 0 ? `${count!.done} of ${items} ${items === 1 ? 'line' : 'lines'} done` : null,
     extra > 0 ? `${extra} more done` : null,
   ]
     .filter(Boolean)
@@ -116,19 +111,12 @@ export function HourRow(props: Props) {
             {isNow ? 'happening now' : state === 'past' && mark === 'open' ? 'blank' : ''}
           </Text>
         )}
-        {(items > 0 || extra > 0) && (
-          // Crossed out, out of all. A tick leads when every one is done, so the count never
-          // rests on its weight alone. "+N" after it is the lines crossed out in this hour
-          // that were assigned elsewhere or nowhere, cleared ones too.
+        {extra > 0 && (
+          // The lines crossed out in this hour that were assigned elsewhere or nowhere,
+          // cleared ones too: a cross, the pad's mark for a line done, and how many (Kevin,
+          // 2026-11-25). The open hour lists them under "Done in this hour".
           <Text aria-hidden style={[styles.items, { color: theme.inkSoft }]}>
-            {items > 0 && (
-              <Text style={[{ color: count!.open === 0 ? theme.ink : theme.inkSoft }, count!.open === 0 && { fontWeight: '700' }]}>
-                {count!.open === 0 ? '✓ ' : ''}
-                {count!.done}/{items}
-              </Text>
-            )}
-            {items > 0 && extra > 0 ? ' ' : ''}
-            {extra > 0 ? `+${extra}` : ''}
+            ✕{extra}
           </Text>
         )}
         {carried.length > 0 && (

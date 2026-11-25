@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSlot, slotCounts, slotCovers, slotDoneExtra, slotHours, slotKey, lineOrder, scopeSlot, slotLabel, slotLines, slotProgress, slotTops } from './slot'
+import { parseSlot, slotCounts, slotCovers, slotDoneElsewhere, slotDoneExtra, slotHours, slotKey, lineOrder, scopeSlot, slotLabel, slotLines, slotProgress, slotTops } from './slot'
 import type { NodeRow, Rows } from './types'
 
 const row = (id: string, slot: string | null, done = false): NodeRow => ({
@@ -69,6 +69,10 @@ describe('lines crossed out during an hour', () => {
       row('i', null),                                  // open
     )
     expect(slotDoneExtra(all)).toEqual({ '2026-11-24T14': 2, '2026-11-24T15': 1 })
+    // The lines themselves, in the order they were crossed out.
+    const lines = slotDoneElsewhere(all)
+    expect(lines['2026-11-24T14']!.map((r) => r.id)).toEqual(['a', 'b'])
+    expect(lines['2026-11-24T15']!.map((r) => r.id)).toEqual(['e'])
   })
 })
 

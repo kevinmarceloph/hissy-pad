@@ -74,12 +74,12 @@ export function slotCounts(all: Rows): Record<string, SlotCount> {
   return out
 }
 
-// How many lines were crossed out during each hour (by doneAt, device local time) beyond the
-// ones assigned to that hour, which slotCounts already has. A line cleared or deleted since
-// still counts: the work was done then. Blank lines and pad rows never count, nor a line
-// crossed out before doneAt existed.
-export function slotDoneExtra(all: Rows): Record<string, number> {
-  const out: Record<string, number> = {}
+// The lines crossed out during each hour (by doneAt, device local time) beyond the ones
+// assigned to that hour, which slotCounts already has, in the order they were crossed out.
+// A line cleared or deleted since still counts: the work was done then. Blank lines and pad
+// rows never count, nor a line crossed out before doneAt existed.
+export function slotDoneElsewhere(all: Rows): Record<string, NodeRow[]> {
+  const out: Record<string, NodeRow[]> = {}
   for (const id in all) {
     const r = all[id]!
     if (!r.done || !r.doneAt || isBlank(r) || r.pad) continue
@@ -95,8 +95,17 @@ export function slotDoneExtra(all: Rows): Record<string, number> {
       up = up.parentId ? all[up.parentId] : undefined
     }
     if (inside) continue
-    out[key] = (out[key] ?? 0) + 1
+    ;(out[key] ??= []).push(r)
   }
+  for (const key in out) out[key]!.sort((a, b) => (a.doneAt! < b.doneAt! ? -1 : a.doneAt! > b.doneAt! ? 1 : 0))
+  return out
+}
+
+// How many of those each hour has.
+export function slotDoneExtra(all: Rows): Record<string, number> {
+  const out: Record<string, number> = {}
+  const lines = slotDoneElsewhere(all)
+  for (const key in lines) out[key] = lines[key]!.length
   return out
 }
 

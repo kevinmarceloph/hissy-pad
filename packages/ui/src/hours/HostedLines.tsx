@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
-import { slotKey, slotLines, stateOf } from '@hissypad/core';
+import { slotDoneElsewhere, slotKey, slotLines, stateOf } from '@hissypad/core';
 import { closeSlot, cmdUnarchive, openSlot, usePad } from '@hissypad/state';
 
 import { SlotAdder } from './SlotAdder';
@@ -24,8 +24,9 @@ type Props = {
 
 // An open hour's lines, drawn by the pad's own editor (PLAN.md, "Hours joins the pad"): the store is
 // asked to show this hour, the host draws its rows, and the host's toolbar acts on them.
-// Under them, what a view of live rows leaves out, the hour's archived lines under a
-// heading of their own, and the field that brings lines in.
+// Under them, what a view of live rows leaves out: the lines crossed out during the hour
+// that were not put in it, and the hour's archived lines, each under a heading of their
+// own; then the field that brings lines in.
 export function HostedLines({ day, hour, onClose }: Props) {
   const theme = useTheme();
   // Both apps hand an editor in. Without one (a screen under test) no lines are drawn and
@@ -50,10 +51,31 @@ export function HostedLines({ day, hour, onClose }: Props) {
   );
 
   const archived = slotLines(all, slot).filter((r) => r.deletedAt !== null);
+  // What the row counts as ✕N, in the order it was crossed out (Kevin, 2026-11-25).
+  const finished = useMemo(() => slotDoneElsewhere(all)[slot] ?? [], [all, slot]);
 
   return (
     <View style={styles.group}>
       {render && shown === slot && render({ day, hour, slot })}
+      {finished.length > 0 && (
+        // Lines from any pad, crossed out while this hour ran, cleared ones too. Read only:
+        // they live in their own pads, and in their own hours if they have one.
+        <View>
+          <Text role="heading" aria-level={3} style={[styles.heading, { color: theme.inkSoft }]}>
+            Done in this hour
+          </Text>
+          <View role="list" aria-label="Lines done in this hour">
+            {finished.map((r) => (
+              <View key={r.id} role="listitem" style={styles.line}>
+                <View aria-hidden style={styles.bullet}>
+                  <StateMark state="done" color={theme.inkQuiet} />
+                </View>
+                <Text style={[styles.text, styles.struck, { color: theme.inkQuiet }]}>{r.text}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
       {archived.length > 0 && (
         // Drawn like the pad's lines, under a heading of their own: a bullet that says the
         // line's state, its words, and the way back (Kevin, 2026-11-25). Unarchiving puts
