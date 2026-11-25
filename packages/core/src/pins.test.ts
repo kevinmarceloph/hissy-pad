@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dedent, indent, insertAfter, insertAtTop, insertBefore, moveNodes, moveSibling, moveToTop } from './ops'
+import { dedent, indent, insertAfter, insertAtTop, insertBefore, moveNodes, moveSibling, moveToBottom, moveToTop } from './ops'
 import { pinDivider, settlePins, togglePinned } from './pins'
 import { buildIndex, flatten } from './tree'
 import { idOf, pad, shape, testCtx } from './testing'
@@ -41,6 +41,16 @@ describe('pins', () => {
     expect(shape(rows)).toBe('^B\n^A\nD\nC')
     // Already at the top of its area: nothing moves.
     expect(moveToTop(rows, ctx, [idOf(rows, 'D')])).toBe(rows)
+  })
+
+  it('move to bottom stops above the divider for a pin; an unpinned line goes to the end', () => {
+    let rows = pinned('A\nB\nC\nD', 'A', 'B')
+    rows = moveToBottom(rows, ctx, [idOf(rows, 'A')])
+    expect(shape(rows)).toBe('^B\n^A\nC\nD')
+    rows = moveToBottom(rows, ctx, [idOf(rows, 'C')])
+    expect(shape(rows)).toBe('^B\n^A\nD\nC')
+    // Already at the bottom of its area: nothing moves.
+    expect(moveToBottom(rows, ctx, [idOf(rows, 'A')])).toBe(rows)
   })
 
   it('move up and down stay on their side of the divider', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  dedent, indent, insertAfter, insertAtTop, insertBefore, mergeIntoPrev, moveNodes, moveSibling, moveToTop,
+  dedent, indent, insertAfter, insertAtTop, insertBefore, mergeIntoPrev, moveNodes, moveSibling, moveToBottom, moveToTop,
   remove, removeDone, setCollapsed, setDone, setKind, setNumbered, setText, splitNode, sweepDone, toggleDone, toggleNumbered, ungroup, splitOpen,
   setState, sharedState,
 } from './ops'
@@ -206,6 +206,16 @@ describe('moveToTop', () => {
     expect(shape(moveToTop(rows, ctx, [idOf(rows, 'C'), idOf(rows, 'D')]))).toBe('C\nD\nA\nB\n  B1\n  B2\n  B3')
     expect(shape(moveToTop(rows, ctx, [idOf(rows, 'B3')]))).toBe('A\nB\n  B3\n  B1\n  B2\nC\nD')
     expect(moveToTop(rows, ctx, [idOf(rows, 'A')])).toBe(rows)
+  })
+})
+
+describe('moveToBottom', () => {
+  it('puts the targets last among their siblings, in order, and leaves a group already there', () => {
+    const ctx = testCtx()
+    const rows = pad('A\nB\n  B1\n  B2\n  B3\nC\nD', ctx)
+    expect(shape(moveToBottom(rows, ctx, [idOf(rows, 'A'), idOf(rows, 'B')]))).toBe('C\nD\nA\nB\n  B1\n  B2\n  B3')
+    expect(shape(moveToBottom(rows, ctx, [idOf(rows, 'B1')]))).toBe('A\nB\n  B2\n  B3\n  B1\nC\nD')
+    expect(moveToBottom(rows, ctx, [idOf(rows, 'D')])).toBe(rows)
   })
 })
 

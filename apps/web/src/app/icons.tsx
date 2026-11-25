@@ -24,6 +24,7 @@ const LINE_ICONS: Record<LineIconId, ReactNode> = {
   up: <Icon d="M10 16V4.5M6 8.5l4-4 4 4" />,
   // An arrow up to a bar.
   top: <Icon d="M4 3.5h12M10 17V7.5M6 11.5l4-4 4 4" />,
+  bottom: <Icon d="M4 16.5h12M10 3v9.5M6 8.5l4 4 4-4" />,
   // Two chevrons closing on each other; the same two opening.
   fold: <Icon d="M6 3.5l4 4 4-4M6 16.5l4-4 4 4" />,
   unfold: <Icon d="M6 7.5l4-4 4 4M6 12.5l4 4 4-4" />,

@@ -48,7 +48,7 @@ export {
   dedent,
   ungroup,
   splitOpen,
-  moveSibling, moveToTop,
+  moveSibling, moveToBottom, moveToTop,
   mergeIntoPrev,
   removeDone,
   sweepDone,

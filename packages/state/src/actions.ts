@@ -8,7 +8,7 @@
 // draw them as round buttons floating above it, Done as the open / doing / done switch.
 import { buildIndex, childrenOf, topmost, type NodeKind, type Rows } from '@hissypad/core'
 import {
-  cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdMoveToTop, cmdPaste, cmdTogglePin, cmdToggleCollapsed, cmdSplitOpen, cmdToggleDone, cmdUngroup, useClipboard,
+  cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdMoveToBottom, cmdMoveToTop, cmdPaste, cmdTogglePin, cmdToggleCollapsed, cmdSplitOpen, cmdToggleDone, cmdUngroup, useClipboard,
 } from './commands'
 import { cmdLineToPad } from './pads'
 import { cmdPickSlot, cmdSetSlot } from './hours/slots'
@@ -36,7 +36,7 @@ export interface LineAbilities {
 }
 
 // `hour`: the rows are an open hour's lines. Its own lines, at the root, have no order to
-// change (an hour lists them as the pads have them), so up, down and top are off for them.
+// change (an hour lists them as the pads have them), so up, down, top and bottom are off for them.
 // Pinned lines move only among the pins, and the others only under them (core's pins.ts).
 export function lineAbilities(
   rows: Rows, ids: readonly string[], hour: boolean = usePad.getState().slotId !== null, zoomed: boolean = usePad.getState().zoomId !== null,
@@ -78,7 +78,7 @@ export type LineActionGroup = 'mark' | 'add' | 'move' | 'tree' | 'clip' | 'pad' 
 
 // The icons the toolbars draw. 'move' is also the Sort mode's icon in the top bar, and the
 // "Move to…" menu's button.
-export type LineIcon = 'addAbove' | 'addBelow' | 'dedent' | 'indent' | 'down' | 'up' | 'top' | 'fold' | 'unfold' | 'copy' | 'cut' | 'pasteAbove' | 'pasteBelow' | 'move' | 'archive' | 'hour' | 'category' | 'boomerang' | 'more'
+export type LineIcon = 'addAbove' | 'addBelow' | 'dedent' | 'indent' | 'down' | 'up' | 'top' | 'bottom' | 'fold' | 'unfold' | 'copy' | 'cut' | 'pasteAbove' | 'pasteBelow' | 'move' | 'archive' | 'hour' | 'category' | 'boomerang' | 'more'
 
 export interface LineAction {
   id: string
@@ -125,6 +125,7 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   { id: 'down', group: 'move', label: '↓', name: 'Move down', hint: 'Move down', icon: 'down', keys: 'Alt+↓', enabled: (c) => c.down, run: () => cmdMove('down') },
   { id: 'up', group: 'move', label: '↑', name: 'Move up', hint: 'Move up', icon: 'up', keys: 'Alt+↑', enabled: (c) => c.up, run: () => cmdMove('up') },
   { id: 'top', group: 'move', label: 'Top', name: 'Move to top', hint: 'Move to the top of its level', icon: 'top', enabled: (c) => c.up, run: cmdMoveToTop },
+  { id: 'bottom', group: 'move', label: 'Bottom', name: 'Move to bottom', hint: 'Move to the bottom of its level', icon: 'bottom', enabled: (c) => c.down, run: cmdMoveToBottom },
   {
     // Kept at the top of the pad, above a divider; Move to top then stops under the pins.
     id: 'pin', group: 'move', label: 'Pin to top', name: 'Pin to top', hint: 'Pin to the top of the pad, above a divider', more: true,

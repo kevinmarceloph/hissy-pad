@@ -66,6 +66,10 @@ export function LineIcon({ icon, color, ground }: { icon: LineIconId; color: str
     case 'top':
       body = <><H x={4} y={3.5} len={12} color={color} /><V x={10} y={7.5} len={9.5} color={color} /><Chevron x={10} y={7} dir="up" size={6} color={color} /></>
       break
+    // An arrow down to a bar.
+    case 'bottom':
+      body = <><H x={4} y={16.5} len={12} color={color} /><V x={10} y={3} len={9.5} color={color} /><Chevron x={10} y={13} dir="down" size={6} color={color} /></>
+      break
     // Two chevrons closing on each other; the same two opening.
     case 'fold':
       body = <><Chevron x={10} y={8} dir="down" color={color} /><Chevron x={10} y={12} dir="up" color={color} /></>

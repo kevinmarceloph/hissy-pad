@@ -2,7 +2,7 @@
 // handler (Pad). Each one picks its targets from the store and decides where the caret or
 // selection goes afterwards.
 import {
-  buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, moveToTop, remove, removeDone, ungroup, splitOpen,
+  buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, moveToBottom, moveToTop, remove, removeDone, ungroup, splitOpen,
   setKind, setText as setTextOp, splitNode, togglePinned, toggleDone, setState, toggleNumbered, type LineState, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
@@ -212,6 +212,12 @@ export function cmdMove(dir: 'up' | 'down') {
 export function cmdMoveToTop() {
   const ids = targets()
   if (ids.length) apply((rows, ctx) => moveToTop(rows, ctx, ids), { label: 'cmdMoveToTop' })
+}
+
+// Move to bottom: last among its siblings.
+export function cmdMoveToBottom() {
+  const ids = targets()
+  if (ids.length) apply((rows, ctx) => moveToBottom(rows, ctx, ids), { label: 'cmdMoveToBottom' })
 }
 
 // Pin: the top-level lines among the targets go to the very top of the pad, above the

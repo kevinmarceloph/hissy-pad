@@ -448,6 +448,33 @@ export function moveToTop(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
   return out
 }
 
+// Move to bottom: each target goes last among its siblings (a selection keeps its order).
+// A group already at the bottom stays put. A pinned line goes to the bottom of the pins,
+// right above the divider; an unpinned one to the bottom of the level (pins.ts).
+export function moveToBottom(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
+  const index0 = buildIndex(rows)
+  const moving = topmost(index0, ids)
+  const byParent = new Map<string | null, string[]>()
+  for (const id of moving) {
+    const p = index0.parentOf.get(id) ?? null
+    byParent.set(p, [...(byParent.get(p) ?? []), id])
+  }
+  let out = rows
+  for (const [parentId, group] of byParent) {
+    for (const pinned of [true, false]) {
+      const part = group.filter((id) => rows[id]!.pinned === pinned)
+      if (part.length === 0) continue
+      const skip = new Set(part)
+      const index = buildIndex(out)
+      const next = nextSiblingExcluding(index, part.at(-1)!, skip)
+      if (!next || next.pinned !== pinned) continue
+      const last = childrenOf(index, parentId).filter((s) => !skip.has(s.id) && s.pinned === pinned).at(-1)!
+      out = moveNodes(out, ctx, part, { parentId, afterId: last.id })
+    }
+  }
+  return out
+}
+
 // Backspace at the start of a node: fold its text into the visible node above and delete
 // it. Refused when the node still has children (deleting those by accident is the worst
 // outcome for a scratchpad) or when there is nothing above.

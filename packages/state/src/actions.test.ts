@@ -116,6 +116,14 @@ describe('the toolbar registry', () => {
     expect(action('top').enabled!(lineAbilities(usePad.getState().rows, usePad.getState().selection))).toBe(false)
   })
 
+  it('Bottom puts the line last at its level; off when it is already there', () => {
+    pick('A')
+    expect(action('bottom').enabled!(lineAbilities(usePad.getState().rows, usePad.getState().selection))).toBe(true)
+    action('bottom').run()
+    expect(shown()).toBe('B\n  B1\nC\nA')
+    expect(action('bottom').enabled!(lineAbilities(usePad.getState().rows, usePad.getState().selection))).toBe(false)
+  })
+
   it('Cut copies then deletes; Paste above and below bring the clipboard in as lines beside the selection', async () => {
     let clip = ''
     setClipboard(async (text) => { clip = text; return true })
