@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { findFixedPad, idOf, listPads } from '@hissypad/core'
-import { loadPad, usePad } from './store'
+import { findFixedPad, idOf, listPads, setCategory, setSlot } from '@hissypad/core'
+import { applyAll, loadPad, usePad } from './store'
 import { undo } from './history'
 import { cmdNewPad, cmdMoveToPad } from './pads'
 import { select } from './selection'
 import { openPad } from './store'
 import { cmdToggleDone } from './commands'
 import { setSortTarget } from './sort'
-import { cmdAddToPad, cmdWidgetActions, widgetPadName, widgetSnapshot, WIDGET_INBOX, WIDGET_MAIN } from './widget'
+import { cmdAddToPad, cmdWidgetActions, widgetHourKey, widgetPadName, widgetSnapshot, WIDGET_INBOX, WIDGET_MAIN } from './widget'
 import { resetStore, tableShape } from './testing'
 
 const all = () => usePad.getState().all
@@ -122,8 +122,59 @@ describe('the widget', () => {
     expect(cmdWidgetActions([{ dir: 'done', id: id('B') }, { dir: 'done', id: id('B') }, { dir: 'done', id: 'missing' }])).toBe(1)
     expect(whole()).toBe('A\n~B\n  B1\n  B2\n\nC\nD')
     expect(all()[id('B')]!.doneAt).not.toBeNull()
-    expect(widgetSnapshot().pads.find((p) => p.id === WIDGET_MAIN)!.items.map((i) => i.text)).toEqual(['A', 'C', 'D'])
+    // It stays in the list, crossed out, and is no longer counted.
+    const main = widgetSnapshot().pads.find((p) => p.id === WIDGET_MAIN)!
+    expect(main.items.map((i) => [i.text, i.state])).toEqual([['A', undefined], ['B', 'done'], ['C', undefined], ['D', undefined]])
+    expect(main.count).toBe(3)
     undo()
     expect(all()[id('B')]!.done).toBe(false)
+  })
+
+  it('a bullet tapped on a widget puts the line in that state, one undo step each; the same state twice is skipped', () => {
+    expect(cmdWidgetActions([
+      { dir: 'state', id: id('A'), state: 'doing' },
+      { dir: 'state', id: id('A'), state: 'doing' },
+      { dir: 'state', id: id('C'), state: 'done' },
+      { dir: 'state', id: 'missing', state: 'done' },
+      { dir: 'state', id: id('D'), state: 'sideways' as 'done' },
+    ])).toBe(2)
+    expect(all()[id('A')]).toMatchObject({ doing: true, done: false })
+    expect(all()[id('C')]).toMatchObject({ doing: false, done: true })
+    const main = widgetSnapshot().pads.find((p) => p.id === WIDGET_MAIN)!
+    expect(main.items.map((i) => i.state ?? 'open')).toEqual(['doing', 'open', 'done', 'open'])
+    expect(main.count).toBe(3) // doing is still open
+    expect(cmdWidgetActions([{ dir: 'state', id: id('C'), state: 'open' }])).toBe(1)
+    expect(all()[id('C')]).toMatchObject({ done: false, doneAt: null })
+    undo()
+    expect(all()[id('C')]!.done).toBe(true)
+  })
+
+  it('the snapshot holds each hour from this one on that has lines: the lines put in it and what is under them', () => {
+    const now = new Date(2026, 10, 25, 14, 30)
+    const put = (text: string, slot: string) => applyAll((rows, ctx) => setSlot(rows, ctx, [id(text)], slot), { label: 'test' })
+    put('B', '2026-11-25T14')
+    put('D', '2026-11-25T14+2')
+    put('A', '2026-11-25T13') // an hour that is over
+    put('C', '2026-11-26T09')
+    cmdWidgetActions([{ dir: 'state', id: id('B1'), state: 'done' }, { dir: 'state', id: id('D'), state: 'doing' }])
+    applyAll((rows, ctx) => setCategory(rows, ctx, [id('B')], 'deep'), { label: 'test' })
+    const category = (cat: string) => (cat === 'deep' ? { label: 'Deep work', icon: '', light: '#111111', dark: '#eeeeee' } : undefined)
+    const { hours } = widgetSnapshot(all(), { left: null }, { now, category })
+    expect(widgetHourKey(now)).toBe('2026-11-25T14')
+    expect(Object.keys(hours)).toEqual(['2026-11-25T14', '2026-11-25T15', '2026-11-26T09'])
+    expect(hours['2026-11-25T14']).toEqual({
+      items: [
+        { id: id('B'), text: 'B', subs: 2 },
+        { id: id('B1'), text: 'B1', subs: 0, state: 'done', depth: 1 },
+        { id: id('B2'), text: 'B2', subs: 0, depth: 1 },
+        { id: id('D'), text: 'D', subs: 0, state: 'doing' },
+      ],
+      category: category('deep'),
+    })
+    // The next hour starts with D, which has no category.
+    expect(hours['2026-11-25T15']).toEqual({ items: [{ id: id('D'), text: 'D', subs: 0, state: 'doing' }] })
+    // A line marked done stays in its hour.
+    cmdWidgetActions([{ dir: 'state', id: id('B'), state: 'done' }])
+    expect(widgetSnapshot(all(), { left: null }, { now }).hours['2026-11-25T14']!.items.map((i) => i.state ?? 'open')).toEqual(['done', 'done', 'open', 'doing'])
   })
 })

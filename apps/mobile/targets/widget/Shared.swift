@@ -1,8 +1,9 @@
 // What the widget and the app pass each other, through the App Group's UserDefaults.
 // Two JSON strings, written by the app in apps/mobile/src/widget.ts and shaped by
 // packages/state/src/widget.ts:
-//   widget.snapshot  every pad with its open top-level lines (the app writes it; the
-//                    widget edits it in place after a button, so it redraws at once)
+//   widget.snapshot  every pad with its top-level lines and each coming hour with the
+//                    lines put in it (the app writes it; the widget edits it in place
+//                    after a button, so it redraws at once)
 //   widget.actions   what happened outside the app since it was last in front: buttons
 //                    pressed on the widget, lines added through Siri that Siri could not
 //                    send to the server itself (appended here; the app applies them and
@@ -20,7 +21,7 @@ enum Shared {
   static let snapshotKey = "widget.snapshot"
   static let actionsKey = "widget.actions"
   static let openKey = "widget.open"
-  static let maxItems = 25
+  static let maxItems = 50
 
   static var defaults: UserDefaults? { UserDefaults(suiteName: appGroup) }
 
@@ -39,25 +40,39 @@ enum Shared {
     if let text = defaults?.string(forKey: actionsKey), let data = text.data(using: .utf8) {
       queue = (try? JSONDecoder().decode([QueuedAction].self, from: data)) ?? []
     }
+    // A bullet tapped again before the app has run: only where it ended up matters.
+    if action.dir == "state", let last = queue.last, last.dir == "state", last.id == action.id { queue.removeLast() }
     queue.append(action)
     guard let data = try? JSONEncoder().encode(queue), let text = String(data: data, encoding: .utf8) else { return }
     defaults?.set(text, forKey: actionsKey)
   }
 
-  // A button was pressed on `line`: take it out of the pad it is in and, unless it was
-  // crossed out, put it at the bottom of the pad it went to, so every widget shows the
-  // result before the app has run. The app does the real move when it next opens.
+  // A button was pressed on `line`: take it out of the pad it is in and put it at the
+  // bottom of the pad it went to (crossed out, for Done), so every widget shows the result
+  // before the app has run. The app does the real move when it next opens.
   static func send(line: String, dir: String) {
     if var snap = snapshot() {
       let moved = snap.remove(line: line)
       let target = dir == "left" ? snap.left : snap.right
-      if dir != "up", let item = moved, let i = snap.pads.firstIndex(where: { $0.name == target }) {
-        snap.pads[i].count += 1
+      if var item = moved, let i = snap.pads.firstIndex(where: { $0.name == target }) {
+        if dir == "up" { item.state = "done" }
+        if !item.isDone { snap.pads[i].count += 1 }
         if snap.pads[i].items.count < maxItems { snap.pads[i].items.append(item) }
       }
+      if dir == "up" { snap.set(line: line, state: "done") } // in its hours too
       save(snap)
     }
     enqueue(QueuedAction(id: line, dir: dir))
+  }
+
+  // A bullet tapped on a widget: the line goes to its next state (open, doing, done, and
+  // round again) and stays where it is. The app writes the state when it next opens.
+  static func cycle(line: String) {
+    guard var snap = snapshot(), let now = snap.state(of: line) else { return }
+    let next = now == "open" ? "doing" : now == "doing" ? "done" : "open"
+    snap.set(line: line, state: next)
+    save(snap)
+    enqueue(QueuedAction(id: line, dir: "state", state: next))
   }
 
   // A new line for the Inbox, typed outside the app (Siri, Shortcuts). It gets its id
@@ -106,11 +121,11 @@ enum Shared {
     enqueue(action)
   }
 
-  // A line crossed out on the watch: it leaves the lists (they hold open lines only) and
-  // the app crosses it out for real, where it is, when it next opens.
+  // A line crossed out on the watch: the widgets show it crossed out where it is, and
+  // the app crosses it out for real when it next opens.
   static func done(line: String) {
     if var snap = snapshot() {
-      snap.remove(line: line)
+      snap.set(line: line, state: "done")
       save(snap)
     }
     enqueue(QueuedAction(id: line, dir: "done"))

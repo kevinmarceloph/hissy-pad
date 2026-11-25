@@ -63,9 +63,10 @@ struct SendIntent: AppIntent {
   }
 }
 
-// The circle next to a line in the Today list: cross the line out where it is.
-struct DoneIntent: AppIntent {
-  static let title: LocalizedStringResource = "Mark line done"
+// The bullet in front of a line, in the Today list and the Current hour: each tap moves
+// the line on through open, doing and done. It stays on the widget in every state.
+struct CycleIntent: AppIntent {
+  static let title: LocalizedStringResource = "Change line state"
   static let isDiscoverable = false
 
   @Parameter(title: "Line")
@@ -78,7 +79,8 @@ struct DoneIntent: AppIntent {
   }
 
   func perform() async throws -> some IntentResult {
-    Shared.done(line: line)
+    Shared.cycle(line: line)
+    WidgetCenter.shared.reloadAllTimelines() // the other widgets may list the same line
     return .result()
   }
 }

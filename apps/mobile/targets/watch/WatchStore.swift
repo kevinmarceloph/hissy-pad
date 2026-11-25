@@ -232,6 +232,7 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
 
   private func take(snapshot json: String, at: Double) {
     guard var incoming = Snapshot.decode(json) else { return }
+    incoming.openOnly() // the phone's copy keeps crossed-out lines for its widgets
     // A pending line the phone no longer lists has been dealt with; the rest stay hidden.
     let listed = Set(incoming.pads.flatMap { $0.items.map(\.id) })
     // A line typed here that the phone now lists has arrived; the rest are put back.

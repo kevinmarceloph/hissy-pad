@@ -99,8 +99,9 @@ struct InboxView: View {
 
   @ViewBuilder
   private func content(_ pad: WidgetPad) -> some View {
-    let top = pad.items.first
-    let rest = Array(pad.items.dropFirst().prefix(family == .systemLarge ? 7 : 1))
+    // The open lines: a crossed-out one has been dealt with.
+    let top = pad.open.first
+    let rest = Array(pad.open.dropFirst().prefix(family == .systemLarge ? 7 : 1))
     VStack(alignment: .leading, spacing: 8) {
       HStack(alignment: .firstTextBaseline, spacing: 6) {
         Text(pad.name).font(.system(size: 13, design: serif)).italic().foregroundStyle(Color("inkSoft")).lineLimit(1)
@@ -192,6 +193,7 @@ struct HissyPadWidgets: WidgetBundle {
   var body: some Widget {
     InboxWidget()
     TodayWidget()
+    HourWidget()
     if #available(iOS 18.0, *) {
       AddControl()
     }

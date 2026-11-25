@@ -1,7 +1,8 @@
-// The Today list: the open lines of the pad the Sort screen's right side sends to
-// ("Today" unless set otherwise), each with a circle that crosses it out. Another pad can
-// be picked in Edit Widget. The circle works like the watch's: the line leaves the list at
-// once and the app crosses it out for real when it is next in front.
+// The Today list: the lines of the pad the Sort screen's right side sends to ("Today"
+// unless set otherwise), each behind its bullet. Another pad can be picked in Edit Widget.
+// A tap on the bullet moves the line on through open, doing and done (LineRow, in
+// HourWidget.swift); a crossed-out line stays in the list, crossed out, as it does in the
+// pad. The app writes the state for real when it is next in front.
 import AppIntents
 import SwiftUI
 import WidgetKit
@@ -18,9 +19,9 @@ struct TodayProvider: AppIntentTimelineProvider {
     date: .now,
     pad: WidgetPad(id: "today", name: "Today", count: 4, items: [
       WidgetItem(id: "1", text: "Call the dentist", subs: 0),
-      WidgetItem(id: "2", text: "Send the invoice", subs: 0),
+      WidgetItem(id: "2", text: "Send the invoice", subs: 0, state: "doing"),
       WidgetItem(id: "3", text: "Plan the trip", subs: 2),
-      WidgetItem(id: "4", text: "Water the plants", subs: 0),
+      WidgetItem(id: "4", text: "Water the plants", subs: 0, state: "done"),
     ]),
     name: "Today",
     ready: true
@@ -58,7 +59,7 @@ struct TodayView: View {
   private var rows: Int { family == .systemLarge ? 10 : 4 }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
+    VStack(alignment: .leading, spacing: 3) {
       HStack(alignment: .firstTextBaseline, spacing: 6) {
         Text(entry.pad?.name ?? entry.name)
           .font(.system(size: 13, design: serif)).italic().foregroundStyle(Color("inkSoft")).lineLimit(1)
@@ -76,18 +77,7 @@ struct TodayView: View {
       }
       if let pad = entry.pad, !pad.items.isEmpty {
         ForEach(Array(pad.items.prefix(rows))) { item in
-          HStack(alignment: .center, spacing: 8) {
-            Button(intent: DoneIntent(line: item.id)) {
-              Image(systemName: "circle")
-                .font(.system(size: 17, weight: .light))
-                .foregroundStyle(Color("inkMute"))
-                .frame(width: 22, height: 22)
-            }
-            .buttonStyle(.plain)
-            Text(item.text.isEmpty ? "(blank line)" : item.text)
-              .font(.system(size: 15, design: serif)).foregroundStyle(Color("ink")).lineLimit(1)
-            Spacer(minLength: 0)
-          }
+          LineRow(item: item)
         }
       } else {
         Text(entry.ready ? "Nothing in \(entry.pad?.name ?? entry.name)." : "Open the app once and this fills in.")
@@ -109,7 +99,7 @@ struct TodayWidget: Widget {
         .containerBackground(for: .widget) { Color("$widgetBackground") }
     }
     .configurationDisplayName("Today")
-    .description("The open lines of your Today pad, with a circle to cross one out.")
+    .description("The lines of your Today pad. Tap a bullet: open, doing, done.")
     .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
   }
 }

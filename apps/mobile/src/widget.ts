@@ -3,7 +3,8 @@
 // through native/WatchBridge.swift, which reads the same storage). So the
 // two trade JSON through the App Group's UserDefaults (the Swift end is in
 // targets/widget/Shared.swift, the shapes in packages/state/src/widget.ts):
-//   - whenever the pads change, the app writes a snapshot and asks the widget to redraw;
+//   - whenever the pads change, the app writes a snapshot and asks the widget to redraw
+//     (every pad's lines, and each coming hour's lines for the Current hour widget);
 //   - when the app comes to the front, it applies the buttons pressed on the widget.
 // Tapping the widget opens hissypad://pad?pad=… and its + opens hissypad://add?pad=…,
 // where pad=inbox means the pad named Inbox. The Add control (Lock Screen, Control Center)
@@ -25,8 +26,10 @@ import { ExtensionStorage } from '@bacons/apple-targets'
 import {
   cmdWidgetActions, loadSortTargets, log, openPad, usePad, useSort, watchHandoffDue, watchSignedIn,
   widgetSnapshot, WIDGET_MAIN,
-  type WidgetAction,
+  type WidgetAction, type WidgetCategory,
 } from '@hissypad/state'
+import { lineCategories } from '@hissypad/state/hours'
+import { PALETTES } from '@hissypad/ui/palette'
 import { supabase } from './supabase'
 import { openCreate } from './ui/Create'
 
@@ -43,10 +46,17 @@ const POLL_MS = 4000
 const storage = new ExtensionStorage(APP_GROUP)
 let published = ''
 
+// A category as the widget draws it: its name, its emoji and its color in both schemes
+// (the widget has no palette). Nothing until Hours' store has opened and filled the list.
+function widgetCategory(id: string): WidgetCategory | undefined {
+  const c = lineCategories.getState().byId[id]
+  return c && { label: c.label, icon: c.icon, light: PALETTES.light[c.color], dark: PALETTES.dark[c.color] }
+}
+
 // Write the snapshot if it changed, and have the widget redraw.
 function publish() {
   if (usePad.getState().load !== 'ready') return
-  const json = JSON.stringify(widgetSnapshot())
+  const json = JSON.stringify(widgetSnapshot(undefined, undefined, { category: widgetCategory }))
   if (json === published) return
   published = json
   storage.set(SNAPSHOT_KEY, json)
@@ -194,6 +204,7 @@ export function useWidgetBridge(ready: boolean) {
     void loadSortTargets().then(arrive)
     const unPad = usePad.subscribe((s, prev) => { if (s.all !== prev.all) soon() })
     const unSort = useSort.subscribe(soon)
+    const unCategories = lineCategories.subscribe(soon)
     const app = AppState.addEventListener('change', (state) => {
       if (state === 'active') arrive()
       else publish() // leaving: do not wait for the timer
@@ -213,6 +224,7 @@ export function useWidgetBridge(ready: boolean) {
       if (timer) clearTimeout(timer)
       unPad()
       unSort()
+      unCategories()
       app.remove()
     }
   }, [ready])
