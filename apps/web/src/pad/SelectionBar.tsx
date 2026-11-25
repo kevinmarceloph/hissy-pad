@@ -30,7 +30,7 @@ interface MenuItem {
 // bar (a portal on <body>): the bar scrolls sideways on a desktop too narrow for it, and a
 // scrolling box clips anything positioned inside it (or on the dialog the bar is in). It sits above the button, kept inside
 // the window, and follows the button if the bar scrolls or the window resizes.
-function BarMenu({ name, title, menuLabel, className, items, children }: { name: string; title: string; menuLabel: string; className: string; items: MenuItem[]; children: ReactNode }) {
+function BarMenu({ name, title, menuLabel, className, buttonClass, items, children }: { name: string; title: string; menuLabel: string; className: string; buttonClass?: string; items: MenuItem[]; children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const button = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
@@ -83,7 +83,7 @@ function BarMenu({ name, title, menuLabel, className, items, children }: { name:
 
   return (
     <span className={className}>
-      <button ref={button} type="button" onClick={() => setOpen((m) => !m)} aria-haspopup="menu" aria-expanded={open} aria-label={name} title={title}>{children}</button>
+      <button ref={button} type="button" className={buttonClass} onClick={() => setOpen((m) => !m)} aria-haspopup="menu" aria-expanded={open} aria-label={name} title={title}>{children}</button>
       {open && at && createPortal(
         <div ref={menu} className="bar moveto-menu" role="menu" aria-label={menuLabel} style={{ left: at.left, bottom: at.bottom }} onMouseDown={(e) => e.preventDefault()}>
           {items.map((it) => (
@@ -99,12 +99,12 @@ function BarMenu({ name, title, menuLabel, className, items, children }: { name:
 
 // Shows while a line is being edited or lines are selected. Same actions as the keyboard,
 // for the mouse and the phone. The buttons come from LINE_ACTIONS in the state package
-// (shared with the phone's toolbar); the line type switcher, the "Move to…" menu and the
-// dropdown of the less used actions are drawn here. Mousedown is swallowed so a tap never
+// (shared with the phone's toolbar); the line type switcher and the dropdown of the less
+// used actions are drawn here. Mousedown is swallowed so a tap never
 // blurs the textarea.
 //
 // Above its right end float round buttons (.fab), as in the phone app: Hour… and Category…
-// (the actions marked `floats`), the open / doing / done switch and "done editing". On a
+// (the actions marked `floats`), the "Move to…" menu, the open / doing / done switch and "done editing". On a
 // phone-width screen the bar is the phone app's toolbar: two rows that do not scroll.
 export function SelectionBar() {
   const selection = usePad((s) => s.selection)
@@ -182,17 +182,6 @@ export function SelectionBar() {
   const tucked = offered.filter((a) => a.more)
   const menus = (
     <>
-      {places.length > 0 && (
-        <BarMenu
-          className="moveto"
-          name="Move to…"
-          title="Move to another pad or a sub-pad"
-          menuLabel="Move to pad"
-          items={places.map((p) => ({ key: p.key, label: p.label, className: p.subId ? 'sub' : undefined, run: () => moveTo(p) }))}
-        >
-          <LineIcon icon="move" />
-        </BarMenu>
-      )}
       <BarMenu
         className="moveto"
         name="More actions"
@@ -214,6 +203,19 @@ export function SelectionBar() {
             <LineIcon icon={a.icon!} />
           </button>
         ))}
+        {/* Move to…: beside Hour… and Category…, its list opening above the buttons. */}
+        {places.length > 0 && (
+          <BarMenu
+            className="fab-menu"
+            buttonClass="round"
+            name="Move to…"
+            title="Move to another pad or a sub-pad"
+            menuLabel="Move to pad"
+            items={places.map((p) => ({ key: p.key, label: p.label, className: p.subId ? 'sub' : undefined, run: () => moveTo(p) }))}
+          >
+            <LineIcon icon="move" />
+          </BarMenu>
+        )}
         {/* Three sides, each its own button: • (open), a dot in a ring (doing), × (crossed
             out). The side the lines are on is filled; none for a mixed set. */}
         <div className="switch" role="radiogroup" aria-label="Line state">

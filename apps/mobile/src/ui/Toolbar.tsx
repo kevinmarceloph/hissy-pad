@@ -1,13 +1,13 @@
 // The line toolbar above the keyboard. Its buttons come from LINE_ACTIONS in the state
 // package, the same list the web's SelectionBar draws. On the phone it is two rows
 // (as it is on the web at phone width), and Hour…, Category…, the open / doing / done
-// switch and "done editing" are the floating buttons at the bottom right (FloatingButtons.tsx). The tray icon opens the list
-// of pads to move to; the three dots open the less used actions (those marked `more`).
+// switch and "done editing" are the floating buttons at the bottom right (FloatingButtons.tsx), and so is
+// Move to… (the tray icon). The three dots open the less used actions (those marked `more`).
 import { useMemo } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { kindOf } from '@hissypad/core'
 import {
-  actionFace, cmdMoveTo, cmdSetKind, cmdTogglePin, countOf, lineAbilities, lineActions, lineCount, placeList, usePad,
+  actionFace, cmdSetKind, cmdTogglePin, countOf, lineAbilities, lineActions, lineCount, usePad,
   LINE_ACTIONS, LINE_KINDS, type LineActionGroup, type LineIcon as LineIconId,
 } from '@hissypad/state'
 import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
@@ -31,16 +31,10 @@ export function Toolbar({ theme }: { theme: Theme }) {
   const selection = usePad((s) => s.selection)
   const editing = usePad((s) => s.editing)
   const rows = usePad((s) => s.rows)
-  const all = usePad((s) => s.all)
-  const padId = usePad((s) => s.padId)
-  const inHour = usePad((s) => s.slotId !== null)
   const ids = selection.length > 0 ? selection : editing ? [editing.id] : []
   const can = useMemo(() => lineAbilities(rows, ids), [rows, ids])
-  // Everywhere the lines can go: the other pads, and every sub-pad (this pad's included).
-  // In an open hour, every pad: its lines come from any of them.
-  const others = useMemo(() => placeList(all).filter((p) => inHour || p.subId !== null || p.padId !== padId), [all, padId, inHour])
   if (ids.length === 0) return null
-  // Done, Hour… and Category… float above the bar (FloatingButtons.tsx).
+  // Done, Hour…, Category… and Move to… float above the bar (FloatingButtons.tsx).
   const offered = lineActions(can)
   const shown = offered.filter((a) => !a.floats && !a.more)
   const tucked = offered.filter((a) => a.more && (a.enabled ? a.enabled(can) : true))
@@ -49,13 +43,6 @@ export function Toolbar({ theme }: { theme: Theme }) {
   function run(a: (typeof LINE_ACTIONS)[number]) {
     const said = a.run()
     if (said instanceof Promise) void said.then((line) => { if (line) Alert.alert(line) })
-  }
-  // The pads and sub-pads to move to (iOS stacks them).
-  function moveTo() {
-    Alert.alert('Move to', undefined, [
-      ...others.map((p) => ({ text: p.label, onPress: () => void cmdMoveTo(p) })),
-      { text: 'Cancel', style: 'cancel' as const },
-    ])
   }
   // The less used actions.
   function more() {
@@ -98,7 +85,6 @@ export function Toolbar({ theme }: { theme: Theme }) {
       <View style={[s.row, s.second]}>
         {n > 1 && countOf(selection, rows) > 0 && <Text style={[s.count, { color: theme.inkMute }]}>{lineCount(countOf(selection, rows))}</Text>}
         {rest.map((a) => button(a))}
-        {others.length > 0 && <Btn theme={theme} label="Move to…" icon="move" a11y="Move to another pad or a sub-pad" onPress={moveTo} />}
         {tucked.length > 0 && <Btn theme={theme} label="More…" icon="more" a11y="More actions" onPress={more} />}
         {last.map((a) => button(a))}
       </View>

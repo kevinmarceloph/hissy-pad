@@ -1,11 +1,11 @@
 // The line toolbar as data. Web (SelectionBar) and the phone (Toolbar) both draw their
 // buttons from LINE_ACTIONS, so a new action is one entry here plus its command, and it
 // shows up on both. Two widgets are not plain buttons and stay with each app: the line
-// type switcher (drawn after the 'mark' group) and the "Move to…" pad menu (drawn before
-// the 'remove' group, with the 'move' icon). Actions marked `more` sit in a dropdown (⋯)
-// on both. An action with an `icon` is drawn as that icon, by each app's own icon set.
-// Actions marked `floats` (Done, Hour…, Category…) are not on the bar: both apps draw them
-// as round buttons floating above it, Done as the open / doing / done switch.
+// type switcher (drawn after the 'mark' group) and the "Move to…" pad menu (a round button
+// with the 'move' icon, floating beside Hour… and Category…). Actions marked `more` sit in
+// a dropdown (⋯) on both. An action with an `icon` is drawn as that icon, by each app's own
+// icon set. Actions marked `floats` (Done, Hour…, Category…) are not on the bar: both apps
+// draw them as round buttons floating above it, Done as the open / doing / done switch.
 import { buildIndex, childrenOf, topmost, type NodeKind, type Rows } from '@hissypad/core'
 import {
   cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdMoveToTop, cmdPaste, cmdTogglePin, cmdToggleCollapsed, cmdSplitOpen, cmdToggleDone, cmdUngroup,

@@ -561,8 +561,9 @@ dialog.categories-dialog[open] { height: min(44rem, calc(100dvh - 3rem)); displa
 .selbar .kind button[aria-pressed='true'] { background: var(--accent-soft); color: var(--ink); }
 
 /* The round buttons floating at the bottom right, as in the phone app: the + over the pad,
-   and Hour…, Category…, the open / doing / done switch and "done editing" over the bar. */
+   and Hour…, Category…, Move to…, the open / doing / done switch and "done editing" over the bar. */
 .fab { display: flex; gap: 10px; }
+.fab-menu { display: contents; }
 .fab-add, .fab .round, .fab .switch {
   display: inline-flex;
   height: 44px; border-radius: 22px;
@@ -809,7 +810,7 @@ dialog.import .actions .grow { flex: 1; }
 dialog.import .actions .danger { border-color: transparent; color: var(--accent); }
 dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-faint); }
 
-/* Move to another pad: a small list that opens above the toolbar button. */
+/* The bar's More menu, and Move to… among the floating buttons: a small list that opens above its button. */
 .selbar .moveto { flex: none; }
 /* The Move to… menu. It is a child of <body>, not of the bar: the bar scrolls sideways and
    would clip it. SelectionBar.tsx places it above the button with left/bottom. */

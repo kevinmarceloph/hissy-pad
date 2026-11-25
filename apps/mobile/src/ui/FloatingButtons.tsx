@@ -1,15 +1,15 @@
 // The round buttons floating at the bottom right of the pad, above the toolbar and the
-// keyboard. While editing, Hour… and Category… (LINE_ACTIONS marked `floats`) come first. With nothing targeted: + adds a line at the top when tapped, or where it is
+// keyboard. While editing, Hour… and Category… (LINE_ACTIONS marked `floats`) and Move to… come first. With nothing targeted: + adds a line at the top when tapped, or where it is
 // dropped when dragged onto the pad (like the + in Things). While a line is being edited
 // (or lines are selected): a switch of three sides, each a button that puts it in that state
 // (• open, a dot in a ring for doing, × crossed out; the side the line is on is filled), and a
 // chevron ends editing and puts the keyboard away (or clears the selection).
 import { useMemo } from 'react'
-import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { sharedState, type LineState } from '@hissypad/core'
-import { clearSelection, cmdAddAtTop, cmdSetState, stopEditing, usePad, LINE_ACTIONS } from '@hissypad/state'
+import { clearSelection, cmdAddAtTop, cmdMoveTo, cmdSetState, placeList, stopEditing, usePad, LINE_ACTIONS } from '@hissypad/state'
 import { LineIcon } from './LineIcons'
 import { serif, type Theme } from '../theme'
 
@@ -37,6 +37,12 @@ export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Th
   const editing = usePad((s) => s.editing)
   const selection = usePad((s) => s.selection)
   const rows = usePad((s) => s.rows)
+  const all = usePad((s) => s.all)
+  const padId = usePad((s) => s.padId)
+  const inHour = usePad((s) => s.slotId !== null)
+  // Everywhere the lines can go: the other pads, and every sub-pad (this pad's included).
+  // In an open hour, every pad: its lines come from any of them.
+  const places = useMemo(() => placeList(all).filter((p) => inHour || p.subId !== null || p.padId !== padId), [all, padId, inHour])
   const targets = selection.length > 0 ? selection : editing ? [editing.id] : []
 
   const addAtTop = () => {
@@ -82,6 +88,14 @@ export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Th
   }
 
   const state = sharedState(rows, targets)
+  // The pads and sub-pads to move to (iOS stacks them).
+  const moveTo = () => {
+    void Haptics.selectionAsync().catch(() => {})
+    Alert.alert('Move to', undefined, [
+      ...places.map((p) => ({ text: p.label, onPress: () => void cmdMoveTo(p) })),
+      { text: 'Cancel', style: 'cancel' as const },
+    ])
+  }
   const finish = () => {
     if (selection.length > 0) clearSelection()
     stopEditing()
@@ -98,6 +112,11 @@ export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Th
           <LineIcon icon={a.icon!} color={theme.ink} ground={theme.paperRaised} />
         </Round>
       ))}
+      {places.length > 0 && (
+        <Round theme={theme} label="Move to another pad or a sub-pad" onPress={moveTo}>
+          <LineIcon icon="move" color={theme.ink} ground={theme.paperRaised} />
+        </Round>
+      )}
       {/* Three sides, each its own button: • (open), a dot in a ring (doing), × (crossed
           out). The side the lines are on is filled; none for a mixed set. */}
       <View accessibilityRole="radiogroup" accessibilityLabel="Line state" style={[s.round, s.switch, { backgroundColor: theme.paperRaised, borderColor: theme.rule }]}>
