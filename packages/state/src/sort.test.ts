@@ -30,6 +30,12 @@ describe('sort', () => {
     expect(sortQueue()).toEqual([])
   })
 
+  it('leaves pinned lines out of the queue', () => {
+    usePad.setState({ all: { ...all(), [id('B')]: { ...all()[id('B')]!, pinned: true } } })
+    openPad(null)
+    expect(sortQueue().map((i) => all()[i]!.text)).toEqual(['A', 'C', 'D'])
+  })
+
   it('left goes to Later, right to Today, up to Today crossed out; each line lands on top with its subtree', () => {
     expect(sortTarget(all(), 'left')).toMatchObject({ name: 'Later', exists: true, isDefault: true })
     cmdSortSend(id('A'), 'left')
