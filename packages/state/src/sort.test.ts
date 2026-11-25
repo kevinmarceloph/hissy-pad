@@ -272,3 +272,18 @@ describe('the card\'s Move to…', () => {
     expect(tableShape()).toBe('A\n  a1\nB\n@Work\n  ')
   })
 })
+
+describe('the card\'s Category…', () => {
+  it('gives the card\'s own line a category, though the view only holds what is under it', async () => {
+    resetStore('A\n  a1\nB')
+    await loadPad()
+    const { cmdSetCategory, targetCategory } = await import('./hours/line-categories')
+    const a = idOf(usePad.getState().all, 'A')
+    zoomTo(a)
+    expect(cmdSetCategory('errands', [a])).toBe(1)
+    expect(usePad.getState().all[a]!.category).toBe('errands')
+    expect(targetCategory([a])).toBe('errands')
+    undo()
+    expect(usePad.getState().all[a]!.category ?? null).toBeNull()
+  })
+})

@@ -6,7 +6,7 @@ import { useStore } from 'zustand';
 import { setCategory } from '@hissypad/core';
 import { activeCategories, categoryName, type Category } from '@hissypad/core/hours';
 
-import { apply, usePad } from '../store';
+import { applyAll, usePad } from '../store';
 import { holdEditing, targets } from '../selection';
 
 // ---- the list the pad draws from ----------------------------------------------------------
@@ -34,14 +34,15 @@ export function useCategoryChoices(): Category[] {
 // Give the selected lines (or the one being edited) a category, or take theirs away with
 // null. Returns how many lines it was asked about.
 export function cmdSetCategory(category: string | null, ids: readonly string[] = targets()): number {
-  if (ids.length) apply((rows, ctx) => setCategory(rows, ctx, [...ids], category), { label: 'cmdSetCategory' });
+  // The whole table: the line may not be in the view (a card shows only what is under its line).
+  if (ids.length) applyAll((all, ctx) => setCategory(all, ctx, [...ids], category), { label: 'cmdSetCategory' });
   return ids.length;
 }
 
 // The category the targets share, null when they have none or differ.
 export function targetCategory(ids: readonly string[] = targets()): string | null {
-  const { rows } = usePad.getState();
-  const cats = new Set(ids.map((id) => rows[id]?.category ?? null));
+  const { all } = usePad.getState();
+  const cats = new Set(ids.map((id) => all[id]?.category ?? null));
   return cats.size === 1 ? [...cats][0]! : null;
 }
 

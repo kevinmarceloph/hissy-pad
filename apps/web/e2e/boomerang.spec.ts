@@ -117,3 +117,39 @@ test('a card has hour, category, boomerang and move at its top right, then the p
   await page.getByRole('tab', { name: /^Later/ }).click()
   await expect(page.locator('.row .text').first()).toHaveText('buy stamps')
 })
+
+// A category picked on a card shows in front of the card's text, as on a line of the pad.
+test('a card shows its line\'s category in front of the text', async ({ page }, info) => {
+  const pickNew = async () => {
+    const picker = page.getByRole('dialog', { name: 'Pick a category' })
+    await picker.getByText('New category').click()
+    await picker.getByLabel('Name').fill('Errands')
+    await picker.getByLabel('Icon').fill('🛒')
+    await picker.getByText('Add', { exact: true }).click()
+    await expect(picker).toHaveCount(0)
+  }
+  await page.goto('/#sort')
+  const sort = page.locator('.sort-card')
+  await expect(sort.getByRole('textbox', { name: 'Line text' })).toHaveValue('Welcome to HissyPad')
+  await expect(sort.locator('.sort-line .category')).toHaveCount(0)
+  await sort.getByRole('button', { name: 'Give a category' }).click()
+  await pickNew()
+  const badge = sort.getByRole('button', { name: 'Category: Errands, change' })
+  await expect(badge).toHaveText('🛒')
+  // In front of the text, on its first line.
+  const b = (await badge.boundingBox())!
+  const t = (await sort.getByRole('textbox', { name: 'Line text' }).boundingBox())!
+  expect(b.x + b.width).toBeLessThanOrEqual(t.x)
+  expect(b.y).toBeGreaterThanOrEqual(t.y - 2)
+  expect(b.y + b.height).toBeLessThanOrEqual(t.y + 30)
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/8-sort-category-${info.project.name}.png` })
+
+  await page.goto('/#pads')
+  await page.getByRole('button', { name: 'New item' }).click()
+  const card = page.locator('dialog.create')
+  await card.locator('.sort-text').fill('buy stamps')
+  await card.getByRole('button', { name: 'Give a category' }).click()
+  await page.getByRole('dialog', { name: 'Pick a category' }).getByText('Errands').click()
+  await expect(card.getByRole('button', { name: 'Category: Errands, change' })).toHaveText('🛒')
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/9-create-category-${info.project.name}.png` })
+})

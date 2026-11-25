@@ -8,7 +8,7 @@
 // for the pad, scrolled so the line is at the top.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { scopePad, slotLabel, todayKey } from '@hissypad/core'
-import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
+import { cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/hours'
 import { HoursIcon, LineIcon, PadIcon } from '../app/icons'
 import { cmdPickBoomerang, cmdSortMoveTo, dueWords } from '@hissypad/state'
 import { showToast } from '../app/toast'
@@ -30,6 +30,21 @@ interface Ghost { key: number; text: string; dir: SortDir; dx: number; dy: numbe
 export const oneLine = (t: string) => t.replace(/\r?\n/g, ' ')
 
 // A textarea as tall as its text, snapped to whole lines (a line is 25.5px, see CLAUDE.md).
+// The card's line: its category in front of the text, as on a line of the pad. A press on it
+// opens the category picker.
+export function CardLine({ category, onCategory, children }: { category: ReturnType<typeof useLineCategory>; onCategory: () => void; children: React.ReactNode }) {
+  return (
+    <div className="sort-line">
+      {category && (
+        <button type="button" className={`category cat-${category.color}${category.icon ? '' : ' is-word'}`} title={category.label} aria-label={`Category: ${category.label}, change`} onClick={onCategory}>
+          {category.icon || category.label}
+        </button>
+      )}
+      {children}
+    </div>
+  )
+}
+
 export function AutoText(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const ref = useRef<HTMLTextAreaElement>(null)
   useLayoutEffect(() => {
@@ -63,6 +78,7 @@ export function Sort({ onClose, paused = false }: { onClose: () => void; paused?
   const { queue, sent } = session
   const { id } = sortSessionCard(session, rows)
   const row = id ? rows[id]! : null
+  const category = useLineCategory(row?.category)
 
   // The card on screen is zoomed into, so the pad's rows and toolbar edit what is under it.
   // A send or Back leaves the zoom (state/sort.ts); the next card takes it here.
@@ -297,14 +313,16 @@ export function Sort({ onClose, paused = false }: { onClose: () => void; paused?
               </BarMenu>
               <button type="button" className="sort-hour" onClick={() => { if (cmdOpenHit(id)) onClose() }} title="See it in the pad" aria-label="See it in the pad"><PadIcon /></button>
             </div>
-            <AutoText
-              className="sort-text"
-              value={row.text}
-              onChange={(e) => cmdSortSetText(id, oneLine(e.target.value))}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }}
-              aria-label="Line text"
-              placeholder="Empty line"
-            />
+            <CardLine category={category} onCategory={() => cmdPickCategory([id])}>
+              <AutoText
+                className="sort-text"
+                value={row.text}
+                onChange={(e) => cmdSortSetText(id, oneLine(e.target.value))}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }}
+                aria-label="Line text"
+                placeholder="Empty line"
+              />
+            </CardLine>
             <div className="create-subs">
               {!paused && zoomId === id && <Pad embedded undo={false} />}
               <button type="button" className="create-add" onClick={() => { if (usePad.getState().zoomId !== id) zoomTo(id); cmdAppendAtEnd() }}>Add a sub item</button>

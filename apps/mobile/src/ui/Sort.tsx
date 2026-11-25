@@ -5,11 +5,12 @@
 // into the card's line, so the toolbar and the floating buttons work on them (SubRows.tsx). Same queue, targets and commands as
 // the web (state/sort.ts); only the gesture is drawn here, with PanResponder and Animated
 // so it ships as a JS-only update. The pad icon on the card goes to the line in the pad.
-import { useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef, type Ref } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef, type ReactNode, type Ref } from 'react'
 import { Alert, Animated, Dimensions, Keyboard, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { scopePad, slotLabel, todayKey } from '@hissypad/core'
-import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
+import { cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/hours'
+import { CategoryBadge } from '@hissypad/ui'
 import {
   cmdAppendAtEnd, cmdOpenHit, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
   sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, zoomTo,
@@ -35,6 +36,21 @@ const oneLine = (t: string) => t.replace(/\r?\n/g, ' ')
 // card's pan takes the touch once it turns into a drag.
 export function CardField({ row: _row, ref, ...props }: ComponentProps<typeof TextInput> & { row?: boolean; ref?: Ref<ComponentRef<typeof TextInput>> }) {
   return <TextInput ref={ref} rejectResponderTermination={false} {...props} />
+}
+
+// The card's line: its category in front of the text, as on a line of the pad. A press on it
+// opens the category picker.
+export function CardLine({ category, onCategory, children }: { category: ReturnType<typeof useLineCategory>; onCategory: () => void; children: ReactNode }) {
+  return (
+    <View style={s.line}>
+      {category && (
+        <Pressable onPress={onCategory} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Category: ${category.label}, change`} style={s.badge}>
+          <CategoryBadge category={category} size={24} wordWhenBare />
+        </Pressable>
+      )}
+      {children}
+    </View>
+  )
 }
 
 // Drawn under the app's top bar, with no pad chips: the title picks which pad is sorted, and
@@ -71,6 +87,7 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
   const { id } = sortSessionCard(session, rows)
   const progress = sortSessionProgress(session, rows)
   const row = id ? rows[id]! : null
+  const category = useLineCategory(row?.category)
 
   // The card on screen is zoomed into, so the pad's rows and toolbar edit what is under it.
   // A send or Back leaves the zoom (state/sort.ts); the next card takes it here.
@@ -269,18 +286,20 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
                   <PadIcon color={theme.inkSoft} />
                 </Pressable>
               </View>
-              <CardField
-                value={row.text}
-                onChangeText={(t) => cmdSortSetText(id, oneLine(t))}
-                multiline
-                scrollEnabled={false}
-                submitBehavior="blurAndSubmit"
-                returnKeyType="done"
-                placeholder="Empty line"
-                placeholderTextColor={theme.inkMute}
-                accessibilityLabel="Line text"
-                style={[s.text, { color: theme.ink }]}
-              />
+              <CardLine category={category} onCategory={() => cmdPickCategory([id])}>
+                <CardField
+                  value={row.text}
+                  onChangeText={(t) => cmdSortSetText(id, oneLine(t))}
+                  multiline
+                  scrollEnabled={false}
+                  submitBehavior="blurAndSubmit"
+                  returnKeyType="done"
+                  placeholder="Empty line"
+                  placeholderTextColor={theme.inkMute}
+                  accessibilityLabel="Line text"
+                  style={[s.text, s.lineText, { color: theme.ink }]}
+                />
+              </CardLine>
               <View style={[s.subs, { borderTopColor: theme.rule }]}>
                 <ScrollView style={[s.subScroll, compact && s.subScrollCompact]} keyboardShouldPersistTaps="handled">
                   {!paused && <SubRows id={id} theme={theme} onAdd={() => { if (usePad.getState().zoomId !== id) zoomTo(id); cmdAppendAtEnd() }} />}
@@ -344,6 +363,9 @@ const s = StyleSheet.create({
   slot: { fontFamily: serif, fontSize: 12, paddingHorizontal: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 3, overflow: 'hidden' },
   hour: { padding: 4, margin: -4 },
   text: { fontFamily: serif, fontSize: 21, lineHeight: 29, padding: 0 },
+  line: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  lineText: { flex: 1 },
+  badge: { marginTop: (29 - 24) / 2 },
   subs: { marginTop: 12, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
   stamp: { position: 'absolute', top: 10, zIndex: 1, paddingHorizontal: 8, paddingVertical: 1, borderWidth: 1.5, borderRadius: 4 },
   stampLeft: { right: 12, transform: [{ rotate: '6deg' }] },
@@ -367,4 +389,4 @@ const s = StyleSheet.create({
 })
 
 // The card's look, shared with the new item's sheet (Create.tsx): the same card, no swipe.
-export const card = { card: s.card, top: s.top, slot: s.slot, hour: s.hour, text: s.text, subs: s.subs }
+export const card = { card: s.card, top: s.top, slot: s.slot, hour: s.hour, text: s.text, lineText: s.lineText, subs: s.subs }

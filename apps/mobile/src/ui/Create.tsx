@@ -18,11 +18,11 @@ import {
   cmdAppendAtEnd, cmdCreateBegin, cmdCreateEnd, cmdCreateItem, cmdCreateMove, cmdCreateOpen, cmdCreateSetText, createDefaultPlace, placeFromKey, placeList, placeName, usePad,
   WIDGET_INBOX, WIDGET_MAIN,
 } from '@hissypad/state'
-import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
+import { cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/hours'
 import { useKeyboardHeight } from '../keyboard'
 import { serif, type Theme } from '../theme'
 import { FloatingButtons } from './FloatingButtons'
-import { card, CardField } from './Sort'
+import { card, CardField, CardLine } from './Sort'
 import { SubRows } from './SubRows'
 import { Toolbar } from './Toolbar'
 import { HoursIcon, PadIcon } from './TopIcons'
@@ -166,6 +166,7 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
   const text = row ? row.text : draft
   const slot = row?.slot ?? null
   const due = row?.due ?? null
+  const category = useLineCategory(row?.category)
   const can = text.trim() !== '' || hasSubs
   const where = placeName(all, place)
 
@@ -243,28 +244,30 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
                 <PadIcon color={theme.inkSoft} />
               </Pressable>
             </View>
-            <CardField
-              ref={input}
-              value={text}
-              onChangeText={onText}
-              multiline
-              scrollEnabled={false}
-              autoCapitalize="sentences"
-              submitBehavior="blurAndSubmit"
-              returnKeyType="done"
-              enablesReturnKeyAutomatically
-              // Return passes the field's own text: the last keystrokes (or the word
-              // autocorrect fixes on return) can reach the field a moment before the store.
-              onSubmitEditing={(e) => {
-                const last = oneLine(e.nativeEvent.text)
-                if (last !== text) onText(last)
-                if (last.trim() !== '' || hasSubs) finish(true)
-              }}
-              placeholder="A new line"
-              placeholderTextColor={theme.inkMute}
-              accessibilityLabel="Line text"
-              style={[card.text, { color: theme.ink }]}
-            />
+            <CardLine category={category} onCategory={() => cmdPickCategory([ensure()])}>
+              <CardField
+                ref={input}
+                value={text}
+                onChangeText={onText}
+                multiline
+                scrollEnabled={false}
+                autoCapitalize="sentences"
+                submitBehavior="blurAndSubmit"
+                returnKeyType="done"
+                enablesReturnKeyAutomatically
+                // Return passes the field's own text: the last keystrokes (or the word
+                // autocorrect fixes on return) can reach the field a moment before the store.
+                onSubmitEditing={(e) => {
+                  const last = oneLine(e.nativeEvent.text)
+                  if (last !== text) onText(last)
+                  if (last.trim() !== '' || hasSubs) finish(true)
+                }}
+                placeholder="A new line"
+                placeholderTextColor={theme.inkMute}
+                accessibilityLabel="Line text"
+                style={[card.text, card.lineText, { color: theme.ink }]}
+              />
+            </CardLine>
             <View style={[card.subs, { borderTopColor: theme.rule }]}>
               <SubRows id={row?.id ?? null} theme={theme} onAdd={() => { ensure(); cmdAppendAtEnd() }} />
             </View>

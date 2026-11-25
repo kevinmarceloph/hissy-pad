@@ -9,13 +9,13 @@ import { isLive, slotLabel, todayKey, type Place } from '@hissypad/core'
 import {
   cmdAppendAtEnd, cmdCreateEnd, cmdCreateItem, cmdCreateMove, cmdCreateOpen, cmdCreateSetText, createDefaultPlace, placeFromKey, placeKey, placeList, usePad,
 } from '@hissypad/state'
-import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
+import { cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/hours'
 import { HoursIcon, LineIcon, PadIcon } from '../app/icons'
 import { cmdPickBoomerang, dueWords } from '@hissypad/state'
 import { Pad } from '../pad/Pad'
 import { BarMenu } from '../pad/SelectionBar'
 import { SelectionBar } from '../pad/SelectionBar'
-import { AutoText, oneLine } from './Sort'
+import { AutoText, CardLine, oneLine } from './Sort'
 
 // `depth` is what cmdCreateBegin returned as the card was asked for. `onOpen` runs after
 // the pad icon: the app shows the pad, at the new line.
@@ -88,6 +88,7 @@ export function CreateDialog({ depth, onClose, onOpen }: { depth: number; onClos
   const text = row ? row.text : draft
   const slot = row?.slot ?? null
   const due = row?.due ?? null
+  const category = useLineCategory(row?.category)
   const can = text.trim() !== '' || hasSubs
 
   return (
@@ -128,23 +129,25 @@ export function CreateDialog({ depth, onClose, onOpen }: { depth: number; onClos
           </BarMenu>
           <button type="button" className="sort-hour" onClick={seeInPad} disabled={!row || !can} title="Add it and see it in its pad" aria-label="See it in the pad"><PadIcon /></button>
         </div>
-        <AutoText
-          className="sort-text"
-          value={text}
-          onChange={(e) => onText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              if (can) finish(true)
-            } else if (e.key === 'Escape' && text !== '') {
-              // Escape with words typed only leaves the field; the next one closes the card.
-              e.preventDefault()
-              e.currentTarget.blur()
-            }
-          }}
-          aria-label="Line text"
-          placeholder="A new line"
-        />
+        <CardLine category={category} onCategory={() => cmdPickCategory([ensure()])}>
+          <AutoText
+            className="sort-text"
+            value={text}
+            onChange={(e) => onText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                if (can) finish(true)
+              } else if (e.key === 'Escape' && text !== '') {
+                // Escape with words typed only leaves the field; the next one closes the card.
+                e.preventDefault()
+                e.currentTarget.blur()
+              }
+            }}
+            aria-label="Line text"
+            placeholder="A new line"
+          />
+        </CardLine>
         <div className="create-subs">
           {row && <Pad embedded />}
           <button type="button" className="create-add" onClick={() => { ensure(); cmdAppendAtEnd() }}>Add a sub item</button>

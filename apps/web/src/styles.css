@@ -945,12 +945,25 @@ dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-f
 .sort-top .slot { padding: 0 0.35rem; border: 1px solid var(--rule); border-radius: 3px; color: var(--ink-soft); font-size: 0.72rem; white-space: nowrap; }
 .sort .sort-hour, .create .sort-hour { display: grid; min-height: 0; place-items: center; width: 2rem; height: 2rem; margin: -0.35rem -0.6rem -0.35rem 0; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-soft); cursor: pointer; }
 .sort .sort-hour:hover, .create .sort-hour:hover:not(:disabled) { color: var(--accent); background: var(--accent-faint); }
-.sort-card > textarea {
+.sort-card > textarea, .sort-line > textarea {
   display: block; width: 100%; padding: 0; margin: 0;
   border: 0; outline: 0; background: transparent; resize: none; overflow: hidden;
   touch-action: none;
 }
-.sort-card > textarea:focus { background: var(--accent-faint); box-shadow: 0 0 0 4px var(--accent-faint); border-radius: 2px; }
+.sort-card > textarea:focus, .sort-line > textarea:focus { background: var(--accent-faint); box-shadow: 0 0 0 4px var(--accent-faint); border-radius: 2px; }
+/* The card's line: its category in front of the text, as on a line of the pad. */
+.sort-line { display: flex; align-items: flex-start; gap: 0.45rem; }
+.sort-line > textarea { flex: 1; min-width: 0; width: auto; }
+.sort-line .category {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+  min-width: 1.5rem; height: 1.5rem; margin: calc((1.25rem * 1.4 - 1.5rem) / 2) 0 0; padding: 0;
+  border: 0; border-radius: 30%; background: var(--cat); color: inherit; font-family: inherit; font-size: 1rem; line-height: 1;
+  white-space: nowrap; cursor: pointer;
+}
+@supports (corner-shape: squircle) {
+  .sort-line .category { border-radius: 50%; corner-shape: squircle; }
+}
+.sort-line .category.is-word { padding: 0 0.45rem; border-radius: 0.45rem; color: var(--cat-ink); font-size: 0.8rem; }
 .sort-card .sort-text { font-size: 1.25rem; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
 .sort-card textarea::placeholder { color: var(--ink-mute); font-style: italic; }
 .stamp {
