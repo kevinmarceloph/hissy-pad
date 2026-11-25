@@ -32,5 +32,8 @@ export function seedSample(rows: Rows, ctx: OpCtx): { rows: Rows; ids: string[] 
   const pads = Object.keys(settled).filter((id) => !(id in rows))
   const res = insertOutline(settled, ctx, parseOutline(SAMPLE_OUTLINE), { parentId: null, afterId: null })
   const done = res.ids.find((id) => res.rows[id]!.text === SAMPLE_DONE_LINE)
-  return { rows: done ? setDone(res.rows, ctx, [done], true) : res.rows, ids: [...pads, ...res.ids] }
+  if (!done) return { rows: res.rows, ids: [...pads, ...res.ids] }
+  // Crossed out, but not by anyone: no doneAt, so no hour lists it as done while it ran.
+  const crossed = setDone(res.rows, ctx, [done], true)
+  return { rows: { ...crossed, [done]: { ...crossed[done]!, doneAt: null } }, ids: [...pads, ...res.ids] }
 }

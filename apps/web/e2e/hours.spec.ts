@@ -35,8 +35,10 @@ test('an open hour edits its lines with the pad\'s own rows, keys and toolbar', 
   await page.keyboard.press('ControlOrMeta+z')
   await expect(rows.nth(1)).not.toHaveClass(/is-done/)
 
-  // The hour's row counts its own line only, and the lines live in Today.
-  await expect(page.getByText('0/1')).toBeVisible()
+  // The hour's row shows no done-out-of-all count, and nothing crossed out (undone above).
+  // The lines live in Today.
+  await expect(page.getByText(/^\d+\/\d+$/)).toHaveCount(0)
+  await expect(page.getByText(/^✕\d+$/)).toHaveCount(0)
   await page.getByRole('button', { name: 'Pad', exact: true }).click()
   await page.getByRole('tab', { name: /^Today/ }).click()
   await expect(page.locator('.pad .row')).toHaveCount(2)

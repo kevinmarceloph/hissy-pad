@@ -19,6 +19,10 @@ describe('loadPad', () => {
     expect(text.startsWith('Welcome to HissyPad\n  This is one page.')).toBe(true)
     expect(text).toContain('  1.One small thing')
     expect(text).toContain('~Cross a line out')
+    // Crossed out by no one: no hour lists it as done while it ran.
+    const crossed = Object.values(usePad.getState().all).find((r) => r.text.startsWith('Cross a line out'))!
+    expect(crossed.done).toBe(true)
+    expect(crossed.doneAt).toBeNull()
     expect(mem.rows.size).toBeGreaterThan(10)
     expect(await mem.dirtyIds()).toHaveLength(mem.rows.size)
     const seed = JSON.parse((await mem.getMeta('seed.rows'))!)
