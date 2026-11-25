@@ -137,17 +137,17 @@ describe('Pad', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/Archived 1 line/)
   })
 
-  it('Cmd+Shift+7 numbers a run of lines; Enter continues the numbering', async () => {
+  it('Cmd+Shift+7 numbers the whole list; Enter continues the numbering', async () => {
     const user = userEvent.setup()
     await mount('a\nb\nc')
     await startEditing('a')
     await user.keyboard('{Escape}{Shift>}{ArrowDown}{/Shift}')
     await user.keyboard('{Meta>}{Shift>}7{/Shift}{/Meta}')
-    expect(texts()).toBe('1.a\n2.b\nc')
+    expect(texts()).toBe('1.a\n2.b\n3.c')
     expect(within(rowByText('a')).getByRole('button', { name: /Select line|Deselect line/ })).toHaveAttribute('data-num', '1.')
     await user.keyboard('{Enter}') // edit b
     await user.keyboard('{Enter}b2')
-    expect(texts()).toBe('1.a\n2.b\n3.b2\nc')
+    expect(texts()).toBe('1.a\n2.b\n3.b2\n4.c')
     await user.keyboard('{Escape}')
     await user.click(within(rowByText('c')).getByRole('button', { name: /Select line/ }))
     await user.click(screen.getByRole('button', { name: 'Numbered list' }))
@@ -193,7 +193,7 @@ describe('Pad', () => {
     expect(rowByText('a').className).toContain('is-header')
     expect(screen.getByRole('button', { name: 'Header' })).toHaveAttribute('aria-pressed', 'true')
     await user.click(screen.getByRole('button', { name: 'Numbered list' }))
-    expect(texts()).toBe('1.a\nb')
+    expect(texts()).toBe('1.a\n2.b')
     expect(rowByText('a').className).not.toContain('is-header')
     await user.click(screen.getByRole('button', { name: 'Bullet' }))
     expect(texts()).toBe('a\nb')

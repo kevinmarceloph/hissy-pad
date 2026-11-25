@@ -266,15 +266,28 @@ describe('sweepDone', () => {
 })
 
 describe('numbered lists', () => {
-  it('numbers runs of consecutive numbered siblings, restarting after a plain line', () => {
+  it('numbering one line numbers its plain siblings; un-numbering one un-numbers them', () => {
     const ctx = testCtx()
-    let rows = pad('a\nb\nc\nd\ne', ctx)
-    rows = toggleNumbered(rows, ctx, [idOf(rows, 'a'), idOf(rows, 'b'), idOf(rows, 'd'), idOf(rows, 'e')])
-    expect(shape(rows)).toBe('1.a\n2.b\nc\n1.d\n2.e')
-    rows = toggleNumbered(rows, ctx, [idOf(rows, 'a'), idOf(rows, 'c')])
-    expect(shape(rows)).toBe('1.a\n2.b\n3.c\n4.d\n5.e')
-    rows = toggleNumbered(rows, ctx, [idOf(rows, 'a'), idOf(rows, 'b')])
-    expect(shape(rows)).toBe('a\nb\n1.c\n2.d\n3.e')
+    let rows = pad('a\n  a1\n  a2\nb\nc', ctx)
+    rows = toggleNumbered(rows, ctx, [idOf(rows, 'b')])
+    expect(shape(rows)).toBe('1.a\n  a1\n  a2\n2.b\n3.c')
+    rows = toggleNumbered(rows, ctx, [idOf(rows, 'a1')])
+    expect(shape(rows)).toBe('1.a\n  1.a1\n  2.a2\n2.b\n3.c')
+    rows = toggleNumbered(rows, ctx, [idOf(rows, 'c')])
+    expect(shape(rows)).toBe('a\n  1.a1\n  2.a2\nb\nc')
+  })
+
+  it('a header keeps its look and splits the run; pad rows are left alone', () => {
+    const ctx = testCtx()
+    let rows = pad('a\nb\nc\nd', ctx)
+    rows = setKind(rows, ctx, [idOf(rows, 'c')], 'header')
+    rows = setNumbered(rows, ctx, [idOf(rows, 'a')], true)
+    expect(shape(rows)).toBe('1.a\n2.b\n#c\n1.d')
+    rows = setKind(rows, ctx, [idOf(rows, 'd')], 'plain')
+    expect(shape(rows)).toBe('a\nb\n#c\nd')
+    const padRow = { ...rows[idOf(rows, 'd')]!, pad: true }
+    rows = setNumbered({ ...rows, [padRow.id]: padRow }, ctx, [idOf(rows, 'a')], true)
+    expect(rows[padRow.id]!.numbered).toBe(false)
   })
 
   it('Enter continues a numbered list; a new first child starts plain', () => {
@@ -292,7 +305,7 @@ describe('numbered lists', () => {
     let rows = pad('a\nb\nc', ctx)
     rows = setKind(rows, ctx, [idOf(rows, 'a'), idOf(rows, 'b')], 'header')
     expect(shape(rows)).toBe('#a\n#b\nc')
-    rows = setKind(rows, ctx, [idOf(rows, 'b'), idOf(rows, 'c')], 'numbered')
+    rows = setKind(rows, ctx, [idOf(rows, 'b')], 'numbered')
     expect(shape(rows)).toBe('#a\n1.b\n2.c')
     expect(rows[idOf(rows, 'b')]!.header).toBe(false)
     rows = setKind(rows, ctx, [idOf(rows, 'c')], 'header')

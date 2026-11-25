@@ -46,7 +46,7 @@ describe('keys while editing a line', () => {
     await user.keyboard('{Control>}{Shift>}{ArrowDown}{/Shift}{/Control}')
     expect(texts()).toBe('a\nb\n  b1\nc')
     await user.keyboard('{Control>}{Shift>}7{/Shift}{/Control}')
-    expect(texts()).toBe('a\nb\n  b1\n1.c')
+    expect(texts()).toBe('1.a\n2.b\n  b1\n3.c')
     await editLine('b')
     await user.keyboard('{Control>}.{/Control}')
     expect(usePad.getState().rows[id('b')]!.collapsed).toBe(true)
@@ -120,7 +120,7 @@ describe('keys with lines selected', () => {
     await user.keyboard('{Control>}{Enter}{/Control}')
     expect(texts()).toBe('a\nb\n  b1\n~c')
     await user.keyboard('{Control>}{Shift>}7{/Shift}{/Control}')
-    expect(texts()).toBe('a\nb\n  b1\n1.~c')
+    expect(texts()).toBe('1.a\n2.b\n  b1\n3.~c')
   })
 
   it('Enter edits, Esc clears, Delete removes, Cmd+A selects all, Cmd+Z undoes', async () => {

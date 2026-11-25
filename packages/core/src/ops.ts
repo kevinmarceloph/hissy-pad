@@ -192,16 +192,41 @@ export function toggleDone(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows 
   return setDone(rows, ctx, list, !allDone)
 }
 
+// A list is numbered or not as a whole: numbering a line numbers the plain lines beside it
+// (same parent), and un-numbering one un-numbers the numbered ones. Headers keep their look,
+// and pad rows and lines sent out (due) are left alone.
+function listMates(rows: Rows, ids: Iterable<string>, from: NodeKind): string[] {
+  const out = new Set<string>()
+  const parents = new Set<string | null>()
+  for (const id of ids) {
+    if (!isLive(rows[id])) continue
+    out.add(id)
+    parents.add(rows[id]!.parentId)
+  }
+  for (const r of Object.values(rows)) {
+    if (!isLive(r) || r.pad || r.due || !parents.has(r.parentId)) continue
+    if (kindOf(r) === from) out.add(r.id)
+  }
+  return [...out]
+}
+
 export function setNumbered(rows: Rows, ctx: OpCtx, ids: Iterable<string>, numbered: boolean): Rows {
   let out = rows
-  for (const id of ids) if (isLive(out[id]) && out[id]!.numbered !== numbered) out = patch(out, ctx, id, { numbered, header: false })
+  for (const id of listMates(rows, ids, numbered ? 'plain' : 'numbered')) {
+    if (out[id]!.numbered !== numbered) out = patch(out, ctx, id, { numbered, header: false })
+  }
   return out
 }
 
 // Switch lines between plain, numbered and header. The two flags never overlap.
 export function setKind(rows: Rows, ctx: OpCtx, ids: Iterable<string>, kind: NodeKind): Rows {
   let out = rows
-  for (const id of ids) {
+  const list = [...ids]
+  // Numbering spreads to the plain lines beside; going back to plain from numbered spreads too.
+  const spread = kind === 'numbered' ? listMates(rows, list, 'plain')
+    : kind === 'plain' && list.some((id) => isLive(rows[id]) && rows[id]!.numbered) ? listMates(rows, list, 'numbered')
+    : list
+  for (const id of spread) {
     if (!isLive(out[id]) || kindOf(out[id]!) === kind) continue
     out = patch(out, ctx, id, { numbered: kind === 'numbered', header: kind === 'header' })
   }
