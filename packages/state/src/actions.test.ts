@@ -3,7 +3,7 @@ import { idOf, pad, shape } from '@hissypad/core'
 import { loadPad, usePad } from './store'
 import { select } from './selection'
 import { actionFace, LINE_ACTIONS, LINE_KINDS, lineAbilities, lineCount } from './actions'
-import { setClipboard, setClipboardReader } from './commands'
+import { cmdCopySelection, setClipboard, setClipboardProbe, setClipboardReader, useClipboard } from './commands'
 import { padList } from './pads'
 import { resetStore } from './testing'
 
@@ -14,7 +14,7 @@ describe('line abilities', () => {
   const can = (...texts: string[]) => lineAbilities(rows, texts.map((t) => idOf(rows, t)))
 
   it('says what the targets allow', () => {
-    expect(can('A')).toEqual({ indent: false, dedent: false, up: false, down: true, children: false, folded: false, single: true, mixed: false, hour: false, pads: true, pin: true, pinned: false })
+    expect(can('A')).toEqual({ indent: false, dedent: false, up: false, down: true, children: false, folded: false, single: true, mixed: false, hour: false, pads: true, pin: true, pinned: false, paste: true })
     expect(can('B')).toMatchObject({ indent: true, up: true, down: true, children: true, dedent: false })
     expect(can('B1')).toMatchObject({ indent: false, dedent: true, up: false, down: true })
     expect(can('C')).toMatchObject({ indent: true, up: true, down: false })
@@ -23,7 +23,7 @@ describe('line abilities', () => {
     expect(can('B', 'B1').single).toBe(true)
     expect(can('A', 'B').single).toBe(false)
     expect(can('A', 'B', 'C')).toMatchObject({ indent: false, up: false, down: false }) // every sibling selected
-    expect(lineAbilities(rows, [])).toEqual({ indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: false, mixed: false, hour: false, pads: true, pin: false, pinned: false })
+    expect(lineAbilities(rows, [])).toEqual({ indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: false, mixed: false, hour: false, pads: true, pin: false, pinned: false, paste: true })
   })
 
   it('a target that is not among the rows is passed over (a line just archived out of an open hour)', () => {
@@ -138,6 +138,26 @@ describe('the toolbar registry', () => {
     expect(shown()).toBe('A\nB\n  B1\nB\n  B1\nC')
     setClipboard(async () => false)
     setClipboardReader(async () => null)
+  })
+
+  it('Paste is off while a platform that can tell says the clipboard holds no text; a copy turns it back on', async () => {
+    const on = () => action('pasteAbove').enabled!(lineAbilities(usePad.getState().rows, usePad.getState().selection))
+    pick('A')
+    expect(on()).toBe(true) // no probe (the web): always on
+    let has = false
+    setClipboardProbe(async () => has)
+    await Promise.resolve(); await Promise.resolve()
+    expect(useClipboard.getState().hasText).toBe(false)
+    expect(on()).toBe(false)
+    expect(action('pasteBelow').enabled!(lineAbilities(usePad.getState().rows, usePad.getState().selection))).toBe(false)
+    cmdCopySelection()
+    expect(on()).toBe(true)
+    setClipboardProbe(async () => { throw new Error('no') })
+    await Promise.resolve(); await Promise.resolve()
+    expect(on()).toBe(true) // could not tell: on
+    has = false
+    setClipboardProbe(null)
+    expect(on()).toBe(true)
   })
 
   it('Make pad says what it did, and is off for more than one line', () => {

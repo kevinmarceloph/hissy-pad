@@ -8,7 +8,7 @@ if (!g.crypto?.randomUUID) g.crypto = { ...(g.crypto ?? {}), randomUUID }
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Clipboard from 'expo-clipboard'
-import { bindAuth, configureLocalStore, initLog, initPrefs, setClipboard, setClipboardReader, setLogEnabled, setSyncTriggers } from '@hissypad/state'
+import { bindAuth, configureLocalStore, initLog, initPrefs, refreshClipboard, setClipboard, setClipboardProbe, setClipboardReader, setLogEnabled, setSyncTriggers } from '@hissypad/state'
 import { configureChimes, configureHoursBackend } from '@hissypad/state/hours'
 import { createSqliteStore } from './local/sqlite'
 import { mobileChimes } from './chimes'
@@ -45,6 +45,13 @@ export async function setupApp() {
     } catch {
       return null
     }
+  })
+  // Paste above / below are off while the clipboard holds no text. hasStringAsync checks
+  // without reading, so iOS shows no paste banner. Asked again when the toolbar shows and
+  // when the app comes back (something may have been copied in another app).
+  setClipboardProbe(() => Clipboard.hasStringAsync())
+  AppState.addEventListener('change', (s) => {
+    if (s === 'active') void refreshClipboard()
   })
   setSyncTriggers((kick) => {
     const sub = AppState.addEventListener('change', (s) => {

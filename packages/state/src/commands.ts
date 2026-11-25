@@ -20,6 +20,28 @@ let readText: ClipboardReader = async () => null
 export function setClipboardReader(fn: ClipboardReader) {
   readText = fn
 }
+// Whether the clipboard holds text, for a platform that can tell without reading it (the
+// phone: expo-clipboard's hasStringAsync, which raises no paste banner). Paste above and
+// Paste below are off while it says no. The web registers none: a browser cannot ask without
+// reading, and a read pops Safari's paste bubble, so there Paste stays on and says so when
+// there was nothing.
+export type ClipboardProbe = () => Promise<boolean>
+let probe: ClipboardProbe | null = null
+export const useClipboard = create<{ hasText: boolean }>(() => ({ hasText: true }))
+export function setClipboardProbe(fn: ClipboardProbe | null) {
+  probe = fn
+  if (!fn) useClipboard.setState({ hasText: true })
+  else void refreshClipboard()
+}
+// Asks again: each app calls it when the toolbar shows and when the app comes back.
+export async function refreshClipboard() {
+  const p = probe
+  if (!p) return
+  let has = true
+  try { has = await p() } catch { /* could not tell: leave Paste on */ }
+  if (probe === p) useClipboard.setState({ hasText: has })
+}
+import { create } from 'zustand'
 import { apply, importOutline, usePad } from './store'
 import { dropLastOp } from './history'
 import { edit, neighbor, select, stopEditing, targets, visibleIds } from './selection'
@@ -263,6 +285,7 @@ export function cmdCopySelection(): string {
   const { rows } = usePad.getState()
   const { text, html } = copyPayload(rows, targets())
   void copyText(text, html)
+  if (text.trim() !== '') useClipboard.setState({ hasText: true })
   return text
 }
 

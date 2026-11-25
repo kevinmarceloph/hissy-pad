@@ -8,7 +8,7 @@
 // draw them as round buttons floating above it, Done as the open / doing / done switch.
 import { buildIndex, childrenOf, topmost, type NodeKind, type Rows } from '@hissypad/core'
 import {
-  cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdMoveToTop, cmdPaste, cmdTogglePin, cmdToggleCollapsed, cmdSplitOpen, cmdToggleDone, cmdUngroup,
+  cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdMoveToTop, cmdPaste, cmdTogglePin, cmdToggleCollapsed, cmdSplitOpen, cmdToggleDone, cmdUngroup, useClipboard,
 } from './commands'
 import { cmdLineToPad } from './pads'
 import { cmdPickSlot, cmdSetSlot } from './hours/slots'
@@ -32,6 +32,7 @@ export interface LineAbilities {
   pads: boolean     // the rows are a pad as itself: not an open hour, not a zoomed line's sub items
   pin: boolean      // some target is one of the pad's top-level lines (it can be pinned)
   pinned: boolean   // every such target is pinned already (so Pin reads Unpin)
+  paste: boolean    // the clipboard may hold text (off only where the platform can tell it does not)
 }
 
 // `hour`: the rows are an open hour's lines. Its own lines, at the root, have no order to
@@ -39,6 +40,7 @@ export interface LineAbilities {
 // Pinned lines move only among the pins, and the others only under them (core's pins.ts).
 export function lineAbilities(
   rows: Rows, ids: readonly string[], hour: boolean = usePad.getState().slotId !== null, zoomed: boolean = usePad.getState().zoomId !== null,
+  paste: boolean = useClipboard.getState().hasText,
 ): LineAbilities {
   const index = buildIndex(rows)
   // A target can be gone from the rows for a moment: an hour's last line, just archived, is
@@ -46,7 +48,7 @@ export function lineAbilities(
   const tops = topmost(index, ids).filter((id) => rows[id] !== undefined)
   const set = new Set(tops)
   const pads = !hour && !zoomed
-  const can: LineAbilities = { indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: tops.length === 1, mixed: false, hour, pads, pin: false, pinned: false }
+  const can: LineAbilities = { indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: tops.length === 1, mixed: false, hour, pads, pin: false, pinned: false, paste }
   let open = false
   let unpinned = false
   for (const id of tops) {
@@ -144,8 +146,8 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   },
   { id: 'copy', group: 'clip', label: 'Copy', name: 'Copy', hint: 'Copy as outline', icon: 'copy', keys: '⌘C', run: () => void cmdCopySelection() },
   { id: 'cut', group: 'clip', label: 'Cut', name: 'Cut', hint: 'Cut: copy as outline, then delete', icon: 'cut', keys: '⌘X', run: cmdCutSelection },
-  { id: 'pasteAbove', group: 'clip', label: 'Paste above', name: 'Paste above', hint: 'Paste the clipboard as lines above', icon: 'pasteAbove', run: () => paste('above') },
-  { id: 'pasteBelow', group: 'clip', label: 'Paste below', name: 'Paste below', hint: 'Paste the clipboard as lines below', icon: 'pasteBelow', run: () => paste('below') },
+  { id: 'pasteAbove', group: 'clip', label: 'Paste above', name: 'Paste above', hint: 'Paste the clipboard as lines above', icon: 'pasteAbove', enabled: (c) => c.paste, run: () => paste('above') },
+  { id: 'pasteBelow', group: 'clip', label: 'Paste below', name: 'Paste below', hint: 'Paste the clipboard as lines below', icon: 'pasteBelow', enabled: (c) => c.paste, run: () => paste('below') },
   { id: 'slot', group: 'pad', label: 'Hour…', name: 'Put in an hour', hint: 'Put in an hour of a day (Hours counts what is done there)', icon: 'hour', floats: true, run: cmdPickSlot },
   { id: 'category', group: 'pad', label: 'Category…', name: 'Give a category', hint: 'Give it one of Hours\' categories (its icon shows before the text)', icon: 'category', floats: true, run: cmdPickCategory },
   // Out of the pads until a later day, then back at the top of the Inbox (boomerang.ts).

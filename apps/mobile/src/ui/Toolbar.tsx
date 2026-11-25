@@ -3,11 +3,11 @@
 // (as it is on the web at phone width), and Hour…, Category…, the open / doing / done
 // switch and "done editing" are the floating buttons at the bottom right (FloatingButtons.tsx), and so is
 // Move to… (the tray icon). The three dots open the less used actions (those marked `more`).
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { kindOf } from '@hissypad/core'
 import {
-  actionFace, cmdSetKind, cmdTogglePin, countOf, lineAbilities, lineActions, lineCount, usePad,
+  actionFace, cmdSetKind, cmdTogglePin, countOf, lineAbilities, lineActions, lineCount, refreshClipboard, useClipboard, usePad,
   LINE_ACTIONS, LINE_KINDS, type LineActionGroup, type LineIcon as LineIconId,
 } from '@hissypad/state'
 import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
@@ -32,8 +32,11 @@ export function Toolbar({ theme }: { theme: Theme }) {
   const editing = usePad((s) => s.editing)
   const rows = usePad((s) => s.rows)
   const ids = selection.length > 0 ? selection : editing ? [editing.id] : []
-  const can = useMemo(() => lineAbilities(rows, ids), [rows, ids])
-  if (ids.length === 0) return null
+  const clip = useClipboard((s) => s.hasText)
+  const can = useMemo(() => lineAbilities(rows, ids, undefined, undefined, clip), [rows, ids, clip])
+  const showing = ids.length > 0
+  useEffect(() => { if (showing) void refreshClipboard() }, [showing])
+  if (!showing) return null
   // Done, Hour…, Category… and Move to… float above the bar (FloatingButtons.tsx).
   const offered = lineActions(can)
   const shown = offered.filter((a) => !a.floats && !a.more)
