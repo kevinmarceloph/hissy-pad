@@ -44,6 +44,7 @@ export function drawHours(
     const cell: HourCell = {
       state: hourState(entry),
       color: category ? palette[category.color] : null,
+      icon: category?.icon || null,
       any: says.from !== null || says.category !== null,
     };
     return { day, hour, plan, entry, top, count, says, cell };

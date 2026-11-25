@@ -91,7 +91,7 @@ Screens written once in React Native. The phone draws them natively; the web app
 | `src/hours/HostedLines.tsx` | an open hour drawn by the host's own pad editor: `LinesContext` (the `renderLines` prop of `HoursApp`), opening and closing the store's view of the hour, the hour's archived lines under an "Archived" heading, each with Unarchive. Both apps use it: the web hands in `<Pad embedded />`, the phone `SubRows` |
 | `src/hours/SlotAdder.tsx` | the field under an open hour's lines: add a line to the top of Today, or find one in any pad and put it in the hour |
 | `src/hours/StateMark.tsx` | the three bullets (open, doing, done) for a line and for an hour, and the switch that sets one |
-| `src/hours/drawn.ts` | `drawHours`: each hour of a day as a screen draws it (recurring plan, top line, count, its box in a strip), for the day screen and the hour picker |
+| `src/hours/drawn.ts` | `drawHours`: each hour of a day as a screen draws it (recurring plan, top line, count, its box in a strip with its category's icon, which `Mark` draws where the box is wide enough: `iconSize`), for the day screen and the hour picker |
 | `src/hours/SlotPicker.tsx` | the hour picker the pad's toolbar opens: the day on one line (earlier, the day, a calendar, later: `DayPicker` from `DayScreen.tsx`) over the strip of hours |
 | `src/hours/CategoryPicker.tsx` | the category picker the pad's toolbar opens ("Category…"), with "New category" in place (the form is `NewCategory` from `CategoriesScreen.tsx`) |
 | `src/hours/CategoriesScreen.tsx`, `FlagsScreen.tsx`, `RecurringScreen.tsx` | the user's own lists; categories open from the app's top menu through `CategoriesApp` (`HoursApp.tsx`), flags and plans from Hours' menu |
