@@ -1,11 +1,15 @@
 import { memo, useEffect, useRef, useState, type ComponentRef } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
+import { Platform, Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
 import { apply, clickSelect, cmdClearFresh, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
 import { inlineSpans, slotLabel, todayKey, toggleCollapsed } from '@hissypad/core'
 import { useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
 import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, mono, serif, type Theme } from '../theme'
+
+// Android's TextInput ignores lineHeight in its own style (an edited line sat 20pt a
+// line, not 26), but honors it on a Text child, so there the text goes in as a child.
+const ANDROID = Platform.OS === 'android'
 
 // How long after a line changes place a blur still counts as the move's doing.
 const MOVE_BLUR_MS = 400
@@ -163,7 +167,7 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
         <TextInput
           autoFocus
           selection={pendingSel}
-          value={draft}
+          value={ANDROID ? undefined : draft}
           multiline
           scrollEnabled={false}
           autoCorrect
@@ -180,7 +184,9 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
           }}
           style={[s.text, s.input, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}
           accessibilityLabel="Line text"
-        />
+        >
+          {ANDROID ? <Text style={s.inputLine}>{draft}</Text> : null}
+        </TextInput>
       ) : (
         <Pressable style={s.textWrap} onPress={() => edit(row.id, 'end')}>
           <Text style={[s.text, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
@@ -263,6 +269,7 @@ const s = StyleSheet.create({
   textWrap: { flex: 1, minHeight: LINE },
   text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, padding: 0, margin: 0, textAlignVertical: 'top' },
   input: { transform: [{ translateY: -INPUT_SHIFT }] },
+  inputLine: { lineHeight: LINE },
   category: { marginTop: (LINE - 22) / 2, marginRight: 6 },
   fresh: { width: 13, height: 13, borderRadius: 6.5, borderWidth: 2.5, marginTop: (LINE - 13) / 2, marginRight: 7 },
   slot: { fontSize: SIZE - 5, fontWeight: '400', fontStyle: 'normal', textDecorationLine: 'none' },

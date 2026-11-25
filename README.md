@@ -30,6 +30,9 @@ pnpm --filter @hissypad/web e2e     # Playwright drag and swipe tests (desktop +
 cp apps/mobile/.env.example apps/mobile/.env.local    # EXPO_PUBLIC_SUPABASE_URL / _ANON_KEY
 cd apps/mobile && npx expo start                       # Expo Go, or a dev client
 npx expo run:ios                                       # native build into the simulator
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ANDROID_HOME=~/Library/Android/sdk
+npx expo run:android                                   # debug build into the emulator or a plugged-in phone (needs Metro)
+npx expo run:android --variant release --device <name> # standalone app on a plugged-in phone (USB debugging on)
 npx eas-cli build --profile development --platform ios # dev client for a registered iPhone (needs Metro or an update)
 npx eas-cli build --profile preview --platform ios     # standalone app for the same phone, runs on its own
 npx expo start --dev-client                            # then the phone loads code from this Mac
