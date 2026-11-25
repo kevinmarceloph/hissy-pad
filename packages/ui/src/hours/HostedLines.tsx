@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
-import { slotDoneElsewhere, slotKey, slotLines, stateOf } from '@hissypad/core';
-import { closeSlot, cmdUnarchive, openSlot, usePad } from '@hissypad/state';
+import { slotDoneElsewhere, slotKey, slotLines, stateOf, type Rows } from '@hissypad/core';
+import { archiveLines, closeSlot, cmdUnarchive, openSlot, usePad, type ArchiveLine } from '@hissypad/state';
 
 import { SlotAdder } from './SlotAdder';
 import { StateMark } from './StateMark';
@@ -50,7 +50,7 @@ export function HostedLines({ day, hour, onClose }: Props) {
     [slot],
   );
 
-  const archived = slotLines(all, slot).filter((r) => r.deletedAt !== null);
+  const archived = useMemo(() => archivedTrees(all, slot), [all, slot]);
   // What the row counts as ✕N, in the order it was crossed out (Kevin, 2026-11-25).
   const finished = useMemo(() => slotDoneElsewhere(all)[slot] ?? [], [all, slot]);
 
@@ -70,34 +70,38 @@ export function HostedLines({ day, hour, onClose }: Props) {
                 <View aria-hidden style={styles.bullet}>
                   <StateMark state="done" color={theme.inkQuiet} />
                 </View>
-                <Text style={[styles.text, styles.struck, { color: theme.inkQuiet }]}>{r.text}</Text>
+                <Text style={[styles.text, styles.struck, { color: theme.inkQuiet, textDecorationColor: theme.accent }]}>{r.text}</Text>
               </View>
             ))}
           </View>
         </View>
       )}
       {archived.length > 0 && (
-        // Drawn like the pad's lines, under a heading of their own: a bullet that says the
-        // line's state, its words, and the way back (Kevin, 2026-11-25). Unarchiving puts
-        // the line at the top of its pad (cmdUnarchive), and so back among the hour's lines above.
+        // Drawn as the pad draws a line: its bullet says its state (a cross when done), done
+        // words struck through in the accent, and what was archived with it nested under it
+        // (Kevin, 2026-11-25). Unarchiving a line puts it at the top of its pad with what is
+        // under it (cmdUnarchive), and so back among the hour's lines above.
         <View>
           <Text role="heading" aria-level={3} style={[styles.heading, { color: theme.inkSoft }]}>
             Archived
           </Text>
           <View role="list" aria-label="Archived lines in this hour">
-            {archived.map((r) => (
-              <View key={r.id} role="listitem" style={styles.line}>
+            {archived.map(({ row: r, depth }) => (
+              <View key={r.id} role="listitem" style={[styles.line, { paddingLeft: depth * INDENT }]}>
                 <View aria-hidden style={styles.bullet}>
                   <StateMark state={stateOf(r)} color={r.done ? theme.inkQuiet : theme.inkSoft} />
                 </View>
-                <Text style={[styles.text, { color: r.done ? theme.inkQuiet : theme.ink }, r.done && styles.struck]}>{r.text}</Text>
-                <Tap
-                  aria-label={`Unarchive “${r.text}”`}
-                  onPress={() => cmdUnarchive([r.id])}
-                  style={[styles.back, { borderColor: theme.line }]}
-                  activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paper }}>
-                  <Text style={[styles.small, { color: theme.ink }]}>Unarchive</Text>
-                </Tap>
+                <Text style={[styles.text, { color: r.done ? theme.inkQuiet : theme.ink }, r.done && [styles.struck, { textDecorationColor: theme.accent }]]}>{r.text}</Text>
+                {depth === 0 && (
+                  <Tap
+                    aria-label={`Unarchive “${r.text}”`}
+                    onPress={() => cmdUnarchive([r.id])}
+                    hitSlop={8}
+                    style={styles.back}
+                    activeStyle={{ backgroundColor: theme.paper }}>
+                    <Text style={[styles.small, styles.link, { color: theme.inkSoft }]}>Unarchive</Text>
+                  </Tap>
+                )}
               </View>
             ))}
           </View>
@@ -106,6 +110,29 @@ export function HostedLines({ day, hour, onClose }: Props) {
       <SlotAdder day={day} hour={hour} onClose={onClose} />
     </View>
   );
+}
+
+// How far a line under another sits in: the pad's own step on each app (the web's 1.6rem,
+// the phone's INDENT).
+const INDENT = Platform.OS === 'web' ? 25.6 : 22;
+
+// The hour's archived lines, each with what was archived under it in the same archive, in
+// the order the Archive screen draws them (archiveLines). A line under another archived
+// line of this hour is drawn under it, not again on its own. Depth counts from the hour's line.
+function archivedTrees(all: Rows, slot: string): ArchiveLine[] {
+  const mine = new Set(slotLines(all, slot).filter((r) => r.deletedAt !== null).map((r) => r.id));
+  if (mine.size === 0) return [];
+  const out: ArchiveLine[] = [];
+  const lines = archiveLines(all);
+  for (let i = 0; i < lines.length; i++) {
+    const top = lines[i]!;
+    if (!mine.has(top.id)) continue;
+    out.push({ ...top, depth: 0 });
+    let j = i + 1;
+    for (; j < lines.length && lines[j]!.depth > top.depth; j++) out.push({ ...lines[j]!, depth: lines[j]!.depth - top.depth });
+    i = j - 1;
+  }
+  return out;
 }
 
 const styles = StyleSheet.create({
@@ -119,5 +146,7 @@ const styles = StyleSheet.create({
   text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
   struck: { textDecorationLine: 'line-through' },
   small: { fontFamily: serif, fontSize: SMALL, lineHeight: 20 },
-  back: { minHeight: 30, justifyContent: 'center', paddingHorizontal: 10, borderWidth: 1, borderRadius: 15 },
+  // A quiet link the height of a line, so the row is as tall as the pad's; hitSlop widens the target.
+  back: { height: LINE, justifyContent: 'center', paddingHorizontal: 6, borderRadius: 4 },
+  link: { textDecorationLine: 'underline' },
 });

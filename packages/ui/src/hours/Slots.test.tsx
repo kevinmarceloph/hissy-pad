@@ -132,6 +132,30 @@ describe('the pad\'s lines in an hour', () => {
     expect(usePad.getState().padId).toBeNull();
   });
 
+  it('draws an archived line with what was archived under it, nested, and unarchives them together', async () => {
+    await setup();
+    const invoice = id('send invoice');
+    await act(async () => {
+      applyAll((rows, ctx) => insertAt(insertAt(rows, ctx, { parentId: invoice, afterId: null }, 'export the PDF').rows, ctx, { parentId: invoice, afterId: null }, 'find the PO number').rows);
+      select([invoice]);
+      cmdSetSlot(slotKey('2026-11-19', 14));
+      cmdSlotDone(invoice, true);
+      cmdSlotDone(id('export the PDF'), true);
+      select([invoice]);
+      cmdDeleteSelection();
+    });
+    const list = screen.getByRole('list', { name: 'Archived lines in this hour' });
+    const items = within(list).getAllByRole('listitem');
+    // The hour's line, then what was under it, in the pad's order, one step in.
+    expect(items.map((el) => el.textContent?.replace(/Unarchive$/, '').replace('×', ''))).toEqual(['send invoice', 'find the PO number', 'export the PDF']);
+    expect(getComputedStyle(items[1]!).paddingLeft).not.toBe(getComputedStyle(items[0]!).paddingLeft);
+    // One way back, on the hour's line: the lines under it come back with it.
+    expect(within(list).getAllByText('Unarchive')).toHaveLength(1);
+    await fireEvent.press(screen.getByLabelText('Unarchive “send invoice”'));
+    expect(all()[id('export the PDF')]).toMatchObject({ deletedAt: null, parentId: invoice });
+    expect(screen.queryByRole('heading', { name: 'Archived' })).toBeNull();
+  });
+
   it('puts items into an hour that has not come', async () => {
     await setup();
     await fireEvent.press(screen.getByLabelText('5pm: not yet'));
