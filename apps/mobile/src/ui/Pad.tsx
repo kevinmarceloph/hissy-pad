@@ -503,7 +503,11 @@ export function Pad() {
       {load === 'loading' ? (
         screen === 'pad' && <Text style={[s.hint, { color: theme.inkMute }]}>Opening your pad…</Text>
       ) : (
-        <GestureDetector gesture={pan}>
+        // Keyed on whether the pad shows: a view under display: none has no native view, so
+        // the detector attached at launch (the app opens on Hours) held on to nothing and no
+        // drag reached the pad, its bullets or the floating + (Kevin, 2026-11-25). A fresh
+        // detector each time the pad shows attaches to the views that are there.
+        <GestureDetector key={screen === 'pad' ? 'pad' : 'off'} gesture={pan}>
           <View ref={container} style={screen === 'pad' ? s.scroll : s.hidden} onLayout={() => container.current?.measureInWindow((x, y) => (origin.current = { x, y }))}>
           <ScrollView
             ref={scroller}
