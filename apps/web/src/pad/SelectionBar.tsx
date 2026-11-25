@@ -29,12 +29,13 @@ interface MenuItem {
 // A button of the bar that opens a small menu above itself. The menu is drawn outside the
 // bar (a portal on <body>): the bar scrolls sideways on a desktop too narrow for it, and a
 // scrolling box clips anything positioned inside it (or on the dialog the bar is in). It sits above the button, kept inside
-// the window, and follows the button if the bar scrolls or the window resizes.
-function BarMenu({ name, title, menuLabel, className, buttonClass, items, children }: { name: string; title: string; menuLabel: string; className: string; buttonClass?: string; items: MenuItem[]; children: ReactNode }) {
+// the window, and follows the button if the bar scrolls or the window resizes. `below`: the
+// menu opens under the button instead (a card's Move to…, near the top of the page).
+export function BarMenu({ name, title, menuLabel, className, buttonClass, items, children, below = false, disabled = false }: { name: string; title: string; menuLabel: string; className: string; buttonClass?: string; items: MenuItem[]; children: ReactNode; below?: boolean; disabled?: boolean }) {
   const [open, setOpen] = useState(false)
   const button = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
-  const [at, setAt] = useState<{ left: number; bottom: number } | null>(null)
+  const [at, setAt] = useState<{ left: number; bottom?: number; top?: number } | null>(null)
 
   useLayoutEffect(() => {
     if (!open) {
@@ -46,7 +47,7 @@ function BarMenu({ name, title, menuLabel, className, buttonClass, items, childr
       if (!r) return
       const half = 96 // half the menu's widest (16rem is the cap; most are narrower)
       const left = Math.min(Math.max(r.left + r.width / 2, half + 8), window.innerWidth - half - 8)
-      setAt({ left, bottom: window.innerHeight - r.top + 8 })
+      setAt(below ? { left, top: r.bottom + 8 } : { left, bottom: window.innerHeight - r.top + 8 })
     }
     place()
     const bar = button.current?.closest('.selbar')
@@ -58,7 +59,7 @@ function BarMenu({ name, title, menuLabel, className, buttonClass, items, childr
       window.removeEventListener('resize', place)
       window.visualViewport?.removeEventListener('resize', place)
     }
-  }, [open])
+  }, [open, below])
 
   useEffect(() => {
     if (!open) return
@@ -83,9 +84,9 @@ function BarMenu({ name, title, menuLabel, className, buttonClass, items, childr
 
   return (
     <span className={className}>
-      <button ref={button} type="button" className={buttonClass} onClick={() => setOpen((m) => !m)} aria-haspopup="menu" aria-expanded={open} aria-label={name} title={title}>{children}</button>
+      <button ref={button} type="button" className={buttonClass} onClick={() => setOpen((m) => !m)} disabled={disabled} aria-haspopup="menu" aria-expanded={open} aria-label={name} title={title}>{children}</button>
       {open && at && createPortal(
-        <div ref={menu} className="bar moveto-menu" role="menu" aria-label={menuLabel} style={{ left: at.left, bottom: at.bottom }} onMouseDown={(e) => e.preventDefault()}>
+        <div ref={menu} className="bar moveto-menu" role="menu" aria-label={menuLabel} style={at.top !== undefined ? { left: at.left, top: at.top, bottom: 'auto' } : { left: at.left, bottom: at.bottom }} onMouseDown={(e) => e.preventDefault()}>
           {items.map((it) => (
             <button key={it.key} type="button" role="menuitem" className={it.className} title={it.title ?? it.label} disabled={it.disabled} onClick={() => { setOpen(false); it.run() }}>{it.label}</button>
           ))}

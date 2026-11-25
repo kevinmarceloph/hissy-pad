@@ -18,7 +18,7 @@ import {
   cmdAppendAtEnd, cmdCreateBegin, cmdCreateEnd, cmdCreateItem, cmdCreateMove, cmdCreateOpen, cmdCreateSetText, createDefaultPlace, placeFromKey, placeList, placeName, usePad,
   WIDGET_INBOX, WIDGET_MAIN,
 } from '@hissypad/state'
-import { cmdPickSlot } from '@hissypad/state/hours'
+import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
 import { useKeyboardHeight } from '../keyboard'
 import { serif, type Theme } from '../theme'
 import { FloatingButtons } from './FloatingButtons'
@@ -201,6 +201,16 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
               >
                 <HoursIcon color={theme.inkSoft} />
               </Pressable>
+              {/* The floating buttons' order: hour, category, boomerang, move; the pad icon last. */}
+              <Pressable
+                onPress={() => cmdPickCategory([ensure()])}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Give a category"
+                style={({ pressed }) => [card.hour, { opacity: pressed ? 0.5 : 1 }]}
+              >
+                <LineIcon icon="category" color={theme.inkSoft} ground={theme.paperRaised} />
+              </Pressable>
               {/* Out until a later day from the start: the sheet stays up, the line is under Later. */}
               <Pressable
                 onPress={() => cmdPickBoomerang([ensure()])}
@@ -211,6 +221,16 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
                 >
                 <LineIcon icon="boomerang" color={theme.inkSoft} ground={theme.paperRaised} />
                 </Pressable>
+              {/* The same choice as "In" at the left, where the pad's own buttons have it. */}
+              <Pressable
+                onPress={pickPlace}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Move to another pad or a sub-pad"
+                style={({ pressed }) => [card.hour, { opacity: pressed ? 0.5 : 1 }]}
+              >
+                <LineIcon icon="move" color={theme.inkSoft} ground={theme.paperRaised} />
+              </Pressable>
               <Pressable
                 onPress={seeInPad}
                 disabled={!row || !can}

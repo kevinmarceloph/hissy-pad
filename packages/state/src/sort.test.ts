@@ -251,3 +251,24 @@ describe('sort', () => {
     expect(swipeDir(40, 0, 30)).toBe('right')
   })
 })
+
+describe('the card\'s Move to…', () => {
+  it('moves the card\'s line to any pad, out of the zoom, and the session deals the next card', async () => {
+    resetStore('A\n  a1\nB')
+    await loadPad()
+    const { cmdSortMoveTo, sortSessionCard, sortSessionStart } = await import('./sort')
+    const session = sortSessionStart()
+    const a = idOf(usePad.getState().all, 'A')
+    zoomTo(a)
+    const work = cmdNewPad('Work')!
+    openPad(null)
+    zoomTo(a)
+    expect(cmdSortMoveTo(a, { padId: work, subId: null })).toBe(true)
+    expect(usePad.getState().zoomId).toBeNull()
+    // (A new pad starts with one blank line.)
+    expect(tableShape()).toBe('B\n@Work\n  A\n    a1\n  ')
+    expect(sortSessionCard(session).id).toBe(idOf(usePad.getState().all, 'B'))
+    undo()
+    expect(tableShape()).toBe('A\n  a1\nB\n@Work\n  ')
+  })
+})

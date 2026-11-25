@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentProps, type Compone
 import { Alert, Animated, Dimensions, Keyboard, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { scopePad, slotLabel, todayKey } from '@hissypad/core'
-import { cmdPickSlot } from '@hissypad/state/hours'
+import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
 import {
   cmdAppendAtEnd, cmdOpenHit, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
   sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, zoomTo,
@@ -21,7 +21,7 @@ import { FloatingButtons } from './FloatingButtons'
 import { SubRows } from './SubRows'
 import { HoursIcon, PadIcon } from './TopIcons'
 import { LineIcon } from './LineIcons'
-import { cmdPickBoomerang, dueWords } from '@hissypad/state'
+import { cmdPickBoomerang, cmdSortMoveTo, dueWords } from '@hissypad/state'
 
 const SLOP = 10 // px before a touch on the card becomes a drag
 
@@ -226,6 +226,16 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
                 >
                   <HoursIcon color={theme.inkSoft} />
                 </Pressable>
+                {/* The floating buttons' order: hour, category, boomerang, move; the pad icon last. */}
+                <Pressable
+                  onPress={() => cmdPickCategory([id])}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Give a category"
+                  style={({ pressed }) => [s.hour, { opacity: pressed ? 0.5 : 1 }]}
+                >
+                  <LineIcon icon="category" color={theme.inkSoft} ground={theme.paperRaised} />
+                </Pressable>
                 {/* Out of the pads until a later day: the card moves on, the line is under Later. */}
                 <Pressable
                   onPress={() => cmdPickBoomerang([id])}
@@ -235,6 +245,19 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
                   style={({ pressed }) => [s.hour, { opacity: pressed ? 0.5 : 1 }]}
                 >
                   <LineIcon icon="boomerang" color={theme.inkSoft} ground={theme.paperRaised} />
+                </Pressable>
+                {/* Any pad or sub-pad, beside what the swipes offer: the card moves on (iOS stacks them). */}
+                <Pressable
+                  onPress={() => Alert.alert('Move to', undefined, [
+                    ...placeList(all).filter((p) => p.subId !== null || p.padId !== padId).map((p) => ({ text: p.label, onPress: () => void cmdSortMoveTo(id, p) })),
+                    { text: 'Cancel', style: 'cancel' as const },
+                  ])}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Move to another pad or a sub-pad"
+                  style={({ pressed }) => [s.hour, { opacity: pressed ? 0.5 : 1 }]}
+                >
+                  <LineIcon icon="move" color={theme.inkSoft} ground={theme.paperRaised} />
                 </Pressable>
                 <Pressable
                   onPress={() => { if (cmdOpenHit(id)) onOpen?.() }}
@@ -316,7 +339,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth,
     shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 4,
   },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  top: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 8, rowGap: 10, marginBottom: 6 },
   count: { fontFamily: serif, fontSize: 13, marginRight: 'auto' },
   slot: { fontFamily: serif, fontSize: 12, paddingHorizontal: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 3, overflow: 'hidden' },
   hour: { padding: 4, margin: -4 },

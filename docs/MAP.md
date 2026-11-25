@@ -68,7 +68,7 @@ The app without a screen. Zustand for the store, plain functions for everything 
 | `archive.ts` | the Archive screen: every archived line, newest archive first, with its depth, its number and the pad it was in (`archiveLines`, `sourcePad`), the screen's own selection (`archiveTap`, `archiveCovered`), and `cmdUnarchive` (each line to the top of its pad, with what was archived under it; a pad back as a tab) |
 | `search.ts` | Search across every pad: the lines found, grouped by pad with the words marked (`search`), archived lines last in a group of their own when asked, and the jump to a live one (`cmdOpenHit`); an archived hit is opened on the Archive screen by each app |
 | `create.ts` | a new item on its card: make the line at the top of a place and zoom into it, set its text, move it to another place, and close the card keeping it or taking it all back |
-| `sort.ts` | Sort: the pad being sorted whatever the zoom (`sortRows`), the queue, the two targets, sending a card, the session a sort screen holds, the swipe rule |
+| `sort.ts` | Sort: the pad being sorted whatever the zoom (`sortRows`), the queue, the two targets, sending a card, the card's Move to… (`cmdSortMoveTo`), the session a sort screen holds, the swipe rule |
 | `shake.ts` | shake detection from accelerometer samples |
 | `widget.ts` | the home-screen widget's data: the snapshot it draws from, applying the buttons pressed on it, adding a line to a pad |
 | `watch.ts` | when the phone should hand the Apple Watch a sign-in, and how long to wait before trying again |

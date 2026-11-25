@@ -940,7 +940,7 @@ dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-f
 .sort-card.is-dragging > textarea, .sort-card.is-dragging .pad { pointer-events: none; }
 .sort-card .pad { cursor: auto; }
 .sort-card.leans-left, .sort-card.leans-right, .sort-card.leans-up, .sort-card.leans-down { border-color: var(--accent); }
-.sort-top { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.5rem; }
+.sort-top { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.5rem; margin: 0 0 0.5rem; }
 .sort-count { margin: 0 auto 0 0; color: var(--ink-mute); font-size: 0.82rem; }
 .sort-top .slot { padding: 0 0.35rem; border: 1px solid var(--rule); border-radius: 3px; color: var(--ink-soft); font-size: 0.72rem; white-space: nowrap; }
 .sort .sort-hour, .create .sort-hour { display: grid; min-height: 0; place-items: center; width: 2rem; height: 2rem; margin: -0.35rem -0.6rem -0.35rem 0; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-soft); cursor: pointer; }

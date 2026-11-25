@@ -9,10 +9,11 @@ import { isLive, slotLabel, todayKey, type Place } from '@hissypad/core'
 import {
   cmdAppendAtEnd, cmdCreateEnd, cmdCreateItem, cmdCreateMove, cmdCreateOpen, cmdCreateSetText, createDefaultPlace, placeFromKey, placeKey, placeList, usePad,
 } from '@hissypad/state'
-import { cmdPickSlot } from '@hissypad/state/hours'
+import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
 import { HoursIcon, LineIcon, PadIcon } from '../app/icons'
 import { cmdPickBoomerang, dueWords } from '@hissypad/state'
 import { Pad } from '../pad/Pad'
+import { BarMenu } from '../pad/SelectionBar'
 import { SelectionBar } from '../pad/SelectionBar'
 import { AutoText, oneLine } from './Sort'
 
@@ -117,8 +118,14 @@ export function CreateDialog({ depth, onClose, onOpen }: { depth: number; onClos
           {slot && <span className="slot" title="The hour this line is in">{slotLabel(slot, todayKey())}</span>}
           {due && <span className="slot" title="Out on a boomerang until this day">Out until {dueWords(due)}</span>}
           <button type="button" className="sort-hour" onClick={() => cmdPickSlot([ensure()])} title="Put in an hour" aria-label={slot ? `Hour: ${slotLabel(slot, todayKey())}, change` : 'Put in an hour'}><HoursIcon /></button>
+          {/* The floating buttons' order: hour, category, boomerang, move; the pad icon last. */}
+          <button type="button" className="sort-hour" onClick={() => cmdPickCategory([ensure()])} title="Give a category" aria-label="Give a category"><LineIcon icon="category" /></button>
           {/* Out until a later day from the start: the card stays up, the line is under Later. */}
           <button type="button" className="sort-hour" onClick={() => cmdPickBoomerang([ensure()])} title="Boomerang: out of the pads until a later day" aria-label={due ? `Out until ${dueWords(due)}, change` : 'Boomerang: send out until a later day'}><LineIcon icon="boomerang" /></button>
+          {/* The same choice as "In" at the left, where the pad's own buttons have it. */}
+          <BarMenu className="fab-menu" buttonClass="sort-hour" name="Move to…" title="Move to another pad or a sub-pad" menuLabel="Move to pad" below items={places.map((p) => ({ key: p.key, label: p.label, className: p.subId ? 'sub' : undefined, run: () => pickPlace(p.key) }))}>
+            <LineIcon icon="move" />
+          </BarMenu>
           <button type="button" className="sort-hour" onClick={seeInPad} disabled={!row || !can} title="Add it and see it in its pad" aria-label="See it in the pad"><PadIcon /></button>
         </div>
         <AutoText

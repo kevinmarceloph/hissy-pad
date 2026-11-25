@@ -6,8 +6,8 @@
 // the swipe itself is the app's.
 import { create } from 'zustand'
 import {
-  buildIndex, childrenOf, createPad, insertAt, isLive, isPadNode, isSubPad, listPads, moveNodes, remove, scopePad, setDone, setText,
-  type OpCtx, type PadId, type Rows,
+  buildIndex, childrenOf, createPad, insertAt, isLive, isPadNode, isPlace, isSubPad, listPads, moveNodes, moveToPlace, remove, scopePad, setDone, setText,
+  type OpCtx, type PadId, type Place, type Rows,
 } from '@hissypad/core'
 import { apply, applyAll, getLocalStore, usePad, zoomTo } from './store'
 import { undo } from './history'
@@ -181,6 +181,21 @@ export function cmdSortSend(id: string, dir: SortDir): SortResult | null {
   ensureLine() // the last line may have just left the pad
   log('sort:send', { id: id.slice(0, 8), dir, to: target.name, moved })
   return { dir, pad: target.name, moved, undoDepth }
+}
+
+// The card's Move to… button: the line goes to the top of any pad or sub-pad, with what is
+// under it, as the floating Move to… does in the pad. It leaves the pad's top level, so the
+// session deals the next card; it is not one of Sort's sends (undo in the pad takes it back).
+// Returns false when nothing moved.
+export function cmdSortMoveTo(id: string, place: Place): boolean {
+  if (usePad.getState().zoomId !== null) zoomTo(null)
+  const before = usePad.getState().all
+  if (!isLive(before[id]) || !isPlace(before, place)) return false
+  stopEditing()
+  const after = applyAll((all, ctx) => moveToPlace(all, ctx, [id], place), { label: 'cmdSortMoveTo' })
+  usePad.setState({ selection: [], anchorId: null, focusId: null })
+  ensureLine()
+  return after !== before
 }
 
 // Take back the last card: undo everything since it came up (the send, and any edits made

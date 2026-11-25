@@ -8,11 +8,13 @@
 // for the pad, scrolled so the line is at the top.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { scopePad, slotLabel, todayKey } from '@hissypad/core'
-import { cmdPickSlot } from '@hissypad/state/hours'
+import { cmdPickCategory, cmdPickSlot } from '@hissypad/state/hours'
 import { HoursIcon, LineIcon, PadIcon } from '../app/icons'
-import { cmdPickBoomerang, dueWords } from '@hissypad/state'
+import { cmdPickBoomerang, cmdSortMoveTo, dueWords } from '@hissypad/state'
+import { showToast } from '../app/toast'
+import { MOD } from '../platform/os'
 import { Pad } from '../pad/Pad'
-import { SelectionBar } from '../pad/SelectionBar'
+import { BarMenu, SelectionBar } from '../pad/SelectionBar'
 import {
   cmdAppendAtEnd, cmdOpenHit, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
   sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, zoomTo, type SortChoice, type SortDir,
@@ -285,8 +287,14 @@ export function Sort({ onClose, paused = false }: { onClose: () => void; paused?
               <p className="sort-count">{progress.at} of {progress.total}</p>
               {row.slot && <span className="slot" title="The hour this line is in">{slotLabel(row.slot, todayKey())}</span>}
               <button type="button" className="sort-hour" onClick={() => cmdPickSlot([id])} title="Put in an hour" aria-label={row.slot ? `Hour: ${slotLabel(row.slot, todayKey())}, change` : 'Put in an hour'}><HoursIcon /></button>
+              {/* The floating buttons' order: hour, category, boomerang, move; the pad icon last. */}
+              <button type="button" className="sort-hour" onClick={() => cmdPickCategory([id])} title="Give a category" aria-label="Give a category"><LineIcon icon="category" /></button>
               {/* Out of the pads until a later day: the card moves on, the line is under Later. */}
               <button type="button" className="sort-hour" onClick={() => cmdPickBoomerang([id])} title="Boomerang: out of the pads until a later day" aria-label={row.due ? `Out until ${dueWords(row.due)}, change` : 'Boomerang: send out until a later day'}><LineIcon icon="boomerang" /></button>
+              {/* Any pad or sub-pad, beside what the swipes offer: the card moves on. */}
+              <BarMenu className="fab-menu" buttonClass="sort-hour" name="Move to…" title="Move to another pad or a sub-pad" menuLabel="Move to pad" below items={placeList(all).filter((p) => p.subId !== null || p.padId !== padId).map((p) => ({ key: p.key, label: p.label, className: p.subId ? 'sub' : undefined, run: () => { if (cmdSortMoveTo(id, p)) showToast(`Moved to “${p.label}”. ${MOD}+Z undoes it.`) } }))}>
+                <LineIcon icon="move" />
+              </BarMenu>
               <button type="button" className="sort-hour" onClick={() => { if (cmdOpenHit(id)) onClose() }} title="See it in the pad" aria-label="See it in the pad"><PadIcon /></button>
             </div>
             <AutoText

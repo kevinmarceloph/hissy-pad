@@ -84,3 +84,36 @@ test('the new item\'s card sends the item out from the start, and can call it ba
   await page.getByRole('tab', { name: /^Inbox/ }).click()
   await expect(page.locator('.row .text').first()).toHaveText('renew the passport')
 })
+
+// The cards carry the pad's floating buttons in the same order, the pad icon last.
+test('a card has hour, category, boomerang and move at its top right, then the pad icon', async ({ page }, info) => {
+  await page.goto('/#sort')
+  const names = (scope: ReturnType<typeof page.locator>) => scope.locator('.sort-top button').evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')))
+  await expect(page.getByRole('textbox', { name: 'Line text' })).toHaveValue('Welcome to HissyPad')
+  expect(await names(page.locator('.sort-card'))).toEqual(['Put in an hour', 'Give a category', 'Boomerang: send out until a later day', 'Move to…', 'See it in the pad'])
+
+  // Move to… opens under its button, on screen, and the card moves on.
+  await page.locator('.sort-card').getByRole('button', { name: 'Move to…' }).click()
+  const item = page.getByRole('menuitem', { name: 'Today' })
+  const box = (await item.boundingBox())!
+  expect(box.y).toBeGreaterThanOrEqual(0)
+  expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/6-sort-move-${info.project.name}.png` })
+  await item.click()
+  await expect(page.getByRole('status')).toContainText('Moved to “Today”')
+  await expect(page.getByRole('textbox', { name: 'Line text' })).toHaveValue('Today')
+
+  await page.goto('/#pads')
+  await page.getByRole('button', { name: 'New item' }).click()
+  const card = page.locator('dialog.create')
+  await expect(card.locator('.sort-text')).toBeVisible()
+  expect(await names(card)).toEqual(['Put in an hour', 'Give a category', 'Boomerang: send out until a later day', 'Move to…', 'See it in the pad'])
+  await card.locator('.sort-text').fill('buy stamps')
+  await card.getByRole('button', { name: 'Move to…' }).click()
+  await page.getByRole('menuitem', { name: 'Later' }).click()
+  await expect(card.getByLabel('Where the new item goes')).toHaveValue(/.+/)
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/7-create-buttons-${info.project.name}.png` })
+  await card.getByRole('button', { name: 'Add', exact: true }).click()
+  await page.getByRole('tab', { name: /^Later/ }).click()
+  await expect(page.locator('.row .text').first()).toHaveText('buy stamps')
+})
