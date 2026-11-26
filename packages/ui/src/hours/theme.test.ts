@@ -87,6 +87,8 @@ describe.each(Object.entries(themes))('%s theme', (_name, theme) => {
 
   it('keeps the category colors apart for a deuteranope, and apart from untagged ink', () => {
     expect(closest([...defaults.map((key) => theme.palette[key]), theme.ink])).toBeGreaterThanOrEqual(14);
-    expect(closest([...keys.map((key) => theme.palette[key]), theme.ink])).toBeGreaterThanOrEqual(8.5);
+    // The first twelve stay 8.5 apart; with the ten added on 2026-11-27, all of them 6.5.
+    expect(closest([...keys.slice(0, 12).map((key) => theme.palette[key]), theme.ink])).toBeGreaterThanOrEqual(8.5);
+    expect(closest([...keys.map((key) => theme.palette[key]), theme.ink])).toBeGreaterThanOrEqual(6.5);
   });
 });

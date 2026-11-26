@@ -19,6 +19,17 @@ export const COLORS = [
   { key: 'indigo', label: 'Indigo' },
   { key: 'night', label: 'Night' },
   { key: 'stone', label: 'Stone' },
+  // Ten more (Kevin, 2026-11-27), searched the same way and kept apart from the twelve.
+  { key: 'cobalt', label: 'Cobalt' },
+  { key: 'azure', label: 'Azure' },
+  { key: 'magenta', label: 'Magenta' },
+  { key: 'mauve', label: 'Mauve' },
+  { key: 'lagoon', label: 'Lagoon' },
+  { key: 'brick', label: 'Brick' },
+  { key: 'orchid', label: 'Orchid' },
+  { key: 'vermilion', label: 'Vermilion' },
+  { key: 'amber', label: 'Amber' },
+  { key: 'royal', label: 'Royal' },
 ] as const;
 
 export type ColorKey = (typeof COLORS)[number]['key'];

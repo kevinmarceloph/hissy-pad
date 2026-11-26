@@ -25,6 +25,9 @@ export const serif = Platform.select({
 // apart the colors sit under simulated deuteranopia: the eight the default categories use
 // are at least 14 apart (OKLab distance x 100; 2 is about the edge of noticeable), all
 // twelve at least 8.5, and all of them that far from the ink untagged hours are drawn in.
+// Ten more came on 2026-11-27 (Kevin), searched against the twelve and the ink with a floor
+// on chroma (no near-greys or near-blacks that would read as ink): all 22 are at least 6.7
+// apart in the dark theme and 7.2 in the light.
 // Each is 3:1 or better against the paper in its theme: a higher floor squeezes them into
 // a narrower band of lightness and closer together. src/ui/__tests__/theme.test.ts holds
 // those numbers. Twelve colors cannot all be far apart for a deuteranope, which is why the
