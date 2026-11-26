@@ -2,7 +2,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { idOf } from '@hissypad/core'
 import { resetStore } from './testing'
-import { loadPad, openPad, usePad } from './store'
+import { importOutline, loadPad, openPad, usePad } from './store'
+import { cmdSetText, cmdSplit } from './commands'
 import { undo } from './history'
 import { select } from './selection'
 import { cmdMoveTo, cmdNewPad, cmdSetPadCategory } from './pads'
@@ -44,6 +45,22 @@ describe('pad categories', () => {
     select([idOf(all(), 'C')], idOf(all(), 'C'))
     cmdMoveTo({ padId: work, subId: null })
     expect(cat('C')).toBeNull()
+  })
+
+  it('a line made new in the pad takes its category: Return, a sub item, a paste', () => {
+    openPad(work)
+    const first = Object.values(usePad.getState().rows)[0]!.id
+    cmdSetText(first, 'one') // made with the pad, before the pad had a category: left as it is
+    expect(all()[first]!.category).toBeNull()
+    cmdSplit(first, 3)
+    const second = Object.values(usePad.getState().rows).find((r) => r.id !== first)!.id
+    expect(all()[second]!.category).toBe('cat-work')
+    importOutline('pasted\n  under', 'bottom')
+    expect(cat('pasted')).toBe('cat-work')
+    expect(cat('under')).toBe('cat-work')
+    openPad(null)
+    importOutline('in the inbox', 'bottom')
+    expect(cat('in the inbox')).toBeNull()
   })
 
   it('a sort send into the pad gives the category too', () => {

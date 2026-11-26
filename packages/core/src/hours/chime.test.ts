@@ -55,11 +55,10 @@ describe('the next chime', () => {
 });
 
 describe('what a chime asks about', () => {
-  it(':00 to :10: the hour that just ended', () => {
-    for (const m of [0, 5, 10]) expect(chimeTitle(m)).toBe('Where did the last hour go?');
-    expect(chimeSlot(at(15, 0, 4), 0)).toEqual({ day: '2026-11-20', hour: 14 });
-    expect(chimeSlot(at(15, 10, 4), 10)).toEqual({ day: '2026-11-20', hour: 14 });
-    expect(chimeSlot(at(0, 0, 4), 0)).toEqual({ day: '2026-11-19', hour: 23 });
+  it(':00 to :10: the hour just begun, looking ahead', () => {
+    for (const m of [0, 5, 10]) expect(chimeTitle(m)).toBe('Where do you want this hour to go?');
+    expect(chimeSlot(at(15, 0, 4), 0)).toEqual({ day: '2026-11-20', hour: 15 });
+    expect(chimeSlot(at(0, 10, 4), 10)).toEqual({ day: '2026-11-20', hour: 0 });
   });
 
   it(':15 to :40: the hour going on', () => {

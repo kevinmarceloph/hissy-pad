@@ -182,7 +182,7 @@ export function PadTabs() {
               <span>Category, for every line moved into this pad</span>
               <select value={all[sheet.padId]?.category ?? ''} onChange={(e) => cmdSetPadCategory(sheet.padId, e.target.value || null)} aria-label="Pad category">
                 <option value="">None</option>
-                {categories.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{categoryName(c)}</option>)}
+                {categories.map((c) => <option key={c.id} value={c.id}>{categoryName(c)}</option>)}
                 {/* An archived category the pad still has. */}
                 {all[sheet.padId]?.category && !categories.some((c) => c.id === all[sheet.padId]!.category) && <option value={all[sheet.padId]!.category!}>(archived)</option>}
               </select>

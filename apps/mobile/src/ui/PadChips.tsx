@@ -48,7 +48,7 @@ export function PadChips({ theme }: { theme: Theme }) {
         onPress: () =>
           menu(`Category for “${name}”`, 'Every line moved into this pad takes it.', [
             { text: all[id]?.category ? 'None' : 'None ✓', onPress: () => cmdSetPadCategory(id, null) },
-            ...activeCategories(lineCategories.getState().list).map((c) => ({ text: `${c.icon ? `${c.icon} ` : ''}${categoryName(c)}${all[id]?.category === c.id ? ' ✓' : ''}`, onPress: () => cmdSetPadCategory(id, c.id) })),
+            ...activeCategories(lineCategories.getState().list).map((c) => ({ text: `${categoryName(c)}${all[id]?.category === c.id ? ' ✓' : ''}`, onPress: () => cmdSetPadCategory(id, c.id) })),
             { text: 'Cancel', style: 'cancel' as const },
           ]),
       },
