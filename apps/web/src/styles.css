@@ -320,6 +320,15 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
 .row.is-numbered.is-collapsed .bullet::before { box-shadow: none; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 0.2em; }
 .row.is-numbered .bullet:hover::before { box-shadow: none; background: var(--accent-soft); border-radius: 3px; padding: 0 0.2rem; margin-right: -0.2rem; }
 .row .bullet:hover::before { box-shadow: 0 0 0 0.3rem var(--accent-soft); }
+/* A line with a category draws its bullet in the category's color (Kevin, 2026-11-27): the
+   dot, the doing ring, the cross, the # and the number, and the pin. The category's icon
+   beside it still carries the meaning; the color only backs it. A blank line keeps no dot. */
+.row.has-category .bullet::before { background: var(--cat); }
+.row.has-category.is-doing .bullet::before { outline-color: var(--cat); }
+.row.has-category:is(.is-done, .is-header, .is-numbered) .bullet::before { background: transparent; color: var(--cat); }
+.row.has-category.is-empty:not(.is-editing) .bullet::before { background: transparent; }
+.row.has-category.is-pinned:not(.is-done) .bullet::before { background: transparent; }
+.row.has-category.is-pinned:not(.is-done) .bullet::after { background: var(--cat); }
 .row .text {
   grid-column: 2;
   grid-row: 1;

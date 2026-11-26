@@ -1,10 +1,11 @@
 import { memo, useEffect, useRef, useState, type ComponentRef } from 'react'
-import { Platform, Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
+import { Platform, Pressable, StyleSheet, Text, TextInput, View, useColorScheme, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
 import { apply, clickSelect, cmdClearFresh, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
 import { inlineSpans, slotLabel, todayKey, toggleCollapsed } from '@hissypad/core'
 import { useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
+import { PALETTES } from '@hissypad/ui/palette'
 import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, mono, serif, type Theme } from '../theme'
 
 // Android's TextInput ignores lineHeight in its own style (an edited line sat 20pt a
@@ -38,6 +39,13 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
   const category = useLineCategory(row.category)
+  // A line with a category draws its bullet in the category's color: the dot, the ring, the
+  // cross, the # and the number, and the pin (Kevin, 2026-11-27). Its icon beside the bullet
+  // still carries the meaning.
+  const scheme = useColorScheme()
+  const catInk = category ? PALETTES[scheme === 'dark' ? 'dark' : 'light'][category.color] : null
+  const ink = catInk ?? (isEditing ? theme.accent : theme.inkSoft)
+  const doneInk = catInk ?? theme.inkMute
   const sel = useRef({ start: 0, end: 0 })
   // Moving the line (the toolbar's up arrow, say) makes the native list take its view out
   // and put it back, which blurs the input and would end editing and drop the keyboard.
@@ -103,25 +111,25 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
     >
       {row.pinned && !row.done ? (
         // Pinned (More…, Pin to top): a pushpin in place of the bullet, ringed while doing.
-        <View style={[s.pinBox, row.doing && [s.ring, { borderColor: isEditing ? theme.accent : theme.inkSoft }], folded && { backgroundColor: theme.rule, borderRadius: 8 }]}>
-          <PinMark color={isEditing ? theme.accent : theme.inkSoft} />
+        <View style={[s.pinBox, row.doing && [s.ring, { borderColor: ink }], folded && { backgroundColor: theme.rule, borderRadius: 8 }]}>
+          <PinMark color={ink} />
         </View>
       ) : number !== null ? (
-        <Text style={[s.num, { color: isEditing ? theme.accent : theme.inkSoft }, row.done && { color: theme.inkMute, textDecorationLine: 'line-through' }, row.doing && [s.ringed, { borderColor: theme.inkSoft }]]}>{number}.</Text>
+        <Text style={[s.num, { color: ink }, row.done && { color: doneInk, textDecorationLine: 'line-through' }, row.doing && [s.ringed, { borderColor: catInk ?? theme.inkSoft }]]}>{number}.</Text>
       ) : row.header ? (
-        <Text style={[s.hash, { color: isEditing ? theme.accent : row.done ? theme.inkMute : theme.inkSoft }, row.done && { textDecorationLine: 'line-through' }, row.doing && [s.ringed, { borderColor: theme.inkSoft }]]}>#</Text>
+        <Text style={[s.hash, { color: row.done ? doneInk : ink }, row.done && { textDecorationLine: 'line-through' }, row.doing && [s.ringed, { borderColor: catInk ?? theme.inkSoft }]]}>#</Text>
       ) : row.done ? (
-        <Text style={[s.cross, { color: theme.inkMute }]}>×</Text>
+        <Text style={[s.cross, { color: doneInk }]}>×</Text>
       ) : row.doing ? (
         // Doing: the dot inside a ring (a folded one fills the ring with the fold's grey).
-        <View style={[s.ring, { borderColor: isEditing ? theme.accent : theme.inkSoft }, folded && { backgroundColor: theme.rule }]}>
-          <View style={[s.dot, { backgroundColor: isEditing ? theme.accent : theme.inkSoft }]} />
+        <View style={[s.ring, { borderColor: ink }, folded && { backgroundColor: theme.rule }]}>
+          <View style={[s.dot, { backgroundColor: ink }]} />
         </View>
       ) : (
         <View
           style={[
             s.dot,
-            { backgroundColor: isEditing ? theme.accent : theme.inkSoft },
+            { backgroundColor: ink },
             row.text === '' && { backgroundColor: isEditing ? theme.rule : 'transparent' },
             folded && { borderWidth: 5, borderColor: theme.rule, width: 16, height: 16, borderRadius: 8 },
           ]}
