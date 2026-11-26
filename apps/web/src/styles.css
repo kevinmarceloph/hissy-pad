@@ -799,8 +799,18 @@ dialog.import input[type='email'] {
 
 /* Pads: a row of tabs under the title. The open one is underlined in the accent, the
    way a pen marks the current page; the rest sit in soft ink. */
-.pads { flex-basis: 100%; display: flex; align-items: baseline; gap: 0.25rem; margin-top: -0.25rem; font-size: 0.95rem; overflow-x: auto; scrollbar-width: none; }
-.pads [role='tablist'] { display: flex; gap: 0.15rem; }
+.pads { flex-basis: 100%; display: flex; align-items: baseline; gap: 0.25rem; margin-top: -0.25rem; font-size: 0.95rem; min-width: 0; }
+/* The tabs scroll sideways on their own (a mouse wheel too, PadTabs.tsx); + and the list of
+   every pad stay put at the right end. */
+.pads [role='tablist'] { display: flex; gap: 0.15rem; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.pads [role='tablist']::-webkit-scrollbar { display: none; }
+.pads .add, .pads .jump { flex: none; }
+.pads .jump { margin-left: auto; min-width: 32px; min-height: 32px; border-radius: 4px; color: var(--ink-mute); display: inline-flex; align-items: center; justify-content: center; align-self: center; }
+.pads .jump::before { content: ''; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+.pads .jump:hover, .pads .jump[aria-expanded='true'] { color: var(--ink); background: var(--paper-raised); }
+.jump-menu { max-height: min(70vh, 30rem); overflow-y: auto; }
+.jump-menu button.is-sub { padding-left: 1.6rem; }
+.jump-menu button[aria-current='page'] { color: var(--accent); font-weight: 600; }
 .pads [role='tab'] {
   min-height: 32px;
   padding: 0 0.55rem;

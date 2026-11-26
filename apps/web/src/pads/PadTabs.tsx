@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactElement } from 'react'
 import { createPortal } from 'react-dom'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCategory, cmdSetPadCount, openPad, openSubPad, padList, padTopLines, placeList, usePad } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCategory, cmdSetPadCount, openPad, openSubPad, padList, padTopLines, placeList, subName, usePad } from '@hissypad/state'
 import { categoryPrefix, useCategoryChoices } from '@hissypad/state/hours'
 import { CatMark } from '../pad/CatMark'
 import { categoryName } from '@hissypad/core/hours'
@@ -31,6 +31,9 @@ export function PadTabs() {
   const [into, setInto] = useState('')
   // The sub-pad menu of one tab: which pad, and where its chevron is on screen.
   const [subs, setSubs] = useState<{ key: string; left: number; top: number } | null>(null)
+  // The list of every pad and sub-pad at the right end, for when the tabs run past the edge.
+  const [jump, setJump] = useState<{ right: number; top: number } | null>(null)
+  const tablist = useRef<HTMLDivElement>(null)
   const places = useMemo(() => placeList(all), [all])
   const categories = useCategoryChoices()
 
@@ -83,14 +86,18 @@ export function PadTabs() {
   const foldTargets = sheet?.mode === 'edit' ? places.filter((p) => p.padId !== sheet.padId) : []
 
   useEffect(() => {
-    if (!subs) return
+    if (!subs && !jump) return
+    const shut = () => { setSubs(null); setJump(null) }
     const close = (e: Event) => {
-      if (!(e.target as HTMLElement).closest?.('.pads .subs, .sub-menu')) setSubs(null)
+      if (!(e.target as HTMLElement).closest?.('.pads .subs, .pads .jump, .sub-menu')) shut()
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSubs(null)
+      if (e.key === 'Escape') shut()
     }
-    const gone = () => setSubs(null)
+    const gone = (e: Event) => {
+      // Scrolling inside the open list itself keeps it open.
+      if (!(e.target instanceof Element && e.target.closest('.sub-menu'))) shut()
+    }
     document.addEventListener('pointerdown', close)
     window.addEventListener('keydown', onKey)
     window.addEventListener('resize', gone)
@@ -101,9 +108,40 @@ export function PadTabs() {
       window.removeEventListener('resize', gone)
       window.removeEventListener('scroll', gone, true)
     }
-  }, [subs])
+  }, [subs, jump])
+
+  // The open tab stays in view when the row is wider than the page.
+  useEffect(() => {
+    const list = tablist.current
+    const tab = list?.querySelector<HTMLElement>("[role='tab'][aria-selected='true']")
+    if (!list || !tab) return
+    const l = tab.offsetLeft - list.offsetLeft
+    if (l < list.scrollLeft) list.scrollLeft = l - 8
+    else if (l + tab.offsetWidth > list.scrollLeft + list.clientWidth) list.scrollLeft = l + tab.offsetWidth - list.clientWidth + 8
+  }, [padId, pads.length])
+
+  // A mouse wheel has no sideways: over the tabs, its up and down scroll them left and right.
+  useEffect(() => {
+    const list = tablist.current
+    if (!list) return
+    const wheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || list.scrollWidth <= list.clientWidth) return
+      e.preventDefault()
+      list.scrollLeft += e.deltaY
+    }
+    list.addEventListener('wheel', wheel, { passive: false })
+    return () => list.removeEventListener('wheel', wheel)
+  }, [])
+
+  function toggleJump(el: HTMLElement) {
+    if (jump) return setJump(null)
+    setSubs(null)
+    const r = el.getBoundingClientRect()
+    setJump({ right: Math.max(8, window.innerWidth - r.right), top: r.bottom + 4 })
+  }
 
   function toggleSubs(key: string, el: HTMLElement) {
+    setJump(null)
     if (subs?.key === key) return setSubs(null)
     const r = el.getBoundingClientRect()
     const half = 96
@@ -114,7 +152,7 @@ export function PadTabs() {
 
   return (
     <nav className="pads" aria-label="Pads">
-      <div role="tablist" aria-label="Pads">
+      <div role="tablist" aria-label="Pads" ref={tablist}>
         {pads.map((p) => {
           const key = p.id ?? 'main'
           const Glyph = p.fixed ? FIXED_ICON[p.fixed] : null
@@ -158,6 +196,36 @@ export function PadTabs() {
         })}
       </div>
       <button type="button" className="add" aria-label="New pad" title="New pad" onClick={() => setSheet({ mode: 'new' })}>+</button>
+      <button
+        type="button"
+        className="jump"
+        aria-label="Jump to a pad"
+        aria-haspopup="menu"
+        aria-expanded={jump !== null}
+        title="Jump to any pad or sub-pad"
+        onClick={(e) => toggleJump(e.currentTarget)}
+      />
+      {jump && createPortal(
+        <div className="bar moveto-menu sub-menu jump-menu" role="menu" aria-label="Every pad" style={{ right: jump.right, top: jump.top }}>
+          {places.map((p) => {
+            const here = p.subId === null && p.padId === padId
+            return (
+              <button
+                key={p.key}
+                type="button"
+                role="menuitem"
+                className={p.subId ? 'is-sub' : undefined}
+                aria-current={here ? 'page' : undefined}
+                title={p.label}
+                onClick={() => { setJump(null); if (p.subId) openSubPad(p.subId); else openPad(p.padId) }}
+              >
+                <CatMark id={p.category} />{p.subId ? subName(all[p.subId]?.text ?? '') : p.label}{p.count > 0 && <span className="n" aria-hidden="true"> {p.count}</span>}
+              </button>
+            )
+          })}
+        </div>,
+        document.body,
+      )}
       <dialog ref={dialog} className="import pad-sheet" aria-labelledby="pad-title" onClose={() => setSheet(null)}>
         <form onSubmit={submit}>
           <h2 id="pad-title">{sheet?.mode === 'new' ? 'New pad' : 'This pad'}</h2>
