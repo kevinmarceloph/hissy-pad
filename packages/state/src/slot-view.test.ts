@@ -122,13 +122,13 @@ describe('an hour as a view of the store', () => {
     expect(view()).toBe('first\nU\nA\n  A1\n  A2')
   })
 
-  it('sends a line made in an empty hour to the top of Today', () => {
+  it('sends a line made in an empty hour to Today, where it goes among the scheduled lines by its hour', () => {
     const empty = slotKey('2026-11-25', 11)
     openSlot(empty)
     expect(view()).toBe('')
     const made = apply((rows, ctx) => insertAt(rows, ctx, { parentId: null, afterId: null }, 'first').rows)
     expect(all()[idOf(made, 'first')]).toMatchObject({ parentId: today(), slot: empty })
-    expect(tableShape()).toContain('@Today\n  first\n  T\n  U')
+    expect(tableShape()).toContain('@Today\n  T\n  U\n  first')
   })
 
   it('archives a line with what is under it, and follows a change made from outside', () => {

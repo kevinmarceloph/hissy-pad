@@ -7,6 +7,16 @@ import { dayOf } from '@hissypad/core/hours'
 import { hoursIfOpen } from '@hissypad/state/hours'
 import { LineIcon } from '../app/icons'
 
+// Today's second section: the lines with an hour, kept in the order of their hours
+// (core/schedule.ts). Drawn before the first of them.
+export function ScheduledHead() {
+  return (
+    <div className="due-head is-first">
+      <h2><LineIcon icon="hour" /> Scheduled</h2>
+    </div>
+  )
+}
+
 export function DueHead({ due, first }: { due: string; first: boolean }) {
   // The day this moment belongs to, by the hour a day starts at in Hours.
   const today = dayOf(new Date(), hoursIfOpen()?.day.getState().start ?? 0)

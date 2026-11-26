@@ -7,8 +7,8 @@ import { menu } from './Menu'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
-import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, flatten, listNumbers, pinDivider, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, paintSelect, refresh, resumeEditing, select, setSortMode, stopEditing, usePad, visibleIds } from '@hissypad/state'
+import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, flatten, listNumbers, pinDivider, scheduleHead, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
+import { apply, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, paintSelect, refresh, resumeEditing, select, setSortMode, stopEditing, todayShown, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme, SHEET_TOP } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -19,7 +19,7 @@ import { ArchiveView } from './Archive'
 import { SortView } from './Sort'
 import { SubRows } from './SubRows'
 import { BoomerangPicker, CategoriesApp, CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
-import { DueHead } from './Boomerangs'
+import { DueHead, ScheduledHead } from './Boomerangs'
 import {
   cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot, useCategoryChoices,
 } from '@hissypad/state/hours'
@@ -169,6 +169,9 @@ export function Pad() {
   // In Later: a heading before each day's group of lines out on a boomerang.
   const heads = useMemo(() => (hourOpen ? new Map<string, string>() : dueHeads(displayed, rows)), [hourOpen, displayed, rows])
   const firstHead = heads.keys().next().value
+  // In Today: a heading before the lines with an hour, which sit under the pad's own.
+  const isToday = usePad(todayShown)
+  const scheduled = useMemo(() => (hourOpen || !isToday ? null : scheduleHead(displayed, rows)), [hourOpen, isToday, displayed, rows])
 
   // A jump to a line (a sub-pad, a search hit, Sort's pad icon): scroll it to the top. The pad
   // may have just been switched, so wait a beat for the rows to be laid out. `room` is space
@@ -659,6 +662,7 @@ export function Pad() {
             {displayed.map(({ id, depth, preview }) => (
               <Fragment key={id}>
               {heads.has(id) && <DueHead due={heads.get(id)!} first={id === firstHead} theme={theme} />}
+              {id === scheduled && <ScheduledHead theme={theme} />}
               {id === NEW_ROW ? (
                 <View style={[s.newRow, { marginLeft: depth * INDENT, backgroundColor: theme.accentSoft }]}>
                   <Text style={[s.newBullet, { color: theme.accent }]}>+</Text>

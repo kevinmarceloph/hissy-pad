@@ -91,8 +91,16 @@ export function settleBoomerangs(all: Rows, ctx: OpCtx, prev?: Rows, touched?: I
     }
     sibs = sibs.map((s) => out[s.id]!)
   }
-  // Rule 3. The rows left where they are: a longest run already in order.
-  const key = (r: NodeRow) => r.due ?? ''
+  // Rule 3.
+  return keepGroups(out, ctx, later, sibs, (r) => r.due ?? '')
+}
+
+// Put the top-level lines of a pad in the order of their keys ('' first), moving as few as
+// can be: the rows left where they are make a longest run already in order, and each of
+// the others goes to the near edge of where it belongs. Today's Scheduled section is kept
+// by it too (schedule.ts). Returns `all` itself when they are in order.
+export function keepGroups(all: Rows, ctx: OpCtx, parent: string, sibs: readonly NodeRow[], key: (r: NodeRow) => string): Rows {
+  let out = all
   if (sibs.every((s, i) => i === 0 || key(sibs[i - 1]!) <= key(s))) return out
   const best: number[] = []
   const from: number[] = []
@@ -112,20 +120,21 @@ export function settleBoomerangs(all: Rows, ctx: OpCtx, prev?: Rows, touched?: I
   for (let i = end; i >= 0; i = from[i]!) kept.add(sibs[i]!.id)
   const target = sibs.map((s, i) => ({ s, i })).sort((a, b) => (key(a.s) < key(b.s) ? -1 : key(a.s) > key(b.s) ? 1 : a.i - b.i))
   target.forEach(({ s }, at) => {
-    if (!kept.has(s.id)) out = moveNodes(out, ctx, [s.id], { parentId: later, afterId: at > 0 ? target[at - 1]!.s.id : null })
+    if (!kept.has(s.id)) out = moveNodes(out, ctx, [s.id], { parentId: parent, afterId: at > 0 ? target[at - 1]!.s.id : null })
   })
   return out
 }
 
-// Rule 2's test: the row is new, or before the edit it was somewhere under a line that was out.
-function joins(prev: Rows, id: string, later: string): boolean {
+// Rule 2's test: the row is new, or before the edit it was somewhere under a line that was
+// out (`grouped`: a top-level line of the pad that is in a group).
+export function joins(prev: Rows, id: string, later: string, grouped: (r: NodeRow) => boolean = (r) => !!r.due): boolean {
   let r = prev[id]
   if (!isLive(r)) return true
   if (r.parentId === later) return false
   for (let hops = 0; r && r.parentId !== null && hops < 1000; hops++) {
     const p: NodeRow | undefined = prev[r.parentId]
     if (!p) return false
-    if (p.parentId === later) return !!p.due
+    if (p.parentId === later) return grouped(p)
     r = p
   }
   return false

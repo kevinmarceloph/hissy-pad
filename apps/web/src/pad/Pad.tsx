@@ -1,12 +1,12 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, listNumbers, pinDivider } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, listNumbers, pinDivider, scheduleHead } from '@hissypad/core'
 import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
-  cmdAddAtTop, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
+  todayShown, cmdAddAtTop, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
   cmdPasteAfterSelection, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
 import { Row } from './Row'
-import { DueHead } from './Boomerangs'
+import { DueHead, ScheduledHead } from './Boomerangs'
 import { useDrag } from './useDrag'
 import { forceSync } from '@hissypad/state'
 import { MOD } from '../platform/os'
@@ -222,6 +222,9 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
   // In Later: a heading before each day's group of lines out on a boomerang.
   const heads = useMemo(() => (embedded ? new Map<string, string>() : dueHeads(displayed, rows)), [embedded, displayed, rows])
   const firstHead = heads.keys().next().value
+  // In Today: a heading before the lines with an hour, which sit under the pad's own.
+  const isToday = usePad(todayShown)
+  const scheduled = useMemo(() => (embedded || !isToday ? null : scheduleHead(displayed, rows)), [embedded, isToday, displayed, rows])
 
   const lone = visible.length === 1 && rows[visible[0]!.id]!.text === ''
 
@@ -231,6 +234,7 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
         {displayed.map(({ id, depth, preview }) => (
           <Fragment key={id}>
           {heads.has(id) && <DueHead due={heads.get(id)!} first={id === firstHead} />}
+          {id === scheduled && <ScheduledHead />}
           {id === NEW_ROW ? (
             <div className="new-row" style={{ '--depth': depth } as React.CSSProperties} aria-hidden="true">+</div>
           ) : (

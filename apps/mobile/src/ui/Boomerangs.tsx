@@ -9,6 +9,19 @@ import { hoursIfOpen } from '@hissypad/state/hours'
 import { LineIcon } from './LineIcons'
 import { GUTTER, serif, type Theme } from '../theme'
 
+// Today's second section: the lines with an hour, kept in the order of their hours
+// (core/schedule.ts). Drawn before the first of them.
+export function ScheduledHead({ theme }: { theme: Theme }) {
+  return (
+    <View style={[s.wrap, s.first, { borderTopColor: theme.rule }]}>
+      <View style={s.head}>
+        <LineIcon icon="hour" color={theme.inkSoft} ground={theme.paper} />
+        <Text accessibilityRole="header" style={[s.title, { color: theme.inkSoft }]}>Scheduled</Text>
+      </View>
+    </View>
+  )
+}
+
 export function DueHead({ due, first, theme }: { due: string; first: boolean; theme: Theme }) {
   // The day this moment belongs to, by the hour a day starts at in Hours.
   const today = dayOf(new Date(), hoursIfOpen()?.day.getState().start ?? 0)

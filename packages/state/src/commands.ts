@@ -42,7 +42,7 @@ export async function refreshClipboard() {
   if (probe === p) useClipboard.setState({ hasText: has })
 }
 import { create } from 'zustand'
-import { apply, importOutline, usePad } from './store'
+import { apply, importOutline, lastOwn, usePad } from './store'
 import { dropLastOp } from './history'
 import { edit, neighbor, select, stopEditing, targets, visibleIds } from './selection'
 
@@ -381,10 +381,10 @@ export function cmdDeleteDone(): number {
 
 // Click below the last row: reuse an empty last line or add one.
 export function cmdAppendAtEnd() {
-  // The end of the pad's own lines: in Later, above the lines that are out on a boomerang.
+  // The end of the pad's own lines: in Later, above the lines that are out on a boomerang;
+  // in Today, above the Scheduled section.
   const rows = usePad.getState().rows
-  const own = childrenOf(buildIndex(rows), null).filter((r) => !r.due)
-  const last = own.at(-1)
+  const last = lastOwn(rows)
   if (last && last.text === '' && (last.collapsed || childrenOf(buildIndex(rows), last.id).length === 0)) return edit(last.id, 'end')
   let newId = ''
   apply((rows, ctx) => {

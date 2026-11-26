@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import {
-  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, fixedPadOf, inheritPadCategory, isPadNode, settleBoomerangs, settleFixedPads, settlePins,
+  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, fixedPadOf, inheritPadCategory, isPadNode, isTodayPad, scheduledKey, settleBoomerangs, settleFixedPads, settlePins, settleSchedule,
   insertAt, insertOutline, isLive, newUuid, normalizeRow, parseOutline, parseSlot, sameRow, scopeNode, scopePad, scopeSlot, unscopeRow, unscopeSlot,
   type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus,
 } from '@hissypad/core'
@@ -234,6 +234,8 @@ function commit(all: Rows, edited: Rows, label: string, coalesce?: string) {
   // Lines out on a boomerang stay in their day's group under Later, the same way.
   const dued = changedRows(all, nextAll).filter((r) => r.due || all[r.id]?.due).map((r) => r.id)
   if (moved.length || dued.length) nextAll = settleBoomerangs(nextAll, ctx, all, [...moved, ...dued])
+  // Today's lines with an hour stay in its Scheduled section, in the order of their hours.
+  if (moved.length || changedRows(all, nextAll).some((r) => r.slot !== (all[r.id]?.slot ?? null))) nextAll = settleSchedule(nextAll, ctx, all)
   // A line that came back from a boomerang keeps its dot until it is touched: any edit to
   // the row takes the dot off, in the same step.
   for (const r of changedRows(all, nextAll)) {
@@ -328,7 +330,7 @@ async function loadPadOnce() {
 export function settleFixed() {
   const { all, padId, load } = get()
   if (load !== 'ready') return
-  const next = settleBoomerangs(settlePins(settleFixedPads(all, ctx), ctx), ctx)
+  const next = settleSchedule(settleBoomerangs(settlePins(settleFixedPads(all, ctx), ctx), ctx), ctx)
   if (next === all) return afterSettle?.()
   log('pad:settle', { changed: changedRows(all, next).length })
   const shown = padId === null || isPadNode(next[padId]) ? padId : null
@@ -425,6 +427,20 @@ export function setAll(all: Rows, extra: Partial<PadState> = {}) {
   if (!stillThere) void local.setMeta(sortMode ? SORT_PAD_KEY : PAD_KEY, '').catch(() => {})
 }
 
+// Whether the pad on screen is Today as itself (not a line zoomed into, not an open hour):
+// the view that has the Scheduled section.
+export function todayShown(s: Pick<PadState, 'all' | 'padId' | 'zoomId' | 'slotId'> = get()): boolean {
+  return s.zoomId === null && s.slotId === null && isTodayPad(s.all, s.padId)
+}
+
+// The last of the shown pad's own top-level lines: in Later, above the lines that are out
+// on a boomerang; in Today, above the Scheduled section. "At the end of the pad" means
+// after this one, or a new line there would join a day or an hour.
+export function lastOwn(rows: Rows): NodeRow | undefined {
+  const today = todayShown()
+  return childrenOf(buildIndex(rows), null).filter((r) => !r.due && !(today && scheduledKey(r))).at(-1)
+}
+
 // Multi-line paste or the Import dialog: lines land after `afterId` at its depth, or at the
 // top/bottom of the pad. Returns the ids created.
 export function importOutline(text: string, where: { afterId: string } | { parentId: string | null; afterId: string | null } | 'top' | 'bottom'): string[] {
@@ -435,7 +451,7 @@ export function importOutline(text: string, where: { afterId: string } | { paren
     const index = buildIndex(rows)
     let placement
     if (where === 'top') placement = { parentId: null, afterId: null }
-    else if (where === 'bottom') placement = { parentId: null, afterId: childrenOf(index, null).at(-1)?.id ?? null }
+    else if (where === 'bottom') placement = { parentId: null, afterId: lastOwn(rows)?.id ?? null }
     else if ('parentId' in where) placement = where
     else placement = { parentId: index.parentOf.get(where.afterId) ?? null, afterId: where.afterId }
     const res = insertOutline(rows, ctx, lines, placement)

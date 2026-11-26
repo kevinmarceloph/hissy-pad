@@ -49,6 +49,10 @@ Since 2026-11-25 a line can be sent out of the pads until a later day (the float
 - `fresh` (the dot on a line that came back) is cleared by `commit` on any edit to the row.
 - The watch does not know `due` yet.
 
+## Today's Scheduled section
+
+Since 2026-11-27 Today's top-level lines with an hour sit under its own lines, below a "Scheduled" heading, always in the order of their hours (`settleSchedule` in `core/schedule.ts`, run by `commit` and `settleFixed` like `settleBoomerangs`). It is kept by rank, not by the drawing. A new line in the section takes the hour of the line above it, so an op that adds a line "at the end" of a pad has to mean the end of its own lines (`lastOwn` in the store). Details in `PLAN.md` under "Today's Scheduled section".
+
 ## Commands
 
 ```bash
