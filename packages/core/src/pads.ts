@@ -364,3 +364,35 @@ export function setCountHidden(all: Rows, ctx: OpCtx, padId: string, hidden: boo
   if (!isPadNode(r) || r.countHidden === hidden) return all
   return { ...all, [padId]: { ...r, countHidden: hidden, updatedAt: ctx.now() } }
 }
+
+// The pad row at the top of a live row's parent chain, or null for the Inbox (the root) and
+// for an orphan.
+function padRowOf(all: Rows, id: string): string | null {
+  let cur = all[id]
+  while (cur && cur.parentId !== null) {
+    const p = all[cur.parentId]
+    if (!p || p.deletedAt !== null) return null
+    cur = p
+  }
+  return cur && isPadNode(cur) && cur.id !== id ? cur.id : null
+}
+
+// A pad can carry a category (its row's `category`, Kevin, 2026-11-27): a line moved into it
+// from another pad takes that category, in place of its own. Only the lines that moved get
+// it (`ids`, the rows an edit placed); what is under them keeps its own. A pad row, a line
+// out on a boomerang (kept under Later, not in it) and a line made new are left alone, and
+// so is a move within one pad or into a pad with no category.
+export function inheritPadCategory(before: Rows, after: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
+  let out = after
+  for (const id of ids) {
+    const r = out[id]
+    const b = before[id]
+    if (!r || !b || r.deletedAt !== null || (r.pad && r.parentId === null) || r.due || b.parentId === r.parentId) continue
+    const to = padRowOf(out, id)
+    if (to === null || to === padRowOf(before, id)) continue
+    const category = out[to]!.category
+    if (!category || r.category === category) continue
+    out = { ...out, [id]: { ...r, category, updatedAt: ctx.now() } }
+  }
+  return out
+}

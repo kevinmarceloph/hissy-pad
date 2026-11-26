@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import {
-  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, fixedPadOf, isPadNode, settleBoomerangs, settleFixedPads, settlePins,
+  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, fixedPadOf, inheritPadCategory, isPadNode, settleBoomerangs, settleFixedPads, settlePins,
   insertAt, insertOutline, isLive, newUuid, normalizeRow, parseOutline, parseSlot, sameRow, scopeNode, scopePad, scopeSlot, unscopeRow, unscopeSlot,
   type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus,
 } from '@hissypad/core'
@@ -217,6 +217,8 @@ function commit(all: Rows, edited: Rows, label: string, coalesce?: string) {
   // a drag or a paste that breaks that is put right in the same step, so one undo takes it back.
   const moved = placed(all, edited)
   let nextAll = moved.length ? settlePins(edited, ctx, moved) : edited
+  // A line moved into a pad that has a category takes it, in the same step.
+  if (moved.length) nextAll = inheritPadCategory(all, nextAll, ctx, moved)
   // Lines out on a boomerang stay in their day's group under Later, the same way.
   const dued = changedRows(all, nextAll).filter((r) => r.due || all[r.id]?.due).map((r) => r.id)
   if (moved.length || dued.length) nextAll = settleBoomerangs(nextAll, ctx, all, [...moved, ...dued])

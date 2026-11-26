@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactElement } from 'react'
 import { createPortal } from 'react-dom'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCount, openPad, openSubPad, padList, padTopLines, placeList, usePad } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCategory, cmdSetPadCount, openPad, openSubPad, padList, padTopLines, placeList, usePad } from '@hissypad/state'
+import { useCategoryChoices } from '@hissypad/state/hours'
+import { categoryName } from '@hissypad/core/hours'
 import type { FixedPad, PadId } from '@hissypad/core'
 import { showToast } from '../app/toast'
 import { MOD } from '../platform/os'
@@ -29,6 +31,7 @@ export function PadTabs() {
   // The sub-pad menu of one tab: which pad, and where its chevron is on screen.
   const [subs, setSubs] = useState<{ key: string; left: number; top: number } | null>(null)
   const places = useMemo(() => placeList(all), [all])
+  const categories = useCategoryChoices()
 
   useEffect(() => {
     if (!sheet) return
@@ -174,6 +177,17 @@ export function PadTabs() {
               </div>
             )
           })()}
+          {sheet?.mode === 'edit' && (
+            <label className="field">
+              <span>Category, for every line moved into this pad</span>
+              <select value={all[sheet.padId]?.category ?? ''} onChange={(e) => cmdSetPadCategory(sheet.padId, e.target.value || null)} aria-label="Pad category">
+                <option value="">None</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{categoryName(c)}</option>)}
+                {/* An archived category the pad still has. */}
+                {all[sheet.padId]?.category && !categories.some((c) => c.id === all[sheet.padId]!.category) && <option value={all[sheet.padId]!.category!}>(archived)</option>}
+              </select>
+            </label>
+          )}
           {sheet?.mode === 'edit' && (
             <label className="field check-field">
               <input type="checkbox" checked={all[sheet.padId]?.countHidden !== true} onChange={(e) => cmdSetPadCount(sheet.padId, e.target.checked)} />

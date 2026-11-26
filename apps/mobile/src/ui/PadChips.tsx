@@ -7,7 +7,9 @@ import { useMemo } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { askText, menu } from './Menu'
 import type { FixedPad, PadId } from '@hissypad/core'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCount, openPad, openSubPad, padList, padTopLines, placeList, usePad, type PadItem } from '@hissypad/state'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCategory, cmdSetPadCount, openPad, openSubPad, padList, padTopLines, placeList, usePad, type PadItem } from '@hissypad/state'
+import { lineCategories } from '@hissypad/state/hours'
+import { activeCategories, categoryName } from '@hissypad/core/hours'
 import { serif, type Theme } from '../theme'
 import { CalendarIcon, HoursIcon } from './TopIcons'
 import { LineIcon } from './LineIcons'
@@ -40,6 +42,16 @@ export function PadChips({ theme }: { theme: Theme }) {
       ...(i > first ? [{ text: '← Move left', onPress: () => void cmdMovePad(id, -1) }] : []),
       ...(i >= 0 && i < pads.length - 1 ? [{ text: 'Move right →', onPress: () => void cmdMovePad(id, 1) }] : []),
       { text: 'Rename…', onPress: () => ask('Rename pad', undefined, name, (n) => cmdRenamePad(id, n)) },
+      // A category every line moved into this pad takes.
+      {
+        text: 'Category…',
+        onPress: () =>
+          menu(`Category for “${name}”`, 'Every line moved into this pad takes it.', [
+            { text: all[id]?.category ? 'None' : 'None ✓', onPress: () => cmdSetPadCategory(id, null) },
+            ...activeCategories(lineCategories.getState().list).map((c) => ({ text: `${c.icon ? `${c.icon} ` : ''}${categoryName(c)}${all[id]?.category === c.id ? ' ✓' : ''}`, onPress: () => cmdSetPadCategory(id, c.id) })),
+            { text: 'Cancel', style: 'cancel' as const },
+          ]),
+      },
       // The count of open lines on this pad's tab, on or off for this pad only.
       { text: all[id]?.countHidden ? 'Show the count on this tab' : 'Hide the count on this tab', onPress: () => cmdSetPadCount(id, all[id]?.countHidden === true) },
       {

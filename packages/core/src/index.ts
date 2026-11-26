@@ -91,6 +91,7 @@ export {
   findFixedPad,
   settleFixedPads,
   scopeNode,
+  inheritPadCategory,
 } from './pads'
 export { settlePins, togglePinned, pinDivider } from './pins'
 export { isBoomeranged, boomerang, comeBack, boomerangGroups, deliverDue, dayStartAt, clearFresh, dueLabel, dueHeads, settleBoomerangs, type BoomerangGroup } from './boomerang'

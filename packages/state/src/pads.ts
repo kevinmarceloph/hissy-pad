@@ -1,7 +1,7 @@
 // Pad commands: switch, create, rename, delete, move lines across, and the fresh start.
 // The data side is core's pads.ts; this file picks targets from the store and lands the
 // selection afterwards.
-import { buildIndex, countLines, FIXED_PADS, findFixedPad, fixedPadOf, isFixedName, type FixedPad, descendantIds, padCounts, padLines, listSubPads, moveToPlace, placeOf, isPlace, MAIN_PLACE, type Place, createPad, setCountHidden, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, remove, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
+import { buildIndex, countLines, FIXED_PADS, findFixedPad, fixedPadOf, isFixedName, type FixedPad, descendantIds, padCounts, padLines, listSubPads, moveToPlace, placeOf, isPlace, MAIN_PLACE, type Place, createPad, setCountHidden, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, remove, setCategory, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
 import { apply, applyAll, openPad, revealRow, usePad } from './store'
 import { edit, stopEditing, targets } from './selection'
 import { log } from './log'
@@ -144,6 +144,13 @@ export function cmdRenamePad(padId: string, name: string) {
 export function cmdSetPadCount(padId: string, shown: boolean) {
   if (isFixedPad(usePad.getState().all, padId)) return
   applyAll((all, ctx) => setCountHidden(all, ctx, padId, !shown), { label: 'cmdSetPadCount' })
+}
+
+// A pad's category (one of Hours' ids, or null for none): every line moved into the pad
+// afterwards takes it (inheritPadCategory in core, run on each edit).
+export function cmdSetPadCategory(padId: string, category: string | null) {
+  if (!isPadNode(usePad.getState().all[padId])) return
+  applyAll((all, ctx) => setCategory(all, ctx, [padId], category), { label: 'cmdSetPadCategory' })
 }
 
 // Move a pad one place left or right in the switcher. Returns false at either end.
