@@ -10,7 +10,7 @@ import { Animated, Dimensions, Keyboard, PanResponder, Pressable, ScrollView, St
 import { askText, menu } from './Menu'
 import * as Haptics from 'expo-haptics'
 import { scopePad, slotLabel, todayKey } from '@hissypad/core'
-import { cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/hours'
+import { categoryPrefix, cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
 import {
   cmdAppendAtEnd, cmdOpenHit, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
@@ -166,7 +166,7 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
     menu(id ? `Send ${word} to` : `A ${word} swipe goes to`, id ? `This line goes there now, and the next ${word} swipes too.` : undefined, [
       { text: def.exists ? def.name : `${def.name} (new pad)`, onPress: () => pick(side, null) },
       { text: padName(all, null), onPress: () => pick(side, 'main') },
-      ...places.map((p) => ({ text: p.label, onPress: () => pick(side, p.key) })),
+      ...places.map((p) => ({ text: categoryPrefix(p.category) + p.label, onPress: () => pick(side, p.key) })),
       { text: 'New pad…', onPress: () => newTarget(side) },
       { text: 'Cancel', style: 'cancel' as const },
     ])
@@ -264,7 +264,7 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
                 {/* Any pad or sub-pad, beside what the swipes offer: the card moves on (iOS stacks them). */}
                 <Pressable
                   onPress={() => menu('Move to', undefined, [
-                    ...placeList(all).filter((p) => p.subId !== null || p.padId !== padId).map((p) => ({ text: p.label, onPress: () => void cmdSortMoveTo(id, p) })),
+                    ...placeList(all).filter((p) => p.subId !== null || p.padId !== padId).map((p) => ({ text: categoryPrefix(p.category) + p.label, onPress: () => void cmdSortMoveTo(id, p) })),
                     { text: 'Cancel', style: 'cancel' as const },
                   ])}
                   hitSlop={8}

@@ -19,7 +19,7 @@ import {
   cmdAppendAtEnd, cmdCreateBegin, cmdCreateEnd, cmdCreateItem, cmdCreateMove, cmdCreateOpen, cmdCreateSetText, createDefaultPlace, placeFromKey, placeList, placeName, usePad,
   WIDGET_INBOX, WIDGET_MAIN,
 } from '@hissypad/state'
-import { cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/hours'
+import { categoryPrefix, cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/hours'
 import { useKeyboardHeight } from '../keyboard'
 import { serif, type Theme, SHEET_TOP } from '../theme'
 import { FloatingButtons } from './FloatingButtons'
@@ -154,7 +154,7 @@ function Sheet({ ask, theme, onOpen, children }: { ask: Ask; theme: Theme; onOpe
   function pickPlace() {
     menu('Add to', undefined, [
       ...placeList(all).map((p) => ({
-        text: p.label,
+        text: categoryPrefix(p.category) + p.label,
         onPress: () => {
           setPlace({ padId: p.padId, subId: p.subId })
           if (row) cmdCreateMove(row.id, p)

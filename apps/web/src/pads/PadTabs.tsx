@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactElement } from 'react'
 import { createPortal } from 'react-dom'
 import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCategory, cmdSetPadCount, openPad, openSubPad, padList, padTopLines, placeList, usePad } from '@hissypad/state'
-import { useCategoryChoices } from '@hissypad/state/hours'
+import { categoryPrefix, useCategoryChoices } from '@hissypad/state/hours'
+import { CatMark } from '../pad/CatMark'
 import { categoryName } from '@hissypad/core/hours'
 import type { FixedPad, PadId } from '@hissypad/core'
 import { showToast } from '../app/toast'
@@ -146,7 +147,7 @@ export function PadTabs() {
                 <div className="bar moveto-menu sub-menu" role="menu" aria-label={`Sub-pads of ${p.name}`} style={{ left: subs.left, top: subs.top }}>
                   {p.subs.map((sp) => (
                     <button key={sp.id} type="button" role="menuitem" title={sp.name} onClick={() => { setSubs(null); openSubPad(sp.id) }}>
-                      {sp.name}{showCounts && sp.count > 0 && <span className="n" aria-hidden="true"> {sp.count}</span>}
+                      <CatMark id={sp.category} />{sp.name}{showCounts && sp.count > 0 && <span className="n" aria-hidden="true"> {sp.count}</span>}
                     </button>
                   ))}
                 </div>,
@@ -199,7 +200,7 @@ export function PadTabs() {
               <span>Fold into another pad, as a line with this pad's lines under it</span>
               <div>
                 <select value={into} onChange={(e) => setInto(e.target.value)} aria-label="Fold into">
-                  {foldTargets.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+                  {foldTargets.map((p) => <option key={p.key} value={p.key}>{categoryPrefix(p.category)}{p.label}</option>)}
                 </select>
                 <button type="button" onClick={fold} aria-label="Fold in">Fold in</button>
               </div>

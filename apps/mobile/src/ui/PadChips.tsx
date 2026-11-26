@@ -8,7 +8,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { askText, menu } from './Menu'
 import type { FixedPad, PadId } from '@hissypad/core'
 import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCategory, cmdSetPadCount, openPad, openSubPad, padList, padTopLines, placeList, usePad, type PadItem } from '@hissypad/state'
-import { lineCategories } from '@hissypad/state/hours'
+import { categoryPrefix, lineCategories } from '@hissypad/state/hours'
 import { activeCategories, categoryName } from '@hissypad/core/hours'
 import { serif, type Theme } from '../theme'
 import { CalendarIcon, HoursIcon } from './TopIcons'
@@ -59,7 +59,7 @@ export function PadChips({ theme }: { theme: Theme }) {
         text: 'Fold into…',
         onPress: () =>
           menu(`Fold “${name}” into`, 'It becomes a line there, with its lines under it.', [
-            ...placeList(all).filter((p) => p.padId !== id).map((p) => ({ text: p.label, onPress: () => void cmdPadToLine(id, p) })),
+            ...placeList(all).filter((p) => p.padId !== id).map((p) => ({ text: categoryPrefix(p.category) + p.label, onPress: () => void cmdPadToLine(id, p) })),
             { text: 'Cancel', style: 'cancel' as const },
           ]),
       },
@@ -79,7 +79,7 @@ export function PadChips({ theme }: { theme: Theme }) {
   // The chevron beside a pad that has sub-pads (its top-level headers): pick one to jump to.
   function jump(p: PadItem) {
     menu(p.name, 'Jump to a sub-pad', [
-      ...p.subs.map((sp) => ({ text: shown(p) && sp.count > 0 ? `${sp.name}  ${sp.count}` : sp.name, onPress: () => void openSubPad(sp.id) })),
+      ...p.subs.map((sp) => ({ text: categoryPrefix(sp.category) + (shown(p) && sp.count > 0 ? `${sp.name}  ${sp.count}` : sp.name), onPress: () => void openSubPad(sp.id) })),
       { text: 'Cancel', style: 'cancel' as const },
     ])
   }

@@ -21,8 +21,9 @@ export function padName(all: Rows, padId: PadId): string {
 // top first, each with its own count. `fixed` names a fixed pad: it cannot be renamed, moved,
 // folded in or deleted. `countShown` is false when the pad's sheet turned its count off
 // (`countHidden` on its row); a fixed pad has no sheet and always shows it.
-export interface SubPadItem { id: string; name: string; count: number }
-export interface PadItem { id: PadId; name: string; count: number; subs: SubPadItem[]; fixed: FixedPad | null; countShown: boolean }
+// `category`: the sub-pad's (its header line's) or the pad's own, for the lists to show (Kevin, 2026-11-27).
+export interface SubPadItem { id: string; name: string; count: number; category: string | null }
+export interface PadItem { id: PadId; name: string; count: number; subs: SubPadItem[]; fixed: FixedPad | null; countShown: boolean; category: string | null }
 
 // A sub-pad's name in a list is its first line up to an em dash: what follows the dash is
 // a description, shown on the pad itself only. A line that starts with the dash keeps it all.
@@ -34,8 +35,8 @@ export function subName(text: string): string {
 export function padList(all: Rows): PadItem[] {
   const counts = padCounts(all)
   const index = buildIndex(all)
-  const subs = (id: PadId): SubPadItem[] => listSubPads(index, id).map((r) => ({ id: r.id, name: subName(r.text), count: padLines(index, r.id, true).length }))
-  const item = (id: PadId, name: string, fixed: FixedPad | null): PadItem => ({ id, name, count: counts.get(id) ?? 0, subs: subs(id), fixed, countShown: fixed !== null || id === null || all[id]?.countHidden !== true })
+  const subs = (id: PadId): SubPadItem[] => listSubPads(index, id).map((r) => ({ id: r.id, name: subName(r.text), count: padLines(index, r.id, true).length, category: r.category }))
+  const item = (id: PadId, name: string, fixed: FixedPad | null): PadItem => ({ id, name, count: counts.get(id) ?? 0, subs: subs(id), fixed, countShown: fixed !== null || id === null || all[id]?.countHidden !== true, category: id === null ? null : (all[id]?.category ?? null) })
   const fixed = FIXED_PADS.flatMap((name) => {
     if (name === 'Inbox') return [item(null, name, name)]
     const r = findFixedPad(all, name)
@@ -53,7 +54,7 @@ export function isFixedPad(all: Rows, padId: PadId): boolean {
 // "Pad → Sub-pad". `key` is one string for the place (a select's value, a stored choice):
 // 'main', a pad's id, or a sub-pad's row id.
 export const PLACE_ARROW = '→'
-export interface PlaceItem extends Place { key: string; label: string; count: number }
+export interface PlaceItem extends Place { key: string; label: string; count: number; category: string | null }
 
 export function placeKey(place: Place): string {
   return place.subId ?? place.padId ?? 'main'
@@ -70,8 +71,8 @@ export function placeName(all: Rows, place: Place): string {
 
 export function placeList(all: Rows): PlaceItem[] {
   return padList(all).flatMap((p) => [
-    { padId: p.id, subId: null, key: placeKey({ padId: p.id, subId: null }), label: p.name, count: p.count },
-    ...p.subs.map((s) => ({ padId: p.id, subId: s.id, key: s.id, label: `${p.name} ${PLACE_ARROW} ${s.name}`, count: s.count })),
+    { padId: p.id, subId: null, key: placeKey({ padId: p.id, subId: null }), label: p.name, count: p.count, category: p.category },
+    ...p.subs.map((s) => ({ padId: p.id, subId: s.id, key: s.id, label: `${p.name} ${PLACE_ARROW} ${s.name}`, count: s.count, category: s.category })),
   ])
 }
 

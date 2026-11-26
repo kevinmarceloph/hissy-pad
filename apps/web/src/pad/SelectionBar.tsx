@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { CatMark } from './CatMark'
 import { createPortal } from 'react-dom'
 import { kindOf, sharedState, type LineState } from '@hissypad/core'
 import {
@@ -23,6 +24,7 @@ interface MenuItem {
   title?: string | undefined
   className?: string | undefined
   disabled?: boolean
+  category?: string | null | undefined // a pad's or sub-pad's category, drawn before the label
   run: () => void
 }
 
@@ -88,7 +90,7 @@ export function BarMenu({ name, title, menuLabel, className, buttonClass, items,
       {open && at && createPortal(
         <div ref={menu} className="bar moveto-menu" role="menu" aria-label={menuLabel} style={at.top !== undefined ? { left: at.left, top: at.top, bottom: 'auto' } : { left: at.left, bottom: at.bottom }} onMouseDown={(e) => e.preventDefault()}>
           {items.map((it) => (
-            <button key={it.key} type="button" role="menuitem" className={it.className} title={it.title ?? it.label} disabled={it.disabled} onClick={() => { setOpen(false); it.run() }}>{it.label}</button>
+            <button key={it.key} type="button" role="menuitem" className={it.className} title={it.title ?? it.label} disabled={it.disabled} onClick={() => { setOpen(false); it.run() }}><CatMark id={it.category} />{it.label}</button>
           ))}
         </div>,
         // Inside a modal dialog (the new item's card) the page behind is inert and under it.
@@ -212,7 +214,7 @@ export function SelectionBar() {
             name="Move to…"
             title="Move to another pad or a sub-pad"
             menuLabel="Move to pad"
-            items={places.map((p) => ({ key: p.key, label: p.label, className: p.subId ? 'sub' : undefined, run: () => moveTo(p) }))}
+            items={places.map((p) => ({ key: p.key, label: p.label, category: p.category, className: p.subId ? 'sub' : undefined, run: () => moveTo(p) }))}
           >
             <LineIcon icon="move" />
           </BarMenu>

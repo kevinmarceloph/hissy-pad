@@ -12,6 +12,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { sharedState, type LineState } from '@hissypad/core'
 import { clearSelection, cmdAddAtTop, cmdMoveTo, cmdSetState, placeList, stopEditing, usePad, LINE_ACTIONS } from '@hissypad/state'
+import { categoryPrefix } from '@hissypad/state/hours'
 import { LineIcon } from './LineIcons'
 import { serif, type Theme } from '../theme'
 
@@ -94,7 +95,7 @@ export function FloatingButtons({ theme, onAdd, addDrag, dragging }: { theme: Th
   const moveTo = () => {
     void Haptics.selectionAsync().catch(() => {})
     menu('Move to', undefined, [
-      ...places.map((p) => ({ text: p.label, onPress: () => void cmdMoveTo(p) })),
+      ...places.map((p) => ({ text: categoryPrefix(p.category) + p.label, onPress: () => void cmdMoveTo(p) })),
       { text: 'Cancel', style: 'cancel' as const },
     ])
   }

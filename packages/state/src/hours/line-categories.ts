@@ -29,6 +29,13 @@ export function useCategoryChoices(): Category[] {
   return activeCategories(useStore(lineCategories, (s) => s.list));
 }
 
+// A category's icon and a space, to put before a name in a list that can only hold text (a
+// select's options, the phone's menus); '' for none, or one with no icon.
+export function categoryPrefix(id: string | null | undefined): string {
+  const c = id ? lineCategories.getState().byId[id] : undefined;
+  return c?.icon ? `${c.icon} ` : '';
+}
+
 // ---- commands --------------------------------------------------------------------------------
 
 // Give the selected lines (or the one being edited) a category, or take theirs away with
