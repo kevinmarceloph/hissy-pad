@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  chimePart,
   chimeSlot,
   chimesSpoken,
   chimeTitle,
@@ -54,15 +55,27 @@ describe('the next chime', () => {
 });
 
 describe('what a chime asks about', () => {
-  it('on the hour: the hour that just ended', () => {
-    expect(chimeTitle(0)).toBe('Where did the hour go?');
+  it(':00 to :10: the hour that just ended', () => {
+    for (const m of [0, 5, 10]) expect(chimeTitle(m)).toBe('Where did the last hour go?');
     expect(chimeSlot(at(15, 0, 4), 0)).toEqual({ day: '2026-11-20', hour: 14 });
+    expect(chimeSlot(at(15, 10, 4), 10)).toEqual({ day: '2026-11-20', hour: 14 });
     expect(chimeSlot(at(0, 0, 4), 0)).toEqual({ day: '2026-11-19', hour: 23 });
   });
 
-  it('at any other minute: the hour in progress', () => {
-    expect(chimeTitle(55)).toBe('Where is this hour going?');
+  it(':15 to :40: the hour going on', () => {
+    for (const m of [15, 30, 40]) expect(chimeTitle(m)).toBe('Where is this hour going?');
+    expect(chimeSlot(at(14, 30, 4), 30)).toEqual({ day: '2026-11-20', hour: 14 });
+  });
+
+  it(':45 to :55: the hour about to end', () => {
+    for (const m of [45, 50, 55]) expect(chimeTitle(m)).toBe('This hour is nearly up. How did it go?');
     expect(chimeSlot(at(14, 55, 4), 55)).toEqual({ day: '2026-11-20', hour: 14 });
+  });
+
+  it('a minute between the parts goes with the one before it', () => {
+    expect(chimePart(12)).toBe('start');
+    expect(chimePart(43)).toBe('middle');
+    expect(chimePart(59)).toBe('end');
   });
 });
 

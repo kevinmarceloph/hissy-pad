@@ -61,16 +61,29 @@ export function nextChime(now: Date, minutes: readonly number[]): Date | null {
   return null;
 }
 
-// A chime on the hour asks about the hour that just ended; any other asks about the one
-// in progress.
-export function chimeTitle(minute: number): string {
-  return minute === 0 ? 'Where did the hour go?' : 'Where is this hour going?';
+// Three parts of an hour, each with its own words (Kevin, 2026-11-27): the start (:00 to :10)
+// looks back at the hour that just ended, the middle (:15 to :40) asks about the one going
+// on, the end (:45 to :55) asks how it went before it is over. A minute between (:12, :43)
+// goes with the part before it.
+export type ChimePart = 'start' | 'middle' | 'end';
+export function chimePart(minute: number): ChimePart {
+  return minute < 15 ? 'start' : minute < 45 ? 'middle' : 'end';
 }
 
-// The slot a reply to a chime belongs to, by the same rule. `minute` is the chime's own
-// minute, not the moment the notification happened to be delivered.
+const CHIME_TITLES: Record<ChimePart, string> = {
+  start: 'Where did the last hour go?',
+  middle: 'Where is this hour going?',
+  end: 'This hour is nearly up. How did it go?',
+};
+export function chimeTitle(minute: number): string {
+  return CHIME_TITLES[chimePart(minute)];
+}
+
+// The slot a reply to a chime belongs to, by the same rule: a chime at the start of an hour
+// is about the one before it. `minute` is the chime's own minute, not the moment the
+// notification happened to be delivered.
 export function chimeSlot(fired: Date, minute: number): { day: DayKey; hour: number } {
-  const at = minute === 0 ? new Date(fired.getTime() - 60 * 60 * 1000) : fired;
+  const at = chimePart(minute) === 'start' ? new Date(fired.getTime() - 60 * 60 * 1000) : fired;
   return { day: dayKey(at), hour: at.getHours() };
 }
 
