@@ -444,6 +444,7 @@ body.is-dragging-rows .row .category { cursor: grabbing; }
 }
 .row.is-done .category { opacity: 0.55; }
 /* The hour a line is assigned to (Hours): small, after the text, in words. */
+.row .slot.is-late { color: var(--accent); border-color: var(--accent); font-weight: 700; }
 .row .slot {
   margin-left: 0.5rem;
   padding: 0 0.35rem;

@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState, type ComponentRef } from 'react'
 import { Platform, Pressable, StyleSheet, Text, TextInput, View, useColorScheme, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
 import { apply, clickSelect, cmdClearFresh, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
-import { inlineSpans, slotLabel, todayKey, toggleCollapsed } from '@hissypad/core'
+import { inlineSpans, slotLabel, slotPast, todayKey, toggleCollapsed } from '@hissypad/core'
 import { useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
 import { PALETTES } from '@hissypad/ui/palette'
@@ -223,7 +223,7 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
             })}
             {row.slot && row.slot !== inSlot && (
               // The hour this line is in (Hours), in words, small, after the text.
-              <Text style={[s.slot, { color: theme.inkSoft }]}>{'\u2002'}{slotLabel(row.slot, todayKey())}</Text>
+              <Text style={[s.slot, { color: theme.inkSoft }, !row.done && slotPast(row.slot) && { color: theme.accent, fontWeight: '700' }]}>{'\u2002'}{slotLabel(row.slot, todayKey())}</Text>
             )}
             {folded && (
               // Nested so it sits right after the last word, wrapping with it. A nested Text

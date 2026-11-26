@@ -385,6 +385,13 @@ export function slotLabel(slot: string, today?: string): string {
     .join('; ')
 }
 
+// True once every hour a slot covers has ended, device local time: a line still open in it
+// is overdue, and its hour chip says so (Kevin, 2026-11-27).
+export function slotPast(slot: string | null | undefined, now: Date = new Date()): boolean {
+  const last = slotHours(slot).at(-1)
+  return last !== undefined && last < slotKey(todayKey(now), now.getHours())
+}
+
 // Today's calendar day as a day key, device local time.
 export function todayKey(now: Date = new Date()): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`

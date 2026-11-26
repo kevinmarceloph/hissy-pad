@@ -7,7 +7,7 @@ import {
 } from '@hissypad/state'
 import { cmdClearFresh, redo, undo } from '@hissypad/state'
 import { apply } from '@hissypad/state'
-import { slotLabel, todayKey, inlineSpans, toggleCollapsed, URL_RE } from '@hissypad/core'
+import { slotLabel, slotPast, todayKey, inlineSpans, toggleCollapsed, URL_RE } from '@hissypad/core'
 import { useLineCategory } from '@hissypad/state/hours'
 import { addCategoryCss } from './categoryColors'
 
@@ -249,7 +249,11 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
             />
           )}
           {row.text === '' ? <span className="placeholder" aria-hidden="true">{'​'}</span> : <Styled text={row.text} />}
-          {row.slot && <span className="slot" data-slot={row.slot} title="The hour this line is in (toolbar: Hour…)">{slotLabel(row.slot, todayKey())}</span>}
+          {row.slot && (() => {
+            // An hour that is over while the line is not done: red, and bold so it does not rest on color alone.
+            const late = !row.done && slotPast(row.slot)
+            return <span className={late ? 'slot is-late' : 'slot'} data-slot={row.slot} title={late ? 'Its hour is over and it is not done (toolbar: Hour…)' : 'The hour this line is in (toolbar: Hour…)'}>{slotLabel(row.slot, todayKey())}</span>
+          })()}
           {folded && (
             <button
               type="button"

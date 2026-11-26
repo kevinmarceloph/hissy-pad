@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSlot, slotCounts, slotCovers, slotDoneElsewhere, slotDoneExtra, slotHours, slotKey, slotOfHours, slotRuns, lineOrder, scopeSlot, slotLabel, slotLines, slotProgress, slotTops } from './slot'
+import { parseSlot, slotCounts, slotCovers, slotDoneElsewhere, slotDoneExtra, slotHours, slotKey, slotOfHours, slotRuns, lineOrder, scopeSlot, slotLabel, slotLines, slotProgress, slotPast, slotTops } from './slot'
 import type { NodeRow, Rows } from './types'
 
 const row = (id: string, slot: string | null, done = false): NodeRow => ({
@@ -145,5 +145,17 @@ describe('the order of an hour\'s lines', () => {
     expect(view.homes.get('t1')).toEqual({ parentId: 'pt', rank: 'a0' })
     // An unchanged hour gives the same row objects back.
     expect(scopeSlot(all, H).rows['t1']).toBe(view.rows['t1'])
+  })
+})
+
+describe('slotPast', () => {
+  const at = (h: number, m = 0) => new Date(2026, 10, 24, h, m)
+  it('is true once the last hour the slot covers has ended', () => {
+    expect(slotPast('2026-11-24T14', at(14, 59))).toBe(false)
+    expect(slotPast('2026-11-24T14', at(15))).toBe(true)
+    expect(slotPast('2026-11-24T13+3', at(15, 30))).toBe(false)
+    expect(slotPast('2026-11-23T22+4', at(1))).toBe(false)
+    expect(slotPast('2026-11-23T22+4', at(2))).toBe(true)
+    expect(slotPast(null, at(2))).toBe(false)
   })
 })
