@@ -203,6 +203,17 @@ describe('indent / dedent', () => {
     expect(shape(dedent(head, ctx, [idOf(head, 'B')]))).toBe('#H\n1.B\n2.C')
   })
 
+  it('indent takes the numbering of the lines it joins', () => {
+    const ctx = testCtx()
+    const rows = pad('A\n  1. B\n  2. C\nD', ctx)
+    expect(shape(indent(rows, ctx, [idOf(rows, 'D')]))).toBe('A\n  1.B\n  2.C\n  3.D')
+    const plain = pad('1. A\n  B\n2. C', ctx)
+    expect(shape(indent(plain, ctx, [idOf(plain, 'C')]))).toBe('1.A\n  B\n  C')
+    // With nothing under the new parent yet, the line keeps its own.
+    const alone = pad('1. A\n2. B', ctx)
+    expect(shape(indent(alone, ctx, [idOf(alone, 'B')]))).toBe('1.A\n  1.B')
+  })
+
   it('dedent at the root is a no-op', () => {
     const ctx = testCtx()
     const rows = pad(OUTLINE, ctx)

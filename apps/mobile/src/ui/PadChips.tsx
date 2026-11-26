@@ -8,7 +8,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { askText, menu } from './Menu'
 import type { FixedPad, PadId } from '@hissypad/core'
 import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCategory, cmdSetPadCount, openPad, openSubPad, padList, padTopLines, placeList, usePad, type PadItem } from '@hissypad/state'
-import { categoryPrefix, lineCategories } from '@hissypad/state/hours'
+import { categoryPrefix, lineCategories, useLineCategory } from '@hissypad/state/hours'
+import { CategoryBadge } from '@hissypad/ui'
 import { activeCategories, categoryName } from '@hissypad/core/hours'
 import { serif, type Theme } from '../theme'
 import { CalendarIcon, HoursIcon } from './TopIcons'
@@ -105,9 +106,10 @@ export function PadChips({ theme }: { theme: Theme }) {
               accessibilityLabel={p.name}
               onPress={() => tap(p.id, p.name, p.fixed !== null)}
               onLongPress={() => p.id !== null && !p.fixed && manage(p.id, p.name)}
-              style={[s.chip, p.fixed && s.fixedChip, { borderBottomColor: on ? theme.accent : 'transparent' }]}
+              style={[s.chip, (p.fixed || p.category) && s.fixedChip, { borderBottomColor: on ? theme.accent : 'transparent' }]}
             >
               {p.fixed && <FixedIcon pad={p.fixed} color={on ? theme.ink : theme.inkSoft} ground={theme.paper} />}
+              <ChipCategory id={p.category} />
               <Text style={[s.chipText, { color: on ? theme.ink : theme.inkSoft }]} numberOfLines={1}>
                 {p.name}
                 {shown(p) && p.count > 0 && <Text style={[s.chipCount, { color: theme.inkMute }]}>{'  '}{p.count}</Text>}
@@ -126,6 +128,12 @@ export function PadChips({ theme }: { theme: Theme }) {
       </Pressable>
     </ScrollView>
   )
+}
+
+// The pad's category in front of its name, as a line's: its icon on its color (Kevin, 2026-11-27).
+function ChipCategory({ id }: { id: string | null }) {
+  const c = useLineCategory(id)
+  return c ? <CategoryBadge category={c} size={18} /> : null
 }
 
 const s = StyleSheet.create({

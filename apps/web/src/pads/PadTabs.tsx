@@ -129,7 +129,7 @@ export function PadTabs() {
                 onClick={() => pick(p.id, p.fixed !== null)}
               >
                 {Glyph && <span className="glyph"><Glyph /></span>}
-                <span className="name">{p.name}</span>
+                <CatMark id={p.category} /><span className="name">{p.name}</span>
                 {showCounts && p.count > 0 && <span className="n" aria-hidden="true"> {p.count}</span>}
               </button>
               {p.subs.length > 0 && (

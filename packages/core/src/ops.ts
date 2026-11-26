@@ -364,6 +364,7 @@ export function indent(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
     out = moveNodes(out, ctx, [id], { parentId: prev.id, afterId: last?.id ?? null })
     if (out[id]!.pinned) out = patch(out, ctx, id, { pinned: false }) // only a top-level line is pinned
     if (prev.collapsed) out = setCollapsed(out, ctx, prev.id, false)
+    out = adoptLevelNumbering(out, ctx, id)
   }
   return out
 }
@@ -388,7 +389,7 @@ export function dedent(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
   return out
 }
 
-// A line that came out to another level takes that level's numbering (Kevin, 2026-11-27):
+// A line that went in or came out to another level takes that level's numbering (Kevin, 2026-11-27):
 // numbered when the line beside it there is numbered, plain when it is plain. The line
 // beside it is the one before it, or after it when that one is a header (a header is never
 // numbered, so it says nothing). A header itself stays as it is, and so does a line with
