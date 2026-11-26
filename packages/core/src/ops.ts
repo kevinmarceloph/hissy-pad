@@ -351,8 +351,24 @@ export function dedent(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
     const afterId = lastMovedFrom.get(parent) ?? (out[parent]!.pinned ? lastPinned(out, grand) : parent)
     out = moveNodes(out, ctx, [id], { parentId: grand, afterId })
     lastMovedFrom.set(parent, id)
+    out = adoptLevelNumbering(out, ctx, id)
   }
   return out
+}
+
+// A line that came out to another level takes that level's numbering (Kevin, 2026-11-27):
+// numbered when the line beside it there is numbered, plain when it is plain. The line
+// beside it is the one before it, or after it when that one is a header (a header is never
+// numbered, so it says nothing). A header itself stays as it is, and so does a line with
+// no plain or numbered neighbour.
+function adoptLevelNumbering(rows: Rows, ctx: OpCtx, id: string): Rows {
+  const r = rows[id]
+  if (!r || r.header) return rows
+  const sibs = childrenOf(buildIndex(rows), r.parentId)
+  const i = sibs.findIndex((x) => x.id === id)
+  const beside = [sibs[i - 1], sibs[i + 1]].find((x) => x && !x.header && !x.pad)
+  if (!beside || beside.numbered === r.numbered) return rows
+  return patch(rows, ctx, id, { numbered: beside.numbered })
 }
 
 // Ungroup: each node's children come out to sit right after it, at its own level, in

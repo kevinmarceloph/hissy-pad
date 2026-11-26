@@ -192,6 +192,17 @@ describe('indent / dedent', () => {
     expect(shape(out)).toBe('A\nB\nB1\nB2\nC')
   })
 
+  it('dedent takes the numbering of the level it comes out to', () => {
+    const ctx = testCtx()
+    const rows = pad('1. A\n1. B\n  C\n  D', ctx)
+    expect(shape(dedent(rows, ctx, [idOf(rows, 'C')]))).toBe('1.A\n2.B\n  D\n3.C')
+    const plain = pad('A\n  1. B\n  2. C', ctx)
+    expect(shape(dedent(plain, ctx, [idOf(plain, 'B')]))).toBe('A\n  1.C\nB')
+    // Beside a header it looks past it, to the line after.
+    const head = pad('# H\n  1. B\n1. C', ctx)
+    expect(shape(dedent(head, ctx, [idOf(head, 'B')]))).toBe('#H\n1.B\n2.C')
+  })
+
   it('dedent at the root is a no-op', () => {
     const ctx = testCtx()
     const rows = pad(OUTLINE, ctx)
