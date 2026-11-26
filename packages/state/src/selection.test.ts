@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { idOf } from '@hissypad/core'
 import { loadPad, usePad } from './store'
-import { clearSelection, clickSelect, edit, neighbor, select, selectAll, selectRange, stepSelection, stopEditing, targets, visibleIds } from './selection'
+import { clearSelection, clickSelect, edit, neighbor, paintSelect, select, selectAll, selectRange, stepSelection, stopEditing, targets, visibleIds } from './selection'
 import { cmdToggleCollapsed } from './commands'
 import { resetStore } from './testing'
 
@@ -27,6 +27,17 @@ describe('selection and editing', () => {
     clearSelection()
     clickSelect(id('B1'), { shift: false, meta: true })
     expect(picked()).toEqual(['B1'])
+  })
+
+  it('a swipe down the bullets adds the lines it passes to what was selected, and drawn back takes them off', () => {
+    select([id('A')], id('A'))
+    const base = usePad.getState().selection
+    paintSelect(base, id('B1'), id('C'))
+    expect(picked()).toEqual(['A', 'B1', 'B2', 'C'])
+    paintSelect(base, id('B1'), id('B2'))
+    expect(picked()).toEqual(['A', 'B1', 'B2'])
+    paintSelect(base, id('B1'), id('B'))
+    expect(picked()).toEqual(['A', 'B', 'B1'])
   })
 
   it('selection is kept in visible order and skips lines that are not on screen', () => {

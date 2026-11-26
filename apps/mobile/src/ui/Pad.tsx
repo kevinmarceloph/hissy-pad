@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, flatten, listNumbers, pinDivider, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, resumeEditing, select, setSortMode, stopEditing, usePad, visibleIds } from '@hissypad/state'
+import { apply, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, paintSelect, refresh, resumeEditing, select, setSortMode, stopEditing, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme, SHEET_TOP } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -319,6 +319,63 @@ export function Pad() {
     [beginDrag, updateDrag, endDrag],
   )
 
+  // With lines selected, a quick swipe up or down the bullets (no hold: a hold is the drag
+  // above) selects the lines it passes (paintSelect). The touch has to start on a bullet;
+  // anywhere else it is left to the scroll view.
+  const rowAtY = useCallback((absY: number): string | null => {
+    const y = absY - origin.current.y + scrollY.current
+    const vis = visibleIds()
+    let last: string | null = null
+    for (const id of vis) {
+      const b = layouts.current.get(id)
+      if (!b) continue
+      if (y < b.y + b.height) return id
+      last = id
+    }
+    return last
+  }, [])
+  const painting = useRef<{ from: string; base: string[]; x: number; y: number } | null>(null)
+  const paint = useMemo(
+    () =>
+      Gesture.Pan()
+        .manualActivation(true)
+        .runOnJS(true)
+        .onTouchesDown((e, mgr) => {
+          const t = e.changedTouches[0]
+          const st = usePad.getState()
+          if (!t || st.selection.length === 0 || st.editing || dragRef.current) return mgr.fail()
+          const id = rowAtY(t.absoluteY)
+          const depth = id ? (flatten(buildIndex(st.rows), true).find((r) => r.id === id)?.depth ?? 0) : 0
+          const x = t.absoluteX - origin.current.x - 8 - depth * INDENT
+          if (!id || x < -8 || x > GUTTER + 8) return mgr.fail()
+          painting.current = { from: id, base: [...st.selection], x: t.absoluteX, y: t.absoluteY }
+          // Hold the list still while it is decided: a swipe here selects, it does not scroll.
+          scroller.current?.setNativeProps({ scrollEnabled: false })
+        })
+        .onTouchesMove((e, mgr) => {
+          const t = e.changedTouches[0]
+          const p = painting.current
+          if (!t || !p) return mgr.fail()
+          const dx = t.absoluteX - p.x
+          const dy = t.absoluteY - p.y
+          if (Math.hypot(dx, dy) < 8) return
+          if (Math.abs(dy) > Math.abs(dx)) mgr.activate()
+          else mgr.fail()
+        })
+        .onStart(() => { void Haptics.selectionAsync() })
+        .onUpdate((e) => {
+          const p = painting.current
+          const to = p && rowAtY(e.absoluteY)
+          if (p && to) paintSelect(p.base, p.from, to)
+        })
+        .onFinalize(() => {
+          painting.current = null
+          scroller.current?.setNativeProps({ scrollEnabled: true })
+        }),
+    [rowAtY],
+  )
+  const gestures = useMemo(() => Gesture.Race(pan, paint), [pan, paint])
+
   // Pull to sync (iOS). The line's position follows the scroll without a render; only a
   // change of phase renders.
   const pullY = useRef(new Animated.Value(0)).current
@@ -546,7 +603,7 @@ export function Pad() {
         // the detector attached at launch (the app opens on Hours) held on to nothing and no
         // drag reached the pad, its bullets or the floating + (Kevin, 2026-11-25). A fresh
         // detector each time the pad shows attaches to the views that are there.
-        <GestureDetector key={screen === 'pad' ? 'pad' : 'off'} gesture={pan}>
+        <GestureDetector key={screen === 'pad' ? 'pad' : 'off'} gesture={gestures}>
           <View ref={container} style={screen === 'pad' ? s.scroll : s.hidden} onLayout={() => container.current?.measureInWindow((x, y) => (origin.current = { x, y }))}>
           <ScrollView
             ref={scroller}

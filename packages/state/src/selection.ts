@@ -72,6 +72,18 @@ export function selectRange(anchorId: string, focusId: string) {
   select(vis.slice(lo, hi + 1), anchorId, focusId)
 }
 
+// A finger drawn down (or up) the bullets in selection mode: the lines from the bullet it
+// started on to the one under it now join `base`, what was selected when it started. Drawn
+// back, they leave again.
+export function paintSelect(base: readonly string[], fromId: string, toId: string) {
+  const vis = visibleIds()
+  const a = vis.indexOf(fromId)
+  const b = vis.indexOf(toId)
+  if (a < 0 || b < 0) return
+  const [lo, hi] = a < b ? [a, b] : [b, a]
+  select([...base, ...vis.slice(lo, hi + 1)], fromId, toId)
+}
+
 export function selectAll() {
   const vis = visibleIds()
   select(vis, vis[0] ?? null, vis.at(-1) ?? null)

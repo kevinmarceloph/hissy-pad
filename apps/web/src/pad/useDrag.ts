@@ -1,10 +1,11 @@
 // Pointer drag for rows. Press a bullet and move (desktop), or press and hold a bullet
-// then move (touch). The dragged set is the selection when the pressed row is selected,
+// then move (touch). On touch with lines selected, a quick swipe up or down the bullets
+// (no hold) selects the lines it passes instead (paintSelect). The dragged set is the selection when the pressed row is selected,
 // else just that row, always with its subtree. Drop resolution is core's resolveDrop over
 // the rows' live boxes; this hook only measures, draws state and commits the move.
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { buildIndex, countLines, descendantIds, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdAddAt, select, usePad, visibleIds } from '@hissypad/state'
+import { apply, cmdAddAt, paintSelect, select, usePad, visibleIds } from '@hissypad/state'
 import { log } from '@hissypad/state'
 
 export interface DragState {
@@ -32,7 +33,9 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     dragRef.current = typeof next === 'function' ? next(dragRef.current) : next
     setDragState(dragRef.current)
   }, [])
-  const pending = useRef<{ id: string; x: number; y: number; pointerId: number; touch: boolean; timer: number | null } | null>(null)
+  const pending = useRef<{ id: string; x: number; y: number; pointerId: number; touch: boolean; timer: number | null; paint?: string[] } | null>(null)
+  // A swipe down the bullets selecting lines: where it started, the selection then, the pointer.
+  const painting = useRef<{ from: string; base: string[]; pointerId: number } | null>(null)
   const live = useRef<{ ids: string[]; moving: Set<string>; indentPx: number; gutterPx: number; basePx: number; add?: { x: number; y: number } } | null>(null)
   const suppressClick = useRef(false)
   const raf = useRef<number | null>(null)
@@ -75,6 +78,29 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     setDrag({ ids, count: countLines([...moving].map((m) => rows[m])), label: first.text || '(blank)', x, y, target: null, indicatorLeft: 0 })
     document.body.classList.add('is-dragging-rows')
   }, [rowsEl, setDrag])
+
+  // The row whose box holds `y` (the first or last when it is above or below them all).
+  const rowAt = useCallback((y: number): string | null => {
+    const root = rowsEl.current
+    if (!root) return null
+    const els = [...root.querySelectorAll<HTMLElement>('.row[data-id]')]
+    if (!els.length) return null
+    for (const el of els) {
+      const r = el.getBoundingClientRect()
+      if (y < r.bottom) return el.dataset.id!
+    }
+    return els.at(-1)!.dataset.id!
+  }, [rowsEl])
+
+  const paintTo = useCallback((y: number) => {
+    const p = painting.current
+    if (!p) return
+    const to = rowAt(y)
+    if (to) paintSelect(p.base, p.from, to)
+    const vh = window.innerHeight
+    if (y < EDGE) window.scrollBy(0, -Math.ceil((EDGE - y) / 4))
+    else if (y > vh - EDGE) window.scrollBy(0, Math.ceil((y - (vh - EDGE)) / 4))
+  }, [rowAt])
 
   const update = useCallback((x: number, y: number) => {
     const l = live.current
@@ -141,13 +167,24 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
         const dy = e.clientY - p.y
         if (Math.hypot(dx, dy) < MOVE_THRESHOLD) return
         if (p.touch && p.timer !== null) {
-          // Moved before the hold finished: this is a scroll, not a drag.
+          // Moved before the hold finished: not a drag. With lines selected, a swipe that is
+          // more up or down than sideways selects the bullets it passes; else it is a scroll.
           window.clearTimeout(p.timer)
           pending.current = null
+          if (p.paint && Math.abs(dy) > Math.abs(dx)) {
+            painting.current = { from: p.id, base: p.paint, pointerId: p.pointerId }
+            suppressClick.current = true
+            paintTo(e.clientY)
+          }
           return
         }
         pending.current = null
         begin(p.id, e.clientX, e.clientY, { x: p.x, y: p.y })
+      }
+      if (painting.current && e.pointerId === painting.current.pointerId) {
+        e.preventDefault()
+        paintTo(e.clientY)
+        return
       }
       if (live.current) {
         e.preventDefault()
@@ -157,6 +194,10 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
       }
     }
     function onUp(e: PointerEvent) {
+      if (painting.current && e.pointerId === painting.current.pointerId) {
+        painting.current = null
+        setTimeout(() => (suppressClick.current = false), 0)
+      }
       if (pending.current && e.pointerId === pending.current.pointerId) {
         if (pending.current.timer) window.clearTimeout(pending.current.timer)
         pending.current = null
@@ -171,6 +212,10 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
       }
     }
     function onCancel() {
+      if (painting.current) {
+        painting.current = null
+        suppressClick.current = false
+      }
       finish(false)
     }
     function onKey(e: KeyboardEvent) {
@@ -186,13 +231,15 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
       window.removeEventListener('pointercancel', onCancel)
       window.removeEventListener('keydown', onKey)
     }
-  }, [begin, update, finish])
+  }, [begin, update, finish, paintTo])
 
   // Attach to a row's bullet.
   const onBulletPointerDown = useCallback((id: string, e: ReactPointerEvent) => {
     if (e.button !== 0) return
     const touch = e.pointerType === 'touch'
-    const start = { id, x: e.clientX, y: e.clientY, pointerId: e.pointerId, touch, timer: null as number | null }
+    const st = usePad.getState()
+    const paint = touch && st.selection.length > 0 && !st.editing ? [...st.selection] : undefined
+    const start = { id, x: e.clientX, y: e.clientY, pointerId: e.pointerId, touch, timer: null as number | null, paint }
     if (touch) {
       start.timer = window.setTimeout(() => {
         if (pending.current !== start) return

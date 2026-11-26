@@ -89,6 +89,25 @@ test('a selection drags as a block with its subtree', async ({ page }, info) => 
   expect(await outline(page)).toBe('a\nd\nb\n  b1\nc')
 })
 
+test('with a line selected, a quick swipe down the bullets selects the lines it passes (touch)', async ({ page }, info) => {
+  test.skip(info.project.name !== 'phone', 'a touch swipe')
+  await typeOutline(page, ['a', 'b', 'c', 'd'])
+  await bullet(page, 'a').tap()
+  const from = (await bullet(page, 'b').boundingBox())!
+  const to = (await bullet(page, 'd').boundingBox())!
+  const cdp = await page.context().newCDPSession(page)
+  const x = from.x + from.width / 2
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: from.y + from.height / 2 }] })
+  for (let i = 1; i <= 6; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: from.y + from.height / 2 + ((to.y - from.y) * i) / 6 }] })
+    await page.waitForTimeout(20)
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  const selected = await page.locator('.row.is-selected .text').allTextContents()
+  expect(selected).toEqual(['a', 'b', 'c', 'd'])
+  expect(await outline(page)).toBe('a\nb\nc\nd') // nothing moved
+})
+
 test('Escape cancels a drag', async ({ page }) => {
   await typeOutline(page, ['x', 'y'])
   const yb = bullet(page, 'y')
