@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { cmdApplyBoomerang, cmdCreateBegin, dismissStorageError, loadPad, resumeEditing, setBoomerangPickerOpener, targetDue, usePad } from '@hissypad/state'
+import { cmdApplyBoomerang, cmdCreateBegin, dismissStorageError, loadPad, resumeEditing, setSortMode, setBoomerangPickerOpener, targetDue, usePad } from '@hissypad/state'
 import { Pad } from '../pad/Pad'
 import { SelectionBar } from '../pad/SelectionBar'
 import { TopBar, type View } from './TopBar'
@@ -55,6 +55,9 @@ export function App() {
   // answer the keys.
   // It holds the undo depth the card opened at.
   const [creating, setCreating] = useState<number | null>(null)
+
+  // Sort keeps a pad of its own: the store swaps to it in Sort and back out of it.
+  useEffect(() => { if (load === 'ready') setSortMode(view === 'sort') }, [view, load])
 
   useEffect(() => {
     void loadPad()

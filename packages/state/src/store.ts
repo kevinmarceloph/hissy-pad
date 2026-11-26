@@ -55,6 +55,24 @@ export interface PadState {
 
 export const SEED_KEY = 'seed.rows'
 export const PAD_KEY = 'pad.current' // which pad this device had open
+export const SORT_PAD_KEY = 'sort.pad' // which pad Sort had open: its own, apart from the Pads tab's
+
+// Sort keeps a pad of its own (Kevin, 2026-11-27): picking a pad to sort does not change the
+// pad the Pads tab shows, and back. The store shows one pad at a time, so switching in or out
+// of Sort swaps `padId` with the one the other side last had. `sortMode` says which side the
+// pad shown belongs to, and so which meta key openPad remembers it under.
+let sortMode = false
+let otherPad: PadId | undefined // the pad of the side not shown; undefined: none chosen yet
+let sortPadMeta: PadId | undefined // Sort's pad as loaded from meta, until Sort is first opened
+export const inSortMode = () => sortMode
+export function setSortMode(on: boolean) {
+  if (on === sortMode || get().load !== 'ready') return
+  const was = get().padId
+  const want = on ? (otherPad !== undefined ? otherPad : sortPadMeta) : otherPad
+  sortMode = on
+  otherPad = was
+  if (want !== undefined && want !== was && !openPad(want)) openPad(was)
+}
 
 export const clock = createClock()
 export const ctx: OpCtx = { now: () => clock.tick(), newId: newUuid }
@@ -272,6 +290,10 @@ async function loadPadOnce() {
     // Reopen the pad this device had open, if it still exists; else the Inbox (the root).
     const remembered = await local.getMeta(PAD_KEY)
     const padId = remembered && isPadNode(state[remembered]) ? remembered : null
+    const sortPad = await local.getMeta(SORT_PAD_KEY)
+    sortPadMeta = sortPad === null || sortPad === undefined ? undefined : sortPad === '' ? null : sortPad
+    sortMode = false
+    otherPad = undefined
     set({ all: state, rows: padView(state, padId), padId, load: 'ready' })
     settleFixed()
     adoptLegacyCounts()
@@ -297,7 +319,7 @@ export function settleFixed() {
   log('pad:settle', { changed: changedRows(all, next).length })
   const shown = padId === null || isPadNode(next[padId]) ? padId : null
   set({ all: next, padId: shown, rows: view(next, shown) })
-  if (shown !== padId) void local.setMeta(PAD_KEY, '').catch(() => {})
+  if (shown !== padId) void local.setMeta(sortMode ? SORT_PAD_KEY : PAD_KEY, '').catch(() => {})
   persist(all, next)
   afterSettle?.()
 }
@@ -345,7 +367,7 @@ export function openPad(padId: PadId): boolean {
   if (padId !== null && !isPadNode(all[padId])) return false
   log('pad:open', { padId: padId?.slice(0, 8) ?? 'main' })
   set({ padId, zoomId: null, slotId: null, rows: padView(all, padId), editing: null, selection: [], anchorId: null, focusId: null })
-  void local.setMeta(PAD_KEY, padId ?? '').catch(() => {})
+  void local.setMeta(sortMode ? SORT_PAD_KEY : PAD_KEY, padId ?? '').catch(() => {})
   return true
 }
 
@@ -386,7 +408,7 @@ export function setAll(all: Rows, extra: Partial<PadState> = {}) {
   // The same for a zoomed line (an undo can take a new item away while its card is open).
   const zoomId = get().zoomId !== null && isLive(all[get().zoomId!]) ? get().zoomId : null
   set({ all, padId: nextPad, zoomId, rows: view(all, nextPad, zoomId), ...extra })
-  if (!stillThere) void local.setMeta(PAD_KEY, '').catch(() => {})
+  if (!stillThere) void local.setMeta(sortMode ? SORT_PAD_KEY : PAD_KEY, '').catch(() => {})
 }
 
 // Multi-line paste or the Import dialog: lines land after `afterId` at its depth, or at the

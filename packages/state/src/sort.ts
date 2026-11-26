@@ -1,6 +1,6 @@
-// Sort: the lines of the pad shown, one card at a time. Left sends a line to a pad of the
-// user's choice ("Later" unless set otherwise, remembered per device), right to "Today",
-// up to "Today" crossed out, down to the bottom of the pad to be dealt again at the end
+// Sort: the lines of the pad shown, one card at a time. Left and right each send a line to a
+// pad of the user's choice ("Later" and "Today" unless set otherwise, remembered per device),
+// up to the right-hand pad crossed out, down to the bottom of the pad to be dealt again at the end
 // (Cycle). Skip leaves a line where it is; Archive deletes it. The card can be edited and
 // given sub items before it goes. This file holds the queue, the targets and the commands;
 // the swipe itself is the app's.
@@ -18,25 +18,25 @@ import { log } from './log'
 export type SortSide = 'left' | 'right'
 export type SortDir = SortSide | 'up' | 'cycle' | 'skip' | 'archive'
 
-// Where the left side sends its lines: a pad's id, a sub-pad's row id, 'main', or null for
-// the default (the pad named "Later", made the first time a line is sent to it). The right
-// side has no choice since 2026-11-24: it is always "Today". A `sort.right` meta key left
-// on a device from before is not read.
+// Where a side sends its lines: a pad's id, a sub-pad's row id, 'main', or null for the
+// default (the pad named "Later" or "Today", made the first time a line is sent to it). The
+// right side was fixed to Today from 2026-11-24 until 2026-11-27, when its choice came back.
 export type SortChoice = string | 'main' | null
 
 export const SORT_DEFAULT_NAME: Record<SortSide, string> = { left: 'Later', right: 'Today' }
-const KEY = 'sort.left'
+const KEY: Record<SortSide, string> = { left: 'sort.left', right: 'sort.right' }
 
-export const useSort = create<{ left: SortChoice }>(() => ({ left: null }))
+export const useSort = create<Record<SortSide, SortChoice>>(() => ({ left: null, right: null }))
 
 export async function loadSortTargets(): Promise<void> {
-  const left = await getLocalStore().getMeta(KEY)
-  useSort.setState({ left: left || null })
+  const store = getLocalStore()
+  const [left, right] = await Promise.all([store.getMeta(KEY.left), store.getMeta(KEY.right)])
+  useSort.setState({ left: left || null, right: right || null })
 }
 
-export function setSortTarget(choice: SortChoice) {
-  useSort.setState({ left: choice })
-  void getLocalStore().setMeta(KEY, choice ?? '').catch(() => {})
+export function setSortTarget(choice: SortChoice, side: SortSide = 'left') {
+  useSort.setState({ [side]: choice } as Pick<Record<SortSide, SortChoice>, SortSide>)
+  void getLocalStore().setMeta(KEY[side], choice ?? '').catch(() => {})
 }
 
 // A drag of (dx, dy) as a swipe, or null when it is too short to count. Up (done) and down
@@ -50,9 +50,9 @@ export function swipeDir(dx: number, dy: number, threshold = SWIPE_DISTANCE): So
   return null
 }
 
-// A new pad made from the sort screen and set as the left target, without leaving the pad
+// A new pad made from the sort screen and set as a side's target, without leaving the pad
 // being sorted. Returns its id ('' for a blank name).
-export function cmdSortNewTarget(name: string): string {
+export function cmdSortNewTarget(name: string, side: SortSide = 'left'): string {
   const clean = name.trim()
   if (!clean) return ''
   let id = ''
@@ -61,7 +61,7 @@ export function cmdSortNewTarget(name: string): string {
     id = made.padId
     return made.rows
   }, { label: 'cmdSortNewTarget' })
-  setSortTarget(id)
+  setSortTarget(id, side)
   return id
 }
 
@@ -73,10 +73,9 @@ export interface SortTarget {
   isDefault: boolean
 }
 
-// A side's target as things stand. Right is always the default; on the left, a chosen pad
-// that is gone (deleted here or on another device) falls back to the default.
-export function sortTarget(all: Rows, side: SortSide, leftChoice: SortChoice = useSort.getState().left): SortTarget {
-  const choice = side === 'left' ? leftChoice : null
+// A side's target as things stand. A chosen pad that is gone (deleted here or on another
+// device) falls back to the default.
+export function sortTarget(all: Rows, side: SortSide, choice: SortChoice = useSort.getState()[side]): SortTarget {
   // 'main' is the root level, the Inbox.
   if (choice === 'main') return { padId: null, subId: null, name: MAIN_PAD_NAME, exists: true, isDefault: false }
   if (choice !== null && isPadNode(all[choice])) return { padId: choice, subId: null, name: all[choice].text || 'Untitled pad', exists: true, isDefault: false }
@@ -279,18 +278,20 @@ export function sortSessionSend(session: SortSession, dir: SortDir): SortSession
   return { queue, pos: index + 1, sent: [...session.sent, { ...res, id, index }] }
 }
 
-// Pick a new left target and send the current card there in the same go. With no card left
-// it only sets the target.
-export function sortSessionSendLeftTo(session: SortSession, choice: SortChoice): SortSession {
-  setSortTarget(choice)
-  return sortSessionSend(session, 'left')
+// Pick a new target for a side and send the current card there in the same go. With no card
+// left it only sets the target.
+export function sortSessionSendTo(session: SortSession, side: SortSide, choice: SortChoice): SortSession {
+  setSortTarget(choice, side)
+  return sortSessionSend(session, side)
 }
+export const sortSessionSendLeftTo = (session: SortSession, choice: SortChoice) => sortSessionSendTo(session, 'left', choice)
 
 // The same with a pad made on the spot; the session is unchanged for a blank name.
-export function sortSessionSendLeftToNew(session: SortSession, name: string): SortSession {
-  if (!cmdSortNewTarget(name)) return session
-  return sortSessionSend(session, 'left')
+export function sortSessionSendToNew(session: SortSession, side: SortSide, name: string): SortSession {
+  if (!cmdSortNewTarget(name, side)) return session
+  return sortSessionSend(session, side)
 }
+export const sortSessionSendLeftToNew = (session: SortSession, name: string) => sortSessionSendToNew(session, 'left', name)
 
 // Take the last card back and show it again. Backs come off in the order the sends went
 // on, so a cycled card's copy is the last one queued.

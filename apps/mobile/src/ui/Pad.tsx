@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, flatten, listNumbers, pinDivider, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, resumeEditing, select, stopEditing, usePad, visibleIds } from '@hissypad/state'
+import { apply, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, refresh, resumeEditing, select, setSortMode, stopEditing, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme, SHEET_TOP } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -111,6 +111,8 @@ export function Pad() {
   // opens at (an archived line picked in Search); `rev` makes a second trip scroll again.
   const [archive, setArchive] = useState<{ id: string | null; rev: number } | null>(null)
   const screen = archive ? 'archive' : mode
+  // Sort keeps a pad of its own: the store swaps to it in Sort and back out of it.
+  useEffect(() => { if (load === 'ready') setSortMode(screen === 'sort') }, [screen, load])
   // The hour picker the toolbar's "Hour…" (behind More) opens.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
   // The same for "Category…".

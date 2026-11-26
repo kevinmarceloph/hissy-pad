@@ -1,6 +1,6 @@
 // Sort: the pad's top-level lines one card at a time. Swipe (or arrow keys, or the buttons)
-// left for Later (or the pad picked below: picking one sends the card there too), right
-// for Today, up for Today and crossed out, down to cycle it: to the bottom of the pad, to
+// left for Later, right for Today (or the pad picked behind the cog beside each button:
+// picking one sends the card there too), up for that right-hand pad crossed out, down to cycle it: to the bottom of the pad, to
 // come round again. Skip leaves a card; Archive deletes it. The card is live: its
 // text edits the real row, and its sub items are the pad itself, zoomed into the card's
 // line (the store's zoom): the same rows, keys and toolbar as in the pad. Every
@@ -9,7 +9,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { scopePad, slotLabel, todayKey } from '@hissypad/core'
 import { cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/hours'
-import { HoursIcon, LineIcon, PadIcon } from '../app/icons'
+import { GearIcon, HoursIcon, LineIcon, PadIcon } from '../app/icons'
 import { cmdPickBoomerang, cmdSortMoveTo, dueWords } from '@hissypad/state'
 import { showToast } from '../app/toast'
 import { MOD } from '../platform/os'
@@ -17,7 +17,7 @@ import { Pad } from '../pad/Pad'
 import { BarMenu, SelectionBar } from '../pad/SelectionBar'
 import {
   cmdAppendAtEnd, cmdOpenHit, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
-  sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, zoomTo, type SortChoice, type SortDir,
+  sortSessionSend, sortSessionSendTo, sortSessionSendToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, zoomTo, type SortChoice, type SortDir, type SortSide,
 } from '@hissypad/state'
 
 const SWIPE = SWIPE_DISTANCE // px of travel that commits a swipe
@@ -70,7 +70,7 @@ export function Sort({ onClose, paused = false }: { onClose: () => void; paused?
   const [session, setSession] = useState(() => sortSessionStart())
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null)
   const [ghost, setGhost] = useState<Ghost | null>(null)
-  const [naming, setNaming] = useState<string | null>(null)
+  const [naming, setNaming] = useState<{ side: SortSide; text: string } | null>(null)
   const press = useRef<{ x: number; y: number; pointer: number; inFocusedField: boolean; dragging: boolean } | null>(null)
 
   useEffect(() => { void loadSortTargets() }, [])
@@ -89,7 +89,7 @@ export function Sort({ onClose, paused = false }: { onClose: () => void; paused?
     if (usePad.getState().zoomId !== null) zoomTo(null)
   }, [])
   const left = sortTarget(all, 'left', choice.left)
-  const right = sortTarget(all, 'right')
+  const right = sortTarget(all, 'right', choice.right)
   const progress = sortSessionProgress(session, rows)
 
   // Every way a card leaves goes through here; `next` is what the session becomes.
@@ -105,10 +105,10 @@ export function Sort({ onClose, paused = false }: { onClose: () => void; paused?
     leave(dir, sortSessionSend(session, dir), from)
   }
 
-  // Picking a left pad sends the card there; with no card left it only sets the pad.
-  function pickLeft(next: SortChoice) {
-    if (id) leave('left', sortSessionSendLeftTo(session, next))
-    else setSortTarget(next)
+  // Picking a side's pad sends the card there; with no card left it only sets the pad.
+  function pick(side: SortSide, next: SortChoice) {
+    if (id) leave(side, sortSessionSendTo(session, side, next))
+    else setSortTarget(next, side)
   }
 
   function back() {
@@ -197,48 +197,31 @@ export function Sort({ onClose, paused = false }: { onClose: () => void; paused?
   const upLabel = `${right.name}, done`
 
   function createTarget() {
-    if (naming === null || !naming.trim()) return
-    if (id) leave('left', sortSessionSendLeftToNew(session, naming))
-    else sortSessionSendLeftToNew(session, naming)
+    if (naming === null || !naming.text.trim()) return
+    if (id) leave(naming.side, sortSessionSendToNew(session, naming.side, naming.text))
+    else sortSessionSendToNew(session, naming.side, naming.text)
     setNaming(null)
   }
 
-  // The left side's pad. Right is always Today. Choosing here sends the card on screen.
-  function targetSelect() {
-    const def = sortTarget(all, 'left', null)
+  // A side's pad, behind the cog beside its button. Choosing one sends the card on screen.
+  function gear(side: SortSide) {
+    const target = side === 'left' ? left : right
+    const def = sortTarget(all, side, null)
     // Every pad and sub-pad ("Pad → Sub-pad"), without the default pad, which has its own entry.
     const places = placeList(all).filter((p) => p.key !== 'main' && !(p.subId === null && p.padId === def.padId && def.exists))
-    const label = id ? '← Send left to' : '← Left goes to'
-    if (naming !== null) {
-      return (
-        <form className="sort-target" onSubmit={(e) => { e.preventDefault(); createTarget() }}>
-          <span>{label}</span>
-          <input
-            autoFocus
-            value={naming}
-            onChange={(e) => setNaming(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setNaming(null) } }}
-            placeholder="Name the new pad"
-            aria-label="Name for the new pad"
-          />
-          <button type="submit" disabled={!naming.trim()}>Create</button>
-          <button type="button" onClick={() => setNaming(null)}>Cancel</button>
-        </form>
-      )
-    }
+    const name = side === 'left' ? 'Pad for a left swipe' : 'Pad for a right or up swipe'
     return (
-      <label className="sort-target">
-        <span>{label}</span>
+      <label className="sort-gear" title={id ? `${side === 'left' ? 'Left' : 'Right'} goes to ${target.name}. Picking a pad also sends this card there` : `${side === 'left' ? 'Left' : 'Right'} goes to ${target.name}`}>
+        <GearIcon />
         <select
-          value={choice.left === 'main' ? 'main' : left.isDefault ? '' : (left.subId ?? left.padId ?? '')}
+          value={choice[side] === 'main' ? 'main' : target.isDefault ? '' : (target.subId ?? target.padId ?? '')}
           onChange={(e) => {
             const v = e.target.value
-            if (v === '__new') setNaming('')
-            else pickLeft(v === '' ? null : v)
+            if (v === '__new') setNaming({ side, text: '' })
+            else pick(side, v === '' ? null : v)
             e.target.blur()
           }}
-          aria-label="Pad for a left swipe"
-          title={id ? 'Picking a pad also sends this card there' : undefined}
+          aria-label={name}
         >
           <option value="">{def.exists ? def.name : `${def.name} (new pad)`}</option>
           <option value="main">{padName(all, null)}</option>
@@ -246,6 +229,25 @@ export function Sort({ onClose, paused = false }: { onClose: () => void; paused?
           <option value="__new">New pad…</option>
         </select>
       </label>
+    )
+  }
+
+  function namingForm() {
+    if (naming === null) return null
+    return (
+      <form className="sort-target" onSubmit={(e) => { e.preventDefault(); createTarget() }}>
+        <span>{naming.side === 'left' ? (id ? '← Send left to' : '← Left goes to') : (id ? 'Send right to →' : 'Right goes to →')}</span>
+        <input
+          autoFocus
+          value={naming.text}
+          onChange={(e) => setNaming({ ...naming, text: e.target.value })}
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setNaming(null) } }}
+          placeholder="Name the new pad"
+          aria-label="Name for the new pad"
+        />
+        <button type="submit" disabled={!naming.text.trim()}>Create</button>
+        <button type="button" onClick={() => setNaming(null)}>Cancel</button>
+      </form>
     )
   }
 
@@ -342,22 +344,23 @@ export function Sort({ onClose, paused = false }: { onClose: () => void; paused?
         )}
       </div>
 
+      {/* Left and right are tall, with up over down between them; each side's cog picks its pad. */}
       <div className="sort-actions">
-        <button type="button" onClick={() => send('left')} disabled={!id} aria-label={`Left: ${left.name}`}><kbd>←</kbd> {left.name}</button>
-        <button type="button" onClick={() => send('up')} disabled={!id} aria-label={`Up: ${upLabel}`}><kbd>↑</kbd> Done</button>
-        <button type="button" onClick={() => send('right')} disabled={!id} aria-label={`Right: ${right.name}`}>{right.name} <kbd>→</kbd></button>
-      </div>
-      <div className="sort-actions sort-down">
-        <button type="button" onClick={() => send('cycle')} disabled={!id} aria-label="Down: cycle" title="Move it to the bottom of the pad and see it again at the end"><kbd>↓</kbd> Cycle</button>
+        {gear('left')}
+        <button type="button" className="sort-side" onClick={() => send('left')} disabled={!id} aria-label={`Left: ${left.name}`}><kbd>←</kbd> {left.name}</button>
+        <div className="sort-updown">
+          <button type="button" onClick={() => send('up')} disabled={!id} aria-label={`Up: ${upLabel}`}><kbd>↑</kbd> Done</button>
+          <button type="button" onClick={() => send('cycle')} disabled={!id} aria-label="Down: cycle" title="Move it to the bottom of the pad and see it again at the end"><kbd>↓</kbd> Cycle</button>
+        </div>
+        <button type="button" className="sort-side" onClick={() => send('right')} disabled={!id} aria-label={`Right: ${right.name}`}>{right.name} <kbd>→</kbd></button>
+        {gear('right')}
       </div>
       <div className="sort-minor">
         <button type="button" onClick={back} disabled={sent.length === 0}>Back</button>
         <button type="button" onClick={() => send('skip')} disabled={!id}>Skip <kbd>S</kbd></button>
         <button type="button" onClick={() => send('archive')} disabled={!id} title="Delete it: the Archive keeps it">Archive <kbd>A</kbd></button>
       </div>
-      <div className="sort-targets">
-        {targetSelect()}
-      </div>
+      {naming && <div className="sort-targets">{namingForm()}</div>}
     </section>
     {/* The pad's toolbar, for the sub item being typed or the ones selected. */}
     {!paused && <SelectionBar />}

@@ -145,7 +145,7 @@ describe('sort', () => {
     expect(whole()).toBe('\n@Today\n  ~B\n@Later\n  A')
   })
 
-  it('picking a left pad sends the card there and keeps it for the next ones; right has no picker', async () => {
+  it('picking a left pad sends the card there and keeps it for the next ones', async () => {
     const user = userEvent.setup()
     await mount('A\nB\nC')
     await user.click(button('New pad'))
@@ -153,7 +153,6 @@ describe('sort', () => {
     await user.click(button('Create'))
     await user.click(screen.getByRole('tab', { name: 'Inbox' }))
     await user.click(button('Sort'))
-    expect(screen.queryByLabelText('Pad for a right or up swipe')).toBeNull()
     await user.selectOptions(screen.getByLabelText('Pad for a left swipe'), 'Someday')
     expect(card().value).toBe('B')
     expect(button('Left: Someday')).toBeInTheDocument()
@@ -174,6 +173,18 @@ describe('sort', () => {
     await user.click(button('Cancel'))
     expect(card().value).toBe('B')
     expect(button('Left: Someday')).toBeInTheDocument()
+  })
+
+  it('the cog beside the right button picks its pad and sends the card there; up follows it', async () => {
+    const user = userEvent.setup()
+    await mount('A\nB\nC')
+    await user.click(button('Sort'))
+    expect(button('Right: Today')).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Pad for a right or up swipe'), 'Later')
+    expect(button('Right: Later')).toBeInTheDocument()
+    expect(card().value).toBe('B')
+    await user.keyboard('{ArrowUp}')
+    expect(whole()).toBe('C\n@Later\n  ~B\n  A')
   })
 
   it('down cycles: the card goes to the bottom of the pad and is dealt again at the end; it still counts as to go', async () => {

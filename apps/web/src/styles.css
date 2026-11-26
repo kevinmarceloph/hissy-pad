@@ -1009,9 +1009,15 @@ dialog.create::backdrop { background: var(--paper); }
 .sort-empty p { margin: 0; font-size: 1.2rem; }
 .sort-empty .tally { font-size: 0.95rem; color: var(--ink-mute); margin-top: 0.25rem; }
 .sort-actions, .sort-minor, .sort-targets { display: flex; justify-content: center; gap: 0.5rem; margin: 1rem auto 0; max-width: 30rem; }
-.sort-actions.sort-down { margin-top: 0.5rem; }
-.sort-actions.sort-down button { flex: 0 1 calc((100% - 1rem) / 3); }
+/* Left and right are as tall as up and down stacked between them; a cog on each outer side. */
+.sort-actions { align-items: stretch; gap: 0.4rem; }
 .sort-actions button { flex: 1 1 0; min-width: 0; min-height: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sort-actions .sort-side { min-height: calc(88px + 0.4rem); }
+.sort-updown { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.sort-updown button { flex: 1 1 0; width: 100%; }
+.sort-gear { position: relative; flex: none; display: grid; place-items: center; width: 36px; border-radius: 4px; color: var(--ink-soft); cursor: pointer; }
+.sort-gear:hover, .sort-gear:focus-within { background: var(--paper-raised); color: var(--ink); }
+.sort-gear select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .sort-minor button { border-color: transparent; background: none; color: var(--ink-soft); }
 .sort-minor button:hover:not(:disabled) { background: var(--paper-raised); color: var(--ink); }
 .sort-targets { flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--ink-soft); }

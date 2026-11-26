@@ -5,7 +5,7 @@
 // live lines). Plain selectors plus the one command that jumps to a hit; both platforms
 // draw from this, and nothing here knows about the DOM or React Native.
 import { buildIndex, childrenOf, isLive, isPadNode, setCollapsed, type NodeRow, type PadId, type Rows } from '@hissypad/core'
-import { applyAll, openPad, revealRow, usePad, zoomTo } from './store'
+import { applyAll, openPad, revealRow, setSortMode, usePad, zoomTo } from './store'
 import { select, stopEditing } from './selection'
 import { foldedAncestors, padOf } from './lists'
 import { MAIN_PAD_NAME } from './pads'
@@ -218,6 +218,8 @@ export function cmdOpenHit(id: string): boolean {
   stopEditing()
   // A card that is zoomed into (Sort's) gives way to the pad the line is in.
   if (usePad.getState().zoomId !== null) zoomTo(null)
+  // A jump to a line lands in the Pads tab, so Sort's own pad is put away first.
+  setSortMode(false)
   if (isPadNode(row)) return openPad(id)
   if (foldedAncestors(all, id).length > 0) {
     applyAll((rows, ctx) => foldedAncestors(rows, id).reduce((out, a) => setCollapsed(out, ctx, a, false), rows), { label: 'cmdOpenHit' })

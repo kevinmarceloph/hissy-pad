@@ -14,8 +14,8 @@ import { cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/h
 import { CategoryBadge } from '@hissypad/ui'
 import {
   cmdAppendAtEnd, cmdOpenHit, cmdSortSetText, loadSortTargets, openPad, padList, padName, placeList, setSortTarget, sortSessionBack, sortSessionCard, sortSessionProgress,
-  sortSessionSend, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, zoomTo,
-  type SortChoice, type SortDir, type SortSession,
+  sortSessionSend, sortSessionSendTo, sortSessionSendToNew, sortSessionStart, sortSummary, sortTarget, swipeDir, SWIPE_DISTANCE, usePad, useSort, zoomTo,
+  type SortChoice, type SortSide, type SortDir, type SortSession,
 } from '@hissypad/state'
 import { useKeyboardHeight } from '../keyboard'
 import { serif, type Theme } from '../theme'
@@ -99,7 +99,7 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
     if (usePad.getState().zoomId !== null) zoomTo(null)
   }, [])
   const left = sortTarget(all, 'left', choice.left)
-  const right = sortTarget(all, 'right')
+  const right = sortTarget(all, 'right', choice.right)
 
   // `run` makes the move and returns the session after it: a plain send unless a left pad
   // was just picked.
@@ -153,28 +153,29 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
     }),
   ).current
 
-  // The left side's pad. Right is always Today. With a card up, picking a pad sends it there.
-  function pickLeft(next: SortChoice) {
-    if (id) send('left', () => sortSessionSendLeftTo(session, next))
-    else setSortTarget(next)
+  // A side's pad, from the cog beside its button. With a card up, picking a pad sends it there.
+  function pick(side: SortSide, next: SortChoice) {
+    if (id) send(side, () => sortSessionSendTo(session, side, next))
+    else setSortTarget(next, side)
   }
 
-  function pickTarget() {
-    const def = sortTarget(all, 'left', null)
+  function pickTarget(side: SortSide) {
+    const def = sortTarget(all, side, null)
     const places = placeList(all).filter((p) => p.key !== 'main' && !(p.subId === null && p.padId === def.padId && def.exists))
-    menu(id ? 'Send left to' : 'A left swipe goes to', id ? 'This line goes there now, and the next left swipes too.' : undefined, [
-      { text: def.exists ? def.name : `${def.name} (new pad)`, onPress: () => pickLeft(null) },
-      { text: padName(all, null), onPress: () => pickLeft('main') },
-      ...places.map((p) => ({ text: p.label, onPress: () => pickLeft(p.key) })),
-      { text: 'New pad…', onPress: newTarget },
+    const word = side === 'left' ? 'left' : 'right'
+    menu(id ? `Send ${word} to` : `A ${word} swipe goes to`, id ? `This line goes there now, and the next ${word} swipes too.` : undefined, [
+      { text: def.exists ? def.name : `${def.name} (new pad)`, onPress: () => pick(side, null) },
+      { text: padName(all, null), onPress: () => pick(side, 'main') },
+      ...places.map((p) => ({ text: p.label, onPress: () => pick(side, p.key) })),
+      { text: 'New pad…', onPress: () => newTarget(side) },
       { text: 'Cancel', style: 'cancel' as const },
     ])
   }
 
-  function newTarget() {
+  function newTarget(side: SortSide) {
     const make = (name: string) => {
-      if (id) send('left', () => sortSessionSendLeftToNew(session, name))
-      else sortSessionSendLeftToNew(session, name)
+      if (id) send(side, () => sortSessionSendToNew(session, side, name))
+      else sortSessionSendToNew(session, side, name)
     }
     askText('New pad', 'A name for it', '', make)
   }
@@ -191,8 +192,13 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
       <Text style={[s.stampText, { color: theme.accent }]}>{label.toUpperCase()}</Text>
     </Animated.View>
   )
-  const action = (label: string, a11y: string, onPress: () => void, disabled: boolean) => (
-    <Pressable accessibilityRole="button" accessibilityLabel={a11y} disabled={disabled} onPress={onPress} style={({ pressed }) => [s.action, { borderColor: pressed ? theme.accent : theme.rule, backgroundColor: theme.paperRaised, opacity: disabled ? 0.45 : 1 }]}>
+  const gear = (side: SortSide) => (
+    <Pressable onPress={() => pickTarget(side)} accessibilityRole="button" accessibilityLabel={`Pad for a ${side === 'left' ? 'left' : 'right or up'} swipe: ${(side === 'left' ? left : right).name}`} hitSlop={4} style={({ pressed }) => [s.gear, pressed && { backgroundColor: theme.paperRaised }]}>
+      <Text style={[s.gearText, { color: theme.inkSoft }]}>{'\u2699\uFE0E'}</Text>
+    </Pressable>
+  )
+  const action = (label: string, a11y: string, onPress: () => void, disabled: boolean, tall = false) => (
+    <Pressable accessibilityRole="button" accessibilityLabel={a11y} disabled={disabled} onPress={onPress} style={({ pressed }) => [s.action, tall && s.actionTall, { borderColor: pressed ? theme.accent : theme.rule, backgroundColor: theme.paperRaised, opacity: disabled ? 0.45 : 1 }]}>
       <Text style={[s.actionText, { color: theme.ink }]} numberOfLines={1}>{label}</Text>
     </Pressable>
   )
@@ -308,13 +314,16 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
 
         {!compact && (
           <>
+          {/* Left and right are tall, with up over down between them; a cog on each side picks its pad. */}
           <View style={s.actions}>
-            {action(`← ${left.name}`, `Left: ${left.name}`, () => send('left'), !id)}
-            {action('↑ Done', `Up: ${right.name}, done`, () => send('up'), !id)}
-            {action(`${right.name} →`, `Right: ${right.name}`, () => send('right'), !id)}
-          </View>
-          <View style={[s.actions, s.actionsDown]}>
-            {action('↓ Cycle', 'Down: cycle, to the bottom of the pad to come round again', () => send('cycle'), !id)}
+            {gear('left')}
+            {action(`← ${left.name}`, `Left: ${left.name}`, () => send('left'), !id, true)}
+            <View style={s.updown}>
+              {action('↑ Done', `Up: ${right.name}, done`, () => send('up'), !id)}
+              {action('↓ Cycle', 'Down: cycle, to the bottom of the pad to come round again', () => send('cycle'), !id)}
+            </View>
+            {action(`${right.name} →`, `Right: ${right.name}`, () => send('right'), !id, true)}
+            {gear('right')}
           </View>
           <View style={s.minor}>
             <Pressable onPress={back} disabled={sent.length === 0} accessibilityRole="button" style={s.minorBtn}>
@@ -325,11 +334,6 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
             </Pressable>
             <Pressable onPress={() => send('archive')} disabled={!id} accessibilityRole="button" accessibilityHint="Deletes it; the Archive keeps it" style={s.minorBtn}>
               <Text style={[s.minorText, { color: id ? theme.inkSoft : theme.inkMute, opacity: id ? 1 : 0.5 }]}>Archive</Text>
-            </Pressable>
-          </View>
-          <View style={[s.targets, { borderTopColor: theme.rule }]}>
-            <Pressable onPress={pickTarget} accessibilityRole="button" accessibilityLabel={`Pad for a left swipe: ${left.name}`} style={s.minorBtn}>
-              <Text style={[s.targetText, { color: theme.inkSoft }]} numberOfLines={1}>← goes to <Text style={{ color: theme.link }}>{left.name}</Text></Text>
             </Pressable>
           </View>
           </>
@@ -369,15 +373,16 @@ const s = StyleSheet.create({
   stampText: { fontFamily: serif, fontSize: 14, letterSpacing: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { fontFamily: serif, fontSize: 20 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  actionsDown: { marginTop: 8, paddingHorizontal: '33%' },
+  actions: { flexDirection: 'row', alignItems: 'stretch', gap: 6, marginTop: 12 },
+  updown: { flex: 1, gap: 6 },
+  gear: { width: 30, alignItems: 'center', justifyContent: 'center', borderRadius: 4 },
+  gearText: { fontSize: 20 },
+  actionTall: { minHeight: 48 * 2 + 6 },
   action: { flex: 1, minHeight: 48, paddingHorizontal: 6, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
   actionText: { fontFamily: serif, fontSize: 16 },
   minor: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 4 },
   minorBtn: { minHeight: 44, paddingHorizontal: 12, justifyContent: 'center' },
   minorText: { fontFamily: serif, fontSize: 16 },
-  targets: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', borderTopWidth: StyleSheet.hairlineWidth, marginTop: 4, paddingTop: 4 },
-  targetText: { fontFamily: serif, fontSize: 14 },
 })
 
 // The card's look, shared with the new item's sheet (Create.tsx): the same card, no swipe.

@@ -159,7 +159,7 @@ describe('the widget', () => {
     cmdWidgetActions([{ dir: 'state', id: id('B1'), state: 'done' }, { dir: 'state', id: id('D'), state: 'doing' }])
     applyAll((rows, ctx) => setCategory(rows, ctx, [id('B')], 'deep'), { label: 'test' })
     const category = (cat: string) => (cat === 'deep' ? { label: 'Deep work', icon: '', light: '#111111', dark: '#eeeeee' } : undefined)
-    const { hours } = widgetSnapshot(all(), { left: null }, { now, category })
+    const { hours } = widgetSnapshot(all(), { left: null, right: null }, { now, category })
     expect(widgetHourKey(now)).toBe('2026-11-25T14')
     expect(Object.keys(hours)).toEqual(['2026-11-25T14', '2026-11-25T15', '2026-11-26T09'])
     expect(hours['2026-11-25T14']).toEqual({
@@ -175,6 +175,6 @@ describe('the widget', () => {
     expect(hours['2026-11-25T15']).toEqual({ items: [{ id: id('D'), text: 'D', subs: 0, state: 'doing' }] })
     // A line marked done stays in its hour.
     cmdWidgetActions([{ dir: 'state', id: id('B'), state: 'done' }])
-    expect(widgetSnapshot(all(), { left: null }, { now }).hours['2026-11-25T14']!.items.map((i) => i.state ?? 'open')).toEqual(['done', 'done', 'open', 'doing'])
+    expect(widgetSnapshot(all(), { left: null, right: null }, { now }).hours['2026-11-25T14']!.items.map((i) => i.state ?? 'open')).toEqual(['done', 'done', 'open', 'doing'])
   })
 })

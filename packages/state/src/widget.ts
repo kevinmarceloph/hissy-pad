@@ -93,7 +93,7 @@ const fromKey = (key: string): PadId => (key === WIDGET_MAIN ? null : key)
 // crossed-out lines and blank spacers (the same rule as the Sort queue).
 export function widgetSnapshot(
   all: Rows = usePad.getState().all,
-  choice: { left: SortChoice } = useSort.getState(),
+  choice: { left: SortChoice; right: SortChoice } = useSort.getState(),
   extras: WidgetExtras = {},
 ): WidgetSnapshot {
   const index = buildIndex(all)
@@ -125,7 +125,7 @@ export function widgetSnapshot(
     pads: padList(all).map((p) => pad(p.id, p.name)),
     inbox: WIDGET_MAIN,
     left: sortTarget(all, 'left', choice.left).name,
-    right: sortTarget(all, 'right').name,
+    right: sortTarget(all, 'right', choice.right).name,
     hours: widgetHours(all, index, item, extras),
   }
 }

@@ -7,7 +7,7 @@ import { cmdNewPad } from './pads'
 import { cmdAppendAtEnd, cmdSetKind, cmdSetText } from './commands'
 import { cmdOpenHit } from './search'
 import {
-  cmdSortAddSub, cmdSortBack, cmdSortNewTarget, sortSessionBack, sortSessionProgress, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionCard, sortSessionSend, sortSessionStart, sortSummary, swipeDir, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, setSortTarget, sortQueue, sortTarget, useSort,
+  cmdSortAddSub, cmdSortBack, cmdSortNewTarget, sortSessionBack, sortSessionProgress, sortSessionSendLeftTo, sortSessionSendLeftToNew, sortSessionSendTo, sortSessionCard, sortSessionSend, sortSessionStart, sortSummary, swipeDir, cmdSortRemoveSub, cmdSortSend, cmdSortSetText, loadSortTargets, setSortTarget, sortQueue, sortTarget, useSort,
 } from './sort'
 
 const reset = resetStore
@@ -98,7 +98,7 @@ describe('sort', () => {
     setSortTarget(work)
     useSort.setState({ left: null })
     await loadSortTargets()
-    expect(useSort.getState()).toEqual({ left: work })
+    expect(useSort.getState()).toEqual({ left: work, right: null })
     expect(await mem.getMeta('sort.left')).toBe(work)
     expect(sortTarget(all(), 'left', 'gone')).toMatchObject({ name: 'Later', isDefault: true })
   })
@@ -187,10 +187,28 @@ describe('sort', () => {
     expect(sortSessionCard(session).id).toBe(a)
   })
 
-  it('right always goes to Today, whatever the left side points at', () => {
+  it('right goes to Today unless picked otherwise, apart from the left side', async () => {
     setSortTarget('main')
     expect(sortTarget(all(), 'right')).toMatchObject({ name: 'Today', isDefault: true })
     expect(cmdSortSend(id('A'), 'right')).toMatchObject({ pad: 'Today', moved: true })
+    const work = cmdSortNewTarget('Work', 'right')
+    expect(useSort.getState()).toEqual({ left: 'main', right: work })
+    expect(sortTarget(all(), 'right')).toMatchObject({ padId: work, name: 'Work', isDefault: false })
+    useSort.setState({ left: null, right: null })
+    await loadSortTargets()
+    expect(useSort.getState()).toEqual({ left: 'main', right: work })
+  })
+
+  it('picking a right pad sends the card there; up goes to the right pad, crossed out', () => {
+    let session = sortSessionStart()
+    const b = id('B')
+    session = sortSessionSendTo(session, 'right', 'main')
+    expect(session.sent.at(-1)).toMatchObject({ dir: 'right', pad: 'Inbox' })
+    const later = sortTarget(all(), 'left').padId
+    setSortTarget(later, 'right')
+    session = sortSessionSend(session, 'up')
+    expect(session.sent.at(-1)).toMatchObject({ dir: 'up', pad: 'Later' })
+    expect(all()[b]!.done).toBe(true)
   })
 
   it('cycle moves the card to the bottom of the pad and deals it again at the end, still counted as one to go', () => {
