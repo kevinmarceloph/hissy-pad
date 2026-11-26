@@ -130,7 +130,8 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
           style={[
             s.dot,
             { backgroundColor: ink },
-            row.text === '' && { backgroundColor: isEditing ? theme.rule : 'transparent' },
+            // A blank line is a spacer with no dot, unless it has a category.
+            row.text === '' && !catInk && { backgroundColor: isEditing ? theme.rule : 'transparent' },
             folded && { borderWidth: 5, borderColor: theme.rule, width: 16, height: 16, borderRadius: 8 },
           ]}
         />
