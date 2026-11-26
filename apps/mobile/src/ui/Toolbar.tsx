@@ -65,7 +65,7 @@ export function Toolbar({ theme }: { theme: Theme }) {
   const kinds = (
     <View style={[s.kind, { borderColor: theme.rule }]} accessibilityRole="radiogroup" accessibilityLabel="Line type">
       {LINE_KINDS.map((k, i) => (
-        <Btn key={k.kind} theme={theme} label={k.glyph} a11y={k.name} on={current === k.kind} onPress={() => cmdSetKind(k.kind)} style={[s.kindBtn, i > 0 && { borderLeftWidth: StyleSheet.hairlineWidth, borderColor: theme.rule }]} />
+        <Btn key={k.kind} theme={theme} label={k.glyph} a11y={k.name} on={current === k.kind} onPress={() => cmdSetKind(k.kind)} style={[s.cell, s.kindBtn, i > 0 && { borderLeftWidth: StyleSheet.hairlineWidth, borderColor: theme.rule }]} />
       ))}
     </View>
   )
@@ -73,41 +73,44 @@ export function Toolbar({ theme }: { theme: Theme }) {
     const face = actionFace(a, can)
     return <Btn key={a.id} theme={theme} label={face.label} icon={face.icon} a11y={face.name} onPress={() => run(a)} disabled={a.enabled ? !a.enabled(can) : false} style={style} />
   }
-  // Two rows, no sideways scrolling. The top row is the structure of the line: where it
-  // sits, what kind it is, a new line beside it. The second row is everything else in
-  // registry order, so a new action lands there (and wraps if it ever runs out of room).
-  const top = new Set<LineActionGroup>(['move', 'add'])
+  // Two rows, no sideways scrolling, every button the same width with the same gap. The top
+  // row is where the line sits and what kind it is: six arrows and three types. The second
+  // is a new line beside it, then everything else in registry order, so a new action lands
+  // there (and wraps if it ever runs out of room).
+  const top = new Set<LineActionGroup>(['move'])
   const rest = shown.filter((a) => !top.has(a.group) && a.group !== 'remove')
   const last = shown.filter((a) => a.group === 'remove')
   return (
     <View style={[s.bar, { backgroundColor: theme.paperRaised, borderColor: theme.rule }]} accessibilityRole="toolbar">
       <View style={s.row}>
-        {shown.filter((a) => a.group === 'move').map((a) => button(a, s.arrow))}
+        {shown.filter((a) => a.group === 'move').map((a) => button(a, s.cell))}
         {kinds}
-        {shown.filter((a) => a.group === 'add').map((a) => button(a))}
       </View>
       <View style={[s.row, s.second]}>
         {n > 1 && countOf(selection, rows) > 0 && <Text style={[s.count, { color: theme.inkMute }]}>{lineCount(countOf(selection, rows))}</Text>}
-        {rest.map((a) => button(a))}
-        {tucked.length > 0 && <Btn theme={theme} label="More…" icon="more" a11y="More actions" onPress={more} />}
-        {last.map((a) => button(a))}
+        {rest.map((a) => button(a, s.cell))}
+        {tucked.length > 0 && <Btn theme={theme} label="More…" icon="more" a11y="More actions" onPress={more} style={s.cell} />}
+        {last.map((a) => button(a, s.cell))}
       </View>
     </View>
   )
 }
 
-// The first row needs about 372pt at these sizes; on a narrower phone (the app is portrait
-// only) the buttons give up some of their width so the last one stays on screen.
+// On a narrower phone (the app is portrait only) the buttons are a little tighter.
 const NARROW = Dimensions.get('window').width < 380
+const GAP = 3
 
 const s = StyleSheet.create({
   bar: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 6, paddingVertical: 2 },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  second: { flexWrap: 'wrap' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: GAP },
+  second: { flexWrap: 'wrap', rowGap: 0 },
   btn: { minWidth: NARROW ? 32 : 36, minHeight: 40, paddingHorizontal: NARROW ? 4 : 6, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
-  arrow: { minWidth: NARROW ? 30 : 34, paddingHorizontal: NARROW ? 2 : 3 },
-  kind: { flexDirection: 'row', borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, overflow: 'hidden' },
-  kindBtn: { minWidth: 32, minHeight: 34, borderRadius: 0 },
+  // Each button an equal share of its row: nine to a row (six arrows and three types; the
+  // second row's nine), so the two rows line up.
+  cell: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0, paddingHorizontal: 0 },
+  // The three types in one bordered group as wide as three buttons and the two gaps between.
+  kind: { flexGrow: 3, flexShrink: 1, flexBasis: GAP * 2, flexDirection: 'row', borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, overflow: 'hidden' },
+  kindBtn: { minHeight: 34, borderRadius: 0 },
   btnText: { fontFamily: serif, fontSize: 16 },
   count: { fontFamily: serif, fontSize: 15, paddingHorizontal: 6 },
 })
