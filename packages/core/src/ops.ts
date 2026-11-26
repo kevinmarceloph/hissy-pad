@@ -458,22 +458,47 @@ export function moveSibling(rows: Rows, ctx: OpCtx, ids: Iterable<string>, dir: 
   }
   let out = rows
   for (const [parentId, group] of byParent) {
+    const sibs = childrenOf(index0, parentId)
+    const at = (id: string) => sibs.findIndex((s) => s.id === id)
     if (dir === 'up') {
       const anchor = prevSiblingExcluding(index0, group[0]!, movingSet)
-      if (!anchor || anchor.pinned !== rows[group[0]!]!.pinned) continue // never across the pins' divider
-      const before = prevSiblingExcluding(index0, anchor.id, movingSet)
-      out = moveNodes(out, ctx, group, { parentId, afterId: before?.id ?? null })
+      if (anchor && anchor.pinned === rows[group[0]!]!.pinned) {
+        const before = prevSiblingExcluding(index0, anchor.id, movingSet)
+        out = moveNodes(out, ctx, group, { parentId, afterId: before?.id ?? null })
+        continue
+      }
+      // The first line is already at the top (of the level, or of its side of the pins'
+      // divider): it stays, with the selected lines right under it, and the rest of the
+      // selection still moves up, toward them (Kevin, 2026-11-27).
+      let i = at(group[0]!)
+      while (i + 1 < sibs.length && movingSet.has(sibs[i + 1]!.id)) i++
+      const rest = group.filter((id) => at(id) > i)
+      if (rest.length === 0) continue
+      const next = prevSiblingExcluding(index0, rest[0]!, movingSet)
+      if (!next || next.pinned !== rows[rest[0]!]!.pinned) continue // never across the pins' divider
+      out = moveNodes(out, ctx, rest, { parentId, afterId: sibs[at(next.id) - 1]?.id ?? null })
     } else {
       const anchor = nextSiblingExcluding(index0, group.at(-1)!, movingSet)
-      if (!anchor || anchor.pinned !== rows[group.at(-1)!]!.pinned) continue
-      out = moveNodes(out, ctx, group, { parentId, afterId: anchor.id })
+      if (anchor && anchor.pinned === rows[group.at(-1)!]!.pinned) {
+        out = moveNodes(out, ctx, group, { parentId, afterId: anchor.id })
+        continue
+      }
+      // The last line is already at the bottom: the rest still moves down, toward it.
+      let i = at(group.at(-1)!)
+      while (i - 1 >= 0 && movingSet.has(sibs[i - 1]!.id)) i--
+      const rest = group.filter((id) => at(id) < i)
+      if (rest.length === 0) continue
+      const next = nextSiblingExcluding(index0, rest.at(-1)!, movingSet)
+      if (!next || next.pinned !== rows[rest.at(-1)!]!.pinned) continue
+      out = moveNodes(out, ctx, rest, { parentId, afterId: next.id })
     }
   }
   return out
 }
 
 // Move to top: each target goes first among its siblings (a selection keeps its order).
-// A group already at the top stays put. An unpinned line goes to the top of the unpinned
+// A group already at the top, in order, stays put; one line already there does not keep
+// the others from coming. An unpinned line goes to the top of the unpinned
 // area, under the pins; a pinned one to the top of the pins (pins.ts).
 export function moveToTop(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
   const index0 = buildIndex(rows)
@@ -488,8 +513,10 @@ export function moveToTop(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
     for (const pinned of [true, false]) {
       const part = group.filter((id) => rows[id]!.pinned === pinned)
       if (part.length === 0) continue
-      const prev = prevSiblingExcluding(buildIndex(out), part[0]!, new Set(part))
-      if (!prev || prev.pinned !== pinned) continue
+      // Already the first lines of their side, in order: nothing to do. Otherwise they all
+      // go, even when one of them is already at the top (Kevin, 2026-11-27).
+      const zone = childrenOf(buildIndex(out), parentId).filter((s) => s.pinned === pinned)
+      if (part.every((id, i) => zone[i]?.id === id)) continue
       const afterId = pinned ? null : lastPinned(out, parentId, new Set(part))
       out = moveNodes(out, ctx, part, { parentId, afterId })
     }
@@ -498,7 +525,7 @@ export function moveToTop(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
 }
 
 // Move to bottom: each target goes last among its siblings (a selection keeps its order).
-// A group already at the bottom stays put. A pinned line goes to the bottom of the pins,
+// A group already at the bottom, in order, stays put. A pinned line goes to the bottom of the pins,
 // right above the divider; an unpinned one to the bottom of the level (pins.ts).
 export function moveToBottom(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
   const index0 = buildIndex(rows)
@@ -515,9 +542,11 @@ export function moveToBottom(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Row
       if (part.length === 0) continue
       const skip = new Set(part)
       const index = buildIndex(out)
-      const next = nextSiblingExcluding(index, part.at(-1)!, skip)
-      if (!next || next.pinned !== pinned) continue
-      const last = childrenOf(index, parentId).filter((s) => !skip.has(s.id) && s.pinned === pinned).at(-1)!
+      const zone = childrenOf(index, parentId).filter((s) => s.pinned === pinned)
+      const tail = zone.slice(zone.length - part.length)
+      if (part.every((id, i) => tail[i]?.id === id)) continue
+      const last = zone.filter((s) => !skip.has(s.id)).at(-1)
+      if (!last) continue
       out = moveNodes(out, ctx, part, { parentId, afterId: last.id })
     }
   }

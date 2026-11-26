@@ -231,6 +231,32 @@ describe('moveToTop', () => {
   })
 })
 
+describe('moves with one line already at the edge', () => {
+  it('top and bottom gather a disjoint selection even when one line is there already', () => {
+    const ctx = testCtx()
+    const rows = pad('A\nB\nC\nD\nE', ctx)
+    const ids = (...t: string[]) => t.map((x) => idOf(rows, x))
+    expect(shape(moveToTop(rows, ctx, ids('A', 'C', 'E')))).toBe('A\nC\nE\nB\nD')
+    expect(shape(moveToBottom(rows, ctx, ids('A', 'C', 'E')))).toBe('B\nD\nA\nC\nE')
+    expect(moveToTop(rows, ctx, ids('A', 'B'))).toBe(rows)
+    expect(moveToBottom(rows, ctx, ids('D', 'E'))).toBe(rows)
+  })
+
+  it('up and down move the rest of the selection toward the line at the edge', () => {
+    const ctx = testCtx()
+    const rows = pad('A\nB\nC\nD\nE', ctx)
+    const ids = (...t: string[]) => t.map((x) => idOf(rows, x))
+    expect(shape(moveSibling(rows, ctx, ids('A', 'C'), 'up'))).toBe('A\nC\nB\nD\nE')
+    expect(shape(moveSibling(rows, ctx, ids('A', 'D'), 'up'))).toBe('A\nB\nD\nC\nE')
+    expect(shape(moveSibling(rows, ctx, ids('A', 'B', 'D'), 'up'))).toBe('A\nB\nD\nC\nE')
+    expect(shape(moveSibling(rows, ctx, ids('C', 'E'), 'down'))).toBe('A\nB\nD\nC\nE')
+    expect(shape(moveSibling(rows, ctx, ids('B', 'E'), 'down'))).toBe('A\nC\nB\nD\nE')
+    // All of it gathered at the edge: nothing moves.
+    expect(moveSibling(rows, ctx, ids('A', 'B'), 'up')).toBe(rows)
+    expect(moveSibling(rows, ctx, ids('D', 'E'), 'down')).toBe(rows)
+  })
+})
+
 describe('moveToBottom', () => {
   it('puts the targets last among their siblings, in order, and leaves a group already there', () => {
     const ctx = testCtx()
