@@ -79,6 +79,14 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
     send(["id": item.id, "dir": "done"])
   }
 
+  // A line's new text. Only with the watch's own copy: the phone's snapshot has no way to
+  // take an edit back. False when nothing changed.
+  func edit(_ item: WidgetItem, text: String) -> Bool {
+    guard sync.copy != nil, sync.edit(item.id, text: text) else { return false }
+    kick()
+    return true
+  }
+
   // A new line at the top of a pad. False for blank text.
   func add(_ text: String, to padId: String) -> Bool {
     if sync.copy != nil {

@@ -53,6 +53,12 @@ final class PadSync {
     return true
   }
 
+  func edit(_ id: String, text: String) -> Bool {
+    guard copy?.edit(id, text: text) == true else { return false }
+    changed()
+    return true
+  }
+
   // Runs a round, or waits for the one in flight and has it go once more.
   func sync() async {
     if let running {
@@ -121,6 +127,17 @@ final class PadSync {
         }
         guard mine() else { return }
         copy?.added?.removeAll { $0 == patch }
+        changed()
+      }
+
+      for patch in copy?.edited ?? [] {
+        do {
+          try await remote.edit(patch, access: s.access)
+        } catch Remote.Failure.refused {
+          // The server will never take this one: let it go instead of blocking the rest.
+        }
+        guard mine() else { return }
+        copy?.edited?.removeAll { $0 == patch }
         changed()
       }
 

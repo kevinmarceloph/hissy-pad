@@ -79,6 +79,7 @@ struct PadListView: View {
 struct PadView: View {
   @EnvironmentObject private var store: WatchStore
   let padId: String
+  @State private var editing: WidgetItem? // the line whose text is being changed
 
   private func finish(_ item: WidgetItem) {
     WKInterfaceDevice.current().play(.success)
@@ -114,6 +115,20 @@ struct PadView: View {
                 Text("+\(item.subs) under it").font(.system(.caption2, design: serif)).foregroundStyle(.secondary)
               }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            // A tap on the text edits it (with the watch's own copy only: the phone's
+            // snapshot cannot take an edit back).
+            .onTapGesture { if store.onItsOwn { editing = item } }
+          }
+          .swipeActions(edge: .leading) {
+            if store.onItsOwn {
+              Button {
+                editing = item
+              } label: {
+                Label("Edit", systemImage: "pencil")
+              }
+            }
           }
           .swipeActions(edge: .trailing) {
             Button {
@@ -138,5 +153,35 @@ struct PadView: View {
       }
     }
     .navigationTitle(pad?.name ?? "Pad")
+    .sheet(item: $editing) { item in
+      EditLineView(item: item) { text in
+        if store.edit(item, text: text) { WKInterfaceDevice.current().play(.click) }
+        editing = nil
+      }
+    }
+  }
+}
+
+// A line's text, to change: the field starts with it, and Save keeps what is there.
+struct EditLineView: View {
+  let item: WidgetItem
+  let save: (String) -> Void
+  @State private var draft: String
+
+  init(item: WidgetItem, save: @escaping (String) -> Void) {
+    self.item = item
+    self.save = save
+    _draft = State(initialValue: item.text)
+  }
+
+  var body: some View {
+    ScrollView {
+      VStack(spacing: 8) {
+        TextField("Line", text: $draft)
+          .font(.system(.body, design: serif))
+        Button("Save") { save(draft) }
+          .tint(.accentColor)
+      }
+    }
   }
 }

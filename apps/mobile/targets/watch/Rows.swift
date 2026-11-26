@@ -97,6 +97,14 @@ struct AddPatch: Codable, Equatable {
   let at: Int64
 }
 
+// A line's text changed here that the server has not been told about yet (Kevin,
+// 2026-11-27). One per line: a second edit before a sync replaces the first.
+struct EditPatch: Codable, Equatable {
+  let id: String
+  let text: String
+  let at: Int64
+}
+
 // Ranks are base-62 strings that sort as plain text (packages/core/src/rank.ts): a head
 // letter that says how many digits the whole part has, then those digits, then maybe a
 // fraction. The watch only ever needs one above the first line.
@@ -135,6 +143,7 @@ struct PadCopy: Codable {
   var rows: [String: Row] = [:]
   var pending: [DonePatch] = []
   var added: [AddPatch]? // optional: a file written before the watch could add has none
+  var edited: [EditPatch]? // optional: a file written before the watch could edit has none
   var cursor: String?    // the newest synced_at fetched, as the server wrote it
   var clock: Int64 = 0   // the latest timestamp made or seen here
   var syncedAt: Double?  // when a sync last went all the way through
@@ -181,8 +190,26 @@ struct PadCopy: Codable {
     return id
   }
 
+  // Change a line's text. False if it is gone, or the text is the same. A blank text is
+  // allowed: the line stays, as an empty line does in the pad.
+  mutating func edit(_ id: String, text: String, now: Int64 = Stamp.now()) -> Bool {
+    let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard var row = rows[id], !row.deleted, row.text != clean else { return false }
+    let at = tick(now: now)
+    row.text = clean
+    row.updated = at
+    rows[id] = row
+    // A line typed here and not sent yet goes with its new text instead.
+    if let i = added?.firstIndex(where: { $0.id == id }), let a = added?[i] {
+      added?[i] = AddPatch(id: a.id, parent: a.parent, rank: a.rank, text: clean, at: a.at)
+      return true
+    }
+    edited = (edited ?? []).filter { $0.id != id } + [EditPatch(id: id, text: clean, at: at)]
+    return true
+  }
+
   // How many changes made here the server has not been told about.
-  var unsent: Int { pending.count + (added?.count ?? 0) }
+  var unsent: Int { pending.count + (added?.count ?? 0) + (edited?.count ?? 0) }
 
   // Take in rows fetched from the server, oldest synced_at first. A row wins when it is
   // newer than the copy here. A line crossed out here and not sent yet stays crossed out
@@ -197,6 +224,12 @@ struct PadCopy: Codable {
     for patch in pending {
       guard var row = rows[patch.id], patch.at > row.updated else { continue }
       row.done = true
+      row.updated = patch.at
+      rows[patch.id] = row
+    }
+    for patch in edited ?? [] {
+      guard var row = rows[patch.id], patch.at > row.updated else { continue }
+      row.text = patch.text
       row.updated = patch.at
       rows[patch.id] = row
     }

@@ -142,6 +142,12 @@ struct Remote {
     _ = try await send("POST", "/rest/v1/nodes?on_conflict=id", access: access, body: body, prefer: "resolution=ignore-duplicates,return=minimal")
   }
 
+  // A line's new text. Only the text and updated_at are written, judged by the server's
+  // last-write-wins trigger like any other write.
+  func edit(_ patch: EditPatch, access: String) async throws {
+    _ = try await send("PATCH", "/rest/v1/nodes?id=eq.\(patch.id)", access: access, body: ["text": patch.text, "updated_at": Stamp.iso(patch.at)], prefer: "return=minimal")
+  }
+
   // Cross a line out on the server. Only these three columns are written, so whatever
   // else changed on the row meanwhile is kept, and the server still drops the write if
   // the row has a newer updated_at (the last-write-wins trigger).
