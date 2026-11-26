@@ -62,6 +62,8 @@ const NONE: string[] = []
 
 // The placeholder row of a + drag, in the displayed list.
 const NEW_ROW = '\u0000new'
+// How near the list's top or bottom a drag starts it scrolling.
+const EDGE = 56
 // A + drag let go this close to where it began adds nothing.
 const ADD_CANCEL = 36
 
@@ -224,7 +226,31 @@ export function Pad() {
     // Live reorder: slide the rows when the target changes (position updates alone are cheap).
     if (changed) LayoutAnimation.configureNext(LayoutAnimation.create(140, 'easeInEaseOut', 'opacity'))
     setDrag(dragRef.current)
+    edgeScroll(y, () => { const dd = dragRef.current; if (dd) updateDrag(dd.x, dd.y) })
   }, [])
+
+  // Near the top or bottom of the list, a drag (or a swipe selecting bullets) keeps the list
+  // scrolling for as long as the finger stays there, faster the closer it is, and re-aims
+  // after each step, so a line can be dropped past what is on screen.
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const edgeScroll = useCallback((absY: number, again: () => void) => {
+    if (scrollTimer.current) clearTimeout(scrollTimer.current)
+    scrollTimer.current = null
+    const top = origin.current.y
+    const bottom = top + viewH.current
+    const step = absY < top + EDGE ? -Math.ceil((top + EDGE - absY) / 3) : absY > bottom - EDGE ? Math.ceil((absY - (bottom - EDGE)) / 3) : 0
+    if (!step) return
+    const max = Math.max(0, contentH.current - viewH.current)
+    const next = Math.min(max, Math.max(0, scrollY.current + step))
+    if (next === scrollY.current) return
+    scrollY.current = next
+    scroller.current?.scrollTo({ y: next, animated: false })
+    scrollTimer.current = setTimeout(() => { scrollTimer.current = null; again() }, 16)
+  }, [])
+  const stopEdgeScroll = () => {
+    if (scrollTimer.current) clearTimeout(scrollTimer.current)
+    scrollTimer.current = null
+  }
 
   const beginDrag = useCallback((id: string, x: number, y: number) => {
     const state = usePad.getState()
@@ -242,6 +268,7 @@ export function Pad() {
   }, [updateDrag])
 
   const endDrag = useCallback((commit: boolean) => {
+    stopEdgeScroll()
     const d = dragRef.current
     dragRef.current = null
     setDrag(null)
@@ -272,6 +299,7 @@ export function Pad() {
     end(commit: boolean) {
       const d = dragRef.current
       if (!d?.add) return
+      stopEdgeScroll()
       dragRef.current = null
       setDrag(null)
       const far = Math.hypot(d.x - d.add.fromX, d.y - d.add.fromY) > ADD_CANCEL
@@ -364,15 +392,20 @@ export function Pad() {
         })
         .onStart(() => { void Haptics.selectionAsync() })
         .onUpdate((e) => {
-          const p = painting.current
-          const to = p && rowAtY(e.absoluteY)
-          if (p && to) paintSelect(p.base, p.from, to)
+          const step = (absY: number) => {
+            const p = painting.current
+            const to = p && rowAtY(absY)
+            if (p && to) paintSelect(p.base, p.from, to)
+            if (p) edgeScroll(absY, () => step(absY))
+          }
+          step(e.absoluteY)
         })
         .onFinalize(() => {
+          stopEdgeScroll()
           painting.current = null
           scroller.current?.setNativeProps({ scrollEnabled: true })
         }),
-    [rowAtY],
+    [rowAtY, edgeScroll],
   )
   const gestures = useMemo(() => Gesture.Race(pan, paint), [pan, paint])
 

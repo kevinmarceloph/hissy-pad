@@ -26,6 +26,15 @@ const EDGE = 48
 const ADD = '\u0000add'
 const ADD_CANCEL = 36
 
+// The nearest box around the rows that scrolls up and down (a dialog's body), or null for the page.
+function scrollerOf(el: HTMLElement | null): HTMLElement | null {
+  for (let n = el?.parentElement ?? null; n && n !== document.body; n = n.parentElement) {
+    const oy = getComputedStyle(n).overflowY
+    if ((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight) return n
+  }
+  return null
+}
+
 export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
   const [drag, setDragState] = useState<DragState | null>(null)
   const dragRef = useRef<DragState | null>(null)
@@ -33,7 +42,7 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     dragRef.current = typeof next === 'function' ? next(dragRef.current) : next
     setDragState(dragRef.current)
   }, [])
-  const pending = useRef<{ id: string; x: number; y: number; pointerId: number; touch: boolean; timer: number | null; paint?: string[] } | null>(null)
+  const pending = useRef<{ id: string; x: number; y: number; pointerId: number; touch: boolean; timer: number | null; paint?: string[] | undefined } | null>(null)
   // A swipe down the bullets selecting lines: where it started, the selection then, the pointer.
   const painting = useRef<{ from: string; base: string[]; pointerId: number } | null>(null)
   const live = useRef<{ ids: string[]; moving: Set<string>; indentPx: number; gutterPx: number; basePx: number; add?: { x: number; y: number } } | null>(null)
@@ -97,10 +106,8 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     if (!p) return
     const to = rowAt(y)
     if (to) paintSelect(p.base, p.from, to)
-    const vh = window.innerHeight
-    if (y < EDGE) window.scrollBy(0, -Math.ceil((EDGE - y) / 4))
-    else if (y > vh - EDGE) window.scrollBy(0, Math.ceil((y - (vh - EDGE)) / 4))
-  }, [rowAt])
+    edgeScroll(0, y, (_x, yy) => paintTo(yy))
+  }, [rowAt]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const update = useCallback((x: number, y: number) => {
     const l = live.current
@@ -124,13 +131,37 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
       log('drag:target', target ? { parent: target.placement.parentId?.slice(0, 8) ?? null, after: target.placement.afterId?.slice(0, 8) ?? null, depth: target.depth, gap: target.gapIndex } : null)
     }
     setDrag((d) => (d ? { ...d, x, y, target, indicatorLeft: target ? l.gutterPx + target.depth * l.indentPx : 0 } : d))
-    // Autoscroll near the viewport edges.
-    const vh = window.innerHeight
-    if (y < EDGE) window.scrollBy(0, -Math.ceil((EDGE - y) / 4))
-    else if (y > vh - EDGE) window.scrollBy(0, Math.ceil((y - (vh - EDGE)) / 4))
+    edgeScroll(x, y, update)
   }, [measure, rowsEl, setDrag])
 
+  // Near the top or bottom edge of whatever scrolls the rows (the page, or a dialog's body),
+  // keep scrolling for as long as the pointer stays there, faster the closer it is, and
+  // re-aim the drag after each step so a line can be dropped past the first screen.
+  const scrollTimer = useRef<number | null>(null)
+  const edgeScroll = useCallback((x: number, y: number, again: (x: number, y: number) => void) => {
+    if (scrollTimer.current) cancelAnimationFrame(scrollTimer.current)
+    scrollTimer.current = null
+    const box = scrollerOf(rowsEl.current)
+    const top = box ? box.getBoundingClientRect().top : 0
+    const bottom = box ? box.getBoundingClientRect().bottom : window.innerHeight
+    const step = y < top + EDGE ? -Math.ceil((top + EDGE - y) / 4) : y > bottom - EDGE ? Math.ceil((y - (bottom - EDGE)) / 4) : 0
+    if (!step) return
+    const before = box ? box.scrollTop : window.scrollY
+    if (box) box.scrollTop += step
+    else window.scrollBy(0, step)
+    if ((box ? box.scrollTop : window.scrollY) === before) return // at the end already
+    scrollTimer.current = requestAnimationFrame(() => {
+      scrollTimer.current = null
+      if (live.current || painting.current) again(x, y)
+    })
+  }, [rowsEl])
+  const stopEdgeScroll = () => {
+    if (scrollTimer.current) cancelAnimationFrame(scrollTimer.current)
+    scrollTimer.current = null
+  }
+
   const finish = useCallback((commit: boolean) => {
+    stopEdgeScroll()
     const l = live.current
     const p = pending.current
     if (p?.timer) window.clearTimeout(p.timer)
@@ -196,6 +227,7 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     function onUp(e: PointerEvent) {
       if (painting.current && e.pointerId === painting.current.pointerId) {
         painting.current = null
+        stopEdgeScroll()
         setTimeout(() => (suppressClick.current = false), 0)
       }
       if (pending.current && e.pointerId === pending.current.pointerId) {

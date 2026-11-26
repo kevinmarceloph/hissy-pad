@@ -108,6 +108,24 @@ test('with a line selected, a quick swipe down the bullets selects the lines it 
   expect(await outline(page)).toBe('a\nb\nc\nd') // nothing moved
 })
 
+test('a drag held at the top edge keeps scrolling until a line can go above the first', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'checked with a mouse')
+  await page.setViewportSize({ width: 900, height: 420 })
+  const lines = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`)
+  await typeOutline(page, lines)
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+  const box = (await bullet(page, 'line 30').boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + 30, 200, { steps: 4 })
+  await page.mouse.move(box.x + 30, 6, { steps: 4 }) // into the top edge, then hold still
+  await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 5000 }).toBe(0)
+  const first = (await page.locator('.row').first().boundingBox())!
+  await page.mouse.move(box.x + 30, first.y + 2, { steps: 3 })
+  await page.mouse.up()
+  expect((await outline(page)).split('\n').slice(0, 2)).toEqual(['line 30', 'line 1'])
+})
+
 test('Escape cancels a drag', async ({ page }) => {
   await typeOutline(page, ['x', 'y'])
   const yb = bullet(page, 'y')
