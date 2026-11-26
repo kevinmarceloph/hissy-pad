@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react'
 import type { NodeRow } from '@hissypad/core'
-import { clickSelect, edit, select, usePad, type Editing } from '@hissypad/state'
+import { clickSelect, edit, select, selectWithSibling, usePad, type Editing } from '@hissypad/state'
 import {
   cmdBackspaceAtStart, cmdDedent, cmdDeleteSelection, cmdEditNeighbor, cmdEnter, cmdIndent, cmdMove, cmdPasteInto, cmdSetText,
   cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
@@ -151,6 +151,11 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
     } else if (e.key === 'ArrowDown' && !e.shiftKey && !value.slice(selectionEnd).includes('\n') && onLastVisualLine(ta)) {
       e.preventDefault()
       cmdEditNeighbor(row.id, 1)
+    } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.shiftKey && !e.altKey && !mod(e) && (e.key === 'ArrowUp' ? selectionStart === 0 || (!value.slice(0, selectionStart).includes('\n') && onFirstVisualLine(ta) && selectionStart === selectionEnd) : selectionEnd === value.length || (!value.slice(selectionEnd).includes('\n') && onLastVisualLine(ta) && selectionStart === selectionEnd))) {
+      // Shift+arrow off the line's edge: select it with the sibling that way (selection.ts).
+      e.preventDefault()
+      ta.blur()
+      selectWithSibling(row.id, e.key === 'ArrowUp' ? -1 : 1)
     } else if (e.key === '.' && mod(e)) {
       e.preventDefault()
       cmdToggleCollapsed()

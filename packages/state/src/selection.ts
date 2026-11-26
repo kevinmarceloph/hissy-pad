@@ -1,7 +1,7 @@
 // What is selected and what is being edited, in the pad shown. Selection is a list of
 // row ids in visible order with an anchor (where a shift-range starts) and a focus (where
 // it ends); editing is one row id with a caret.
-import { buildIndex, flatten, isLive } from '@hissypad/core'
+import { buildIndex, childrenOf, flatten, isLive } from '@hissypad/core'
 import { log } from './log'
 import { usePad, type Caret, type PadState } from './store'
 
@@ -82,6 +82,19 @@ export function paintSelect(base: readonly string[], fromId: string, toId: strin
   if (a < 0 || b < 0) return
   const [lo, hi] = a < b ? [a, b] : [b, a]
   select([...base, ...vis.slice(lo, hi + 1)], fromId, toId)
+}
+
+// Shift+Up or Shift+Down while editing, with the caret on the line's first or last visual
+// line (Kevin, 2026-11-27): the edit ends and the line is selected with its previous or next
+// sibling, as a range from the line, so more Shift+arrows carry on from there. With no
+// sibling that way, just the line.
+export function selectWithSibling(id: string, dir: -1 | 1) {
+  const r = get().rows[id]
+  if (!r) return
+  const sibs = childrenOf(buildIndex(get().rows), r.parentId)
+  const sib = sibs[sibs.findIndex((x) => x.id === id) + dir]
+  if (!sib) return select([id], id)
+  select([id, sib.id], id, sib.id)
 }
 
 export function selectAll() {

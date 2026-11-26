@@ -29,6 +29,20 @@ describe('keys while editing a line', () => {
     Element.prototype.scrollIntoView = () => {}
   })
 
+  it('Shift+Down at the end of the line selects it with its next sibling; Shift+Up at the start with the previous one', async () => {
+    const user = userEvent.setup()
+    await mount('A\nB\n  B1\nC')
+    await editLine('B')
+    await user.keyboard('{Shift>}{ArrowDown}{/Shift}')
+    expect(usePad.getState().editing).toBeNull()
+    expect(picked()).toEqual(['B', 'C'])
+    await editLine('B')
+    const ta = (await within(rowByText('B')).findByRole('textbox')) as HTMLTextAreaElement
+    ta.setSelectionRange(0, 0)
+    await user.keyboard('{Shift>}{ArrowUp}{/Shift}')
+    expect(picked()).toEqual(['A', 'B'])
+  })
+
   it('Tab nests, Shift+Tab unnests, Alt+arrows and Cmd+Shift+arrows move, Cmd+. folds, Cmd+Shift+7 numbers', async () => {
     const user = userEvent.setup()
     await mount('a\nb\n  b1\nc')
