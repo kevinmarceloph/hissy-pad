@@ -315,10 +315,13 @@ export function Pad() {
   const rowDrag = useRef(false)
 
   // One pan gesture over the whole list: it only activates after a long press, and the
-  // row under the press is found from the measured layouts.
+  // row under the press is found from the measured layouts. Off while a line is being edited
+  // (Kevin, 2026-11-27): a press and hold there moves the caret or selects text, never a line.
+  const isEditing = usePad((st) => st.editing !== null)
   const pan = useMemo(
     () =>
       Gesture.Pan()
+        .enabled(!isEditing)
         .activateAfterLongPress(280)
         .runOnJS(true)
         .onStart((e) => {
@@ -329,7 +332,7 @@ export function Pad() {
             return b && y >= b.y && y < b.y + b.height
           })
           const x = e.absoluteX - origin.current.x
-          if (hit && x < GUTTER + INDENT * 6 && !dragRef.current) {
+          if (hit && x < GUTTER + INDENT * 6 && !dragRef.current && !usePad.getState().editing) {
             rowDrag.current = true
             beginDrag(hit, e.absoluteX, e.absoluteY)
           }
@@ -344,7 +347,7 @@ export function Pad() {
           if (rowDrag.current && !success) endDrag(false)
           rowDrag.current = false
         }),
-    [beginDrag, updateDrag, endDrag],
+    [beginDrag, updateDrag, endDrag, isEditing],
   )
 
   // With lines selected, a quick swipe up or down the bullets (no hold: a hold is the drag

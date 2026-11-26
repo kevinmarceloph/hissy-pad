@@ -1,5 +1,5 @@
-// Pointer drag for rows. Press a bullet and move (desktop), or press and hold a bullet
-// then move (touch). On touch with lines selected, a quick swipe up or down the bullets
+// Pointer drag for rows, never while a line is being edited. Press a bullet and move
+// (desktop), or press and hold a bullet then move (touch). On touch with lines selected, a quick swipe up or down the bullets
 // (no hold) selects the lines it passes instead (paintSelect). The dragged set is the selection when the pressed row is selected,
 // else just that row, always with its subtree. Drop resolution is core's resolveDrop over
 // the rows' live boxes; this hook only measures, draws state and commits the move.
@@ -270,6 +270,9 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     if (e.button !== 0) return
     const touch = e.pointerType === 'touch'
     const st = usePad.getState()
+    // While a line is being edited no press on a bullet becomes a drag (Kevin, 2026-11-27):
+    // a tap still selects, through the click.
+    if (st.editing) return
     const paint = touch && st.selection.length > 0 && !st.editing ? [...st.selection] : undefined
     const start = { id, x: e.clientX, y: e.clientY, pointerId: e.pointerId, touch, timer: null as number | null, paint }
     if (touch) {
