@@ -3,10 +3,10 @@
 // toolbar's "Category…" runs, and the category list the pad reads to draw the icons.
 import { createStore } from 'zustand/vanilla';
 import { useStore } from 'zustand';
-import { setCategory } from '@hissypad/core';
+import { classifyByEmoji, iconMap, setCategory } from '@hissypad/core';
 import { activeCategories, categoryName, type Category } from '@hissypad/core/hours';
 
-import { applyAll, usePad } from '../store';
+import { applyAll, applyQuiet, getLocalStore, setClassifier, usePad } from '../store';
 import { holdEditing, targets } from '../selection';
 
 // ---- the list the pad draws from ----------------------------------------------------------
@@ -17,6 +17,43 @@ export const lineCategories = createStore(() => ({ list: [] as Category[], byId:
 
 export function adoptLineCategories(list: Category[]) {
   lineCategories.setState({ list, byId: Object.fromEntries(list.map((c) => [c.id, c])) });
+  icons = iconMap(list);
+  classifyExistingOnce();
+}
+
+// ---- an emoji in front of a line is its category -------------------------------------------
+
+let icons = new Map<string, string>();
+setClassifier((all, ctx, ids) => classifyByEmoji(all, ctx, ids, icons));
+
+// Once per device, the lines already in the table that start with a category's emoji go in
+// that category too (Kevin, 2026-11-27). It waits for the pad to load and for at least one
+// category with an icon (a fresh device gets them with its first sync), and is not an undo
+// step. Two devices doing it make the same change, so the server keeps either.
+export const EMOJI_DONE_KEY = 'emoji.classified';
+let classifying = false;
+export function classifyExistingOnce(): void {
+  if (classifying || icons.size === 0) return;
+  if (usePad.getState().load !== 'ready') {
+    const off = usePad.subscribe((s) => {
+      if (s.load !== 'ready') return;
+      off();
+      classifyExistingOnce();
+    });
+    return;
+  }
+  classifying = true;
+  const store = getLocalStore();
+  void store.getMeta(EMOJI_DONE_KEY).then((done) => {
+    if (!done) {
+      applyQuiet((all, ctx) => classifyByEmoji(all, ctx, Object.keys(all), icons), 'emoji:classify');
+      void store.setMeta(EMOJI_DONE_KEY, '1').catch(() => {});
+    }
+  }).catch(() => {}).finally(() => { classifying = false; });
+}
+// For tests: forget that it ran.
+export function resetEmojiClassify() {
+  classifying = false;
 }
 
 // The category a line carries, or undefined while none (or not synced yet).

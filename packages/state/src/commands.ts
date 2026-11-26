@@ -304,7 +304,8 @@ export function cmdTextChanged(id: string, text: string): string {
   const first = text.indexOf('\n')
   if (first < 0) {
     cmdSetText(id, text)
-    return text
+    // The stored text, which an emoji turned into a category may have shortened.
+    return usePad.getState().all[id]?.text ?? text
   }
   const head = text.slice(0, first)
   if (text.indexOf('\n', first + 1) >= 0) {

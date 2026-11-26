@@ -211,6 +211,12 @@ function placed(all: Rows, nextAll: Rows): string[] {
   return out
 }
 
+// What turns a leading emoji into a category; set by the hours side, which has the list.
+let classifier: ((all: Rows, ctx: OpCtx, ids: string[]) => Rows) | null = null
+export function setClassifier(fn: typeof classifier) {
+  classifier = fn
+}
+
 function commit(all: Rows, edited: Rows, label: string, coalesce?: string) {
   const { past, padId } = get()
   // Pins stay first in their pad, and only a pad's top-level line stays pinned (pins.ts):
@@ -219,6 +225,12 @@ function commit(all: Rows, edited: Rows, label: string, coalesce?: string) {
   let nextAll = moved.length ? settlePins(edited, ctx, moved) : edited
   // A line moved into a pad that has a category takes it, in the same step.
   if (moved.length) nextAll = inheritPadCategory(all, nextAll, ctx, moved)
+  // A line typed (or made) with a category's emoji in front goes in that category, in the
+  // same step (classifyByEmoji in core; the category list is Hours', handed in from there).
+  if (classifier) {
+    const typed = changedRows(all, nextAll).filter((r) => r.text !== all[r.id]?.text).map((r) => r.id)
+    if (typed.length) nextAll = classifier(nextAll, ctx, typed)
+  }
   // Lines out on a boomerang stay in their day's group under Later, the same way.
   const dued = changedRows(all, nextAll).filter((r) => r.due || all[r.id]?.due).map((r) => r.id)
   if (moved.length || dued.length) nextAll = settleBoomerangs(nextAll, ctx, all, [...moved, ...dued])

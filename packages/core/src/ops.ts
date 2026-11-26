@@ -173,6 +173,38 @@ export function setCategory(rows: Rows, ctx: OpCtx, ids: Iterable<string>, categ
   return out
 }
 
+// An emoji at the start of a line that is some category's icon puts the line in that
+// category (Kevin, 2026-11-27): "🛒 oat milk" becomes "oat milk" in the 🛒 category, since
+// the pad draws the icon before the text anyway. The emoji has to be followed by a space,
+// so one still being typed (or one that is part of a longer emoji) is left alone. `icons`
+// maps an icon to its category's id. Pad rows are left alone.
+const VS16 = /\uFE0F/g
+export function emojiCategory(text: string, icons: ReadonlyMap<string, string>): { category: string; text: string } | null {
+  const m = /^(\S+)\s+/u.exec(text)
+  if (!m) return null
+  const category = icons.get(m[1]!.replace(VS16, ''))
+  return category ? { category, text: text.slice(m[0].length) } : null
+}
+
+// The icons map emojiCategory reads, from the categories (archived ones left out).
+export function iconMap(categories: Iterable<{ id: string; icon: string; archived?: boolean }>): Map<string, string> {
+  const out = new Map<string, string>()
+  for (const c of categories) if (c.icon && !c.archived && !out.has(c.icon.replace(VS16, ''))) out.set(c.icon.replace(VS16, ''), c.id)
+  return out
+}
+
+export function classifyByEmoji(rows: Rows, ctx: OpCtx, ids: Iterable<string>, icons: ReadonlyMap<string, string>): Rows {
+  if (icons.size === 0) return rows
+  let out = rows
+  for (const id of ids) {
+    const r = out[id]
+    if (!isLive(r) || (r.pad && r.parentId === null)) continue
+    const hit = emojiCategory(r.text, icons)
+    if (hit) out = patch(out, ctx, id, { category: hit.category, text: hit.text })
+  }
+  return out
+}
+
 // Assign lines to an hour of a day in Hours (slot.ts), or take them out of it with null.
 // `archived` lets it reach an archived line too (Hours' × on one it still lists).
 export function setSlot(rows: Rows, ctx: OpCtx, ids: Iterable<string>, slot: string | null, archived = false): Rows {
