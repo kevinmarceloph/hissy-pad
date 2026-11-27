@@ -1,11 +1,20 @@
 // Lines of the pad inside an hour. A line carries the slot it is assigned to (core/slot.ts);
 // these are the commands the pad's toolbar and the Hours screen run on it. They go through
 // the pad's own store, so each one is an undo step and syncs like any other edit.
-import { fixedPadOf, insertAt, isLive, setDone, setSlot, slotCovers, slotKey, slotLabel, slotLines, todayKey, type NodeRow } from '@hissypad/core';
+import { fixedPadOf, insertAt, isLive, setDone, setSlot, slotByPrefix, slotCovers, slotKey, slotLabel, slotLines, todayKey, type NodeRow } from '@hissypad/core';
+import { DAY_START_DEFAULT, dayOf } from '@hissypad/core/hours';
 
-import { applyAll, usePad } from '../store';
+import { applyAll, setClassifier, usePad } from '../store';
+import { hoursIfOpen } from './index';
 import { search, type SearchPart } from '../search';
 import { holdEditing, targets } from '../selection';
+
+// An hour typed in front of a line puts it in that hour of the day on screen (core's
+// hourprefix.ts), the day starting at Hours' day start (Kevin, 2026-11-27).
+setClassifier((all, ctx, ids) => {
+  const start = hoursIfOpen()?.day.getState().start ?? DAY_START_DEFAULT;
+  return slotByPrefix(all, ctx, ids, dayOf(new Date(), start), start);
+}, 'hour');
 
 // The pad's toolbar: put the selected lines (or the one being edited) in an hour, or take
 // them out of theirs with null. Returns how many lines it was asked about.

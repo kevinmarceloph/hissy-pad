@@ -5,7 +5,8 @@ import { resetStore } from '../testing';
 import { loadPad, usePad } from '../store';
 import { edit, select, stopEditing } from '../selection';
 import { redo, undo } from '../history';
-import { cmdDeleteSelection } from '../commands';
+import { cmdDeleteSelection, cmdSetText } from '../commands';
+import { dayOf } from '@hissypad/core/hours';
 import { cmdApplySlot, cmdPickSlot, cmdSetSlot, cmdSlotAdd, cmdSlotClear, cmdSlotDone, linesInSlot, setSlotPickerOpener, targetSlot } from './slots';
 
 const SLOT = slotKey('2026-11-23', 9);
@@ -25,6 +26,17 @@ describe('lines in an hour', () => {
     expect(slotLabel(SLOT, '2026-11-23')).toBe('Today 9am');
     expect(slotLabel(slotKey('2026-11-24', 14), '2026-11-23')).toBe('Tomorrow 2pm');
     expect(slotLabel(slotKey('2026-11-25', 14), '2026-11-23')).toBe('Wed, Nov 25, 2pm');
+  });
+
+  it('an hour typed in front of a line puts it in that hour and leaves the rest of the text; one undo takes it back', () => {
+    const today = dayOf(new Date(), 0);
+    cmdSetText(id('C'), '3pm-5pm call');
+    const c = usePad.getState().rows[idOf(usePad.getState().rows, 'call')]!;
+    expect(c.slot).toBe(slotKey(today, 15, 2));
+    cmdSetText(id('D'), '10am');
+    expect(usePad.getState().rows[id('10am')]!.slot).toBeNull(); // no space after it yet: still being typed
+    undo();
+    expect(usePad.getState().rows[id('D')]).toBeDefined();
   });
 
   it('assigns the selected lines, counts them by done and open, and undoes in one step', () => {

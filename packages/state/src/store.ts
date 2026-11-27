@@ -211,10 +211,13 @@ function placed(all: Rows, nextAll: Rows): string[] {
   return out
 }
 
-// What turns a leading emoji into a category; set by the hours side, which has the list.
-let classifier: ((all: Rows, ctx: OpCtx, ids: string[]) => Rows) | null = null
-export function setClassifier(fn: typeof classifier) {
-  classifier = fn
+// What reads the front of a typed line: a leading emoji into a category, a leading hour into
+// a slot. Set by the hours side, which has the categories and the day start; one per `key`.
+type Classifier = (all: Rows, ctx: OpCtx, ids: string[]) => Rows
+const classifiers = new Map<string, Classifier>()
+export function setClassifier(fn: Classifier | null, key = 'emoji') {
+  if (fn) classifiers.set(key, fn)
+  else classifiers.delete(key)
 }
 
 function commit(all: Rows, edited: Rows, label: string, coalesce?: string) {
@@ -225,11 +228,12 @@ function commit(all: Rows, edited: Rows, label: string, coalesce?: string) {
   let nextAll = moved.length ? settlePins(edited, ctx, moved) : edited
   // A line moved into a pad that has a category takes it, in the same step.
   if (moved.length) nextAll = inheritPadCategory(all, nextAll, ctx, moved)
-  // A line typed (or made) with a category's emoji in front goes in that category, in the
-  // same step (classifyByEmoji in core; the category list is Hours', handed in from there).
-  if (classifier) {
+  // A line typed (or made) with a category's emoji in front goes in that category, and one
+  // with an hour in front in that hour, in the same step (classifyByEmoji in core; the category list is Hours', handed in from there).
+  if (classifiers.size) {
     const typed = changedRows(all, nextAll).filter((r) => r.text !== all[r.id]?.text).map((r) => r.id)
-    if (typed.length) nextAll = classifier(nextAll, ctx, typed)
+    // Twice, so either one can come first: "3pm 💻 call" and "💻 3pm call" both read.
+    if (typed.length) for (let pass = 0; pass < 2; pass++) for (const fn of classifiers.values()) nextAll = fn(nextAll, ctx, typed)
   }
   // Lines out on a boomerang stay in their day's group under Later, the same way.
   const dued = changedRows(all, nextAll).filter((r) => r.due || all[r.id]?.due).map((r) => r.id)
