@@ -378,8 +378,9 @@ function padRowOf(all: Rows, id: string): string | null {
 }
 
 // A pad can carry a category (its row's `category`, Kevin, 2026-11-27): a line moved into it
-// from another pad takes that category, in place of its own, and a line made new in it
-// (Return, a paste, a sub item) takes it when it has none of its own. Of the lines that
+// from another pad takes that category, in place of its own; a line made new at its top level
+// (Return, a paste) takes it when it has none of its own, a sub item does not; and a line of
+// the pad that comes up to the top level (a dedent) takes it the same way. Of the lines that
 // moved, only those `ids` (the rows an edit placed) get it; what came along under them keeps
 // its own. A pad row, a line out on a boomerang (kept under Later, not in it), a move within
 // one pad and a pad with no category are left alone.
@@ -391,9 +392,15 @@ export function inheritPadCategory(before: Rows, after: Rows, ctx: OpCtx, ids: I
     if (!r || r.deletedAt !== null || (r.pad && r.parentId === null) || r.due) continue
     if (b && b.parentId === r.parentId) continue
     const to = padRowOf(out, id)
-    if (to === null || (b && to === padRowOf(before, id))) continue
+    if (to === null) continue
     const category = out[to]!.category
-    if (!category || r.category === category || (!b && r.category)) continue
+    if (!category || r.category === category) continue
+    const top = r.parentId === to
+    if (!b) {
+      if (!top || r.category) continue // a new line: only at the top level, and only with none of its own
+    } else if (to === padRowOf(before, id)) {
+      if (!top || r.category) continue // within the pad: only a line that came up to the top level (a dedent)
+    }
     out = { ...out, [id]: { ...r, category, updatedAt: ctx.now() } }
   }
   return out

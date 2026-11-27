@@ -5,6 +5,7 @@ import { buildIndex, countLines, FIXED_PADS, findFixedPad, fixedPadOf, isFixedNa
 import { apply, applyAll, openPad, revealRow, usePad } from './store'
 import { edit, stopEditing, targets } from './selection'
 import { log } from './log'
+import { padOf } from './lists'
 
 // The root level's name. It was Main until 2026-11-24; it is the Inbox tab now.
 export const MAIN_PAD_NAME = 'Inbox'
@@ -145,6 +146,15 @@ export function cmdRenamePad(padId: string, name: string) {
 export function cmdSetPadCount(padId: string, shown: boolean) {
   if (isFixedPad(usePad.getState().all, padId)) return
   applyAll((all, ctx) => setCountHidden(all, ctx, padId, !shown), { label: 'cmdSetPadCount' })
+}
+
+// The category of the pad a line is in, or null. A line carrying that same category does not
+// show its icon there: in a category's own pad, the bullet's color says it (Kevin, 2026-11-27).
+export function usePadCategoryOf(id: string): string | null {
+  return usePad((s) => {
+    const pad = padOf(s.all, id)
+    return pad ? (s.all[pad]?.category ?? null) : null
+  })
 }
 
 // A pad's category (one of Hours' ids, or null for none): every line moved into the pad

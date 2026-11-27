@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { idOf } from '@hissypad/core'
 import { resetStore } from './testing'
 import { importOutline, loadPad, openPad, usePad } from './store'
-import { cmdSetText, cmdSplit } from './commands'
+import { cmdDedent, cmdIndent, cmdSetText, cmdSplit } from './commands'
 import { undo } from './history'
 import { select } from './selection'
 import { cmdMoveTo, cmdNewPad, cmdSetPadCategory } from './pads'
@@ -47,7 +47,7 @@ describe('pad categories', () => {
     expect(cat('C')).toBeNull()
   })
 
-  it('a line made new in the pad takes its category: Return, a sub item, a paste', () => {
+  it('a line made new at the pad’s top level takes its category: Return, a paste; a sub item does not', () => {
     openPad(work)
     const first = Object.values(usePad.getState().rows)[0]!.id
     cmdSetText(first, 'one') // made with the pad, before the pad had a category: left as it is
@@ -57,10 +57,27 @@ describe('pad categories', () => {
     expect(all()[second]!.category).toBe('cat-work')
     importOutline('pasted\n  under', 'bottom')
     expect(cat('pasted')).toBe('cat-work')
-    expect(cat('under')).toBe('cat-work')
+    expect(cat('under')).toBeNull()
     openPad(null)
     importOutline('in the inbox', 'bottom')
     expect(cat('in the inbox')).toBeNull()
+  })
+
+  it('a sub item that comes up to the top level takes the category; one going down keeps what it has', () => {
+    openPad(work)
+    importOutline('top\n  sub', 'bottom')
+    expect([cat('top'), cat('sub')]).toEqual(['cat-work', null])
+    select([idOf(all(), 'sub')], idOf(all(), 'sub'))
+    cmdDedent()
+    expect(cat('sub')).toBe('cat-work')
+    undo()
+    expect(cat('sub')).toBeNull()
+    // A line indented under another keeps the category it had.
+    select([idOf(all(), 'top')], idOf(all(), 'top'))
+    importOutline('next', 'bottom')
+    select([idOf(all(), 'next')], idOf(all(), 'next'))
+    cmdIndent()
+    expect(cat('next')).toBe('cat-work')
   })
 
   it('a sort send into the pad gives the category too', () => {

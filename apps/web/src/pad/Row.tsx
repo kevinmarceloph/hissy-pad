@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react'
 import type { NodeRow } from '@hissypad/core'
-import { clickSelect, edit, select, selectWithSibling, usePad, type Editing } from '@hissypad/state'
+import { clickSelect, edit, select, selectWithSibling, usePad, usePadCategoryOf, type Editing } from '@hissypad/state'
 import {
   cmdBackspaceAtStart, cmdDedent, cmdDeleteSelection, cmdEditNeighbor, cmdEnter, cmdIndent, cmdMove, cmdPasteInto, cmdSetText,
   cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
@@ -181,6 +181,9 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
   }
 
   const category = useLineCategory(row.category)
+  // In its category's own pad a line shows no icon, only the bullet in the category's color.
+  const padCategory = usePadCategoryOf(row.id)
+  const badge = category && row.category !== padCategory
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
   const cls = ['row', row.done && 'is-done', row.doing && 'is-doing', row.pinned && 'is-pinned', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', selectedChild && 'is-selected-child', isEditing && 'is-editing', folded && 'is-collapsed', category && 'has-category', category && `cat-${category.color}`]
@@ -198,7 +201,7 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
         onClickCapture={onBulletClickCapture}
         onPointerDown={(e) => onBulletPointerDown(row.id, e)}
       />
-      {category && (
+      {badge && (
         // The line's category (toolbar: Category…): its icon in a squircle of its color, or
         // its name where it has none. It works as the bullet does: a tap selects the line,
         // a press and move drags it.

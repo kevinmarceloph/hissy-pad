@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState, type ComponentRef } from 'react'
 import { Platform, Pressable, StyleSheet, Text, TextInput, View, useColorScheme, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
-import { apply, clickSelect, cmdClearFresh, edit, usePad, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
+import { apply, clickSelect, cmdClearFresh, edit, usePad, usePadCategoryOf, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
 import { inlineSpans, slotLabel, slotPast, todayKey, toggleCollapsed } from '@hissypad/core'
 import { useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
@@ -39,6 +39,8 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
   const category = useLineCategory(row.category)
+  // In its category's own pad a line shows no icon, only the bullet in the category's color.
+  const padCategory = usePadCategoryOf(row.id)
   // A line with a category draws its bullet in the category's color: the dot, the ring, the
   // cross, the # and the number, and the pin (Kevin, 2026-11-27). Its icon beside the bullet
   // still carries the meaning.
@@ -145,7 +147,7 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
       style={[s.row, { paddingLeft: depth * INDENT }, selected && { backgroundColor: theme.accentSoft }, selectedChild && { backgroundColor: theme.accentFaint }, dragging && { opacity: 0.35 }, preview && { backgroundColor: theme.accentSoft, opacity: 0.75 }]}
     >
       {bullet}
-      {category && (
+      {category && row.category !== padCategory && (
         // The line's category (toolbar: More, Category…): its icon in a squircle of its color,
         // or its name where it has none. It works as the bullet does: a tap selects the line,
         // a press and hold drags it (the pad's pan over the left strip; the long press here
