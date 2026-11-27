@@ -63,12 +63,18 @@ describe('commands', () => {
     expect(shown()).toBe('A\nB\n  B1\n  B2\nC')
   })
 
-  it('an empty line with children is not removed by Backspace', () => {
+  it('Backspace on a line with children folds it into a childless line above, children and all', () => {
+    cmdBackspaceAtStart(id('B'))
+    expect(shown()).toBe('AB\n  B1\n  B2\nC')
+    expect(editing()).toMatchObject({ id: id('AB'), caret: 1 })
+    undo()
+    expect(shown()).toBe('A\nB\n  B1\n  B2\nC')
     const b = id('B')
     edit(b)
-    cmdTextChanged(b, '')
+    cmdTextChanged(b, '') // an empty line with children: the same, and A keeps its words
     cmdBackspaceAtStart(b)
-    expect(shown()).toBe('A\n\n  B1\n  B2\nC')
+    expect(shown()).toBe('A\n  B1\n  B2\nC')
+    expect(editing()).toMatchObject({ id: id('A'), caret: 1 })
   })
 
   it('indent, outdent, move, fold, ungroup, numbered and line type act on the targets', () => {

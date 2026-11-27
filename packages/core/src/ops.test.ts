@@ -295,10 +295,42 @@ describe('mergeIntoPrev', () => {
     expect(res.caret).toBe(2)
   })
 
-  it('refuses on the first node or a node with children', () => {
+  it('refuses on the first node', () => {
     const ctx = testCtx()
     const rows = pad(OUTLINE, ctx)
     expect(mergeIntoPrev(rows, ctx, idOf(rows, 'A'))).toBeNull()
+  })
+
+  it('a node with children joins a line above that has none, and its children move under it', () => {
+    const ctx = testCtx()
+    const rows = pad(OUTLINE, ctx)
+    const res = mergeIntoPrev(rows, ctx, idOf(rows, 'B'))!
+    expect(shape(res.rows)).toBe('AB\n  B1\n  B2\nC')
+    expect(res.prevId).toBe(idOf(rows, 'A'))
+    expect(res.caret).toBe(1)
+    const deep = pad('A\n  A1\nB\n  B1\n    B1a', ctx) // the line above is a leaf further in
+    expect(shape(mergeIntoPrev(deep, ctx, idOf(deep, 'B'))!.rows)).toBe('A\n  A1B\n    B1\n      B1a')
+  })
+
+  it('the line above takes the fold of the node it swallows', () => {
+    const ctx = testCtx()
+    let rows = pad(OUTLINE, ctx)
+    rows = setCollapsed(rows, ctx, idOf(rows, 'B'), true)
+    const res = mergeIntoPrev(rows, ctx, idOf(rows, 'B'))!
+    expect(res.rows[idOf(rows, 'A')]!.collapsed).toBe(true)
+    expect(shape(res.rows)).toContain('AB\n  B1\n  B2')
+  })
+
+  it('refuses a node with children when the line above has children folded away', () => {
+    const ctx = testCtx()
+    let rows = pad('A\n  A1\nB\n  B1', ctx)
+    rows = setCollapsed(rows, ctx, idOf(rows, 'A'), true)
+    expect(mergeIntoPrev(rows, ctx, idOf(rows, 'B'))).toBeNull()
+  })
+
+  it('refuses a node with children under a divider', () => {
+    const ctx = testCtx()
+    const rows = pad('--- Part\nB\n  B1', ctx)
     expect(mergeIntoPrev(rows, ctx, idOf(rows, 'B'))).toBeNull()
   })
 })

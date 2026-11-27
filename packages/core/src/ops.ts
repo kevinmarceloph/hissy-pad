@@ -566,23 +566,34 @@ export function moveToBottom(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Row
 }
 
 // Backspace at the start of a node: fold its text into the visible node above and delete
-// it. Refused when the node still has children (deleting those by accident is the worst
-// outcome for a scratchpad) or when there is nothing above.
+// it. The rules, in order:
+// - Nothing above (the first visible line): refused.
+// - The node is a divider: refused. Its words are its own; Archive removes it.
+// - The node has no children: its text joins the line above, whatever that line has
+//   (a divider above included).
+// - The node has children and the line above has none (not even hidden under a fold) and
+//   is not a divider: its text joins the line above and its children move under that line,
+//   in order, with their subtrees; the line above takes the node's fold.
+// - The node has children and the line above has some too, or is a divider: refused.
+//   There is no one obvious place for two lists, a divider holds none, and losing a list
+//   by accident is the worst outcome for a scratchpad.
 export function mergeIntoPrev(
   rows: Rows,
   ctx: OpCtx,
   id: string,
 ): { rows: Rows; prevId: string; caret: number } | null {
   const index = buildIndex(rows)
-  if (childrenOf(index, id).length > 0) return null
-  if (rows[id]?.divider) return null // a divider's words are its own: it is archived, not folded into a line
+  if (rows[id]?.divider) return null
   const vis = flatten(index, true)
   const i = vis.findIndex((r) => r.id === id)
   if (i <= 0) return null
   const prevId = vis[i - 1]!.id
   const prev = live(rows, prevId)
   const me = live(rows, id)
-  let out = patch(rows, ctx, prevId, { text: prev.text + me.text })
+  const kids = childrenOf(index, id).map((k) => k.id)
+  if (kids.length > 0 && (prev.divider || childrenOf(index, prevId).length > 0)) return null
+  let out = patch(rows, ctx, prevId, kids.length ? { text: prev.text + me.text, collapsed: me.collapsed } : { text: prev.text + me.text })
+  if (kids.length) out = moveNodes(out, ctx, kids, { parentId: prevId, afterId: null })
   out = remove(out, ctx, [id])
   return { rows: out, prevId, caret: prev.text.length }
 }

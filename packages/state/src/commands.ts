@@ -138,9 +138,10 @@ export function cmdBackspaceAtStart(id: string) {
   const prev = neighbor(id, -1)
   const row = usePad.getState().rows[id]
   if (!row) return
-  if (row.text === '') {
-    const hasKids = childrenOf(buildIndex(usePad.getState().rows), id).length > 0
-    if (hasKids || !prev) return
+  // An empty leaf just goes; anything else folds into the line above under mergeIntoPrev's
+  // rules (core/ops.ts), which an empty line with sub items follows too.
+  if (row.text === '' && childrenOf(buildIndex(usePad.getState().rows), id).length === 0) {
+    if (!prev) return
     apply((rows, ctx) => remove(rows, ctx, [id]), { label: 'cmdBackspaceAtStart' })
     edit(prev, 'end')
     return
