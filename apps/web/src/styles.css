@@ -886,6 +886,11 @@ dialog.import input[type='email'] {
 .cat-none { display: inline-block; flex: none; vertical-align: -0.2em; width: 1.1rem; height: 1.1rem; margin-right: 0.4rem; border-radius: 30%; border: 1.5px dashed var(--ink-mute); box-sizing: border-box; }
 .cats-menu { min-width: 13rem; max-width: 16rem; max-height: min(70vh, 30rem); }
 .cats-menu button[aria-checked='true'] { color: var(--accent); font-weight: 600; }
+/* Under each pad's group in a category's view: a line's height of area that adds a line to
+   that pad. A faint + where the bullet would be says it is there. */
+.cat-add { display: block; width: 100%; height: calc(var(--size) * 1.5); padding: 0; border-radius: 4px; text-align: left; color: var(--ink-mute); opacity: 0.55; }
+.cat-add span { display: inline-block; width: var(--gutter); text-align: center; }
+.cat-add:hover, .cat-add:focus-visible { opacity: 1; background: var(--paper-raised); }
 .due-head.cat-head h3 button { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; padding: 0; }
 .due-head.cat-head h3 button:hover { color: var(--ink); }
 .due-head.cat-head:first-child h3 { margin-top: 0.2rem; }

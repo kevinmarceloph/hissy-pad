@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { categoryCounts, NO_CATEGORY, dedent, findFixedPad, idOf, insertAfter, insertAt, insertAtTop, moveNodes, remove, scopeCategory, setCategory, setText, shape } from '@hissypad/core'
+import { buildIndex, categoryCounts, categoryTails, flatten, NO_CATEGORY, dedent, findFixedPad, idOf, insertAfter, insertAt, insertAtTop, moveNodes, remove, scopeCategory, setCategory, setText, shape } from '@hissypad/core'
 
 import { resetStore, tableShape } from './testing'
 import { apply, applyAll, categoryShown, closeCategory, lastCategory, loadPad, openCategory, openPad, todayShown, usePad, zoomTo } from './store'
@@ -138,6 +138,48 @@ describe('a category as a view of the store', () => {
     expect(all()[id('A1')]).toMatchObject({ parentId: null })
     expect(tableShape()).toContain('A\n  A2\nA1\n  A1x\nB')
     expect(view()).toContain('U\nA1\n  A1x\nB')
+  })
+
+  it('gives a line moved out from under one the category when the view would lose it', () => {
+    openCategory(W)
+    // A1x is under A1, a line of the category, and has no category of its own. A step out
+    // it is under A, which is only there for A1: it takes the category and stays.
+    apply((rows, ctx) => dedent(rows, ctx, [id('A1x')]))
+    expect(all()[id('A1x')]).toMatchObject({ parentId: id('A'), category: W })
+    apply((rows, ctx) => dedent(rows, ctx, [id('A1x')]))
+    expect(all()[id('A1x')]).toMatchObject({ parentId: null, category: W })
+    expect(view()).toContain('A\n  A1\nA1x\nB')
+    // B1 is over B11, a line of the category: out at the top level it is still held, and left as it is.
+    apply((rows, ctx) => dedent(rows, ctx, [id('B1')]))
+    expect(all()[id('B1')]).toMatchObject({ parentId: null, category: null })
+  })
+
+  it('in No category, a line of a category moved out to where it would vanish loses it', () => {
+    openCategory(NO_CATEGORY)
+    expect(view()).toContain('A\n  A1\n    A1x')
+    // A1 is in the category, with A1x under it, which has none: A1 stays as it is.
+    apply((rows, ctx) => dedent(rows, ctx, [id('A1')]))
+    expect(all()[id('A1')]).toMatchObject({ parentId: null, category: W })
+    // B11 has nothing under it; a step out it is under B, which has no category, so it is held as it is.
+    apply((rows, ctx) => dedent(rows, ctx, [id('B11')]))
+    expect(all()[id('B11')]).toMatchObject({ parentId: id('B'), category: W })
+    // Out at the top level nothing holds it: it would vanish, so it has no category now.
+    apply((rows, ctx) => dedent(rows, ctx, [id('B11')]))
+    expect(all()[id('B11')]).toMatchObject({ parentId: null, category: null })
+  })
+
+  it('says where each pad\'s group ends, and a line added there goes to that pad, in the category', () => {
+    openCategory(W)
+    const tails = () => {
+      const rows = usePad.getState().rows
+      return [...categoryTails(flatten(buildIndex(rows), true), scopeCategory(all(), W))].map(([last, top]) => `${rows[last]!.text}>${rows[top]!.text}`)
+    }
+    expect(tails()).toEqual(['U>U', 'B11>B', 'W2>W2'])
+    // Under the Inbox's group: after B, its last top-level line there.
+    apply((rows, ctx) => insertAt(rows, ctx, { parentId: null, afterId: id('B') }, 'new in inbox').rows)
+    expect(all()[id('new in inbox')]).toMatchObject({ parentId: null, category: W })
+    expect(tableShape()).toContain('  B2\nnew in inbox\nC')
+    expect(tails()).toEqual(['U>U', 'new in inbox>new in inbox', 'W2>W2'])
   })
 
   it('archives the lines the view left out along with the line over them, in one step', () => {

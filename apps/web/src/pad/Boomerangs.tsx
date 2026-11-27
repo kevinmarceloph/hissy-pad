@@ -3,7 +3,7 @@
 // is the heading drawn before the first row of each group; the first one also carries the
 // section's name.
 import { dueLabel, FOREVER, type PadId } from '@hissypad/core'
-import { openPad, padName, usePad } from '@hissypad/state'
+import { cmdAddAt, openPad, padName, usePad } from '@hissypad/state'
 import { dayOf } from '@hissypad/core/hours'
 import { hoursIfOpen } from '@hissypad/state/hours'
 import { LineIcon } from '../app/icons'
@@ -26,6 +26,17 @@ export function CategoryHead({ padId }: { padId: PadId }) {
     <div className="due-head cat-head">
       <h3><button type="button" title={`Open ${name}`} onClick={() => openPad(padId)}>{name}</button></h3>
     </div>
+  )
+}
+
+// And under each pad's group there: a press adds a line to that pad, after the group's last
+// top-level line, in the category (the store gives it one: unscopeCategory).
+export function CategoryAdd({ afterId, padId }: { afterId: string; padId: PadId }) {
+  const name = usePad((s) => padName(s.all, padId))
+  return (
+    <button type="button" className="cat-add" aria-label={`Add a line to ${name} in this category`} title={`Add a line to ${name} in this category`} onClick={() => cmdAddAt({ parentId: null, afterId })}>
+      <span aria-hidden="true">+</span>
+    </button>
   )
 }
 

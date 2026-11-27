@@ -4,11 +4,11 @@
 // section's name. The same as the web's (apps/web/src/pad/Boomerangs.tsx).
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { dueLabel, FOREVER, type PadId } from '@hissypad/core'
-import { openPad, padName, usePad } from '@hissypad/state'
+import { cmdAddAt, openPad, padName, usePad } from '@hissypad/state'
 import { dayOf } from '@hissypad/core/hours'
 import { hoursIfOpen } from '@hissypad/state/hours'
 import { LineIcon } from './LineIcons'
-import { GUTTER, serif, type Theme } from '../theme'
+import { GUTTER, LINE, serif, type Theme } from '../theme'
 
 // Today's second section: the lines with an hour, kept in the order of their hours
 // (core/schedule.ts). Drawn before the first of them.
@@ -30,6 +30,17 @@ export function CategoryHead({ padId, theme }: { padId: PadId; theme: Theme }) {
   return (
     <Pressable accessibilityRole="header" accessibilityLabel={name} accessibilityHint="Opens this pad" onPress={() => openPad(padId)} hitSlop={{ top: 6, bottom: 6 }} style={s.wrap}>
       <Text style={[s.day, { color: theme.inkMute }]}>{name.toUpperCase()}</Text>
+    </Pressable>
+  )
+}
+
+// And under each pad's group there: a tap adds a line to that pad, after the group's last
+// top-level line, in the category (the store gives it one: unscopeCategory). The same as the web's.
+export function CategoryAdd({ afterId, padId, theme }: { afterId: string; padId: PadId; theme: Theme }) {
+  const name = usePad((st) => padName(st.all, padId))
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`Add a line to ${name} in this category`} onPress={() => cmdAddAt({ parentId: null, afterId })} style={s.add}>
+      <Text style={[s.addMark, { color: theme.inkMute }]}>+</Text>
     </Pressable>
   )
 }
@@ -62,6 +73,8 @@ export function DueHead({ due, first, theme }: { due: string; first: boolean; th
 
 const s = StyleSheet.create({
   wrap: { marginLeft: GUTTER, marginRight: 12 },
+  add: { height: LINE + 6, justifyContent: 'center' },
+  addMark: { width: GUTTER, textAlign: 'center', fontFamily: serif, fontSize: 17, opacity: 0.6 },
   first: { marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth * 2 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   title: { fontFamily: serif, fontSize: 17, fontStyle: 'italic' },

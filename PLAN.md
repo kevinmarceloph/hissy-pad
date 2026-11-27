@@ -464,6 +464,9 @@ Kevin: a dropdown in the row of pads that opens a category: every line in it, gr
 - No category is the same view asked for with `NO_CATEGORY` ('-') in place of an id: the lines that have none, with the lines over and under them, so a line in a category shows there when one over or under it has none. A new line there has no category and stays; `categoryCounts` counts those lines under the same key. It is remembered like a category, and is not opened on its own on a device with no categories.
 - Not done: the watch knows nothing of it.
 
+- 2026-11-28 (Kevin): a line moved out from under one to where the view would stop holding it (the top level, or a step out on the way there) takes the category, so it does not vanish as it is dedented; a line that still has one of the category's lines under it is left as it is. In No category the same move takes the line's category off.
+- 2026-11-28 (Kevin): under each pad's group, a line's height of area with a faint + adds a line to that pad, after the group's last top-level line, in the category (`categoryTails` says where the groups end; the add is `cmdAddAt`, and `unscopeCategory` places and categorizes it). In Today, after a line with an hour, the new line takes that hour, as any line added there does.
+
 ## The phone's bottom nav, 2026-11-27
 
 Kevin: on the phone, move the top bar into a bottom nav: Hours, Pads, Categories, Sort, and a hamburger holding Add item, Search and what the old hamburger had.

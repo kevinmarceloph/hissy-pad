@@ -7,7 +7,7 @@ import { menu } from './Menu'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
-import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, flatten, homeNumbers, listNumbers, pinDivider, scheduleHead, scopeCategory, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, descendantIds, categoryTails, dueHeads, flatten, homeNumbers, listNumbers, pinDivider, scheduleHead, scopeCategory, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
 import { apply, categoryShown, closeCategory, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, paintSelect, refresh, resumeEditing, select, setSortMode, stopEditing, todayShown, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme, SHEET_TOP } from '../theme'
 import { Row } from './Row'
@@ -19,7 +19,7 @@ import { ArchiveView } from './Archive'
 import { SortView } from './Sort'
 import { SubRows } from './SubRows'
 import { BoomerangPicker, CategoriesApp, CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
-import { CategoryHead, DueHead, ScheduledHead } from './Boomerangs'
+import { CategoryAdd, CategoryHead, DueHead, ScheduledHead } from './Boomerangs'
 import {
   cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotFinder, setSlotPickerOpener, targetCategory, targetSlot, targetsHaveCategory, useCategoryChoices,
   cmdOpenCategories,
@@ -75,10 +75,11 @@ export function Pad() {
   // Hours draws them.
   const hourOpen = usePad((s) => s.slotId !== null || s.partId !== null)
   // A category's view: the first line of each pad's group, where the pad's name is drawn.
-  const catHeads = usePad((s) => {
+  const catView = usePad((s) => {
     const cat = categoryShown(s)
-    return cat === null ? null : scopeCategory(s.all, cat).heads
+    return cat === null ? null : scopeCategory(s.all, cat)
   })
+  const catHeads = catView?.heads ?? null
   // There the lines over a line may have siblings left out: a numbered line's number is the one it has in its pad.
   const home = usePad((s) => (categoryShown(s) !== null ? s.all : null))
   const load = usePad((s) => s.load)
@@ -189,6 +190,8 @@ export function Pad() {
     return [...anchors.slice(0, t.gapIndex).map((v) => ({ ...v, preview: false })), ...placed, ...anchors.slice(t.gapIndex).map((v) => ({ ...v, preview: false }))]
   }, [visible, drag])
   // The rule under the pinned lines: in a pad as itself, not in an open hour.
+  // And where each pad's group ends: under it, an area that adds a line to that pad, in the category.
+  const catTails = useMemo(() => (catView ? categoryTails(displayed, catView) : null), [catView, displayed])
   const pinEnd = useMemo(() => (hourOpen || catHeads ? null : pinDivider(displayed, rows)), [hourOpen, catHeads, displayed, rows])
   // In Later: a heading before each day's group of lines out on a boomerang.
   const heads = useMemo(() => (hourOpen || catHeads ? new Map<string, string>() : dueHeads(displayed, rows)), [hourOpen, catHeads, displayed, rows])
@@ -712,6 +715,7 @@ export function Pad() {
               />
               )}
               {id === pinEnd && <View style={s.pinDivider} accessibilityRole="none" accessibilityLabel="Pinned lines end here"><View style={[s.pinRule, { backgroundColor: theme.rule }]} /></View>}
+              {catTails?.has(id) && !drag && !quiet && <CategoryAdd afterId={catTails.get(id)!} padId={catView!.homes.get(catTails.get(id)!)?.parentId ?? null} theme={theme} />}
               </Fragment>
             ))}
             {lone && !quiet && (

@@ -1,12 +1,12 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, homeNumbers, listNumbers, pinDivider, scheduleHead, scopeCategory, slotShown } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, descendantIds, categoryTails, dueHeads, homeNumbers, listNumbers, pinDivider, scheduleHead, scopeCategory, slotShown } from '@hissypad/core'
 import { categoryShown, clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
   todayShown, cmdAddAtTop, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
   cmdPasteAfterSelection, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
 import { Row } from './Row'
-import { CategoryHead, DueHead, ScheduledHead } from './Boomerangs'
+import { CategoryAdd, CategoryHead, DueHead, ScheduledHead } from './Boomerangs'
 import { useDrag } from './useDrag'
 import { forceSync } from '@hissypad/state'
 import { MOD } from '../platform/os'
@@ -24,10 +24,11 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
   // The same in a category's view, where the lines over a line may have siblings left out.
   const home = usePad((s) => (s.slotId !== null ? slotShown(s.all, s.slotId).table : categoryShown(s) !== null ? s.all : null))
   // A category's view: the first line of each pad's group, where the pad's name is drawn.
-  const catHeads = usePad((s) => {
+  const catView = usePad((s) => {
     const cat = categoryShown(s)
-    return cat === null ? null : scopeCategory(s.all, cat).heads
+    return cat === null ? null : scopeCategory(s.all, cat)
   })
+  const catHeads = catView?.heads ?? null
   const editing = usePad((s) => s.editing)
   const selection = usePad((s) => s.selection)
 
@@ -226,6 +227,8 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
   }, [])
 
   // The rule under the pinned lines, in a pad as itself (not in a card or an open hour).
+  // And where each pad's group ends: under it, an area that adds a line to that pad, in the category.
+  const catTails = useMemo(() => (catView ? categoryTails(displayed, catView) : null), [catView, displayed])
   const pinEnd = useMemo(() => (embedded || catHeads ? null : pinDivider(displayed, rows)), [embedded, catHeads, displayed, rows])
 
   // In Later: a heading before each day's group of lines out on a boomerang.
@@ -264,6 +267,7 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
           />
           )}
           {id === pinEnd && <div className="pin-divider" role="separator" aria-label="Pinned lines end here" />}
+          {catTails?.has(id) && !drag && <CategoryAdd afterId={catTails.get(id)!} padId={catView!.homes.get(catTails.get(id)!)?.parentId ?? null} />}
           </Fragment>
         ))}
       </div>

@@ -9,7 +9,7 @@
 // out, so a line in the view can have siblings the view does not hold. They stay where
 // they are: a rank made between two lines of the view is a real rank in the pad.
 import { sameRow, type NodeRow, type Rows } from './types'
-import { buildIndex, childrenOf, isLive, type TreeIndex } from './tree'
+import { buildIndex, childrenOf, isLive, type FlatRow, type TreeIndex } from './tree'
 import { findFixedPad, listPads, type PadId } from './pads'
 import { between, ranksBetween } from './rank'
 import type { SlotHome } from './slot'
@@ -111,6 +111,23 @@ export function scopeCategory(all: Rows, category: string): CategoryView {
   return view
 }
 
+// Where each pad's group ends in the view as drawn, for the area under it that adds a line
+// to that pad in the category: the id of the last row drawn in the group, with the group's
+// last top-level line (the new line goes after that one). `flat` is the rows as drawn.
+export function categoryTails(flat: readonly Pick<FlatRow, 'id' | 'depth'>[], view: CategoryView): Map<string, string> {
+  const out = new Map<string, string>()
+  let top: string | null = null
+  let last: string | null = null
+  for (const f of flat) {
+    if (!(f.id in view.rows)) continue // the placeholder of a drag
+    if (f.depth === 0 && view.heads.has(f.id) && top !== null && last !== null) out.set(last, top)
+    if (f.depth === 0) top = f.id
+    last = f.id
+  }
+  if (top !== null && last !== null) out.set(last, top)
+  return out
+}
+
 // How many lines each category has, for the list that offers the views: the category's
 // own lines only, blank ones and pads' rows left out. The lines with none are counted
 // under NO_CATEGORY.
@@ -135,6 +152,10 @@ export function categoryCounts(all: Rows): Map<string, number> {
 //     above it. In an empty view a new line goes to the top of `fallbackPad`.
 //   - a new line that the view would not hold (not under a line of the category) takes the
 //     category, so it stays where it was typed. In "No category" a new line has none, and stays.
+//   - a line moved out from under one (to the top level, or a step out on the way there)
+//     to where the view would not hold it (it is not in the category, nothing over it is
+//     and nothing under it is) takes the category too, so it does not vanish as it is
+//     moved (Kevin, 2026-11-28). In "No category" it loses its own.
 //   - archiving a line archives the lines under it that the view left out, too.
 // Anything else is stored as the op left it. A row that ends up as the table has it is left out.
 export function unscopeCategory(all: Rows, category: string, view: CategoryView, changed: readonly NodeRow[], fallbackPad: PadId = null): NodeRow[] {
@@ -202,6 +223,21 @@ export function unscopeCategory(all: Rows, category: string, view: CategoryView,
     }
     return false
   }
+  // Whether anything under a row, as the op left the view, is in the category.
+  let kids: Map<string, NodeRow[]> | null = null
+  const holdsOne = (id: string): boolean => {
+    if (!kids) {
+      kids = new Map()
+      for (const k in after) {
+        const c = after[k]!
+        if (c.deletedAt !== null || c.parentId === null) continue
+        const list = kids.get(c.parentId)
+        if (list) list.push(c)
+        else kids.set(c.parentId, [c])
+      }
+    }
+    return (kids.get(id) ?? []).some((c) => inCategory(c, category) || holdsOne(c.id))
+  }
   const out: NodeRow[] = []
   let index: TreeIndex | null = null
   for (const r of [...changed].sort((a, b) => (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0))) {
@@ -212,6 +248,10 @@ export function unscopeCategory(all: Rows, category: string, view: CategoryView,
       back = home && r.rank === rows[r.id]!.rank ? { ...r, parentId: home.parentId, rank: home.rank } : { ...r, ...place(r) }
     }
     if (!was && back.category === null && !covered(r)) back = { ...back, category }
+    // Moved to where the view would no longer hold it.
+    if (was && r.deletedAt === null && rows[r.id] !== undefined && r.parentId !== rows[r.id]!.parentId && !covered(r) && !holdsOne(r.id)) {
+      back = { ...back, category: category === NO_CATEGORY ? null : category }
+    }
     if (was && sameRow({ ...back, updatedAt: was.updatedAt }, was)) continue
     out.push(back)
     // Archived here: the lines under it that the view did not hold go with it.
