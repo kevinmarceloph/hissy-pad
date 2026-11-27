@@ -5,7 +5,7 @@ const SHOTS = process.env.BOOMERANG_SHOTS // a directory: save screenshots of ea
 // Boomerang, end to end in a real browser: the floating button is on screen with the others
 // (five round buttons and the switch on one line of a phone), the picker sends the line out
 // until tomorrow, and Later has it as a row under its own lines, under the day's heading;
-// the same button's picker calls it back.
+// the same button's picker calls it back, to the top of Later.
 test('a line goes out on a boomerang from the floating button, and Later lists it', async ({ page }, info) => {
   await page.goto('/#pads')
   await page.getByRole('button', { name: 'Select line' }).first().click()
@@ -45,7 +45,7 @@ test('a line goes out on a boomerang from the floating button, and Later lists i
   await page.getByRole('button', { name: /^Boomerang/ }).click()
   await page.getByRole('button', { name: 'Back now' }).click()
   await expect(page.getByRole('heading', { name: 'Tomorrow' })).toHaveCount(0)
-  await page.getByRole('tab', { name: /^Inbox/ }).click()
+  // Back at the top of Later's own lines.
   await expect(page.locator('.row .text').first()).toHaveText('Welcome to HissyPad')
 })
 
@@ -86,7 +86,7 @@ test('the new item\'s card sends the item out from the start, and can call it ba
   await page.getByRole('button', { name: /^Boomerang/ }).click()
   await page.getByRole('button', { name: 'Back now' }).click()
   await expect(page.getByRole('heading', { name: 'Tomorrow' })).toHaveCount(0)
-  await page.getByRole('tab', { name: /^Inbox/ }).click()
+  // Back at the top of Later's own lines.
   await expect(page.locator('.row .text').first()).toHaveText('renew the passport')
 })
 
