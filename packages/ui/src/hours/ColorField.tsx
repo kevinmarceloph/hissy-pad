@@ -5,7 +5,7 @@ import { colorLabel, COLORS, type ColorKey } from '@hissypad/core/hours';
 import { Tap } from './Tap';
 import { ROW, serif, SMALL, useTheme } from './theme';
 
-// The palette as 22 swatches (twelve until 2026-11-27): what a category or a flag's option is colored with.
+// The palette as 24 swatches (twelve until 2026-11-27): what a category or a flag's option is colored with.
 export function ColorField({ value, onPick }: { value: ColorKey; onPick(color: ColorKey): void }) {
   const theme = useTheme();
   return (
@@ -36,8 +36,7 @@ export function ColorField({ value, onPick }: { value: ColorKey; onPick(color: C
 const styles = StyleSheet.create({
   field: { gap: 6 },
   small: { fontFamily: serif, fontSize: SMALL, lineHeight: 20 },
-  // Six to a row on every width, so the first twelve are two even rows and the ten after them
-  // fill two more (the last one short).
+  // Six to a row on every width: four even rows, the first twelve on top.
   colors: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, maxWidth: 6 * ROW + 5 * 6 },
   color: { width: ROW, height: ROW, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderRadius: 6 },
   colorFill: { width: 26, height: 26, borderRadius: 4 },

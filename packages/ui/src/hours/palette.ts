@@ -29,6 +29,8 @@ export const PALETTES: { light: Palette; dark: Palette } = {
     vermilion: '#fc4872',
     amber: '#a26000',
     royal: '#0000d2',
+    wine: '#540639',
+    denim: '#213c81',
   },
   dark: {
     blue: '#145dff',
@@ -53,6 +55,8 @@ export const PALETTES: { light: Palette; dark: Palette } = {
     vermilion: '#fc6036',
     amber: '#f6c648',
     royal: '#6672de',
+    wine: '#cf3f63',
+    denim: '#7e99f6',
   },
 };
 

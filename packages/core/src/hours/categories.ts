@@ -30,6 +30,9 @@ export const COLORS = [
   { key: 'vermilion', label: 'Vermilion' },
   { key: 'amber', label: 'Amber' },
   { key: 'royal', label: 'Royal' },
+  // Two more to make 24 (Kevin, 2026-11-27): four even rows of six in the picker.
+  { key: 'wine', label: 'Wine' },
+  { key: 'denim', label: 'Denim' },
 ] as const;
 
 export type ColorKey = (typeof COLORS)[number]['key'];
