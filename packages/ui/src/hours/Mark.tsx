@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { iconIsCode } from '@hissypad/core/hours';
+
+import { inkOn } from './palette';
 import { useTheme } from './theme';
 
 type Props = {
@@ -35,9 +38,24 @@ export function Mark({ fill, outline, faint, icon, style }: Props) {
     : undefined;
   const drawn = size > 0 && (
     <View aria-hidden style={styles.icon}>
-      <Text allowFontScaling={false} style={{ fontSize: size, lineHeight: Math.round(size * 1.25) }}>
-        {icon}
-      </Text>
+      {icon && iconIsCode(icon) ? (
+        // A code ("HP") is bold text in the ink that reads on the box, smaller the longer it is.
+        <Text
+          allowFontScaling={false}
+          numberOfLines={1}
+          style={{
+            fontSize: Math.round(size * (icon.length > 1 ? 0.6 : 0.8)),
+            lineHeight: Math.round(size * 1.25),
+            fontWeight: '700',
+            color: fill ? inkOn(fill) : theme.ink,
+          }}>
+          {icon}
+        </Text>
+      ) : (
+        <Text allowFontScaling={false} style={{ fontSize: size, lineHeight: Math.round(size * 1.25) }}>
+          {icon}
+        </Text>
+      )}
     </View>
   );
 

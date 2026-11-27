@@ -4,7 +4,9 @@ import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-n
 import {
   cleanIcon,
   cleanLabel,
+  CODE_MAX,
   colorLabel,
+  iconProblem,
   LABEL_MAX,
   labelProblem,
   nextColor,
@@ -114,7 +116,7 @@ export function CategoriesScreen({ onBack, backLabel = 'Back to the day' }: { on
               </Text>
               {archived.map((category) => (
                 <View key={category.id} style={[styles.wrap, styles.row, { borderBottomColor: theme.rule }]}>
-                  <CategoryBadge category={category} />
+                  <View style={styles.badgeSlot}><CategoryBadge category={category} /></View>
                   <Text numberOfLines={1} style={[styles.body, styles.name, { color: theme.inkSoft }]}>
                     {category.label}
                   </Text>
@@ -159,7 +161,7 @@ function CategoryRow(props: RowProps) {
           aria-label={`${category.label}, ${colorLabel(category.color)}`}
           style={[styles.row, styles.name]}
           activeStyle={{ backgroundColor: theme.paperRaised }}>
-          <CategoryBadge category={category} />
+          <View style={styles.badgeSlot}><CategoryBadge category={category} /></View>
           <Text numberOfLines={1} style={[styles.body, styles.name, { color: theme.ink }]}>
             {category.label}
           </Text>
@@ -177,9 +179,18 @@ function RowEditor({ category, list, onClose, onUpdate }: RowProps) {
   const [draft, setDraft] = useState(category.label);
   const [icon, setIcon] = useState(category.icon);
   const [problem, setProblem] = useState<string | null>(null);
+  const [iconTrouble, setIconTrouble] = useState<string | null>(null);
 
-  // The icon as a patch: empty when it has not changed.
-  const iconPatch = (): CategoryPatch => (cleanIcon(icon) === category.icon ? {} : { icon: cleanIcon(icon) });
+  // The icon as a patch: empty when it has not changed or cannot be used (the reason is
+  // then on screen, and the category keeps the icon it had).
+  const iconOk = (): boolean => {
+    const found = iconProblem(list, icon, category.id);
+    setIconTrouble(found);
+    if (!found) setIcon(cleanIcon(icon));
+    return !found;
+  };
+  const iconPatch = (): CategoryPatch =>
+    iconProblem(list, icon, category.id) || cleanIcon(icon) === category.icon ? {} : { icon: cleanIcon(icon) };
 
   // The name as a patch: empty when it has not changed, null when it cannot be used (and
   // the reason is on screen).
@@ -192,12 +203,14 @@ function RowEditor({ category, list, onClose, onUpdate }: RowProps) {
     return label === category.label ? {} : { label };
   };
 
-  // The name and the icon are written when a field is left or submitted, not on every keystroke.
+  // The name and the icon are written when a field is left or submitted, not on every
+  // keystroke, each when it can be used. True when both can, so the editor may close.
   const commit = (): boolean => {
     const name = namePatch();
+    const icon = iconOk();
     const patch = { ...name, ...iconPatch() };
-    if (name !== null && Object.keys(patch).length > 0) onUpdate(patch);
-    return name !== null;
+    if (Object.keys(patch).length > 0) onUpdate(patch);
+    return name !== null && icon;
   };
 
   return (
@@ -213,7 +226,7 @@ function RowEditor({ category, list, onClose, onUpdate }: RowProps) {
         }}
         onEscape={onClose}
       />
-      <IconField value={icon} onChange={setIcon} onBlur={commit} onEscape={onClose} />
+      <IconField value={icon} problem={iconTrouble} onChange={setIcon} onBlur={commit} onEscape={onClose} />
       <ColorField value={category.color} onPick={(color) => onUpdate({ ...namePatch(), ...iconPatch(), color })} />
 
       <View style={styles.actions}>
@@ -250,11 +263,14 @@ export function NewCategory({ list, onAdd, onCancel }: NewProps) {
   const [icon, setIcon] = useState('');
   const [color, setColor] = useState(() => nextColor(list));
   const [problem, setProblem] = useState<string | null>(null);
+  const [iconTrouble, setIconTrouble] = useState<string | null>(null);
 
   const submit = () => {
     const found = labelProblem(list, draft);
+    const iconFound = iconProblem(list, icon);
     setProblem(found);
-    if (!found) onAdd(draft, icon, color);
+    setIconTrouble(iconFound);
+    if (!found && !iconFound) onAdd(draft, cleanIcon(icon), color);
   };
 
   return (
@@ -272,7 +288,7 @@ export function NewCategory({ list, onAdd, onCancel }: NewProps) {
         }}
         onEscape={onCancel}
       />
-      <IconField value={icon} onChange={setIcon} onEscape={onCancel} />
+      <IconField value={icon} problem={iconTrouble} onChange={setIcon} onEscape={onCancel} />
       <ColorField value={color} onPick={setColor} />
       <View style={[styles.actions, styles.actionsEnd]}>
         <Tap onPress={onCancel} style={styles.button} activeStyle={{ backgroundColor: theme.paper }}>
@@ -336,10 +352,10 @@ function NameField({ value, problem, autoFocus, onChange, onBlur, onSubmit, onEs
   );
 }
 
-type IconProps = { value: string; onChange(value: string): void; onBlur?(): void; onEscape(): void };
+type IconProps = { value: string; problem: string | null; onChange(value: string): void; onBlur?(): void; onEscape(): void };
 
-// One emoji. Whatever is typed is cut to its first character when it is saved.
-function IconField({ value, onChange, onBlur, onEscape }: IconProps) {
+// One emoji or a short code, its own among the categories. Cut down by cleanIcon when saved.
+function IconField({ value, problem, onChange, onBlur, onEscape }: IconProps) {
   const theme = useTheme();
   return (
     <View style={styles.field}>
@@ -355,7 +371,10 @@ function IconField({ value, onChange, onBlur, onEscape }: IconProps) {
         }}
         aria-labelledby="category-icon"
         accessibilityLabel="Icon"
-        placeholder="none"
+        aria-invalid={problem !== null}
+        placeholder="🛒 or HP"
+        autoCapitalize="characters"
+        autoCorrect={false}
         placeholderTextColor={theme.inkQuiet}
         returnKeyType="done"
         maxLength={16}
@@ -365,8 +384,14 @@ function IconField({ value, onChange, onBlur, onEscape }: IconProps) {
           { color: theme.ink, borderColor: theme.accent, backgroundColor: theme.paper, outlineColor: theme.accent },
         ]}
       />
+      {problem && (
+        <Text role="alert" style={[styles.small, { color: theme.accent }]}>
+          {problem}
+        </Text>
+      )}
       <Text style={[styles.small, { color: theme.inkSoft }]}>
-        One emoji. An hour's row and the day's strip show it in place of the name.
+        One emoji, or a code of up to {CODE_MAX} letters (HP). Each category has its own. A line shows it before its
+        text, and typed before a line it puts the line in this category.
       </Text>
     </View>
   );
@@ -389,6 +414,8 @@ const styles = StyleSheet.create({
   line: { flexDirection: 'row', alignItems: 'center' },
   row: { minHeight: ROW, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 4 },
   name: { flex: 1 },
+  // As wide as a three-letter code, so the names line up whatever the icon.
+  badgeSlot: { width: 30, alignItems: 'flex-start' },
   editor: { paddingLeft: 30, paddingRight: 4, paddingBottom: 16, gap: 16 },
   newEditor: { paddingLeft: 12, paddingRight: 12, paddingTop: 12, marginTop: 16, borderRadius: 4 },
   field: { gap: 6 },

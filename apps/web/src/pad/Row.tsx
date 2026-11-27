@@ -10,6 +10,7 @@ import { apply } from '@hissypad/state'
 import { scopeSlot, slotLabel, slotPast, todayKey, inlineSpans, toggleCollapsed, URL_RE } from '@hissypad/core'
 import { cmdSlotUnarchive, useLineCategory } from '@hissypad/state/hours'
 import { addCategoryCss } from './categoryColors'
+import { markClass } from './CatMark'
 
 addCategoryCss()
 
@@ -209,7 +210,7 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
         // a press and move drags it.
         <button
           type="button"
-          className={`category cat-${category.color}${category.icon ? '' : ' is-word'}`}
+          className={`category ${markClass(category)}`}
           title={category.label}
           aria-label={`Category: ${category.label}`}
           onClick={onBulletClick}

@@ -48,10 +48,17 @@ describe('the category picker', () => {
     // A name it already has is refused, on screen.
     await fireEvent.changeText(screen.getByLabelText('Name'), list[0]!.label);
     await fireEvent.press(screen.getByText('Add'));
-    expect(screen.getByRole('alert').textContent).toMatch(/already have/);
+    // So is no icon, or one another category has.
+    const alerts = () => screen.queryAllByRole('alert').map((a) => a.textContent);
+    expect(alerts()).toEqual([expect.stringMatching(/already have/), expect.stringMatching(/needs an icon/)]);
     expect(onCreate).not.toHaveBeenCalled();
 
     await fireEvent.changeText(screen.getByLabelText('Name'), 'Errands');
+    await fireEvent.changeText(screen.getByLabelText('Icon'), '💻');
+    await fireEvent.press(screen.getByText('Add'));
+    expect(alerts()).toEqual([`${list[0]!.label} already uses 💻.`]);
+    expect(onCreate).not.toHaveBeenCalled();
+
     await fireEvent.changeText(screen.getByLabelText('Icon'), '🛒');
     await fireEvent.press(screen.getByRole('radio', { name: 'Teal' }));
     await fireEvent.press(screen.getByText('Add'));

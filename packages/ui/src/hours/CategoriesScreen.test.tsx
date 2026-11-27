@@ -40,10 +40,14 @@ describe('CategoriesScreen', () => {
     await fireEvent.press(screen.getByLabelText('Deep work, Blue'));
     await fireEvent.changeText(screen.getByLabelText('Name'), '  Focus ');
     await fireEvent.press(screen.getByRole('radio', { name: 'Indigo' }));
+    // A category with no icon (from before they were needed) has to get one to close.
+    await fireEvent.press(screen.getByText('Done'));
+    expect(screen.getByRole('alert').textContent).toMatch(/needs an icon/);
+    await fireEvent.changeText(screen.getByLabelText('Icon'), 'F');
     await fireEvent.press(screen.getByText('Done'));
 
     expect(await screen.findByLabelText('Focus, Indigo')).toBeTruthy();
-    expect(await saved('deep')).toMatchObject({ label: 'Focus', color: 'indigo' });
+    expect(await saved('deep')).toMatchObject({ label: 'Focus', color: 'indigo', icon: 'F' });
     expect(screen.queryByLabelText('Name')).toBeNull();
   });
 
@@ -113,7 +117,7 @@ describe('CategoriesScreen', () => {
     expect(screen.getByText('Add a category')).toBeTruthy();
   });
 
-  it('gives a category an icon and takes it off again', async () => {
+  it('gives a category an icon or a code, never none and never one another has', async () => {
     const { saved } = await setup();
     await fireEvent.press(await screen.findByLabelText('Body, Moss'));
     await fireEvent.changeText(screen.getByLabelText('Icon'), '\u{1F3C3}');
@@ -121,11 +125,25 @@ describe('CategoriesScreen', () => {
     expect((await saved('body')).icon).toBe('\u{1F3C3}');
     expect(within(screen.getByLabelText('Body, Moss')).getByText('\u{1F3C3}')).toBeTruthy();
 
+    // Taking it off is refused, and the editor stays open with the icon it had saved.
     await fireEvent.press(screen.getByLabelText('Body, Moss'));
     await fireEvent.changeText(screen.getByLabelText('Icon'), '');
     await fireEvent.press(screen.getByText('Done'));
-    expect((await saved('body')).icon).toBe('');
-    expect(within(screen.getByLabelText('Body, Moss')).queryByText('\u{1F3C3}')).toBeNull();
+    expect(screen.getByRole('alert').textContent).toMatch(/needs an icon/);
+    expect((await saved('body')).icon).toBe('\u{1F3C3}');
+
+    // A code works, cut to three letters.
+    await fireEvent.changeText(screen.getByLabelText('Icon'), 'Body');
+    await fireEvent.press(screen.getByText('Done'));
+    expect((await saved('body')).icon).toBe('Bod');
+    expect(within(screen.getByLabelText('Body, Moss')).getByText('Bod')).toBeTruthy();
+
+    // Another category cannot take it, whatever the case.
+    await fireEvent.press(screen.getByLabelText('Deep work, Blue'));
+    await fireEvent.changeText(screen.getByLabelText('Icon'), 'bod');
+    await fireEvent.press(screen.getByText('Done'));
+    expect(screen.getByRole('alert').textContent).toBe('Body already uses Bod.');
+    expect((await saved('deep')).icon).toBe('');
   });
 
   it('says so when every category is archived', async () => {

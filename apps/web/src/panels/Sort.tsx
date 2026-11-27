@@ -10,6 +10,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { scopePad, slotLabel, todayKey } from '@hissypad/core'
 import { categoryPrefix, cmdPickCategory, cmdPickSlot, useLineCategory } from '@hissypad/state/hours'
 import { GearIcon, HoursIcon, LineIcon, PadIcon } from '../app/icons'
+import { markClass } from '../pad/CatMark'
 import { cmdPickBoomerang, cmdSortMoveTo, dueWords } from '@hissypad/state'
 import { showToast } from '../app/toast'
 import { MOD } from '../platform/os'
@@ -36,7 +37,7 @@ export function CardLine({ category, onCategory, children }: { category: ReturnT
   return (
     <div className="sort-line">
       {category && (
-        <button type="button" className={`category cat-${category.color}${category.icon ? '' : ' is-word'}`} title={category.label} aria-label={`Category: ${category.label}, change`} onClick={onCategory}>
+        <button type="button" className={`category ${markClass(category)}`} title={category.label} aria-label={`Category: ${category.label}, change`} onClick={onCategory}>
           {category.icon || category.label}
         </button>
       )}

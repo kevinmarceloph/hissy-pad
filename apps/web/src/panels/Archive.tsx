@@ -10,6 +10,7 @@ import {
 } from '@hissypad/state'
 import { slotLabel, todayKey } from '@hissypad/core'
 import { useLineCategory } from '@hissypad/state/hours'
+import { markClass } from '../pad/CatMark'
 import { Styled } from '../pad/Row'
 import { showToast } from '../app/toast'
 import { MOD } from '../platform/os'
@@ -38,7 +39,7 @@ function Line({ line, selected, covered, found, onTap }: { line: ArchiveLine; se
     >
       <button type="button" className="bullet" data-num={line.number !== null ? `${line.number}.` : undefined} aria-label={selected ? 'Deselect line' : 'Select line'} />
       {category && (
-        <span className={`category cat-${category.color}${category.icon ? '' : ' is-word'}`} title={category.label} aria-label={`Category: ${category.label}`}>
+        <span className={`category ${markClass(category)}`} title={category.label} aria-label={`Category: ${category.label}`}>
           {category.icon || category.label}
         </span>
       )}

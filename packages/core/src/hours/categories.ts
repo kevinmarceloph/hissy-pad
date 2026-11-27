@@ -88,17 +88,49 @@ export function findCategory(list: Category[], id: string | null | undefined): C
   return id ? list.find((c) => c.id === id) : undefined;
 }
 
-// An icon is one emoji: the first thing a reader would call a character, however many
-// code points it is made of (a flag, a skin tone, a family). Anything after it is dropped.
+// A category's icon is one emoji, or a short code of letters and digits (Kevin, 2026-11-27:
+// "W" for writing, "HP" for HissyPad, rather than hunting for an emoji every time).
+export const CODE_MAX = 3;
+
+const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}|⃣/u;
+
+function firstGrapheme(text: string): string {
+  return typeof Intl !== 'undefined' && 'Segmenter' in Intl
+    ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)][0]?.segment ?? ''
+    : ([...text][0] ?? '');
+}
+
+// Whether an icon is a code ("HP") rather than an emoji: it is drawn as text in the
+// category's ink, not as a picture.
+export function iconIsCode(icon: string): boolean {
+  return icon !== '' && !EMOJI.test(icon);
+}
+
+// An emoji is kept whole (a flag, a skin tone, a family) and anything after it dropped.
+// Anything else is a code: the letters and digits of its first word, cut to CODE_MAX, in the
+// case it was typed.
 export function cleanIcon(raw: string): string {
   const text = raw.trim();
   if (text === '') return '';
-  const first =
-    typeof Intl !== 'undefined' && 'Segmenter' in Intl
-      ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)][0]?.segment ?? ''
-      : ([...text][0] ?? '');
+  const first = firstGrapheme(text);
   // The server takes 16 characters at most.
-  return first.length <= 16 ? first : '';
+  if (EMOJI.test(first)) return first.length <= 16 ? first : '';
+  return [...(text.split(/\s/)[0] ?? '').replace(/[^\p{L}\p{N}]/gu, '')].slice(0, CODE_MAX).join('');
+}
+
+// Two icons are the same one whatever their case or emoji variation selector.
+function iconKey(icon: string): string {
+  return icon.replace(/️/g, '').toLowerCase();
+}
+
+// Why an icon cannot be used, in words the screen can show, or null when it can. Every
+// active category needs one and no two share one: the icon is what a line shows of its
+// category, and typed before a line it puts the line in that category.
+export function iconProblem(list: Category[], raw: string, exceptId?: string): string | null {
+  const icon = cleanIcon(raw);
+  if (icon === '') return `A category needs an icon: one emoji, or a code of up to ${CODE_MAX} letters.`;
+  const clash = list.find((c) => !c.archived && c.id !== exceptId && c.icon !== '' && iconKey(c.icon) === iconKey(icon));
+  return clash ? `${clash.label} already uses ${clash.icon}.` : null;
 }
 
 // A category where room is short (an hour's row, the legend over the day): its icon, or

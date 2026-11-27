@@ -455,6 +455,9 @@ body.is-dragging-rows .row .category { cursor: grabbing; }
 @supports (corner-shape: squircle) {
   .row .category.is-word { border-radius: 0.65rem; }
 }
+/* A code ("HP") in place of an emoji: bold text in the ink that reads on the color, the
+   same height as an icon, as wide as the code. */
+.row .category.is-code { padding: 0 0.25rem; color: var(--cat-ink); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em; }
 .row.is-done .category { opacity: 0.55; }
 /* The hour a line is assigned to (Hours): small, after the text, in words. */
 /* An archived line shown in its hour (Hours): quieter ink, and a box at the right that
@@ -901,6 +904,7 @@ dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-f
 .moveto-menu button { display: block; text-align: left; height: 36px; line-height: 36px; padding: 0 0.6rem; border-radius: 4px; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar.moveto-menu button:hover:not(:disabled) { background: var(--accent-soft); }
 .cat-mark { display: inline-flex; align-items: center; justify-content: center; vertical-align: -0.2em; min-width: 1.1rem; height: 1.1rem; margin-right: 0.4rem; border-radius: 30%; background: var(--cat); font-size: 0.75rem; line-height: 1; }
+.cat-mark.is-code { padding: 0 0.2rem; color: var(--cat-ink); font-size: 0.58rem; font-weight: 700; letter-spacing: 0.02em; }
 
 /* Fresh start: two panes, what leaves on the left and what stays on the right, with the
    arrows between them. Rows reuse the pad's own look but do not edit. */
@@ -1001,6 +1005,7 @@ dialog.import .actions .danger:hover:not(:disabled) { background: var(--accent-f
   .sort-line .category { border-radius: 50%; corner-shape: squircle; }
 }
 .sort-line .category.is-word { padding: 0 0.45rem; border-radius: 0.45rem; color: var(--cat-ink); font-size: 0.8rem; }
+.sort-line .category.is-code { padding: 0 0.3rem; color: var(--cat-ink); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em; }
 .sort-card .sort-text { font-size: 1.25rem; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
 .sort-card textarea::placeholder { color: var(--ink-mute); font-style: italic; }
 .stamp {

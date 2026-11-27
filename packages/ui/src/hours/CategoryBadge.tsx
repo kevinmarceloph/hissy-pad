@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import type { Category } from '@hissypad/core/hours';
+import { iconIsCode, type Category } from '@hissypad/core/hours';
 
 import { inkOn } from './palette';
 import { useTheme } from './theme';
@@ -24,6 +24,9 @@ export function CategoryBadge({ category, size = 22, wordWhenBare, a11yLabel, st
   const theme = useTheme();
   const color = theme.palette[category.color];
   const word = !category.icon && wordWhenBare;
+  // A code ("HP") is text, drawn bold in the ink that reads on the color, in a pill as wide
+  // as it needs.
+  const code = iconIsCode(category.icon);
   return (
     <View
       aria-hidden={!a11yLabel}
@@ -33,9 +36,17 @@ export function CategoryBadge({ category, size = 22, wordWhenBare, a11yLabel, st
         styles.badge,
         { backgroundColor: color, height: size, minWidth: size, borderRadius: size * 0.3 },
         word && { paddingHorizontal: size * 0.3 },
+        code && { paddingHorizontal: size * 0.18 },
         style,
       ]}>
-      {category.icon ? (
+      {code ? (
+        <Text
+          numberOfLines={1}
+          allowFontScaling={false}
+          style={{ fontSize: size * 0.5, lineHeight: size, fontWeight: '700', letterSpacing: 0.2, color: inkOn(color) }}>
+          {category.icon}
+        </Text>
+      ) : category.icon ? (
         <Text style={{ fontSize: size * 0.64, lineHeight: size }}>{category.icon}</Text>
       ) : word ? (
         <Text numberOfLines={1} style={{ fontSize: size * 0.55, lineHeight: size, color: inkOn(color) }}>
