@@ -185,9 +185,10 @@ export function isBlank(r: NodeRow): boolean {
   return r.text.trim() === ''
 }
 
+// A section divider is not an item either, whatever it says.
 export function countLines(rows: Iterable<NodeRow | undefined>): number {
   let n = 0
-  for (const r of rows) if (r && !isBlank(r)) n++
+  for (const r of rows) if (r && !isBlank(r) && !r.divider) n++
   return n
 }
 

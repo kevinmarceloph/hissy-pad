@@ -21,6 +21,7 @@ export interface WireNode {
   count_hidden?: boolean // same: added 2026-11-25
   due?: string | null // same: added 2026-11-25
   fresh?: boolean // same: added 2026-11-25
+  divider?: boolean // same: added 2026-11-27
   updated_at: string
   deleted_at: string | null
   synced_at?: string
@@ -39,6 +40,7 @@ export function toWire(raw: NodeRow): WireNode {
     collapsed: r.collapsed,
     numbered: r.numbered,
     header: r.header,
+    divider: r.divider,
     pad: r.pad,
     slot: r.slot,
     category: r.category,
@@ -65,6 +67,7 @@ export function fromWire(w: WireNode): { row: NodeRow; syncedAt: string } {
       collapsed: w.collapsed,
       numbered: w.numbered,
       header: w.header === true && !w.numbered,
+      divider: w.divider === true && !w.numbered && w.header !== true,
       pad: w.pad === true,
       slot: w.slot ?? null,
       category: w.category ?? null,

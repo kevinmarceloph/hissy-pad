@@ -101,7 +101,7 @@ export { isBoomeranged, boomerang, comeBack, boomerangGroups, deliverDue, daySta
 export { settleSchedule, scheduleHead, scheduledKey, isTodayPad } from './schedule'
 export { lastPinned } from './ops'
 export { hourPrefix, slotByPrefix } from './hourprefix'
-export { parseOutline, insertOutline, toOutline, toOutlineHtml, type OutlineLine, type OutlineFormat } from './paste'
+export { parseOutline, insertOutline, toOutline, toOutlineHtml, dividerText, type OutlineLine, type OutlineFormat } from './paste'
 export { testCtx, pad, shape, idOf } from './testing'
 export { type LocalStore, createMemoryStore, changedRows } from './sync/store'
 export { toWire, fromWire, type WireNode } from './sync/wire'

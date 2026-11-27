@@ -12,9 +12,12 @@ export interface OutlineLine {
   depth: number
   numbered?: boolean // the line carried a "1." style marker
   header?: boolean   // the line carried a "# " marker (Markdown heading)
+  divider?: boolean  // the line was a rule: "---", or "--- Words ---" for a section divider that says something
 }
 
 const BULLET = /^(?:[-*+•◦○●■▪►]|(\d{1,3})[.)]|[a-z][.)]|(#{1,6}))(?:\s+|$)/u
+// Three or more hyphens (or one long dash, as a phone's keyboard makes of them), then words, then the same again or nothing.
+const DIVIDER = /^(?:-{3,}|—+)(?:\s+(.*?))?(?:\s+(?:-{3,}|—+))?$/u
 const TAB_WIDTH = 4
 
 function indentWidth(line: string): number {
@@ -38,7 +41,7 @@ export function parseOutline(text: string): OutlineLine[] {
   for (const raw of lines) {
     const trimmedEnd = raw.replace(/\s+$/u, '')
     if (trimmedEnd.trim() === '') {
-      if (out.length > 0 && out.at(-1)!.text !== '') out.push({ text: '', depth: 0 })
+      if (out.length > 0 && (out.at(-1)!.text !== '' || out.at(-1)!.divider)) out.push({ text: '', depth: 0 })
       continue
     }
     const w = indentWidth(trimmedEnd)
@@ -46,6 +49,11 @@ export function parseOutline(text: string): OutlineLine[] {
     if (w > stack.at(-1)!) stack.push(w)
     const depth = stack.length - 1
     const stripped = trimmedEnd.trimStart()
+    const rule = DIVIDER.exec(stripped)
+    if (rule) {
+      out.push({ text: rule[1] ?? '', depth, divider: true })
+      continue
+    }
     const m = BULLET.exec(stripped)
     const body = m ? stripped.slice(m[0].length) : stripped
     const line: OutlineLine = { text: body, depth }
@@ -53,13 +61,14 @@ export function parseOutline(text: string): OutlineLine[] {
     else if (m?.[2] !== undefined) line.header = true
     out.push(line)
   }
-  while (out.length > 0 && out.at(-1)!.text === '') out.pop()
+  while (out.length > 0 && out.at(-1)!.text === '' && !out.at(-1)!.divider) out.pop()
   return out
 }
 
 // Insert parsed lines at a placement. depth 0 lines become siblings at the placement,
 // deeper lines nest under the nearest shallower line above them (a jump of more than one
-// level is clamped, so a ragged paste never loses a line).
+// level is clamped, so a ragged paste never loses a line). A line indented under a divider
+// comes out beside it: a divider takes no lines.
 export function insertOutline(
   rows: Rows,
   ctx: OpCtx,
@@ -74,7 +83,7 @@ export function insertOutline(
   const lastAtDepth: number[] = []
   let prevDepth = -1
   lines.forEach((l, i) => {
-    const depth = Math.min(l.depth, prevDepth + 1)
+    const depth = Math.min(l.depth, prevDepth + (i > 0 && lines[i - 1]!.divider ? 0 : 1))
     parentLine.push(depth === 0 ? -1 : lastAtDepth[depth - 1]!)
     lastAtDepth[depth] = i
     lastAtDepth.length = depth + 1
@@ -116,6 +125,7 @@ export function insertOutline(
       collapsed: false,
       numbered: l.numbered === true,
       header: l.header === true && l.numbered !== true,
+      divider: l.divider === true,
       pad: false,
       slot: null,
       category: null,
@@ -138,8 +148,8 @@ export interface OutlineFormat {
 }
 
 // Plain-text outline of the given nodes (topmost only, with their subtrees), relative to
-// the shallowest one. Numbered lines keep their "1. " marker and headers their "# " so
-// both survive a round trip. Collapsed state is ignored: copy gives you everything.
+// the shallowest one. Numbered lines keep their "1. " marker, headers their "# " and a
+// divider is "--- Words ---" (or "---"), so all three survive a round trip. Collapsed state is ignored: copy gives you everything.
 export function toOutline(rows: Rows, ids: Iterable<string>, fmt: OutlineFormat = {}): string {
   const bullet = fmt.bullet ?? '- '
   const indent = fmt.indent ?? '  '
@@ -148,16 +158,18 @@ export function toOutline(rows: Rows, ids: Iterable<string>, fmt: OutlineFormat 
   const index = buildIndex(rows)
   const numbers = listNumbers(index)
   const mark = (id: string) => (numbers.has(id) ? `${numbers.get(id)}. ` : rows[id]!.header ? '# ' : bullet)
+  const line = (row: NodeRow) => (row.divider ? dividerText(row.text) : mark(row.id) + pre(row) + row.text + (row.done ? doneMark : ''))
   const lines: string[] = []
   for (const top of topmost(index, ids)) {
-    const self = rows[top]!
-    lines.push(mark(top) + pre(self) + self.text + (self.done ? doneMark : ''))
-    for (const r of flatten(index, false, top)) {
-      const row = rows[r.id]!
-      lines.push(indent.repeat(r.depth + 1) + mark(r.id) + pre(row) + row.text + (row.done ? doneMark : ''))
-    }
+    lines.push(line(rows[top]!))
+    for (const r of flatten(index, false, top)) lines.push(indent.repeat(r.depth + 1) + line(rows[r.id]!))
   }
   return lines.join('\n')
+}
+
+// A divider as plain text: what parseOutline reads back as one.
+export function dividerText(text: string): string {
+  return text.trim() === '' ? '---' : `--- ${text.trim()} ---`
 }
 
 function escapeHtml(s: string): string {
@@ -172,6 +184,7 @@ export function toOutlineHtml(rows: Rows, ids: Iterable<string>, prefix: (row: N
   const index = buildIndex(rows)
   const tops = topmost(index, ids).map((id) => rows[id]!)
   const item = (row: NodeRow): string => {
+    if (row.divider) return `<li>${escapeHtml(dividerText(row.text))}</li>`
     const text = escapeHtml(prefix(row) + row.text)
     const body = row.header ? `<b>${text}</b>` : row.done ? `<s>${text}</s>` : text
     return `<li>${body}${lists(childrenOf(index, row.id))}</li>`

@@ -61,8 +61,9 @@ export function listPads(all: Rows): NodeRow[] {
 // Blank spacers are left out (the counting rule, see isBlank). `open` also leaves out
 // crossed-out lines: that is the list the Sort queue, the widgets and the watch show.
 // A boomeranged line (`due`) is out of the pads until its day: never one of a pad's lines.
+// A section divider is not an item: never one either.
 export function padLines(index: TreeIndex, padId: PadId, open = false): NodeRow[] {
-  return childrenOf(index, padId).filter((r) => !r.pad && !r.due && !(open && r.done) && (!isBlank(r) || childrenOf(index, r.id).length > 0))
+  return childrenOf(index, padId).filter((r) => !r.pad && !r.due && !r.divider && !(open && r.done) && (!isBlank(r) || childrenOf(index, r.id).length > 0))
 }
 
 // The number each pad shows: its open top-level lines. Main is under the key null.
@@ -158,7 +159,7 @@ export function lineToPad(all: Rows, ctx: OpCtx, id: string): { rows: Rows; name
   const moved = moveNodes(all, ctx, [id], { parentId: null, afterId: last?.id ?? null })
   const name = row.text.replace(/\s*\n\s*/g, ' ').trim() || 'Untitled pad'
   const node = moved[id]!
-  const pad: NodeRow = { ...node, parentId: null, text: name, pad: true, done: false, doneAt: null, doing: false, numbered: false, header: false, collapsed: false, updatedAt: ctx.now() }
+  const pad: NodeRow = { ...node, parentId: null, text: name, pad: true, done: false, doneAt: null, doing: false, numbered: false, header: false, divider: false, collapsed: false, updatedAt: ctx.now() }
   return { rows: { ...moved, [id]: pad }, name }
 }
 

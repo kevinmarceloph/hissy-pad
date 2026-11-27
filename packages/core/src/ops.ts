@@ -43,6 +43,7 @@ function makeNode(ctx: OpCtx, parentId: string | null, rank: string, text: strin
     collapsed: false,
     numbered,
     header: false,
+    divider: false,
     pad: false,
     slot: null,
     category: null,
@@ -142,7 +143,7 @@ export function setDone(rows: Rows, ctx: OpCtx, ids: Iterable<string>, done: boo
   let out = rows
   for (const id of ids) {
     const r = out[id]
-    if (!r || (!archived && !isLive(r)) || r.done === done) continue
+    if (!r || (!archived && !isLive(r)) || r.done === done || (done && r.divider)) continue // a divider is never done
     const now = ctx.now()
     out = { ...out, [id]: { ...out[id]!, done, doneAt: done ? now : null, doing: false, updatedAt: now } }
   }
@@ -155,7 +156,7 @@ export function setState(rows: Rows, ctx: OpCtx, ids: Iterable<string>, state: L
   if (state === 'done') return setDone(rows, ctx, list, true)
   let out = setDone(rows, ctx, list, false)
   const doing = state === 'doing'
-  for (const id of list) if (out[id]!.doing !== doing) out = patch(out, ctx, id, { doing })
+  for (const id of list) if (out[id]!.doing !== doing && !(doing && out[id]!.divider)) out = patch(out, ctx, id, { doing })
   return out
 }
 
@@ -245,12 +246,14 @@ function listMates(rows: Rows, ids: Iterable<string>, from: NodeKind): string[] 
 export function setNumbered(rows: Rows, ctx: OpCtx, ids: Iterable<string>, numbered: boolean): Rows {
   let out = rows
   for (const id of listMates(rows, ids, numbered ? 'plain' : 'numbered')) {
-    if (out[id]!.numbered !== numbered) out = patch(out, ctx, id, { numbered, header: false })
+    if (out[id]!.numbered !== numbered) out = patch(out, ctx, id, { numbered, header: false, divider: false })
   }
   return out
 }
 
-// Switch lines between plain, numbered and header. The two flags never overlap.
+// Switch lines between plain, numbered, header and divider. The flags never overlap.
+// A divider holds nothing and is not an item: the lines under it come out to its own
+// level, right after it (ungroup), and it is open again if it was done or being done.
 export function setKind(rows: Rows, ctx: OpCtx, ids: Iterable<string>, kind: NodeKind): Rows {
   let out = rows
   const list = [...ids]
@@ -260,8 +263,12 @@ export function setKind(rows: Rows, ctx: OpCtx, ids: Iterable<string>, kind: Nod
     : list
   for (const id of spread) {
     if (!isLive(out[id]) || kindOf(out[id]!) === kind) continue
-    out = patch(out, ctx, id, { numbered: kind === 'numbered', header: kind === 'header' })
+    out = patch(out, ctx, id, {
+      numbered: kind === 'numbered', header: kind === 'header', divider: kind === 'divider',
+      ...(kind === 'divider' ? { done: false, doneAt: null, doing: false, collapsed: false } : {}),
+    })
   }
+  if (kind === 'divider') out = ungroup(out, ctx, list.filter((id) => isLive(out[id]) && out[id]!.divider))
   return out
 }
 
@@ -314,13 +321,15 @@ export function restore(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
 }
 
 // Move a set of nodes (with their subtrees) to one spot, keeping their document order.
-// Refused (rows returned unchanged) when the target is inside one of the moved subtrees.
+// Refused (rows returned unchanged) when the target is inside one of the moved subtrees,
+// or is a divider: nothing goes under one.
 export function moveNodes(rows: Rows, ctx: OpCtx, ids: Iterable<string>, p: Placement): Rows {
   const index = buildIndex(rows)
   const moving = topmost(index, ids)
   if (moving.length === 0) return rows
   const movingSet = new Set(moving)
   if (p.parentId !== null) {
+    if (rows[p.parentId]?.divider) return rows
     if (movingSet.has(p.parentId)) return rows
     for (const m of moving) if (isAncestor(index, m, p.parentId)) return rows
   }
@@ -350,7 +359,8 @@ function nextSiblingExcluding(index: TreeIndex, id: string, exclude: ReadonlySet
 
 // Tab: each node becomes the last child of the nearest unselected sibling above it.
 // A run of selected siblings therefore lands under the same node, in order. The new
-// parent is expanded so the moved nodes stay visible.
+// parent is expanded so the moved nodes stay visible. A line right under a divider stays
+// where it is: a divider takes no lines.
 export function indent(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
   const index0 = buildIndex(rows)
   const moving = topmost(index0, ids)
@@ -358,7 +368,7 @@ export function indent(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
   let out = rows
   for (const id of moving) {
     const prev = prevSiblingExcluding(index0, id, movingSet)
-    if (!prev) continue
+    if (!prev || prev.divider) continue
     const index = buildIndex(out)
     const last = childrenOf(index, prev.id).at(-1)
     out = moveNodes(out, ctx, [id], { parentId: prev.id, afterId: last?.id ?? null })
@@ -392,14 +402,14 @@ export function dedent(rows: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
 // A line that went in or came out to another level takes that level's numbering (Kevin, 2026-11-27):
 // numbered when the line beside it there is numbered, plain when it is plain. The line
 // beside it is the one before it, or after it when that one is a header (a header is never
-// numbered, so it says nothing). A header itself stays as it is, and so does a line with
+// numbered, so it says nothing; the same for a divider). A header or a divider itself stays as it is, and so does a line with
 // no plain or numbered neighbour.
 function adoptLevelNumbering(rows: Rows, ctx: OpCtx, id: string): Rows {
   const r = rows[id]
-  if (!r || r.header) return rows
+  if (!r || r.header || r.divider) return rows
   const sibs = childrenOf(buildIndex(rows), r.parentId)
   const i = sibs.findIndex((x) => x.id === id)
-  const beside = [sibs[i - 1], sibs[i + 1]].find((x) => x && !x.header && !x.pad)
+  const beside = [sibs[i - 1], sibs[i + 1]].find((x) => x && !x.header && !x.divider && !x.pad)
   if (!beside || beside.numbered === r.numbered) return rows
   return patch(rows, ctx, id, { numbered: beside.numbered })
 }
@@ -563,6 +573,7 @@ export function mergeIntoPrev(
 ): { rows: Rows; prevId: string; caret: number } | null {
   const index = buildIndex(rows)
   if (childrenOf(index, id).length > 0) return null
+  if (rows[id]?.divider) return null // a divider's words are its own: it is archived, not folded into a line
   const vis = flatten(index, true)
   const i = vis.findIndex((r) => r.id === id)
   if (i <= 0) return null

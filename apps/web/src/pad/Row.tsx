@@ -186,12 +186,12 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
   const badge = category && row.category !== padCategory
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
-  const cls = ['row', row.done && 'is-done', row.doing && 'is-doing', row.pinned && 'is-pinned', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', selectedChild && 'is-selected-child', isEditing && 'is-editing', folded && 'is-collapsed', category && 'has-category', category && `cat-${category.color}`]
+  const cls = ['row', row.done && 'is-done', row.doing && 'is-doing', row.pinned && 'is-pinned', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', row.divider && number === null && 'is-divider', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', selectedChild && 'is-selected-child', isEditing && 'is-editing', folded && 'is-collapsed', category && 'has-category', category && `cat-${category.color}`]
     .filter(Boolean)
     .join(' ')
 
   return (
-    <div className={cls} style={{ '--depth': depth } as React.CSSProperties} data-id={row.id} role="treeitem" aria-selected={selected} aria-expanded={hasChildren ? !row.collapsed : undefined} aria-level={depth + 1}>
+    <div className={cls} style={{ '--depth': depth } as React.CSSProperties} data-id={row.id} role="treeitem" aria-selected={selected} aria-expanded={hasChildren ? !row.collapsed : undefined} aria-level={depth + 1} aria-roledescription={row.divider ? 'section divider' : undefined}>
       <button
         type="button"
         className="bullet"
@@ -251,7 +251,10 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
               onClick={() => cmdClearFresh(row.id)}
             />
           )}
-          {row.text === '' ? <span className="placeholder" aria-hidden="true">{'​'}</span> : <Styled text={row.text} />}
+          {row.text === '' ? <span className="placeholder" aria-hidden="true">{'​'}</span> : row.divider ? (
+            // A section divider: its words centered between the two halves of the rule (styles.css).
+            <span className="divider-label"><Styled text={row.text} /></span>
+          ) : <Styled text={row.text} />}
           {row.slot && (() => {
             // An hour that is over while the line is not done: red, and bold so it does not rest on color alone.
             const late = !row.done && slotPast(row.slot)

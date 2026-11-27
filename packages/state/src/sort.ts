@@ -96,12 +96,12 @@ export function sortRows(state: { all: Rows; padId: PadId } = usePad.getState())
 }
 
 // What there is to sort in the pad shown: its top-level lines, top to bottom, leaving out
-// crossed-out ones, pinned ones (they stay at the top on purpose) and blank spacers with
-// nothing under them.
+// crossed-out ones, pinned ones (they stay at the top on purpose), section dividers and
+// blank spacers with nothing under them.
 export function sortQueue(rows: Rows = sortRows()): string[] {
   const index = buildIndex(rows)
   return childrenOf(index, null)
-    .filter((r) => !r.done && !r.pinned && (r.text.trim() !== '' || childrenOf(index, r.id).length > 0))
+    .filter((r) => !r.done && !r.pinned && !r.divider && (r.text.trim() !== '' || childrenOf(index, r.id).length > 0))
     .map((r) => r.id)
 }
 

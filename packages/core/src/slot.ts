@@ -108,7 +108,7 @@ export function slotCounts(all: Rows): Record<string, SlotCount> {
   const out: Record<string, SlotCount> = {}
   for (const id in all) {
     const r = all[id]!
-    if (r.slot === null || isBlank(r) || r.pad) continue
+    if (r.slot === null || isBlank(r) || r.pad || r.divider) continue
     for (const key of slotHours(r.slot)) {
       const c = (out[key] ??= { done: 0, open: 0 })
       if (r.done) c.done++

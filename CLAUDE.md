@@ -53,6 +53,10 @@ Since 2026-11-25 a line can be sent out of the pads until a later day (the float
 
 Since 2026-11-27 Today's top-level lines with an hour sit under its own lines, below a "Scheduled" heading, always in the order of their hours (`settleSchedule` in `core/schedule.ts`, run by `commit` and `settleFixed` like `settleBoomerangs`). It is kept by rank, not by the drawing. A new line in the section takes the hour of the line above it, so an op that adds a line "at the end" of a pad has to mean the end of its own lines (`lastOwn` in the store). Details in `PLAN.md` under "Today's Scheduled section".
 
+## Section dividers
+
+Since 2026-11-27 a line can be a section divider (`divider` on the row, the fourth type in `LINE_KINDS`): a rule with its text centered and gray. It never has lines under it and is never done or counted. `setKind` kicks the sub items out; `moveNodes`, `indent`, `resolveDrop` and `insertOutline` refuse to put a line under one, so a new op that gives a line a parent has to go through `moveNodes` or check `divider` itself. The watch does not know it yet. Details in `PLAN.md` under "Section dividers".
+
 ## Commands
 
 ```bash

@@ -74,7 +74,7 @@ export function Toolbar({ theme }: { theme: Theme }) {
     return <Btn key={a.id} theme={theme} label={face.label} icon={face.icon} a11y={face.name} onPress={() => run(a)} disabled={a.enabled ? !a.enabled(can) : false} style={style} />
   }
   // Two rows, no sideways scrolling, every button the same width with the same gap. The top
-  // row is where the line sits and what kind it is: six arrows and three types. The second
+  // row is where the line sits and what kind it is: six arrows and four types. The second
   // is a new line beside it, then everything else in registry order, so a new action lands
   // there (and wraps if it ever runs out of room).
   const top = new Set<LineActionGroup>(['move'])
@@ -105,11 +105,11 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: GAP },
   second: { flexWrap: 'wrap', rowGap: 0 },
   btn: { minWidth: NARROW ? 32 : 36, minHeight: 40, paddingHorizontal: NARROW ? 4 : 6, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
-  // Each button an equal share of its row: nine to a row (six arrows and three types; the
-  // second row's nine), so the two rows line up.
+  // Each button an equal share of its row: ten on the first (six arrows and four types),
+  // nine on the second.
   cell: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0, paddingHorizontal: 0 },
-  // The three types in one bordered group as wide as three buttons and the two gaps between.
-  kind: { flexGrow: 3, flexShrink: 1, flexBasis: GAP * 2, flexDirection: 'row', borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, overflow: 'hidden' },
+  // The types in one bordered group as wide as that many buttons and the gaps between.
+  kind: { flexGrow: LINE_KINDS.length, flexShrink: 1, flexBasis: GAP * (LINE_KINDS.length - 1), flexDirection: 'row', borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, overflow: 'hidden' },
   kindBtn: { minHeight: 34, borderRadius: 0 },
   btnText: { fontFamily: serif, fontSize: 16 },
   count: { fontFamily: serif, fontSize: 15, paddingHorizontal: 6 },

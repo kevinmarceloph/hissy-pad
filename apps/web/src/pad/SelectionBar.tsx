@@ -164,7 +164,9 @@ export function SelectionBar() {
   const first = rows[ids[0]!]
   const current = first ? kindOf(first) : 'plain'
   const counted = countOf(selection, rows)
-  const label = n === 0 ? 'Editing' : counted > 0 ? lineCount(counted) : n === 1 ? 'Blank line' : 'Blank lines'
+  // Nothing counted: blank lines, or section dividers (which are not items either).
+  const dividers = n > 0 && selection.every((id) => rows[id]?.divider)
+  const label = n === 0 ? 'Editing' : counted > 0 ? lineCount(counted) : dividers ? (n === 1 ? 'Divider' : 'Dividers') : n === 1 ? 'Blank line' : 'Blank lines'
   const state = sharedState(rows, ids)
   const close = () => {
     if (n > 0) clearSelection()

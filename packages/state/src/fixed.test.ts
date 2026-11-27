@@ -71,7 +71,7 @@ describe('fixed tabs', () => {
   it('a pad named Inbox that arrives by sync is folded into the root', async () => {
     const remote = createFakeRemote()
     const at = Date.now() + 1000
-    const row = (r: Partial<NodeRow> & { id: string }): NodeRow => ({ parentId: null, rank: 'a0', text: '', done: false, doneAt: null, collapsed: false, numbered: false, header: false, pad: false, deletedAt: null, updatedAt: at, ...r } as NodeRow)
+    const row = (r: Partial<NodeRow> & { id: string }): NodeRow => ({ parentId: null, rank: 'a0', text: '', done: false, doneAt: null, collapsed: false, numbered: false, header: false, divider: false, pad: false, deletedAt: null, updatedAt: at, ...r } as NodeRow)
     remote.rows.set('p', { row: row({ id: 'p', text: 'Inbox', pad: true, rank: 'z0' }), syncedAt: new Date(1_700_000_000_000).toISOString() })
     remote.rows.set('l', { row: row({ id: 'l', parentId: 'p', text: 'from another device' }), syncedAt: new Date(1_700_000_000_001).toISOString() })
     startSync(remote)

@@ -97,7 +97,7 @@ export function FreshStart({ onClose }: { onClose: () => void }) {
       {list.map((r) => {
         const row = rows[r.id]!
         const sel = pick.side === side && picked.has(r.id)
-        const cls = ['row', 'is-static', row.done && 'is-done', row.text === '' && 'is-empty', row.header && 'is-header', sel && 'is-selected', pick.side === side && pickedChild.has(r.id) && 'is-selected-child'].filter(Boolean).join(' ')
+        const cls = ['row', 'is-static', row.done && 'is-done', row.text === '' && 'is-empty', row.header && 'is-header', row.divider && 'is-divider', sel && 'is-selected', pick.side === side && pickedChild.has(r.id) && 'is-selected-child'].filter(Boolean).join(' ')
         return (
           <div
             key={r.id}
@@ -109,7 +109,7 @@ export function FreshStart({ onClose }: { onClose: () => void }) {
             onDoubleClick={() => send([r.id], side === 'left' ? 'right' : 'left')}
           >
             <span className="bullet" aria-hidden="true" />
-            <div className="text">{row.text === '' ? '​' : row.text}</div>
+            <div className="text">{row.text === '' ? '​' : row.divider ? <span className="divider-label">{row.text}</span> : row.text}</div>
           </div>
         )
       })}

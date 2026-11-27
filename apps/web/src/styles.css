@@ -301,6 +301,19 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
 .row.is-header.is-done .bullet::before { color: var(--ink-mute); text-decoration: line-through; text-decoration-color: var(--accent); }
 .row.is-header.is-collapsed .bullet::before { text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 0.2em; }
 .row.is-header .bullet:hover::before { box-shadow: none; background: var(--accent-soft); border-radius: 3px; padding: 0 0.2rem; }
+/* Section divider: a rule across the line with its words, if any, centered in it and gray.
+   No dot (it is not an item); hovering the gutter still shows the halo, so it can be
+   selected and dragged. One line tall like any other, so nothing below it shifts. */
+.row.is-divider .bullet::before { background: transparent; }
+.row.is-divider.is-editing .bullet::before { background: var(--rule); }
+.row.is-divider .text { color: var(--ink-mute); text-align: center; }
+.row.is-divider div.text { display: flex; align-items: center; }
+.row.is-divider div.text::before, .row.is-divider div.text::after { content: ''; flex: 1 1 1rem; min-width: 1rem; height: 1px; background: var(--rule); }
+.row.is-divider .divider-label { flex: 0 1 auto; padding: 0 0.6rem; min-width: 0; }
+.row.is-divider .placeholder { display: none; }
+.row.is-divider .slot, .row.is-divider .fresh { display: none; }
+/* While its words are typed, the rule runs behind an empty one so the line still reads as a divider. */
+.row.is-divider.is-empty textarea.text { background: linear-gradient(var(--rule), var(--rule)) center / 100% 1px no-repeat; }
 /* Numbered: the position in the run replaces the dot, right-aligned to the text. */
 .row.is-numbered .bullet::before {
   content: attr(data-num);
@@ -639,7 +652,7 @@ dialog.categories-dialog[open] { height: min(44rem, calc(100dvh - 3rem)); displa
   .fab .round { width: 40px; height: 40px; }
   .fab .switch { width: 104px; height: 40px; }
   /* Two rows, no sideways scrolling: where the line sits and its type on the first (six
-     arrows and three types), a new line beside it and everything else on the second. Each
+     arrows and four types), a new line beside it and everything else on the second. Each
      button takes an equal share, with the same gap between any two. */
   .selwrap { left: 8px; right: 8px; width: auto; max-width: none; align-items: stretch; }
   .selwrap .fab { align-self: flex-end; }
@@ -651,7 +664,7 @@ dialog.categories-dialog[open] { height: min(44rem, calc(100dvh - 3rem)); displa
   .selbar .brk { display: block; flex: 0 0 100%; height: 0; order: 0; }
   .selbar button { flex: 1 1 0; min-width: 30px; min-height: 40px; padding: 0; }
   .selbar .g-move { order: -2; }
-  .selbar .kind { flex: 3 1 0; order: -1; align-self: center; }
+  .selbar .kind { flex: 4 1 0; order: -1; align-self: center; }
   .selbar .kind button { min-width: 0; min-height: 34px; }
   .selbar .moveto.moveto { flex: 1 1 0; display: flex; }
   .selbar .moveto > button { flex: 1 1 0; }

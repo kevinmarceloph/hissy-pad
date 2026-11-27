@@ -3,9 +3,10 @@ import { idOf, pad, shape } from '@hissypad/core'
 import { loadPad, usePad } from './store'
 import { select } from './selection'
 import { actionFace, LINE_ACTIONS, LINE_KINDS, lineAbilities, lineCount } from './actions'
-import { cmdCopySelection, setClipboard, setClipboardProbe, setClipboardReader, useClipboard } from './commands'
+import { cmdSetKind, cmdCopySelection, setClipboard, setClipboardProbe, setClipboardReader, useClipboard } from './commands'
 import { padList } from './pads'
 import { resetStore } from './testing'
+import { undo } from './history'
 
 const action = (id: string) => LINE_ACTIONS.find((a) => a.id === id)!
 
@@ -29,6 +30,29 @@ describe('line abilities', () => {
   it('a target that is not among the rows is passed over (a line just archived out of an open hour)', () => {
     expect(lineAbilities(rows, ['gone'])).toEqual(lineAbilities(rows, []))
     expect(lineAbilities(rows, ['gone', idOf(rows, 'B')])).toEqual(can('B'))
+  })
+})
+
+describe('a line right under a section divider', () => {
+  it('cannot indent, and the button says so', () => {
+    const rows = pad('A\n--- Part\nB\nC')
+    const can = (...texts: string[]) => lineAbilities(rows, texts.map((t) => idOf(rows, t)))
+    expect(can('B').indent).toBe(false)
+    expect(can('B', 'C').indent).toBe(false)
+    expect(can('C').indent).toBe(true)
+    expect(can('Part').indent).toBe(true) // the divider itself can go under the line above it
+    expect(action('indent').enabled!(can('B'))).toBe(false)
+  })
+
+  it('the Divider type kicks the sub items out, in one undo step', async () => {
+    resetStore('A\n  A1\n  A2\nB')
+    await loadPad()
+    const id = idOf(usePad.getState().rows, 'A')
+    select([id], id)
+    cmdSetKind('divider')
+    expect(shape(usePad.getState().rows)).toBe('=A\nA1\nA2\nB')
+    undo()
+    expect(shape(usePad.getState().rows)).toBe('A\n  A1\n  A2\nB')
   })
 })
 
@@ -68,7 +92,7 @@ describe('the toolbar registry', () => {
     expect(new Set(groups).size).toBe(groups.length)
     expect(groups[0]).toBe('mark')
     for (const a of LINE_ACTIONS) expect(a.name && a.hint && a.label).toBeTruthy()
-    expect(LINE_KINDS.map((k) => k.kind)).toEqual(['plain', 'header', 'numbered'])
+    expect(LINE_KINDS.map((k) => k.kind)).toEqual(['plain', 'header', 'numbered', 'divider'])
   })
 
   it('each action runs its command on the selection', () => {

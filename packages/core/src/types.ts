@@ -12,6 +12,7 @@ export interface NodeRow {
   collapsed: boolean        // synced across devices on purpose
   numbered: boolean         // shown as "1." within its run of consecutive numbered siblings
   header: boolean           // bold, with a "#" for a bullet; never numbered at the same time
+  divider: boolean          // a section divider: a rule across the pad with its text, if any, centered and gray; never has lines under it, never done
   pad: boolean              // a root-level node that is a pad of its own (pads.ts); its subtree is that pad
   slot: string | null       // the hour this line is assigned to in Hours, 'YYYY-MM-DDTHH' (a calendar day and hour, device local time; slot.ts)
   category: string | null   // the id of one of Hours' categories (hour_categories.id); drawn as its icon before the text
@@ -37,6 +38,7 @@ export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
     collapsed: r.collapsed === true,
     numbered: r.numbered === true,
     header: r.header === true && r.numbered !== true,
+    divider: r.divider === true && r.numbered !== true && r.header !== true,
     pad: r.pad === true,
     slot: r.slot ?? null,
     category: r.category ?? null,
@@ -53,7 +55,7 @@ export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
 // new NodeRow field is added here too, which is what keeps sameRow honest.
 const ROW_FIELDS: Record<keyof NodeRow, true> = {
   id: true, parentId: true, rank: true, text: true, done: true, doneAt: true, doing: true, collapsed: true,
-  numbered: true, header: true, pad: true, slot: true, category: true, pinned: true, countHidden: true, due: true, fresh: true, updatedAt: true, deletedAt: true,
+  numbered: true, header: true, divider: true, pad: true, slot: true, category: true, pinned: true, countHidden: true, due: true, fresh: true, updatedAt: true, deletedAt: true,
 }
 export const ROW_KEYS = Object.keys(ROW_FIELDS) as (keyof NodeRow)[]
 
@@ -62,9 +64,9 @@ export function sameRow(a: Partial<NodeRow>, b: Partial<NodeRow>): boolean {
   return ROW_KEYS.every((k) => a[k] === b[k])
 }
 
-// The three ways a line can look. Stored as two booleans (numbered, header) so the column
+// The four ways a line can look. Stored as three booleans (numbered, header, divider) so the column
 // set only ever grows; kindOf/setKind keep them exclusive.
-export type NodeKind = 'plain' | 'numbered' | 'header'
+export type NodeKind = 'plain' | 'numbered' | 'header' | 'divider'
 
 // The three states a line goes through: open (•), doing (a dot in a ring), done (×). Stored
 // as two booleans (done, doing) so `done` keeps meaning what it always has everywhere else.
@@ -74,8 +76,8 @@ export function stateOf(r: Pick<NodeRow, 'done' | 'doing'>): LineState {
   return r.done ? 'done' : r.doing ? 'doing' : 'open'
 }
 
-export function kindOf(r: Pick<NodeRow, 'numbered' | 'header'>): NodeKind {
-  return r.numbered ? 'numbered' : r.header ? 'header' : 'plain'
+export function kindOf(r: Pick<NodeRow, 'numbered' | 'header'> & { divider?: boolean }): NodeKind {
+  return r.numbered ? 'numbered' : r.header ? 'header' : r.divider ? 'divider' : 'plain'
 }
 
 // The client's whole local copy, keyed by id. Ops take one and return a new one with

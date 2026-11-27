@@ -72,7 +72,7 @@ function safe(v: unknown): string {
 }
 
 // A compact view of a row for the log: enough to see what changed, short enough to read.
-export function rowBrief(r: { id: string; parentId: string | null; rank: string; text: string; done: boolean; doing?: boolean; collapsed: boolean; numbered: boolean; header?: boolean; pad?: boolean; slot?: string | null; category?: string | null; pinned?: boolean; countHidden?: boolean; due?: string | null; fresh?: boolean; deletedAt: string | null } | undefined) {
+export function rowBrief(r: { id: string; parentId: string | null; rank: string; text: string; done: boolean; doing?: boolean; collapsed: boolean; numbered: boolean; header?: boolean; divider?: boolean; pad?: boolean; slot?: string | null; category?: string | null; pinned?: boolean; countHidden?: boolean; due?: string | null; fresh?: boolean; deletedAt: string | null } | undefined) {
   if (!r) return null
   return {
     id: r.id.slice(0, 8),
@@ -88,6 +88,7 @@ export function rowBrief(r: { id: string; parentId: string | null; rank: string;
     ...(r.due ? { due: r.due } : {}),
     ...(r.fresh ? { fresh: true } : {}),
     ...(r.header ? { header: true } : {}),
+    ...(r.divider ? { divider: true } : {}),
     ...(r.pad ? { pad: true } : {}),
     ...(r.slot ? { slot: r.slot } : {}),
     ...(r.category ? { category: r.category } : {}),

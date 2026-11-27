@@ -18,7 +18,7 @@ function Line({ line, selected, covered, found, onTap }: { line: ArchiveLine; se
   const { row } = line
   const category = useLineCategory(row.category)
   const cls = [
-    'row', 'is-static', row.done && 'is-done', row.doing && 'is-doing', line.number !== null && 'is-numbered', row.header && line.number === null && 'is-header', category && 'has-category',
+    'row', 'is-static', row.done && 'is-done', row.doing && 'is-doing', line.number !== null && 'is-numbered', row.header && line.number === null && 'is-header', row.divider && 'is-divider', category && 'has-category',
     selected && 'is-selected', covered && 'is-selected-child', found && 'is-found',
   ].filter(Boolean).join(' ')
   // The pad it was in; an archived pad says what it is. A line under another has no chip:
@@ -43,7 +43,7 @@ function Line({ line, selected, covered, found, onTap }: { line: ArchiveLine; se
         </span>
       )}
       <div className="text">
-        {row.text.trim() === '' ? <span className="placeholder" aria-hidden="true">{'​'}</span> : <Styled text={row.text} />}
+        {row.text.trim() === '' ? <span className="placeholder" aria-hidden="true">{'​'}</span> : row.divider ? <span className="divider-label"><Styled text={row.text} /></span> : <Styled text={row.text} />}
         {row.slot && <span className="slot" data-slot={row.slot} title="The hour this line is in">{slotLabel(row.slot, todayKey())}</span>}
       </div>
       {chip && <span className={line.isPad || line.sourceLive ? 'src' : 'src is-gone'} title={where}>{chip}</span>}

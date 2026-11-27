@@ -1,6 +1,6 @@
 -- pgTAP: RLS and last-write-wins on public.nodes. Run with `supabase test db`.
 begin;
-select plan(39);
+select plan(41);
 
 -- Two users, created directly (no GoTrue in a db test).
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
@@ -120,6 +120,11 @@ select is((select doing from public.nodes where id = 'aaaaaaaa-0000-0000-0000-00
 select is((select pinned from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), false, 'pinned defaults to false');
 update public.nodes set pinned = true, updated_at = '2026-11-25T00:00:00Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
 select is((select pinned from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), true, 'pinned round-trips');
+
+-- divider: a section divider, false by default.
+select is((select divider from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), false, 'divider defaults to false');
+update public.nodes set divider = true, updated_at = '2026-11-25T00:00:00.5Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select is((select divider from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), true, 'divider round-trips');
 
 -- count_hidden: a pad's tab leaves out its count, false by default.
 select is((select count_hidden from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), false, 'count_hidden defaults to false');

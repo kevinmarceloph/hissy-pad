@@ -20,7 +20,7 @@ import { cmdPickBoomerang } from './boomerang'
 // What the current targets allow, so an impossible action reads as disabled instead of
 // silently doing nothing.
 export interface LineAbilities {
-  indent: boolean   // some target has an unselected sibling above it to nest under
+  indent: boolean   // some target has an unselected sibling right above it to nest under, and that one is not a divider
   dedent: boolean   // some target is not at the top level
   up: boolean
   down: boolean
@@ -58,7 +58,7 @@ export function lineAbilities(
     const ordered = !(hour && parent === null)
     const pinned = rows[id]!.pinned
     const before = sibs.slice(0, i).filter((s) => !set.has(s.id))
-    if (before.length) { can.indent = true; if (ordered && before.some((s) => s.pinned === pinned)) can.up = true }
+    if (before.length) { if (!before.at(-1)!.divider) can.indent = true; if (ordered && before.some((s) => s.pinned === pinned)) can.up = true }
     if (ordered && sibs.slice(i + 1).some((s) => !set.has(s.id) && s.pinned === pinned)) can.down = true
     if (pads && parent === null && !rows[id]!.pad) { can.pin = true; if (!pinned) unpinned = true }
     if (parent !== null) can.dedent = true
@@ -184,11 +184,12 @@ export function lineActions(can: LineAbilities): readonly LineAction[] {
   return LINE_ACTIONS.filter((a) => !a.offered || a.offered(can))
 }
 
-// The three line types, for the switcher both toolbars draw.
+// The four line types, for the switcher both toolbars draw.
 export const LINE_KINDS: readonly { kind: NodeKind; glyph: string; name: string; hint: string; keys?: string }[] = [
   { kind: 'plain', glyph: '·', name: 'Bullet', hint: 'Plain bullet' },
   { kind: 'header', glyph: '#', name: 'Header', hint: 'Header: bold, with a # bullet' },
   { kind: 'numbered', glyph: '1.', name: 'Numbered list', hint: 'Numbered list', keys: '⌘⇧7' },
+  { kind: 'divider', glyph: '—', name: 'Divider', hint: 'Section divider: a rule across the pad, its words centered and gray; its sub items come out beside it' },
 ]
 
 // "1 line" / "3 lines", for the counts the app reports.

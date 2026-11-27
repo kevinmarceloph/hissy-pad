@@ -101,6 +101,8 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
     if (pendingSel) setPendingSel(undefined)
   }
 
+  // A numbered line shows its number whatever else it says it is (the flags never overlap).
+  const divider = row.divider && number === null
   const bullet = (
     <Pressable
       accessibilityRole="button"
@@ -120,6 +122,9 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
         <Text style={[s.num, { color: ink }, row.done && { color: doneInk, textDecorationLine: 'line-through' }, row.doing && [s.ringed, { borderColor: catInk ?? theme.inkSoft }]]}>{number}.</Text>
       ) : row.header ? (
         <Text style={[s.hash, { color: row.done ? doneInk : ink }, row.done && { textDecorationLine: 'line-through' }, row.doing && [s.ringed, { borderColor: catInk ?? theme.inkSoft }]]}>#</Text>
+      ) : row.divider ? (
+        // A section divider is not an item: no dot, but a faint one while its words are typed.
+        <View style={[s.dot, { backgroundColor: isEditing ? theme.rule : 'transparent' }]} />
       ) : row.done ? (
         <Text style={[s.cross, { color: doneInk }]}>×</Text>
       ) : row.doing ? (
@@ -193,11 +198,18 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
             }
             if (usePad.getState().editing?.id === row.id) usePad.setState({ editing: null })
           }}
-          style={[s.text, s.input, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}
-          accessibilityLabel="Line text"
+          style={[s.text, s.input, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }, divider && { color: theme.inkMute, textAlign: 'center' }]}
+          accessibilityLabel={divider ? 'Divider text' : 'Line text'}
         >
           {ANDROID ? <Text style={s.inputLine}>{draft}</Text> : null}
         </TextInput>
+      ) : divider ? (
+        // A section divider: a rule across the line, its words (if any) centered in it and gray.
+        <Pressable style={[s.textWrap, s.divider]} onPress={() => edit(row.id, 'end')} accessibilityLabel={row.text.trim() ? `Divider: ${row.text.trim()}` : 'Divider'}>
+          <View style={[s.dividerRule, { backgroundColor: theme.rule }]} />
+          {row.text.trim() !== '' && <Text style={[s.dividerText, { color: theme.inkMute }]}>{row.text.trim()}</Text>}
+          {row.text.trim() !== '' && <View style={[s.dividerRule, { backgroundColor: theme.rule }]} />}
+        </Pressable>
       ) : (
         <Pressable style={s.textWrap} onPress={() => edit(row.id, 'end')}>
           <Text style={[s.text, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
@@ -283,6 +295,9 @@ const s = StyleSheet.create({
   inputLine: { lineHeight: LINE },
   category: { marginTop: (LINE - 22) / 2, marginRight: 6 },
   fresh: { width: 13, height: 13, borderRadius: 6.5, borderWidth: 2.5, marginTop: (LINE - 13) / 2, marginRight: 7 },
+  divider: { flexDirection: 'row', alignItems: 'center' },
+  dividerRule: { flexGrow: 1, flexShrink: 1, flexBasis: 16, minWidth: 16, height: StyleSheet.hairlineWidth * 2 },
+  dividerText: { flexShrink: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, textAlign: 'center', paddingHorizontal: 10 },
   slot: { fontSize: SIZE - 5, fontWeight: '400', fontStyle: 'normal', textDecorationLine: 'none' },
   chip: { fontSize: SIZE - 5, fontWeight: '400', textDecorationLine: 'none', fontVariant: ['tabular-nums'] },
 })

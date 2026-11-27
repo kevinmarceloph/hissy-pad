@@ -26,7 +26,7 @@ describe('wire format', () => {
   it('rows from before a column existed read as the column\'s default', () => {
     const old = { id: 'o', parent_id: null, rank: 'a0', text: 't', done: true, collapsed: false, numbered: true, updated_at: '2026-10-01T00:00:00Z', deleted_at: null }
     const r = fromWire(old).row
-    expect(r).toMatchObject({ header: false, pad: false, doneAt: null, numbered: true })
+    expect(r).toMatchObject({ header: false, divider: false, pad: false, doneAt: null, numbered: true })
     // A header that is also numbered (two devices disagreeing) reads as numbered.
     expect(fromWire({ ...old, header: true }).row.header).toBe(false)
     expect(r.doing).toBe(false)

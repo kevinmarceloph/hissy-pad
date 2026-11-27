@@ -5,7 +5,8 @@
 //   - the pointer's y picks a gap between two visible rows (by their midpoints)
 //   - the pointer's x picks a depth, clamped to what the gap allows:
 //       at least the depth of the row below (anything shallower would cut it off from its
-//       parent), at most one deeper than the row above (become its child)
+//       parent), at most one deeper than the row above (become its child; never the child
+//       of a section divider, which takes no lines)
 //   - rows being moved, and everything under them, are not anchors
 import type { Rows } from './types'
 import type { TreeIndex } from './tree'
@@ -41,7 +42,7 @@ export function resolveDrop(input: DropInput): DropTarget | null {
   const prev = gap > 0 ? anchors[gap - 1]! : null
   const next = gap < anchors.length ? anchors[gap]! : null
 
-  const maxDepth = prev ? prev.depth + 1 : 0
+  const maxDepth = prev ? prev.depth + (input.rows[prev.id]?.divider ? 0 : 1) : 0
   const minDepth = next ? next.depth : 0
   const depth = Math.max(minDepth, Math.min(maxDepth, Math.round(input.pointerDepth)))
 

@@ -43,6 +43,8 @@ const Line = memo(function Line({ line, selected, covered, found, theme, onTap }
           <Text style={[s.num, { color: mark }, row.done && { textDecorationLine: 'line-through' }]}>{line.number}.</Text>
         ) : row.header ? (
           <Text style={[s.hash, { color: mark }, row.done && { textDecorationLine: 'line-through' }]}>#</Text>
+        ) : row.divider ? (
+          <Text style={[s.num, { color: theme.inkMute }]}>—</Text>
         ) : row.done ? (
           <Text style={[s.cross, { color: theme.inkMute }]}>×</Text>
         ) : row.doing ? (
@@ -52,7 +54,7 @@ const Line = memo(function Line({ line, selected, covered, found, theme, onTap }
         )}
       </View>
       {category && <View style={[s.category, row.done && { opacity: 0.55 }]}><CategoryBadge category={category} wordWhenBare /></View>}
-      <Text style={[s.text, { color: row.done ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
+      <Text style={[s.text, { color: row.done || row.divider ? theme.inkMute : theme.ink }, row.header && s.bold, row.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
         {row.text.trim() === '' ? ' ' : inlineSpans(row.text).map((sp, i) => {
           const strike = sp.strike || row.done
           const deco = sp.underline ? (strike ? 'underline line-through' : 'underline') : sp.strike ? 'line-through' : undefined
