@@ -36,8 +36,6 @@ const entry = (hour: number, over: Partial<Entry> = {}): Entry => ({
   hour,
   note: '',
   category: 'deep',
-  planned: null,
-  plannedNote: '',
   flags: [],
   state: 'open',
   updatedAt: 1,
@@ -94,7 +92,7 @@ describe('entry', () => {
   });
 
   it('patches only the fields given', () => {
-    const base = entry(9, { note: 'standup', category: 'people', planned: null, plannedNote: '', flags: [], updatedAt: 100 });
+    const base = entry(9, { note: 'standup', category: 'people', flags: [], updatedAt: 100 });
     expect(applyPatch(base, TODAY, 9, { note: 'standup, then email' }, 200)).toEqual({
       ...base,
       note: 'standup, then email',
@@ -106,8 +104,6 @@ describe('entry', () => {
       hour: 9,
       note: '',
       category: 'deep',
-      planned: null,
-      plannedNote: '',
       flags: [],
       state: 'open',
       updatedAt: 200,

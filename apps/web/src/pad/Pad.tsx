@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, homeNumbers, listNumbers, pinDivider, scheduleHead } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, homeNumbers, listNumbers, pinDivider, scheduleHead, slotShown } from '@hissypad/core'
 import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
   todayShown, cmdAddAtTop, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
@@ -20,7 +20,8 @@ const NEW_ROW = '\u0000new'
 export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boolean; undo?: boolean }) {
   const rows = usePad((s) => s.rows)
   // In an hour the lines are lifted out of their lists: their numbers are the ones they have at home.
-  const home = usePad((s) => (s.slotId !== null ? s.all : null))
+  // (The table as the hour reads it: its archived lines alive, so they keep their numbers too.)
+  const home = usePad((s) => (s.slotId !== null ? slotShown(s.all, s.slotId).table : null))
   const editing = usePad((s) => s.editing)
   const selection = usePad((s) => s.selection)
 

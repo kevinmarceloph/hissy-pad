@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { applyPatch, type Entry } from './entry';
 import {
   cleanDays,
   covers,
@@ -8,13 +7,11 @@ import {
   newRecurring,
   newRecurringId,
   patchRecurring,
-  pinRecurring,
   recurringAt,
   recurringProblem,
   spanHours,
   spanLabel,
   toggleDay,
-  withRecurring,
   type RecurringPlan,
 } from './recurring';
 
@@ -134,51 +131,5 @@ describe('a recurring plan', () => {
     expect(edited).toMatchObject({ from: 18, to: 20, days: [1, 5], note: 'gym\nlegs', updatedAt: now.getTime() + 1 });
     expect(patchRecurring(edited, { archived: true }, now.getTime() + 10).archived).toBe(true);
     expect(newRecurringId(() => 0.5)).toMatch(/^r[a-z0-9]{9}$/);
-  });
-});
-
-describe('an hour under a recurring plan', () => {
-  const stored = (over: Partial<Entry> = {}): Entry => ({
-    day: SAT,
-    hour: 3,
-    note: '',
-    category: null,
-    planned: null,
-    plannedNote: '',
-    flags: [],
-    state: 'open',
-    updatedAt: 7,
-    ...over,
-  });
-
-  it('shows the recurring plan where it has none of its own', () => {
-    // No row at all: a blank one carries the plan.
-    expect(withRecurring(undefined, plan(), SAT, 3)).toEqual(stored({ planned: 'sleep', plannedNote: 'sleep', updatedAt: 0 }));
-    // A row with something logged and no plan takes it too.
-    expect(withRecurring(stored({ note: 'up late' }), plan(), SAT, 3)).toMatchObject({ note: 'up late', planned: 'sleep' });
-    // Its own plan wins, in words or by category.
-    const own = stored({ plannedNote: 'night out' });
-    expect(withRecurring(own, plan(), SAT, 3)).toBe(own);
-    expect(withRecurring(undefined, undefined, SAT, 3)).toBeUndefined();
-  });
-
-  it('is pinned into the row by the first write to the hour', () => {
-    const patch = pinRecurring({ state: 'done' }, undefined, plan());
-    const row = applyPatch(undefined, SAT, 3, patch, 100);
-    expect(row).toMatchObject({ state: 'done', planned: 'sleep', plannedNote: 'sleep' });
-
-    // The plan changes later; the hour that was lived keeps the one it was lived under.
-    const later = plan({ note: 'sleep early', category: 'rest' });
-    expect(withRecurring(row, later, SAT, 3)).toBe(row);
-    const undone = applyPatch(row, SAT, 3, pinRecurring({ state: 'open' }, row, later), 200);
-    expect(undone).toMatchObject({ state: 'open', planned: 'sleep', plannedNote: 'sleep' });
-  });
-
-  it('lets a patch that sets the plan win over the pin', () => {
-    expect(pinRecurring({ planned: 'body' }, undefined, plan())).toEqual({ planned: 'body', plannedNote: 'sleep' });
-    expect(pinRecurring({ planned: null, plannedNote: '' }, undefined, plan())).toEqual({ planned: null, plannedNote: '' });
-    // Nothing to pin on an hour with its own plan, or under no recurring plan.
-    expect(pinRecurring({ note: 'x' }, stored({ planned: 'deep' }), plan())).toEqual({ note: 'x' });
-    expect(pinRecurring({ note: 'x' }, undefined, undefined)).toEqual({ note: 'x' });
   });
 });

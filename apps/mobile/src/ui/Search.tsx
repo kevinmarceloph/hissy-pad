@@ -5,18 +5,31 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { cmdOpenHit, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
+import { parseSlot, slotLabel, todayKey } from '@hissypad/core'
+import { cmdOpenHit, hitNote, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
+import { cmdSlotPut, inSlot } from '@hissypad/state/hours'
 import { serif, type Theme, SHEET_TOP } from '../theme'
 
 // `onOpen` runs when a line found is gone to: the app comes back to the pad from Hours or Sort.
 // `onArchived` is handed an archived line that was picked: the app shows it in the Archive.
-export function SearchSheet({ visible, onClose, onOpen, onArchived, theme }: { visible: boolean; onClose: () => void; onOpen?: () => void; onArchived?: (id: string) => void; theme: Theme }) {
+// `assign` is an hour (a slot key) the search was opened for, from that hour in Hours: the
+// line picked is put in the hour instead of gone to. Pads, archived lines and the lines
+// already in the hour are left out then.
+export function SearchSheet({ visible, onClose, onOpen, onArchived, assign = null, theme }: { visible: boolean; onClose: () => void; onOpen?: () => void; onArchived?: (id: string) => void; assign?: string | null; theme: Theme }) {
   const insets = useSafeAreaInsets()
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
   const [query, setQuery] = useState('')
   const [archived, setArchived] = useState(false)
-  const result = useMemo(() => (visible ? search(all, query, padId, undefined, archived) : { groups: [], total: 0 }), [visible, all, query, padId, archived])
+  const hour = assign === null ? null : parseSlot(assign)
+  const what = hour && assign ? `Find a line for ${slotLabel(assign, todayKey())}` : 'Search every pad'
+  const result = useMemo(() => {
+    if (!visible) return { groups: [], total: 0 }
+    const found = search(all, query, padId, undefined, archived && assign === null)
+    if (assign === null) return found
+    const groups = found.groups.map((g) => ({ ...g, hits: g.hits.filter((h) => !h.isPad && !h.archived && !inSlot(h.id, assign)) })).filter((g) => g.hits.length > 0)
+    return { groups, total: groups.reduce((n, g) => n + g.hits.length, 0) }
+  }, [visible, all, query, padId, archived, assign])
 
   useEffect(() => {
     if (!visible) setQuery('')
@@ -24,6 +37,7 @@ export function SearchSheet({ visible, onClose, onOpen, onArchived, theme }: { v
 
   const open = (hit: SearchHit) => {
     onClose()
+    if (hour) return cmdSlotPut(hit.id, hour.day, hour.hour)
     if (hit.archived) return onArchived?.(hit.id)
     cmdOpenHit(hit.id)
     onOpen?.()
@@ -43,16 +57,16 @@ export function SearchSheet({ visible, onClose, onOpen, onArchived, theme }: { v
             autoCorrect={false}
             clearButtonMode="while-editing"
             returnKeyType="search"
-            placeholder="Search every pad"
+            placeholder={what}
             placeholderTextColor={theme.inkMute}
-            accessibilityLabel="Search every pad"
+            accessibilityLabel={what}
             style={[s.field, { color: theme.ink, backgroundColor: theme.paperRaised, borderColor: theme.rule }]}
           />
           <Pressable onPress={onClose} style={s.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel="Close">
             <Text style={[s.close, { color: theme.inkSoft }]}>Close</Text>
           </Pressable>
         </View>
-        <Pressable
+        {!hour && <Pressable
           onPress={() => setArchived(!archived)}
           style={s.toggle}
           hitSlop={{ top: 8, bottom: 8 }}
@@ -60,7 +74,7 @@ export function SearchSheet({ visible, onClose, onOpen, onArchived, theme }: { v
           accessibilityState={{ selected: archived }}
         >
           <Text style={[s.toggleText, { color: theme.accent }]}>{archived ? 'Leave out archived lines' : 'Search archived lines too'}</Text>
-        </Pressable>
+        </Pressable>}
         <ScrollView
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -80,15 +94,15 @@ export function SearchSheet({ visible, onClose, onOpen, onArchived, theme }: { v
                   <Text numberOfLines={2} style={[s.txt, { color: h.done ? theme.inkMute : h.archived ? theme.inkSoft : theme.ink }, h.archived && { fontStyle: 'italic' }, h.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
                     {h.parts.map((p, k) => (p.hit ? <Text key={k} style={{ color: theme.accent, fontWeight: '600' }}>{p.text}</Text> : p.text))}
                   </Text>
-                  {(h.isPad || h.path.length > 0) && (
-                    <Text numberOfLines={1} style={[s.sub, { color: theme.inkMute }]}>{[h.isPad && 'Pad', ...h.path].filter(Boolean).join(' › ')}</Text>
+                  {hitNote(h) !== '' && (
+                    <Text numberOfLines={1} style={[s.sub, { color: theme.inkMute }]}>{hitNote(h)}</Text>
                   )}
                 </Pressable>
               ))}
             </View>
           ))}
           <Text style={[s.note, { color: theme.inkMute }]}>
-            {!typed ? `Lines from every pad, crossed-out ones${archived ? ' and archived ones' : ''} too. Tap one to go to it${archived ? ', or to an archived one in the Archive' : ''}.` : result.total === 0 ? 'Nothing found.' : `${searchCount(result)}.`}
+            {hour ? (!typed ? 'Lines from every pad. Tap one to put it in this hour, where it is in its pad.' : result.total === 0 ? 'Nothing found.' : `${searchCount(result)}.`) : !typed ? `Lines from every pad, crossed-out ones${archived ? ' and archived ones' : ''} too. Tap one to go to it${archived ? ', or to an archived one in the Archive' : ''}.` : result.total === 0 ? 'Nothing found.' : `${searchCount(result)}.`}
           </Text>
         </ScrollView>
       </View>

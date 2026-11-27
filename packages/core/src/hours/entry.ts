@@ -1,9 +1,10 @@
 import type { DayKey } from './day';
 import { cleanFlagIds } from './flags';
 
-// The three states an hour goes through, the same three a line of the pad has: open (a
-// dot), doing (a dot in a ring), done (a cross). Done is set by hand: it is how a past
-// hour is confirmed to have gone where it should.
+// The three states a line of the pad has: open (a dot), doing (a dot in a ring), done (a
+// cross). An hour has none of its own since 2026-11-27 (Kevin): it is in the state of the
+// first line put in it. `state` on a stored row is what was set by hand before that day,
+// read only for an hour that has no lines.
 export type HourState = 'open' | 'doing' | 'done';
 
 export function cleanHourState(raw: unknown): HourState | null {
@@ -11,26 +12,25 @@ export function cleanHourState(raw: unknown): HourState | null {
 }
 
 // One row per hour slot. (day, hour) is the identity, on the device and on the server, so
-// two devices logging the same hour land on the same row and last-write-wins settles it.
-// There is no delete: clearing an hour writes an empty row (no note, no category, no plan,
-// no flags) with a newer updatedAt, and that empty row is its own tombstone.
+// two devices writing the same hour land on the same row and last-write-wins settles it.
+// There is no delete.
+//
+// Since 2026-11-27 (Kevin, "rethink the hour view, round 3") nothing on screen writes one:
+// an hour is the lines put in it, and its title, category and state are its first line's.
+// The rows stay for what they already hold (a summary, a category and a state typed before
+// that day, shown only for an hour with no lines) and for the flags, which are hidden for
+// now and kept for a later version. The plan columns (`planned`, `planned_note`) are gone
+// from the code; the server still has them, unread.
 export type Entry = {
   day: DayKey;
   hour: number; // 0-23, device local time
-  // The hour's summary, in words: a title typed by hand. Blank by default, and the hour
-  // then shows the first of the pad's lines put in it.
+  // Deprecated: the summary once typed for the hour.
   note: string;
-  // Where the hour went: a category id (src/core/categories.ts). An id the device does not
-  // know yet, written by another device before its category row arrived, shows as untagged
-  // and is kept.
+  // Deprecated: the category once chosen for the hour.
   category: string | null;
-  // Deprecated 2026-11-24 (Kevin: no more planned against actual). Nothing edits these by
-  // hand any more. They still carry a recurring plan pinned into the hour, and plans typed
-  // before that day, and are read only as the words and category an hour falls back on.
-  planned: string | null;
-  plannedNote: string;
-  // The ids of the flags (src/core/flags.ts) that are on for this hour, sorted.
+  // The ids of the flags (src/core/flags.ts) that are on for this hour, sorted. Hidden for now.
   flags: string[];
+  // Deprecated: the state once set by hand.
   state: HourState;
   updatedAt: number; // ms since epoch, client clock
 };
@@ -38,8 +38,6 @@ export type Entry = {
 export type EntryPatch = {
   note?: string;
   category?: string | null;
-  planned?: string | null;
-  plannedNote?: string;
   flags?: string[];
   state?: HourState;
 };
@@ -47,10 +45,6 @@ export type EntryPatch = {
 // Something was written on the hour itself: a summary, a category or a flag.
 export function isLogged(entry: Pick<Entry, 'note' | 'category' | 'flags'> | undefined): boolean {
   return !!entry && (entry.category !== null || entry.note.trim() !== '' || entry.flags.length > 0);
-}
-
-export function hasPlan(entry: Entry | undefined): entry is Entry {
-  return !!entry && (entry.planned !== null || entry.plannedNote.trim() !== '');
 }
 
 export function hourState(entry: Pick<Entry, 'state'> | undefined): HourState {
@@ -74,19 +68,34 @@ export function firstLine(text: string): string {
   );
 }
 
-// What an hour's row says: the summary typed for it, or else the line on top of its list,
-// or else the words it falls back on (a recurring plan's). The category goes the same way.
-export type HourShown = { title: string; category: string | null; from: 'summary' | 'line' | 'plan' | null };
+// What an hour's row says: the first line put in it, and how many more there are. With no
+// lines, what was written on the hour before 2026-11-27, or else the recurring plan that
+// covers it. The category and the state go the same way: the first line's (Kevin: first
+// item done = hour done), and never a mix.
+export type HourShown = {
+  title: string;
+  // The other lines put in the hour, after the first: the row says "+2".
+  more: number;
+  category: string | null;
+  state: HourState;
+  from: 'line' | 'old' | 'plan' | null;
+};
+type TopLine = { text: string; category: string | null; done: boolean; doing?: boolean };
 
-export function hourShown(entry: Entry | undefined, top: { text: string; category: string | null } | undefined): HourShown {
-  const summary = firstLine(entry?.note ?? '');
-  const line = firstLine(top?.text ?? '');
-  const plan = firstLine(entry?.plannedNote ?? '');
-  const category = entry?.category ?? top?.category ?? entry?.planned ?? null;
-  if (summary) return { title: summary, category, from: 'summary' };
-  if (line) return { title: line, category, from: 'line' };
-  if (plan || entry?.planned) return { title: plan, category, from: 'plan' };
-  return { title: '', category, from: null };
+export function hourShown(
+  top: TopLine | undefined,
+  more = 0,
+  plan?: { note: string; category: string | null },
+  old?: Entry,
+): HourShown {
+  if (top) {
+    return { title: firstLine(top.text), more, category: top.category, state: top.done ? 'done' : top.doing ? 'doing' : 'open', from: 'line' };
+  }
+  if (old && (old.note.trim() !== '' || old.category !== null)) {
+    return { title: firstLine(old.note), more: 0, category: old.category, state: old.state, from: 'old' };
+  }
+  if (plan) return { title: firstLine(plan.note), more: 0, category: plan.category, state: 'open', from: 'plan' };
+  return { title: '', more: 0, category: null, state: 'open', from: null };
 }
 
 export function applyPatch(
@@ -101,8 +110,6 @@ export function applyPatch(
     hour,
     note: patch.note ?? base?.note ?? '',
     category: patch.category !== undefined ? patch.category : (base?.category ?? null),
-    planned: patch.planned !== undefined ? patch.planned : (base?.planned ?? null),
-    plannedNote: patch.plannedNote ?? base?.plannedNote ?? '',
     flags: cleanFlagIds(patch.flags ?? base?.flags ?? []),
     state: patch.state ?? base?.state ?? 'open',
     // Never go backwards: a device with a slow clock still produces a newer write than
@@ -110,7 +117,3 @@ export function applyPatch(
     updatedAt: Math.max(now, (base?.updatedAt ?? 0) + 1),
   };
 }
-
-// The patch that clears an hour: everything written on it. The pad's lines put in the
-// hour are not the hour's to clear.
-export const EMPTY: Required<EntryPatch> = { note: '', category: null, planned: null, plannedNote: '', flags: [], state: 'open' };

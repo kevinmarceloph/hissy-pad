@@ -1,21 +1,12 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { categoryName, categoryShort, findCategory, type Category } from '@hissypad/core/hours';
-import { hourLabel, type SlotState } from '@hissypad/core/hours';
-import { EMPTY, hourShown, hourState, isLogged, type Entry, type EntryPatch } from '@hissypad/core/hours';
-import { flagChoice, flagOption, setFlagChoice, type Flag } from '@hissypad/core/hours';
+import { hourLabel, type HourShown, type SlotState } from '@hissypad/core/hours';
 
-import type { NodeRow } from '@hissypad/core';
-
-import { cmdAddCategory } from '@hissypad/state/hours';
-
-import { CategoryBadge } from './CategoryBadge';
-import { CategoryPicker } from './CategoryPicker';
-import { FlagMark } from './FlagMark';
 import { Mark } from './Mark';
 import { HostedLines } from './HostedLines';
-import { StateMark, StateSwitch } from './StateMark';
+import { StateMark } from './StateMark';
 import { Tap } from './Tap';
 import { LINE, ROW, serif, SIZE, SMALL, useTheme } from './theme';
 
@@ -23,53 +14,43 @@ type Props = {
   // The calendar day this hour is stored under.
   day: string;
   hour: number;
-  // The line on top of the hour's list: what the row says when no summary was typed.
-  top?: NodeRow | undefined;
+  // What the row says: the first line put in the hour (its words, category and state) and
+  // how many more follow, or what an hour with no lines falls back on.
+  says: HourShown;
   // Lines crossed out during this hour that were not assigned to it (cleared ones too).
   extra?: number | undefined;
-  // The hour as drawn: with the recurring plan that covers it, if it has no words of its own.
-  entry: Entry | undefined;
   state: SlotState;
   open: boolean;
-  // Every category and every flag in order, archived ones included.
+  // Every category in order, archived ones included.
   categories: Category[];
-  flags: Flag[];
-  onEditFlags?: (() => void) | undefined;
   onOpen(): void;
   onClose(): void;
-  onSave(patch: EntryPatch): void;
 };
 
+// One hour: a row that says what is in it, and, open, a pad scoped to it (Kevin,
+// 2026-11-27, "rethink the hour view, round 3"). The hour has nothing of its own to set:
+// no state, no summary, no category, no flags (hidden, kept for a later version). Its
+// title is its first line and "+N" for the others; its bullet is that line's state. A
+// summary for the hour is a line typed into it.
 export function HourRow(props: Props) {
-  const { hour, entry, state, open, categories, flags, top, extra = 0, onOpen, onClose } = props;
+  const { hour, says, state, open, categories, extra = 0, onOpen, onClose } = props;
   const theme = useTheme();
   const label = hourLabel(hour);
   const isNow = state === 'now';
-  const mark = hourState(entry);
-  // The summary typed for the hour, or the line on top of its list, or what it falls back on.
-  const shown = hourShown(entry, top);
+  const mark = says.state;
   // An id with no category on this device shows as untagged; the id itself is kept.
-  const category = findCategory(categories, shown.category);
+  const category = findCategory(categories, says.category);
   // The row has one line, so a category shows by its icon, or by its name when it has none.
   const categoryShown = category ? categoryShort(category) : null;
 
-  // Each flag answered here, in the flags' own order, with the answer where this device knows
-  // it. Flags this device does not know yet are kept on the row and left off the screen.
-  const tokens = entry?.flags ?? [];
-  const carried = flags.flatMap((flag) => {
-    const chosen = flagChoice(tokens, flag.id);
-    return chosen === null ? [] : [{ flag, option: flagOption(flag, chosen) }];
-  });
-  const aside = carried.map(({ flag, option }) => (option ? `${flag.label}: ${option.label}` : flag.label)).join(', ');
-
   // A category id this device does not know, on an hour with no words, reads as untagged.
-  const untagged = !category && shown.category !== null && !shown.title;
-  const words = untagged ? 'Untagged' : [categoryShown, shown.title || null].filter(Boolean).join(': ');
-  // The row says in words what the mark, the count and the flag icons show.
+  const untagged = !category && says.category !== null && !says.title;
+  const words = untagged ? 'Untagged' : [categoryShown, says.title || null].filter(Boolean).join(': ');
+  // The row says in words what the mark and the counts show.
   const spoken = [
-    words || (mark !== 'open' ? null : state === 'future' ? 'not yet' : 'blank'),
+    words || (says.from !== null ? '(blank line)' : state === 'future' ? 'not yet' : 'blank'),
+    says.more > 0 ? `and ${says.more} more` : null,
     mark === 'open' ? null : mark,
-    aside || null,
     extra > 0 ? `${extra} more done` : null,
   ]
     .filter(Boolean)
@@ -90,10 +71,9 @@ export function HourRow(props: Props) {
           ]}>
           {label}
         </Text>
-        {/* The hour's bullet: a dot, a dot in a ring, a cross. In its category's color; an
-            hour still ahead with nothing in it draws its dot faint. It is part of the row's
-            button and opens the hour like the rest of it (Kevin, 2026-11-25: it used to be
-            a checkbox of its own, Oras-oras's). The switch in the open hour sets the state. */}
+        {/* The hour's bullet is its first line's: a dot, a dot in a ring, a cross (first
+            item done = hour done). In its category's color; an hour still ahead with
+            nothing in it draws its dot faint. It is part of the row's button. */}
         <StateMark
           large
           style={styles.swatch}
@@ -103,200 +83,37 @@ export function HourRow(props: Props) {
         {words ? (
           <Text numberOfLines={1} style={[styles.text, styles.note, { color: mark === 'done' ? theme.inkQuiet : theme.ink }]}>
             {(categoryShown || untagged) && <Text style={{ color: theme.inkSoft }}>{categoryShown ?? 'Untagged'}</Text>}
-            {categoryShown && shown.title ? '  ' : ''}
-            {shown.title}
+            {categoryShown && says.title ? '  ' : ''}
+            {says.title}
           </Text>
         ) : (
           <Text numberOfLines={1} style={[styles.text, styles.note, { color: theme.inkQuiet }]}>
-            {isNow ? 'happening now' : state === 'past' && mark === 'open' ? 'blank' : ''}
+            {isNow ? 'happening now' : state === 'past' && says.from === null ? 'blank' : ''}
+          </Text>
+        )}
+        {says.more > 0 && (
+          // The other lines put in the hour, after the one the row shows.
+          <Text aria-hidden style={[styles.items, { color: theme.inkSoft }]}>
+            +{says.more}
           </Text>
         )}
         {extra > 0 && (
           // The lines crossed out in this hour that were assigned elsewhere or nowhere,
           // cleared ones too: a cross, the pad's mark for a line done, and how many (Kevin,
-          // 2026-11-25). The open hour lists them under "Done in this hour".
+          // 2026-11-25). The open hour lists them behind "Done in this hour".
           <Text aria-hidden style={[styles.items, { color: theme.inkSoft }]}>
             ✕{extra}
           </Text>
         )}
-        {carried.length > 0 && (
-          // One mark per answered flag, flush right: its icon on the color of the answer.
-          <View aria-hidden style={styles.flags}>
-            {carried.map(({ flag, option }) => (
-              <FlagMark key={flag.id} flag={flag} option={option} />
-            ))}
-          </View>
-        )}
       </Tap>
-      {open && <Editor {...props} />}
-    </View>
-  );
-}
-
-// The open hour is a small pad: the lines put in it and what is under them, drawn by the
-// app's own pad editor (HostedLines). Over
-// it, the hour's own three states, and a Summary button: behind it, a title for the hour
-// and a category, for an hour that is not about its top line. Under it, the flags. Nothing
-// here is a draft: every change is written as it is made.
-function Editor({ day, hour, entry, top, categories, flags, onEditFlags, onSave, onClose }: Props) {
-  const theme = useTheme();
-  const at = hourLabel(hour);
-  const on = entry?.flags ?? [];
-  // The editor asks about the active flags, plus one answered here that has since been archived.
-  const asked = flags.filter((f) => !f.archived || flagChoice(on, f.id) !== null);
-  const title = entry?.note ?? '';
-  // The summary stays out of the way until asked for, unless the hour already has one.
-  const [summing, setSumming] = useState(title.trim() !== '' || (entry?.category ?? null) !== null);
-  const [picking, setPicking] = useState(false);
-  const own = findCategory(categories, entry?.category);
-  const fallback = findCategory(categories, hourShown({ ...(entry ?? BLANK), category: null }, top).category);
-
-  return (
-    <View style={styles.editor}>
-      <View style={styles.head}>
-        <StateSwitch label={`${at}`} value={hourState(entry)} onChange={(state) => onSave({ state })} />
-        <Tap
-          aria-label="Summary"
-          aria-expanded={summing}
-          onPress={() => setSumming(!summing)}
-          style={[styles.small, { borderColor: summing ? theme.ink : theme.line }]}
-          activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paper }}>
-          <Text style={[styles.chipText, { color: theme.ink }]}>Summary</Text>
-        </Tap>
-      </View>
-
-      {summing && (
-        <>
-          <View style={styles.group}>
-            <Text nativeID={`t${hour}`} style={[styles.label, { color: theme.inkSoft }]}>
-              A title for {at}, in place of its top line
-            </Text>
-            <TextInput
-              autoFocus={title === ''}
-              value={title}
-              onChangeText={(note) => onSave({ note })}
-              onKeyPress={(e) => {
-                const key = (e.nativeEvent as { key: string }).key;
-                if (key === 'Escape' || key === 'Enter') onClose();
-              }}
-              aria-labelledby={`t${hour}`}
-              accessibilityLabel={`Summary of ${at}`}
-              placeholder="proposals, lunch, errands"
-              placeholderTextColor={theme.inkQuiet}
-              maxLength={280}
-              style={[styles.input, { color: theme.ink, borderColor: theme.line, backgroundColor: theme.paper, outlineColor: theme.accent }]}
-            />
-          </View>
-          {/* The same picker a line of the pad gets its category from, opened in place. */}
-          <Tap
-            aria-label={`Category: ${own ? categoryName(own) : entry?.category ? 'A category not on this device' : 'None'}`}
-            aria-expanded={picking}
-            onPress={() => setPicking(!picking)}
-            style={[styles.select, { borderColor: picking ? theme.ink : theme.line, backgroundColor: theme.paper }]}
-            activeStyle={{ borderColor: theme.ink }}>
-            {own ? <CategoryBadge category={own} size={22} /> : <Mark style={styles.chipSwatch} />}
-            <Text numberOfLines={1} style={[styles.selectText, { color: own ? theme.ink : theme.inkSoft }]}>
-              {own ? own.label : entry?.category ? 'A category not on this device' : 'No category'}
-            </Text>
-            <Text aria-hidden style={[styles.caret, { color: theme.ink }]}>
-              {picking ? '▴' : '▾'}
-            </Text>
-          </Tap>
-          {picking && (
-            <View style={[styles.options, { borderColor: theme.ink }]}>
-              <CategoryPicker
-                title={`Which category is ${at}?`}
-                // The active ones, plus this hour's own if it has since been archived.
-                categories={categories.filter((c) => !c.archived || c.id === entry?.category)}
-                value={entry?.category ?? null}
-                onPick={(category) => {
-                  setPicking(false);
-                  if (category !== (entry?.category ?? null)) onSave({ category });
-                }}
-                onCancel={() => setPicking(false)}
-                onCreate={(label, icon, color) => {
-                  setPicking(false);
-                  void cmdAddCategory(label, icon, color).then((made) => made && onSave({ category: made.id }));
-                }}
-              />
-            </View>
-          )}
-          {(entry?.category ?? null) === null && fallback && (
-            <Text style={[styles.label, { color: theme.inkSoft }]}>With none chosen, the hour takes its top line's: {categoryName(fallback)}.</Text>
-          )}
-        </>
-      )}
-
-      {/* The hour's lines, drawn by the app's own pad editor (HostedLines). */}
-      <HostedLines day={day} hour={hour} onClose={onClose} />
-
-      {(asked.length > 0 || onEditFlags) && (
-        <View style={styles.group}>
-          <Text style={[styles.label, { color: theme.inkSoft }]}>Flags</Text>
-          {asked.map((flag) => {
-            const chosen = flagChoice(on, flag.id);
-            // The flag's own answers, plus an archived one this hour still carries.
-            const offered = flag.options.filter((o) => !o.archived || o.id === chosen);
-            return (
-              <View key={flag.id} style={styles.flagLine}>
-                <Text style={[styles.chipText, styles.flagName, { color: theme.ink }]}>
-                  {flag.icon ? `${flag.icon} ${flag.label}` : flag.label}
-                </Text>
-                <View role="radiogroup" aria-label={flag.label} style={styles.chips}>
-                  {offered.map((option) => {
-                    const checked = option.id === chosen;
-                    const color = theme.palette[option.color];
-                    return (
-                      <Tap
-                        key={option.id}
-                        role="radio"
-                        aria-checked={checked}
-                        aria-label={`${flag.label}: ${option.label}`}
-                        // Pressing the chosen answer takes it back: unset is a state of its own.
-                        onPress={() => onSave({ flags: setFlagChoice(on, flag.id, checked ? null : option.id) })}
-                        style={[styles.chip, { borderColor: checked ? theme.ink : theme.line }, checked && { backgroundColor: theme.paper }]}
-                        activeStyle={{ borderColor: theme.ink }}>
-                        {/* The swatch is the color the row will show. The tick and the bold
-                            type, not the color, say which answer is chosen. */}
-                        <View style={[styles.tick, { borderColor: color, backgroundColor: color }]}>
-                          {checked && <Text style={[styles.tickText, { color: theme.paper }]}>✓</Text>}
-                        </View>
-                        <Text style={[styles.chipText, { color: theme.ink }, checked && { fontWeight: '700' }]}>
-                          {option.label}
-                        </Text>
-                      </Tap>
-                    );
-                  })}
-                </View>
-              </View>
-            );
-          })}
-          {onEditFlags && (
-            <Tap role="link" onPress={onEditFlags} style={[styles.editLink, styles.editFlags]} activeStyle={{ backgroundColor: theme.paper }}>
-              <Text style={[styles.chipText, styles.underline, { color: theme.inkSoft }]}>Edit flags</Text>
-            </Tap>
-          )}
+      {open && (
+        <View style={styles.editor}>
+          <HostedLines day={props.day} hour={hour} onClose={onClose} />
         </View>
       )}
-
-      <View style={styles.actions}>
-        <Tap
-          // What is written on the hour itself. Its lines stay: they are the pad's.
-          disabled={!isLogged(entry) && hourState(entry) === 'open'}
-          onPress={() => onSave(EMPTY)}
-          style={styles.action}
-          activeStyle={{ backgroundColor: theme.paper }}>
-          <Text style={[styles.actionText, { color: theme.inkSoft }]}>Clear this hour</Text>
-        </Tap>
-        <Tap onPress={onClose} style={[styles.action, styles.done, { borderColor: theme.ink }]} activeStyle={{ backgroundColor: theme.paper }}>
-          <Text style={[styles.actionText, { color: theme.ink, fontWeight: '700' }]}>Close</Text>
-        </Tap>
-      </View>
     </View>
   );
 }
-
-const BLANK: Entry = { day: '', hour: 0, note: '', category: null, planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 0 };
 
 type PickerProps = {
   title: string;
@@ -307,15 +124,14 @@ type PickerProps = {
   onPick(id: string | null): void;
 };
 
-// The recurring plans' dropdown of categories (an hour's own category goes through the
-// shared CategoryPicker): one closed line that says what is chosen, and a list that
-// opens under it. Built from Taps, not a native select, so every option keeps its swatch
-// and the same control runs on phones and the web.
+// The recurring plans' dropdown of categories: one closed line that says what is chosen,
+// and a list that opens under it. Built from Taps, not a native select, so every option
+// keeps its swatch and the same control runs on phones and the web.
 export function Picker({ title, kind, value, categories, onPick }: PickerProps) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
-  // The active categories, plus this hour's own one if it has since been archived, so it
-  // can still be seen and taken off.
+  // The active categories, plus the chosen one if it has since been archived, so it can
+  // still be seen and taken off.
   const choices = categories.filter((c) => !c.archived || c.id === value);
   const current = findCategory(categories, value);
   const shown = current ? categoryName(current) : (value ? 'A category not on this device' : 'None');
@@ -353,7 +169,7 @@ export function Picker({ title, kind, value, categories, onPick }: PickerProps) 
             return (
               <Tap
                 key={choice?.id ?? 'none'}
-                        role="option"
+                role="option"
                 aria-selected={on}
                 aria-label={choice ? categoryName(choice) : 'None'}
                 onPress={() => pick(choice?.id ?? null)}
@@ -381,42 +197,12 @@ const styles = StyleSheet.create({
   swatch: { width: 18, height: 18 },
   text: { flex: 1 },
   note: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
-  flags: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  editor: { paddingLeft: 53, paddingRight: 4, paddingBottom: 16, gap: 12 },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  // The open hour is its lines, under the row's words: no box around them, no fields.
+  editor: { paddingLeft: 53, paddingRight: 4, paddingBottom: 8 },
   group: { gap: 6 },
-  small: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 12, borderWidth: 1, borderRadius: 4 },
   label: { fontFamily: serif, fontSize: SMALL, lineHeight: 20 },
-  input: {
-    fontFamily: serif,
-    fontSize: SIZE,
-    lineHeight: LINE,
-    minHeight: ROW,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderRadius: 4,
-    textAlignVertical: 'top',
-  },
   items: { fontFamily: serif, fontSize: SMALL, lineHeight: 20, fontVariant: ['tabular-nums'] },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  // A flag's name, then its answers. The names share a width so the answers line up.
-  flagLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 10, rowGap: 4 },
-  flagName: { minWidth: 100 },
-  editFlags: { marginLeft: -8 },
-  chip: {
-    minHeight: ROW,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderRadius: 4,
-  },
   chipSwatch: { width: 14, height: 14 },
-  tick: { width: 16, height: 16, borderWidth: 1.5, borderRadius: 2, alignItems: 'center', justifyContent: 'center' },
-  tickText: { fontSize: 12, lineHeight: 14, fontWeight: '700' },
-  chipText: { fontFamily: serif, fontSize: SMALL, lineHeight: 20 },
   select: {
     minHeight: ROW,
     flexDirection: 'row',
@@ -437,10 +223,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  editLink: { minHeight: ROW, alignSelf: 'flex-start', justifyContent: 'center', paddingHorizontal: 8, borderRadius: 4 },
-  underline: { textDecorationLine: 'underline' },
-  actions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  action: { minHeight: ROW, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 4 },
-  done: { borderWidth: 1, paddingHorizontal: 20 },
-  actionText: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
 });

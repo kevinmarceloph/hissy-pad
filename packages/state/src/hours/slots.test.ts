@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { idOf, shape, slotCounts, slotKey, slotLabel, parseSlot } from '@hissypad/core';
+import { idOf, setDone, shape, slotCounts, slotKey, slotLabel, parseSlot } from '@hissypad/core';
 
 import { resetStore } from '../testing';
-import { loadPad, usePad } from '../store';
+import { applyAll, loadPad, openSlot, usePad } from '../store';
 import { edit, select, stopEditing } from '../selection';
 import { redo, undo } from '../history';
 import { cmdDeleteSelection, cmdSetText } from '../commands';
 import { dayOf } from '@hissypad/core/hours';
-import { cmdApplySlot, cmdPickSlot, cmdSetSlot, cmdSlotAdd, cmdSlotClear, cmdSlotDone, linesInSlot, setSlotPickerOpener, targetSlot } from './slots';
+import { cmdApplySlot, cmdFindForSlot, cmdPickSlot, cmdSetSlot, cmdSlotAdd, cmdSlotFresh, cmdSlotPut, cmdSlotUnarchive, inSlot, linesInSlot, setSlotFinder, setSlotPickerOpener, targetSlot } from './slots';
 
 const SLOT = slotKey('2026-11-23', 9);
-const id = (text: string) => idOf(usePad.getState().rows, text);
+const id = (text: string) => idOf(usePad.getState().all, text);
+const cross = (line: string) => applyAll((all, ctx) => setDone(all, ctx, [line], true, true));
 
 describe('lines in an hour', () => {
   beforeEach(async () => {
@@ -43,9 +44,9 @@ describe('lines in an hour', () => {
     select([id('A'), id('C')]);
     expect(cmdSetSlot(SLOT)).toBe(2);
     expect(targetSlot()).toBe(SLOT);
-    cmdSlotDone(id('C'), true);
+    cross(id('C'));
     expect(slotCounts(usePad.getState().all)).toEqual({ [SLOT]: { done: 1, open: 1 } });
-    // Open lines first, then crossed out.
+    // As the pad has them, crossed out or not.
     expect(linesInSlot('2026-11-23', 9).map((r) => r.text)).toEqual(['A', 'C']);
     undo();
     expect(slotCounts(usePad.getState().all)).toEqual({ [SLOT]: { done: 0, open: 2 } });
@@ -56,26 +57,67 @@ describe('lines in an hour', () => {
   it('takes a line out of its hour, and a deleted line stops counting', () => {
     select([id('A'), id('C'), id('D')]);
     cmdSetSlot(SLOT);
-    cmdSlotClear(id('A'));
+    cmdSetSlot(null, [id('A')]);
     expect(usePad.getState().all[id('A')]!.slot).toBeNull();
     select([id('D')]);
     cmdSetSlot(null);
     expect(slotCounts(usePad.getState().all)).toEqual({ [SLOT]: { done: 0, open: 1 } });
   });
 
-  it('keeps an archived line in its hour, where it can still be ticked and taken out', () => {
-    select([id('A'), id('C')]);
+  it('keeps an archived line in its hour, where it was, and brings it back in place', () => {
+    select([id('A'), id('C'), id('D')]);
     cmdSetSlot(SLOT);
     const c = id('C');
+    cross(c);
     select([c]);
     cmdDeleteSelection();
     expect(usePad.getState().all[c]!.deletedAt).not.toBeNull();
-    expect(linesInSlot('2026-11-23', 9).map((r) => r.text)).toEqual(['A', 'C']);
-    cmdSlotDone(c, true);
-    expect(usePad.getState().all[c]).toMatchObject({ done: true, deletedAt: expect.any(String) });
-    expect(slotCounts(usePad.getState().all)).toEqual({ [SLOT]: { done: 1, open: 1 } });
-    cmdSlotClear(c);
-    expect(linesInSlot('2026-11-23', 9).map((r) => r.text)).toEqual(['A']);
+    // Between A and D, as in its pad, not after them.
+    expect(linesInSlot('2026-11-23', 9).map((r) => r.text)).toEqual(['A', 'C', 'D']);
+    // The open hour draws it with the others, and says which it is.
+    openSlot(SLOT);
+    expect(shape(usePad.getState().rows)).toBe('A\n  B\n~C\nD');
+    // Typing in it there leaves it archived.
+    cmdSetText(c, 'C, again');
+    expect(usePad.getState().all[c]).toMatchObject({ text: 'C, again', deletedAt: expect.any(String) });
+    // The mark brings it back where it was, still crossed out. One undo step.
+    cmdSlotUnarchive(c);
+    expect(usePad.getState().all[c]).toMatchObject({ deletedAt: null, done: true, slot: SLOT });
+    openSlot(null);
+    expect(shape(usePad.getState().rows)).toBe('A\n  B\n~C, again\nD');
+    undo();
+    expect(usePad.getState().all[c]!.deletedAt).not.toBeNull();
+  });
+
+  it('starts an hour fresh: the lines not crossed out leave it, marked as back', () => {
+    select([id('A'), id('C'), id('D')]);
+    cmdSetSlot(SLOT);
+    cross(id('C'));
+    // D is in the next hour too, and keeps that one.
+    cmdSetSlot(slotKey('2026-11-23', 9, 2), [id('D')]);
+    expect(cmdSlotFresh('2026-11-23', 9)).toBe(2);
+    const all = usePad.getState().all;
+    expect(all[id('A')]).toMatchObject({ slot: null, fresh: true });
+    expect(all[id('D')]).toMatchObject({ slot: slotKey('2026-11-23', 10), fresh: true });
+    // What was done stays: it is what the hour was.
+    expect(all[id('C')]).toMatchObject({ slot: SLOT, fresh: false });
+    expect(linesInSlot('2026-11-23', 9).map((r) => r.text)).toEqual(['C']);
+    // Nothing left to take out; and one undo puts both back.
+    expect(cmdSlotFresh('2026-11-23', 9)).toBe(0);
+    undo();
+    expect(linesInSlot('2026-11-23', 9).map((r) => r.text)).toEqual(['A', 'C', 'D']);
+    expect(usePad.getState().all[id('A')]!.fresh).toBe(false);
+  });
+
+  it('asks the app for its search with the hour, and puts the line found in it', () => {
+    const asked: string[] = [];
+    setSlotFinder((slot) => asked.push(slot));
+    cmdFindForSlot('2026-11-23', 9);
+    expect(asked).toEqual([SLOT]);
+    setSlotFinder(null);
+    expect(inSlot(id('D'), SLOT)).toBe(false);
+    cmdSlotPut(id('D'), '2026-11-23', 9);
+    expect(inSlot(id('D'), SLOT)).toBe(true);
   });
 
   it('drops an undone add from the hour, and a redo puts it back', () => {

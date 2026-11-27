@@ -15,8 +15,6 @@ type WireEntry = {
   note: string;
   category: string | null;
   // Absent on a row read from a server that has not run the plan-and-flags migration.
-  planned?: string | null;
-  planned_note?: string | null;
   flags?: string[] | null;
   // Absent on a row read from a server that has not run the hour-state migration.
   state?: string | null;
@@ -82,8 +80,6 @@ export const entryToWire = (e: Entry): WireEntry => ({
   hour: e.hour,
   note: e.note,
   category: e.category,
-  planned: e.planned,
-  planned_note: e.plannedNote,
   flags: e.flags,
   state: e.state,
   updated_at: e.updatedAt,
@@ -95,8 +91,6 @@ export const entryFromWire = (w: WireEntry): Pulled<Entry> => ({
     hour: w.hour,
     note: w.note,
     category: w.category,
-    planned: w.planned ?? null,
-    plannedNote: w.planned_note ?? '',
     flags: cleanFlagIds(Array.isArray(w.flags) ? w.flags : []),
     state: w.state,
     updatedAt: Number(w.updated_at),

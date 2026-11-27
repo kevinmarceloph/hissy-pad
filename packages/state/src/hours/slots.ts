@@ -1,12 +1,12 @@
 // Lines of the pad inside an hour. A line carries the slot it is assigned to (core/slot.ts);
 // these are the commands the pad's toolbar and the Hours screen run on it. They go through
 // the pad's own store, so each one is an undo step and syncs like any other edit.
-import { fixedPadOf, insertAt, isLive, setDone, setSlot, slotByPrefix, slotCovers, slotKey, slotLabel, slotLines, todayKey, type NodeRow } from '@hissypad/core';
+import { fixedPadOf, insertAt, isLive, restore, setSlot, slotByPrefix, slotCovers, slotKey, slotLabel, slotLeftovers, slotLines, todayKey, type NodeRow } from '@hissypad/core';
 import { DAY_START_DEFAULT, dayOf } from '@hissypad/core/hours';
 
 import { applyAll, setClassifier, usePad } from '../store';
 import { hoursIfOpen } from './index';
-import { search, type SearchPart } from '../search';
+import { batchSubtree, cmdUnarchive } from '../archive';
 import { holdEditing, targets } from '../selection';
 
 // An hour typed in front of a line puts it in that hour of the day on screen (core's
@@ -31,45 +31,57 @@ export function targetSlot(ids: readonly string[] = targets()): string | null {
   return slots.size === 1 ? [...slots][0]! : null;
 }
 
-// From the Hours screen, where a line may be in any pad: the whole table is the target.
-// Hours keeps listing a line after it is archived, so both reach archived lines too.
-export function cmdSlotDone(id: string, done: boolean) {
-  applyAll((all, ctx) => setDone(all, ctx, [id], done, true), { label: 'cmdSlotDone' });
-}
-
-export function cmdSlotClear(ids: string | readonly string[]) {
-  const list = typeof ids === 'string' ? [ids] : [...ids];
-  applyAll((all, ctx) => setSlot(all, ctx, list, null, true), { label: 'cmdSlotClear' });
-}
-
 // A line found by search, put in this hour from the Hours screen. It may sit in any pad, so
 // the whole table is the target; a line in another hour moves to this one.
 export function cmdSlotPut(id: string, day: string, hour: number) {
   applyAll((all, ctx) => (isLive(all[id]) ? setSlot(all, ctx, [id], slotKey(day, hour)) : all), { label: 'cmdSlotPut' });
 }
 
-// Lines to offer for an hour while its item field is typed in: the universal search over
-// every pad, without pad names, blank lines or lines already in this hour. Open lines
-// come before crossed-out ones; within each, search's own order (the open pad first).
-export interface SlotFind {
-  id: string;
-  parts: SearchPart[];
-  done: boolean;
-  where: string;        // the pad, then the lines it sits under
-  slot: string | null;  // the hour it is in now, if another
+// Whether a line is already in an hour: the search that finds lines for an hour says so.
+export function inSlot(id: string, slot: string): boolean {
+  return slotCovers(usePad.getState().all[id]?.slot, slot);
 }
-export function slotFinds(day: string, hour: number, query: string, limit = 6): SlotFind[] {
-  const { all, padId } = usePad.getState();
-  const here = slotKey(day, hour);
-  const out: SlotFind[] = [];
-  for (const g of search(all, query, padId, 200).groups) {
-    for (const h of g.hits) {
-      const row = all[h.id];
-      if (h.isPad || !row || slotCovers(row.slot, here) || row.text.trim() === '') continue;
-      out.push({ id: h.id, parts: h.parts, done: h.done, where: [g.name, ...h.path].join(' › '), slot: row.slot });
+
+// "Fresh start" on an hour (Kevin, 2026-11-27): every line put in it that is not crossed
+// out leaves the hour and is marked with the dot of a line that came back (`fresh`), so it
+// shows in its pad as something to place again. A line in other hours too keeps those.
+// Crossed-out and archived lines stay: they are what the hour was. One undo step. Returns
+// how many lines left.
+export function cmdSlotFresh(day: string, hour: number): number {
+  const slot = slotKey(day, hour);
+  const left = slotLeftovers(usePad.getState().all, slot);
+  if (left.length === 0) return 0;
+  applyAll((all, ctx) => {
+    let out = all;
+    for (const { id, slot: rest } of slotLeftovers(all, slot)) {
+      out = setSlot(out, ctx, [id], rest);
+      out = { ...out, [id]: { ...out[id]!, fresh: true, updatedAt: ctx.now() } };
     }
-  }
-  return out.sort((a, b) => Number(a.done) - Number(b.done)).slice(0, limit);
+    return out;
+  }, { label: 'cmdSlotFresh' });
+  return left.length;
+}
+
+// The archived mark on a line of an open hour: the line comes back where it was in its
+// pad, with what was archived under it, as done or as open as it was. One whose parent is
+// archived too has no place to come back to and goes to the top of its pad (cmdUnarchive).
+export function cmdSlotUnarchive(id: string) {
+  const { all } = usePad.getState();
+  const row = all[id];
+  if (!row || row.deletedAt === null) return;
+  if (row.parentId !== null && !isLive(all[row.parentId])) return void cmdUnarchive([id]);
+  applyAll((rows, ctx) => restore(rows, ctx, batchSubtree(rows, id)), { label: 'cmdSlotUnarchive' });
+}
+
+// The hour's search button: each app's own Search, opened to put the line found in the
+// hour instead of going to it. The apps set the opener; the shared screen only asks.
+let openFinder: ((slot: string) => void) | null = null;
+export function setSlotFinder(open: ((slot: string) => void) | null) {
+  openFinder = open;
+}
+export function cmdFindForSlot(day: string, hour: number) {
+  holdEditing();
+  openFinder?.(slotKey(day, hour));
 }
 
 // A new line typed into an hour: it goes to the top of Today, already assigned (Kevin,

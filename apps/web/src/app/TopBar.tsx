@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { usePad } from '@hissypad/state'
 import { cmdDeleteDone } from '@hissypad/state'
+import { setSlotFinder } from '@hissypad/state/hours'
 import { copyText } from '../platform/clipboard'
 import { DonePanel } from '../panels/Lists'
 import { SearchPanel } from '../panels/Search'
@@ -45,6 +46,16 @@ export function TopBar({ view, onView, onCreate, onArchived }: { view: View; onV
   const logDialog = useRef<HTMLDialogElement>(null)
   const doneDialog = useRef<HTMLDialogElement>(null)
   const searchDialog = useRef<HTMLDialogElement>(null)
+  // The hour Search was opened for, from that hour's search button in Hours: the line
+  // picked is put in it. Null for a search that goes to the line.
+  const [assign, setAssign] = useState<string | null>(null)
+  useEffect(() => {
+    setSlotFinder((slot) => {
+      setAssign(slot)
+      searchDialog.current?.showModal()
+    })
+    return () => setSlotFinder(null)
+  }, [])
   const [logText, setLogText] = useState('')
   const [menu, setMenu] = useState(false)
   const [categories, setCategories] = useState(false)
@@ -160,7 +171,7 @@ export function TopBar({ view, onView, onCreate, onArchived }: { view: View; onV
       {toast && <output className="toast" aria-live="polite">{toast}</output>}
       <DonePanel dialog={doneDialog} />
       {categories && <CategoriesDialog onClose={() => setCategories(false)} />}
-      <SearchPanel dialog={searchDialog} onOpen={() => onView('pad')} onArchived={onArchived} />
+      <SearchPanel dialog={searchDialog} onOpen={() => onView('pad')} onArchived={onArchived} assign={assign} onDone={() => setAssign(null)} />
       <dialog ref={logDialog} className="import" aria-labelledby="log-title">
         <form method="dialog">
           <h2 id="log-title">Debug log</h2>

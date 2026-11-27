@@ -9,8 +9,6 @@ const entry = (day: string, hour: number, over: Partial<Entry> = {}): Entry => (
   hour,
   note: '',
   category: 'deep',
-  planned: null,
-  plannedNote: '',
   flags: [],
   state: 'open',
   updatedAt: 1,

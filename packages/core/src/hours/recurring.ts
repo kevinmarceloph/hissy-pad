@@ -1,9 +1,8 @@
 import { dayKey, fromDayKey, hourLabel, shiftDay, type DayKey } from './day';
-import { hasPlan, type Entry, type EntryPatch } from './entry';
 
 // A plan that repeats: "sleep, 2am to 10am, every day", "church, 9am to 11am, Sundays".
-// An hour with no plan of its own takes the recurring plan that covers it, so the day comes
-// already drawn and the hours only need to be marked done. Like categories and flags these
+// An hour with no lines in it shows the recurring plan that covers it, so the day comes
+// already drawn. Like categories and flags these
 // are rows the user edits, synced, and never deleted: removing one archives it.
 export type RecurringPlan = {
   id: string;
@@ -149,25 +148,7 @@ export function recurringAt(list: readonly RecurringPlan[], day: DayKey, hour: n
   return best;
 }
 
-// What a recurring plan lends an hour without being stored on it: its words and category.
+// What a recurring plan lends an hour: its words and category, read when the hour is drawn
+// and never stored on it (the pin into the hour's row went with planned against actual,
+// 2026-11-27). Change the plan and every hour it covers follows.
 export type DrawnPlan = Pick<RecurringPlan, 'note' | 'category'>;
-
-// An hour as the screen shows it: its own plan if it has one, the drawn one if not. An
-// hour with no row of its own gets a blank one to carry the plan.
-export function withRecurring(entry: Entry | undefined, plan: DrawnPlan | undefined, day: DayKey, hour: number): Entry | undefined {
-  // Not the type guard's narrowing: an entry without a plan is still an entry.
-  const planned: boolean = hasPlan(entry);
-  if (planned || !plan) return entry;
-  const base: Entry = entry ?? { day, hour, note: '', category: null, planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 0 };
-  return { ...base, planned: plan.category, plannedNote: plan.note };
-}
-
-// A recurring plan is not stored on the hours it covers: change the plan and the hours
-// ahead follow. The first write to an hour pins the plan it was showing into the row, so
-// an hour that was lived keeps the plan it was lived against. A patch that sets the plan
-// itself wins.
-export function pinRecurring(patch: EntryPatch, stored: Entry | undefined, plan: DrawnPlan | undefined): EntryPatch {
-  const planned: boolean = hasPlan(stored);
-  if (planned || !plan) return patch;
-  return { planned: plan.category, plannedNote: plan.note, ...patch };
-}

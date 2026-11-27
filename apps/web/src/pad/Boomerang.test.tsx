@@ -50,7 +50,7 @@ describe('Boomerang', () => {
     await user.click(await screen.findByRole('button', { name: /^Tomorrow/ }, { timeout: 8000 }))
     await act(async () => void (await deliverBoomerangs(new Date(Date.now() + 3 * 86400_000))))
     expect(tableShape()).toBe('*B\nA')
-    await user.click(within(rowByText('B')).getByRole('button', { name: /Back from a boomerang/ }))
+    await user.click(within(rowByText('B')).getByRole('button', { name: /Came back from a boomerang/ }))
     expect(tableShape()).toBe('B\nA')
   })
 })

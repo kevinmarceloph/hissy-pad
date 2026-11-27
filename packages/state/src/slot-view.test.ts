@@ -136,8 +136,11 @@ describe('an hour as a view of the store', () => {
     const under = id('A1')
     apply((rows, ctx) => remove(rows, ctx, [id('A')]))
     expect(all()[under]!.deletedAt).not.toBeNull()
-    expect(view()).toBe('U')
+    // Archived lines stay in the hour, where they were (Kevin, 2026-11-27).
+    expect(view()).toBe('U\nA\n  A1\n  A2')
+    expect(usePad.getState().rows[under]!.deletedAt).toBeNull()
     undo()
+    expect(all()[under]!.deletedAt).toBeNull()
     expect(view()).toBe('U\nA\n  A1\n  A2')
     // A line put in the hour from the pad's side shows up in the open hour.
     applyAll((rows, ctx) => setSlot(rows, ctx, [id('C')], H))
@@ -182,12 +185,15 @@ describe('the toolbar in an open hour', () => {
     expect(view()).toBe('U\nA\n  A1\n  A2')
   })
 
-  it('leaves an hour empty when its last line is archived, instead of making a line for it', () => {
+  it('makes no line for an hour when its last live line is archived', () => {
     openSlot(H)
     const before = Object.keys(all()).length
-    select([id('U'), id('A')], id('U'))
+    const u = id('U')
+    select([u, id('A')], u)
     cmdDeleteSelection()
-    expect(view()).toBe('')
+    // Both are archived, and still drawn in the hour.
+    expect(all()[u]!.deletedAt).not.toBeNull()
+    expect(view()).toBe('U\nA\n  A1\n  A2')
     // Nothing new was made, in Today or anywhere.
     expect(Object.keys(all()).length).toBe(before)
   })

@@ -183,16 +183,83 @@ export function lineOrder(all: Rows): Map<string, number> {
   return order
 }
 
-// The lines in one hour (a single-hour key), a run of hours that takes it in included, in
-// the order above. An archived line stays listed, as in slotCounts, after the live ones.
-// `blank` keeps the empty ones too: the hour's view needs the line that is about to be typed.
-export function slotLines(all: Rows, slot: string, blank = false): NodeRow[] {
-  const list: NodeRow[] = []
+// ---- archived lines stay in their hour -------------------------------------------------------
+// Archiving a line takes it out of its pad, not out of the hour it was put in: the hour
+// still lists it, where it was among the others, and the open hour draws it with an
+// archived mark that brings it back (Kevin, 2026-11-27). So an hour is read from a table
+// in which its archived lines are alive again: each one with what was archived under it in
+// the same archive (rows stamped within a second of it). A blank one with nothing to read
+// under it is left out: a spacer, or the tombstone an undone Enter leaves.
+const BATCH_GAP_MS = 1000
+export interface SlotShown {
+  table: Rows                    // `all` itself when the hour has no archived line
+  archived: ReadonlySet<string>  // the rows alive in `table` and archived in `all`
+}
+const NONE: ReadonlySet<string> = new Set()
+const shownOf = new WeakMap<Rows, Map<string, SlotShown>>()
+// The same object for as long as the stored row is, so an unchanged hour redraws nothing.
+const revived = new WeakMap<NodeRow, NodeRow>()
+function revive(r: NodeRow): NodeRow {
+  let l = revived.get(r)
+  if (!l) revived.set(r, (l = { ...r, deletedAt: null }))
+  return l
+}
+
+export function slotShown(all: Rows, slot: string): SlotShown {
+  let bySlot = shownOf.get(all)
+  if (!bySlot) shownOf.set(all, (bySlot = new Map()))
+  const had = bySlot.get(slot)
+  if (had) return had
+  const tops: NodeRow[] = []
   for (const id in all) {
     const r = all[id]!
-    if (slotCovers(r.slot, slot) && (blank || !isBlank(r)) && !r.pad) list.push(r)
+    if (r.deletedAt !== null && !r.pad && slotCovers(r.slot, slot)) tops.push(r)
   }
-  const order = lineOrder(all)
+  let shown: SlotShown = { table: all, archived: NONE }
+  if (tops.length > 0) {
+    const kids = new Map<string, NodeRow[]>()
+    for (const id in all) {
+      const r = all[id]!
+      if (r.deletedAt === null || r.parentId === null) continue
+      const list = kids.get(r.parentId)
+      if (list) list.push(r)
+      else kids.set(r.parentId, [r])
+    }
+    const archived = new Set<string>()
+    for (const top of tops) {
+      if (archived.has(top.id)) continue
+      const at = Date.parse(top.deletedAt!)
+      const taken: NodeRow[] = []
+      const take = (r: NodeRow) => {
+        taken.push(r)
+        for (const c of kids.get(r.id) ?? []) if (!archived.has(c.id) && Math.abs(Date.parse(c.deletedAt!) - at) <= BATCH_GAP_MS) take(c)
+      }
+      take(top)
+      if (taken.every(isBlank)) continue
+      for (const r of taken) archived.add(r.id)
+    }
+    if (archived.size > 0) {
+      const table: Record<string, NodeRow> = { ...all }
+      for (const id of archived) table[id] = revive(all[id]!)
+      shown = { table, archived }
+    }
+  }
+  bySlot.set(slot, shown)
+  return shown
+}
+
+// The lines in one hour (a single-hour key), a run of hours that takes it in included, in
+// the order above. An archived line stays listed, where it was in its pad. The rows are the
+// stored ones: an archived line still has its deletedAt.
+// `blank` keeps the empty ones too: the hour's view needs the line that is about to be typed.
+export function slotLines(all: Rows, slot: string, blank = false): NodeRow[] {
+  const { table } = slotShown(all, slot)
+  const list: NodeRow[] = []
+  for (const id in table) {
+    const r = table[id]!
+    if (isLive(r) && slotCovers(r.slot, slot) && (blank || !isBlank(r)) && !r.pad) list.push(all[id]!)
+  }
+  const order = lineOrder(table)
   const at = (r: NodeRow) => order.get(r.id) ?? Infinity
   return list.sort((a, b) => at(a) - at(b) || (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0) || (a.id < b.id ? -1 : 1))
 }
@@ -200,22 +267,24 @@ export function slotLines(all: Rows, slot: string, blank = false): NodeRow[] {
 // The lines an hour lists at its top level: the ones put in it, less any that sits under
 // another line of the same hour, which shows it as one of its children instead.
 export function slotTops(all: Rows, slot: string, blank = false): NodeRow[] {
+  const { table } = slotShown(all, slot)
   return slotLines(all, slot, blank).filter((r) => {
-    let up = r.parentId ? all[r.parentId] : undefined
+    let up = r.parentId ? table[r.parentId] : undefined
     for (let n = 0; up && n < 64; n++) {
       if (isLive(up) && !up.pad && (blank || !isBlank(up)) && slotCovers(up.slot, slot)) return false
-      up = up.parentId ? all[up.parentId] : undefined
+      up = up.parentId ? table[up.parentId] : undefined
     }
     return true
   })
 }
 
 // ---- an hour as a view of the store ----------------------------------------------------------
-// The live lines of one hour as a pad of their own, the way scopePad and scopeNode make one
+// The lines of one hour as a pad of their own, the way scopePad and scopeNode make one
 // (pads.ts): the hour's own lines (slotTops) at the root, each with everything under it.
 // The store shows this while an hour is open, so the pad's own ops, keys and toolbar edit
-// it (PLAN.md, "Hours joins the pad"). An archived line is not in a view; slotLines still
-// lists it.
+// it (PLAN.md, "Hours joins the pad"). An archived line of the hour is in the view too,
+// alive (slotShown), so every op works on it; `archived` says which rows those are, and
+// unscopeSlot keeps them archived.
 //
 // The hour's lines come from different pads, so at the root each gets a rank made up for
 // the view, in the hour's order. `homes` remembers where each one really is.
@@ -226,6 +295,7 @@ export interface SlotHome {
 export interface SlotView {
   rows: Rows
   homes: ReadonlyMap<string, SlotHome>
+  archived: ReadonlySet<string>
 }
 
 // A lifted line is the same object for as long as its row and its place in the hour are,
@@ -237,27 +307,39 @@ function raise(r: NodeRow, rank: string): NodeRow {
   return l
 }
 
+const views = new WeakMap<Rows, Map<string, SlotView>>()
 export function scopeSlot(all: Rows, slot: string): SlotView {
+  let bySlot = views.get(all)
+  if (!bySlot) views.set(all, (bySlot = new Map()))
+  const had = bySlot.get(slot)
+  if (had) return had
+  const { table, archived } = slotShown(all, slot)
   // Empty lines too: one just made is empty until it is typed in.
-  const tops = slotTops(all, slot, true).filter((r) => isLive(r))
+  const tops = slotTops(all, slot, true)
   const out: Record<string, NodeRow> = {}
   const homes = new Map<string, SlotHome>()
-  if (tops.length === 0) return { rows: out, homes }
-  const index = buildIndex(all)
-  const ranks = ranksBetween(null, null, tops.length)
-  tops.forEach((top, i) => {
-    homes.set(top.id, { parentId: top.parentId, rank: top.rank })
-    out[top.id] = raise(top, ranks[i]!)
-    const take = (parentId: string) => {
-      for (const child of childrenOf(index, parentId)) {
-        // A row whose stored parent was repaired by buildIndex keeps its effective parent.
-        out[child.id] = child.parentId === parentId ? child : { ...child, parentId }
-        take(child.id)
+  const shown = new Set<string>()
+  if (tops.length > 0) {
+    const index = buildIndex(table)
+    const ranks = ranksBetween(null, null, tops.length)
+    tops.forEach((top, i) => {
+      homes.set(top.id, { parentId: top.parentId, rank: top.rank })
+      out[top.id] = raise(table[top.id]!, ranks[i]!)
+      if (archived.has(top.id)) shown.add(top.id)
+      const take = (parentId: string) => {
+        for (const child of childrenOf(index, parentId)) {
+          // A row whose stored parent was repaired by buildIndex keeps its effective parent.
+          out[child.id] = child.parentId === parentId ? child : { ...child, parentId }
+          if (archived.has(child.id)) shown.add(child.id)
+          take(child.id)
+        }
       }
-    }
-    take(top.id)
-  })
-  return { rows: out, homes }
+      take(top.id)
+    })
+  }
+  const view: SlotView = { rows: out, homes, archived: shown }
+  bySlot.set(slot, view)
+  return view
 }
 
 // The rows an op changed in an hour's view (`view`, as scopeSlot gave it), back in table terms:
@@ -272,6 +354,8 @@ export function scopeSlot(all: Rows, slot: string): SlotView {
 //     given, with no Today yet).
 // Anything else (a line under another, one of the hour's own moved in under a line) is
 // stored as the op left it. A row that ends up as the table has it is left out.
+// An archived line the view shows stays archived whatever the op did to it, and a line put
+// under one is archived with it: it would have no live line over it in its pad.
 export function unscopeSlot(all: Rows, slot: string, view: SlotView, changed: readonly NodeRow[], fallbackPad: string | null = null): NodeRow[] {
   const { homes, rows } = view
   // The lowest rank among the live lines right under `parentId` that is above `after`.
@@ -344,19 +428,49 @@ export function unscopeSlot(all: Rows, slot: string, view: SlotView, changed: re
       }
     }
     const was = all[r.id]
+    if (was && view.archived.has(r.id) && back.deletedAt === null) back = { ...back, deletedAt: was.deletedAt }
     if (was && sameRow({ ...back, updatedAt: was.updatedAt }, was)) continue
     out.push(back)
+  }
+  if (view.archived.size === 0) return out
+  // What the view holds after the op: a live line with an archived one over it goes with it.
+  const held: Record<string, NodeRow> = { ...rows }
+  for (const r of changed) held[r.id] = r
+  const stamp = changed.reduce((max, r) => (r.updatedAt > max ? r.updatedAt : max), '')
+  for (const id in held) {
+    const r = held[id]!
+    if (view.archived.has(id) || r.deletedAt !== null) continue
+    let over: string | null = null
+    let up = r.parentId ? held[r.parentId] : undefined
+    for (let n = 0; up && n < 64 && over === null; n++) {
+      if (view.archived.has(up.id)) over = all[up.id]!.deletedAt
+      up = up.parentId ? held[up.parentId] : undefined
+    }
+    if (over === null) continue
+    const at = out.findIndex((o) => o.id === id)
+    if (at >= 0) out[at] = { ...out[at]!, deletedAt: over }
+    else out.push({ ...r, deletedAt: over, updatedAt: stamp })
   }
   return out
 }
 
-// What an hour's row shows and counts: the line on top of its list, and its own lines,
-// crossed out and open. Only the lines put in the hour count; what is under them is theirs
-// (Kevin, 2026-11-25: a few items picked for the hour, done or not).
-export function slotProgress(all: Rows, slot: string): { top: NodeRow | undefined; count: SlotCount } {
-  const tops = slotTops(all, slot)
+// What an hour's row shows: the line on top of its list, and how many more of its own
+// lines follow it (the row says "+2"). Only the lines put in the hour count; what is under
+// them is theirs (Kevin, 2026-11-25: a few items picked for the hour). An archived line
+// counts where it was; a divider is not an item and is never the top.
+export function slotProgress(all: Rows, slot: string): { top: NodeRow | undefined; more: number; count: SlotCount } {
+  const tops = slotTops(all, slot).filter((r) => !r.divider)
   const done = tops.filter((r) => r.done).length
-  return { top: tops[0], count: { done, open: tops.length - done } }
+  return { top: tops[0], more: Math.max(0, tops.length - 1), count: { done, open: tops.length - done } }
+}
+
+// What "Fresh start" on an hour does (Kevin, 2026-11-27): every line put in the hour that
+// is not crossed out, archived ones left alone, with the slot it has once this hour is
+// taken off it. A line in a run of hours keeps the others.
+export function slotLeftovers(all: Rows, slot: string): { id: string; slot: string | null }[] {
+  return slotLines(all, slot, true)
+    .filter((r) => r.deletedAt === null && !r.done)
+    .map((r) => ({ id: r.id, slot: slotOfHours(slotHours(r.slot).filter((h) => h !== slot)) }))
 }
 
 function hourWord(hour: number): string {

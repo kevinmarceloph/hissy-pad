@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cleanIcon, SAMPLE_CATEGORIES } from './categories';
-import { applyPatch, EMPTY, firstLine, hasPlan, hourShown, hourState, isLogged, withState, type Entry } from './entry';
+import { applyPatch, firstLine, hourShown, hourState, isLogged, withState, type Entry } from './entry';
 import {
   activeFlags,
   activeOptions,
@@ -32,65 +32,55 @@ const entry = (hour: number, over: Partial<Entry> = {}): Entry => ({
   hour,
   note: '',
   category: null,
-  planned: null,
-  plannedNote: '',
   flags: [],
   state: 'open',
   updatedAt: 1,
   ...over,
 });
 
-describe('the plan', () => {
-  it('is a category, words, or both, and is not a log', () => {
-    expect(hasPlan(undefined)).toBe(false);
-    expect(hasPlan(entry(9))).toBe(false);
-    expect(hasPlan(entry(9, { plannedNote: '  ' }))).toBe(false);
-    expect(hasPlan(entry(9, { planned: 'deep' }))).toBe(true);
-    expect(hasPlan(entry(9, { plannedNote: 'proposals' }))).toBe(true);
-    expect(isLogged(entry(9, { planned: 'deep', plannedNote: 'proposals' }))).toBe(false);
-  });
-
+describe('an hour', () => {
   it('shows the first line that says anything', () => {
     expect(firstLine('fix the collector\n\nthe five-minute one, again')).toBe('fix the collector');
     expect(firstLine('\n  \n  lunch  \nwith the team')).toBe('lunch');
     expect(firstLine('')).toBe('');
   });
 
-  it('patches the plan without touching what happened, and clears both', () => {
-    const base = entry(9, { note: 'email', category: 'admin', updatedAt: 100 });
-    const planned = applyPatch(base, TODAY, 9, { planned: 'deep', plannedNote: 'proposals' }, 200);
-    expect(planned).toEqual({ ...base, planned: 'deep', plannedNote: 'proposals', updatedAt: 200 });
-    expect(applyPatch(planned, TODAY, 9, { planned: null }, 300).planned).toBeNull();
-    expect(applyPatch(planned, TODAY, 9, EMPTY, 300)).toEqual({ ...entry(9), updatedAt: 300 });
-  });
-
-  it('has a state of its own, set by a patch and kept by the others', () => {
+  it('keeps the state stored on it through a patch to something else', () => {
     expect(hourState(undefined)).toBe('open');
     const done = applyPatch(entry(9, { note: 'email' }), TODAY, 9, { state: 'done' }, 200);
     expect(done).toMatchObject({ note: 'email', state: 'done' });
-    expect(applyPatch(done, TODAY, 9, { note: 'email, then lunch' }, 300).state).toBe('done');
-    expect(applyPatch(done, TODAY, 9, EMPTY, 300).state).toBe('open');
+    expect(applyPatch(done, TODAY, 9, { flags: ['f1'] }, 300)).toMatchObject({ state: 'done', note: 'email', flags: ['f1'], updatedAt: 300 });
   });
 
   it('reads a row from before hours had a state as done when it was logged', () => {
     const { state: _none, ...old } = entry(9, { note: 'email' });
     expect(withState(old).state).toBe('done');
-    const { state: _gone, ...blank } = entry(9, { planned: 'deep' });
+    const { state: _gone, ...blank } = entry(9);
     expect(withState(blank).state).toBe('open');
     expect(withState({ ...old, state: 'doing' }).state).toBe('doing');
     expect(withState({ ...old, state: 'kept' }).state).toBe('done');
   });
 
-  it('shows its summary, or else the line on top of its list, or else what it falls back on', () => {
-    const top = { text: 'write the proposal', category: 'deep' };
-    expect(hourShown(undefined, undefined)).toEqual({ title: '', category: null, from: null });
-    expect(hourShown(undefined, top)).toEqual({ title: 'write the proposal', category: 'deep', from: 'line' });
-    // A summary wins over the line, and the hour's own category over the line's.
-    expect(hourShown(entry(9, { note: 'proposals\nall morning' }), top)).toEqual({ title: 'proposals', category: 'deep', from: 'summary' });
-    expect(hourShown(entry(9, { category: 'admin' }), top)).toEqual({ title: 'write the proposal', category: 'admin', from: 'line' });
-    // With no line and no summary, a recurring plan's words and category.
-    expect(hourShown(entry(9, { planned: 'sleep', plannedNote: 'sleep' }), undefined)).toEqual({ title: 'sleep', category: 'sleep', from: 'plan' });
-    expect(hourShown(entry(9, { planned: 'sleep', plannedNote: 'sleep' }), top)).toMatchObject({ title: 'write the proposal', category: 'deep' });
+  it('is its first line: the title, the category and the state, and a count of the rest', () => {
+    const top = { text: 'write the proposal\nby Friday', category: 'deep', done: false, doing: true };
+    expect(hourShown(undefined)).toEqual({ title: '', more: 0, category: null, state: 'open', from: null });
+    expect(hourShown(top, 2)).toEqual({ title: 'write the proposal', more: 2, category: 'deep', state: 'doing', from: 'line' });
+    // First item done = hour done, whatever the others are.
+    expect(hourShown({ ...top, done: true, doing: false }, 3).state).toBe('done');
+    // Nothing written on the hour before, and no recurring plan, changes what a line says.
+    const old = entry(9, { note: 'proposals\nall morning', category: 'admin', state: 'done' });
+    const plan = { note: 'sleep', category: 'rest' };
+    expect(hourShown({ text: 'email', category: null, done: false }, 0, plan, old)).toEqual({ title: 'email', more: 0, category: null, state: 'open', from: 'line' });
+  });
+
+  it('with no lines falls back on what was written on it before, then on a recurring plan', () => {
+    const old = entry(9, { note: 'proposals\nall morning', category: 'admin', state: 'done' });
+    const plan = { note: 'sleep', category: 'rest' };
+    expect(hourShown(undefined, 0, plan, old)).toEqual({ title: 'proposals', more: 0, category: 'admin', state: 'done', from: 'old' });
+    expect(hourShown(undefined, 0, plan, entry(9, { category: 'admin' }))).toMatchObject({ title: '', category: 'admin', from: 'old' });
+    // A row with only flags or a state says nothing: the plan shows.
+    expect(hourShown(undefined, 0, plan, entry(9, { flags: ['f1'], state: 'done' }))).toEqual({ title: 'sleep', more: 0, category: 'rest', state: 'open', from: 'plan' });
+    expect(hourShown(undefined, 0, plan)).toMatchObject({ title: 'sleep', from: 'plan' });
   });
 
   it('counts the hours marked done, by the category each row shows', () => {

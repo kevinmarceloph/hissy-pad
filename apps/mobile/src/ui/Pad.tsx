@@ -21,7 +21,7 @@ import { SubRows } from './SubRows'
 import { BoomerangPicker, CategoriesApp, CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
 import { DueHead, ScheduledHead } from './Boomerangs'
 import {
-  cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot, useCategoryChoices,
+  cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotFinder, setSlotPickerOpener, targetCategory, targetSlot, useCategoryChoices,
 } from '@hissypad/state/hours'
 import { SearchSheet } from './Search'
 import { PadChips } from './PadChips'
@@ -109,6 +109,8 @@ export function Pad() {
   // two, so it is where it was left on the way back.
   const [mode, setMode] = useState<Mode>('hours')
   const [sheet, setSheet] = useState<'done' | 'search' | 'categories' | null>(null)
+  // The hour Search was opened for (Hours' search button), or null for a search that goes to the line.
+  const [assign, setAssign] = useState<string | null>(null)
   // The Archive: a screen that is no mode, over whichever mode is open. `id` is the line it
   // opens at (an archived line picked in Search); `rev` makes a second trip scroll again.
   const [archive, setArchive] = useState<{ id: string | null; rev: number } | null>(null)
@@ -126,10 +128,13 @@ export function Pad() {
     // Hours' rows are opened with the pad: a line's category icon comes from its list.
     void openHours()
     setSlotPickerOpener((ids) => setPicking({ value: targetSlot(ids), count: ids.length }))
+    // An hour's search button in Hours: Search, opened to put the line found in that hour.
+    setSlotFinder((slot) => { setAssign(slot); setSheet('search') })
     setCategoryPickerOpener((ids) => setCategorizing({ value: targetCategory(ids), count: ids.length }))
     setBoomerangPickerOpener((ids) => setSending({ value: targetDue(ids), count: ids.length }))
     return () => {
       setSlotPickerOpener(null)
+      setSlotFinder(null)
       setCategoryPickerOpener(null)
       setBoomerangPickerOpener(null)
     }
@@ -583,7 +588,7 @@ export function Pad() {
         <ModeBar mode={archive ? null : mode} onMode={switchMode} theme={theme} />
         <View style={s.grow} />
         <Pressable onPress={() => { stopEditing(); openCreate() }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="New item"><PlusIcon color={theme.inkSoft} /></Pressable>
-        <Pressable onPress={() => { stopEditing(); setSheet('search') }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Search every pad"><SearchIcon color={theme.inkSoft} /></Pressable>
+        <Pressable onPress={() => { stopEditing(); setAssign(null); setSheet('search') }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Search every pad"><SearchIcon color={theme.inkSoft} /></Pressable>
         <Pressable onPress={openMenu} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="More: Done, Archive and Categories"><MenuIcon color={theme.inkSoft} /></Pressable>
       </View>
       {/* The pad chips are the pad's only: Sort picks its pad in its own title. */}
@@ -621,7 +626,7 @@ export function Pad() {
           {sheet === 'categories' && <CategoriesApp onClose={() => setSheet(null)} />}
         </View>
       </Modal>
-      <SearchSheet visible={sheet === 'search'} onClose={() => setSheet(null)} onOpen={() => { setArchive(null); setMode('pad') }} onArchived={openArchive} theme={theme} />
+      <SearchSheet visible={sheet === 'search'} assign={assign} onClose={() => { setSheet(null); setAssign(null) }} onOpen={() => { setArchive(null); setMode('pad') }} onArchived={openArchive} theme={theme} />
       <DoneSheet visible={sheet === 'done'} onClose={() => setSheet(null)} theme={theme} />
       {toast && screen !== 'pad' && screen !== 'archive' && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
       {/* Hours: the shared screens (packages/ui). Sort starts over when the pad changes. */}

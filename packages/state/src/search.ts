@@ -4,7 +4,7 @@
 // those are gone to on the Archive screen, which each app opens itself (cmdOpenHit is for
 // live lines). Plain selectors plus the one command that jumps to a hit; both platforms
 // draw from this, and nothing here knows about the DOM or React Native.
-import { buildIndex, childrenOf, isLive, isPadNode, setCollapsed, type NodeRow, type PadId, type Rows } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, isLive, isPadNode, kindOf, setCollapsed, type NodeKind, type NodeRow, type PadId, type Rows } from '@hissypad/core'
 import { applyAll, openPad, revealRow, setSortMode, usePad, zoomTo } from './store'
 import { select, stopEditing } from './selection'
 import { foldedAncestors, padOf } from './lists'
@@ -28,6 +28,8 @@ export interface SearchHit {
   isPad: boolean      // the hit is a pad's name, not a line
   archived: boolean   // the line is archived; going to it opens the Archive at it
   done: boolean
+  kind: NodeKind      // plain, numbered, a header or a divider
+  children: number    // the lines right under it (a pad's own lines), blank ones not counted
   path: string[]      // the lines it sits under, outermost first, the pad itself not included
   parts: SearchPart[] // the line of its text that matched
 }
@@ -135,7 +137,7 @@ export function search(all: Rows, query: string, current: PadId = null, limit = 
   }
   const walk = (parentId: string, padId: PadId, path: string[]) => {
     for (const r of childrenOf(index, parentId)) {
-      if (matches(r.text)) add({ id: r.id, padId, isPad: false, archived: false, done: r.done, path, parts: searchParts(r.text, terms) })
+      if (matches(r.text)) add({ id: r.id, padId, isPad: false, archived: false, done: r.done, kind: kindOf(r), children: countLines(childrenOf(index, r.id)), path, parts: searchParts(r.text, terms) })
       if (childrenOf(index, r.id).length > 0) walk(r.id, padId, [...path, firstLineOf(r.text) || '(blank line)'])
     }
   }
@@ -144,10 +146,10 @@ export function search(all: Rows, query: string, current: PadId = null, limit = 
     const isPad: boolean = isPadNode(r)
     if (isPad) {
       order.push(r.id)
-      if (matches(r.text)) add({ id: r.id, padId: r.id, isPad: true, archived: false, done: false, path: [], parts: searchParts(r.text, terms) })
+      if (matches(r.text)) add({ id: r.id, padId: r.id, isPad: true, archived: false, done: false, kind: 'plain', children: countLines(childrenOf(index, r.id)), path: [], parts: searchParts(r.text, terms) })
       walk(r.id, r.id, [])
     } else {
-      if (matches(r.text)) add({ id: r.id, padId: null, isPad: false, archived: false, done: r.done, path: [], parts: searchParts(r.text, terms) })
+      if (matches(r.text)) add({ id: r.id, padId: null, isPad: false, archived: false, done: r.done, kind: kindOf(r), children: countLines(childrenOf(index, r.id)), path: [], parts: searchParts(r.text, terms) })
       if (childrenOf(index, r.id).length > 0) walk(r.id, null, [firstLineOf(r.text) || '(blank line)'])
     }
   }
@@ -184,6 +186,11 @@ function archivedHits(all: Rows, terms: readonly string[]): SearchHit[] {
       return terms.every((t) => f.includes(t))
     })
     .sort((a, b) => Date.parse(b.deletedAt) - Date.parse(a.deletedAt) || a.rank.localeCompare(b.rank) || (a.id < b.id ? -1 : 1))
+  // The archived lines right under each archived line, blank ones not counted.
+  const under = new Map<string, number>()
+  for (const r of Object.values(all)) {
+    if (r.deletedAt !== null && r.parentId !== null && r.text.trim() !== '') under.set(r.parentId, (under.get(r.parentId) ?? 0) + 1)
+  }
   return dead.map((r) => {
     const isPad = padRow(r)
     const path: string[] = []
@@ -195,8 +202,17 @@ function archivedHits(all: Rows, terms: readonly string[]): SearchHit[] {
       }
       path.unshift(firstLineOf(p.text) || '(blank line)')
     }
-    return { id: r.id, padId: null, isPad, archived: true, done: r.done, path: isPad ? [] : [pad, ...path], parts: searchParts(r.text, terms) }
+    return { id: r.id, padId: null, isPad, archived: true, done: r.done, kind: kindOf(r), children: under.get(r.id) ?? 0, path: isPad ? [] : [pad, ...path], parts: searchParts(r.text, terms) }
   })
+}
+
+// What a hit says under its text: what kind of line it is when it is not a plain one, how
+// many lines are right under it, then where it sits. Both apps draw this one line.
+const KIND_NAMES: Record<NodeKind, string> = { plain: '', numbered: 'Numbered', header: 'Header', divider: 'Divider' }
+export function hitNote(h: SearchHit): string {
+  const kind = h.isPad ? 'Pad' : KIND_NAMES[h.kind]
+  const kids = h.children > 0 ? (h.isPad ? `${h.children} ${h.children === 1 ? 'line' : 'lines'}` : `${h.children} sub ${h.children === 1 ? 'item' : 'items'}`) : ''
+  return [[kind, kids].filter(Boolean).join(', '), ...h.path].filter(Boolean).join(' › ')
 }
 
 // "3 lines", "1 line", or "the first 60 of 214 lines" when the list was cut short.

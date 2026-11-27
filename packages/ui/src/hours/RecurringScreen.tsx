@@ -65,9 +65,9 @@ export function RecurringScreen({ onBack }: { onBack(): void }) {
             Recurring plans
           </Text>
           <Text style={[styles.small, { color: theme.inkSoft }]}>
-            Plans that repeat. An hour with no plan of its own takes the recurring plan that covers it, so the day comes
-            already planned: tap an hour&apos;s box to mark it done. A plan written on the hour itself wins. Where two
-            recurring plans overlap, the one on fewer days wins, then the one higher on this list.
+            Plans that repeat. An hour with no lines in it shows the recurring plan that covers it, so the day comes
+            already drawn. A line put in the hour takes its place. Where two recurring plans overlap, the one on fewer
+            days wins, then the one higher on this list.
           </Text>
           {error && (
             <Text role="alert" style={[styles.small, { color: theme.accent }]}>

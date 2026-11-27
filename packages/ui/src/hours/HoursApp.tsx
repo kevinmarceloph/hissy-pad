@@ -4,24 +4,25 @@ import { openHours, type HoursStores } from '@hissypad/state/hours';
 
 import { CategoriesScreen } from './CategoriesScreen';
 import { DayScreen } from './DayScreen';
-import { FlagsScreen } from './FlagsScreen';
 import { LinesContext, type RenderLines } from './HostedLines';
 import { StoresProvider } from './provider';
 import { RecurringScreen } from './RecurringScreen';
 import { LINE, SchemeContext, serif, SIZE, useTheme } from './theme';
 
-type Screen = 'day' | 'flags' | 'plans';
+// Flags are hidden since 2026-11-27 (Kevin: kept for a later version): FlagsScreen and the
+// flag store are still here, with no way in.
+type Screen = 'day' | 'plans';
 
 type Props = {
   // The host's own Light / Dark choice; null or absent follows the device.
   scheme?: 'light' | 'dark' | null;
-  // The host's own pad editor for the lines of an open hour. Without it the hour draws
-  // the small pad of these screens (the phone, until it hands its rows in).
+  // The host's own pad editor for the lines of an open hour. Both apps hand one in;
+  // without it (a screen under test) an open hour draws no lines.
   renderLines?: RenderLines;
 };
 
-// The Hours mode, whole: one row per hour with a plan and what happened, the pad's lines
-// assigned to each hour, and the screens for the user's own lists. The web app and the
+// The Hours mode, whole: one row per hour, each a pad of the lines put in it, and the
+// screen for recurring plans. The web app and the
 // phone both mount this; it opens the hours' local rows on first use.
 export function HoursApp({ scheme = null, renderLines }: Props) {
   const { ready: stores, failed } = useHoursStores();
@@ -41,14 +42,11 @@ export function HoursApp({ scheme = null, renderLines }: Props) {
           recurring={stores.recurring}
           sync={stores.sync}
           chimes={stores.chimes}>
-          {screen === 'flags' ? (
-            <FlagsScreen onBack={back} />
-          ) : screen === 'plans' ? (
+          {screen === 'plans' ? (
             <RecurringScreen onBack={back} />
           ) : (
             <LinesContext.Provider value={renderLines ?? null}>
               <DayScreen
-                onEditFlags={() => setScreen('flags')}
                 onEditPlans={() => setScreen('plans')}
               />
             </LinesContext.Provider>

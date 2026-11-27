@@ -160,7 +160,7 @@ export function archivePrune(sel: ArchiveSelection, lines: readonly ArchiveLine[
 
 // A row plus every archived row under it from the same archive. A sub item archived
 // earlier on its own is not part of it and stays archived.
-function batchSubtree(all: Rows, id: string): string[] {
+export function batchSubtree(all: Rows, id: string): string[] {
   const root = all[id]
   if (!root || root.deletedAt === null) return []
   const at = ms(root.deletedAt)

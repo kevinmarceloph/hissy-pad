@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { idOf, setCollapsed } from '@hissypad/core'
+import { idOf, setCollapsed, setKind } from '@hissypad/core'
 import { resetStore } from './testing'
 import { applyAll, loadPad, openPad, usePad } from './store'
 import { undo } from './history'
 import { select } from './selection'
 import { cmdDeleteSelection, cmdToggleDone } from './commands'
 import { cmdDeletePad, cmdMoveToPad, cmdNewPad } from './pads'
-import { cmdOpenHit, foldText, search, searchCount, searchParts, searchTerms } from './search'
+import { cmdOpenHit, foldText, hitNote, search, searchCount, searchParts, searchTerms } from './search'
 
 const all = () => usePad.getState().all
 const id = (t: string) => idOf(all(), t)
@@ -56,6 +56,23 @@ describe('search', () => {
     const pad = search(all(), 'work').groups.find((g) => g.padId === work)!
     expect(pad.hits[0]).toMatchObject({ id: work, isPad: true, path: [] })
     expect(pad.hits.slice(1).every((h) => h.path.length === 0 && !h.isPad)).toBe(true)
+  })
+
+  it('says what kind of line a hit is and how many lines are right under it', () => {
+    const one = (q: string) => search(all(), q).groups.flatMap((g) => g.hits)[0]!
+    // A plain line with nothing under it says only where it sits.
+    expect(one('airline')).toMatchObject({ kind: 'plain', children: 0 })
+    expect(hitNote(one('airline'))).toBe('Trip to Cebu › Book flights')
+    expect(hitNote(one('buy'))).toBe('')
+    // The lines right under it, not the ones further in.
+    expect(one('cebu')).toMatchObject({ kind: 'plain', children: 2 })
+    expect(hitNote(one('cebu'))).toBe('2 sub items')
+    applyAll((rows, ctx) => setKind(rows, ctx, [id('Trip to Cebu')], 'header'))
+    expect(hitNote(one('cebu'))).toBe('Header, 2 sub items')
+    expect(hitNote(one('flights'))).toBe('1 sub item › Trip to Cebu')
+    // A pad says how many lines it holds.
+    const pad = search(all(), 'work').groups.find((g) => g.padId === work)!.hits[0]!
+    expect(hitNote(pad)).toBe('Pad, 2 lines')
   })
 
   it('leaves deleted lines out, keeps crossed-out ones, and stops at the limit', () => {

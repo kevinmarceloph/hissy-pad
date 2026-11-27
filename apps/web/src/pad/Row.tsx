@@ -7,8 +7,8 @@ import {
 } from '@hissypad/state'
 import { cmdClearFresh, redo, undo } from '@hissypad/state'
 import { apply } from '@hissypad/state'
-import { slotLabel, slotPast, todayKey, inlineSpans, toggleCollapsed, URL_RE } from '@hissypad/core'
-import { useLineCategory } from '@hissypad/state/hours'
+import { scopeSlot, slotLabel, slotPast, todayKey, inlineSpans, toggleCollapsed, URL_RE } from '@hissypad/core'
+import { cmdSlotUnarchive, useLineCategory } from '@hissypad/state/hours'
 import { addCategoryCss } from './categoryColors'
 
 addCategoryCss()
@@ -181,12 +181,14 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
   }
 
   const category = useLineCategory(row.category)
+  // In an open hour, an archived line of the hour is drawn among the others (core's slotShown).
+  const archived = usePad((s) => s.slotId !== null && scopeSlot(s.all, s.slotId).archived.has(row.id))
   // In its category's own pad a line shows no icon, only the bullet in the category's color.
   const padCategory = usePadCategoryOf(row.id)
   const badge = category && row.category !== padCategory
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
-  const cls = ['row', row.done && 'is-done', row.doing && 'is-doing', row.pinned && 'is-pinned', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', row.divider && number === null && 'is-divider', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', selectedChild && 'is-selected-child', isEditing && 'is-editing', folded && 'is-collapsed', category && 'has-category', category && `cat-${category.color}`]
+  const cls = ['row', row.done && 'is-done', row.doing && 'is-doing', row.pinned && 'is-pinned', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', row.divider && number === null && 'is-divider', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', selectedChild && 'is-selected-child', isEditing && 'is-editing', folded && 'is-collapsed', category && 'has-category', category && `cat-${category.color}`, archived && 'is-archived']
     .filter(Boolean)
     .join(' ')
 
@@ -245,8 +247,8 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
               type="button"
               className="fresh"
               tabIndex={-1}
-              aria-label="Back from a boomerang. Press to clear the mark."
-              title="Back from a boomerang. Press to clear the mark."
+              aria-label="Came back from a boomerang or an hour. Press to clear the mark."
+              title="Came back from a boomerang or an hour. Press to clear the mark."
               onMouseDown={(e) => e.stopPropagation()}
               onClick={() => cmdClearFresh(row.id)}
             />
@@ -273,6 +275,24 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
             </button>
           )}
         </div>
+      )}
+      {archived && (
+        // Archived, and still in its hour: the mark at the right brings it back where it
+        // was in its pad, as done or as open as it is (Kevin, 2026-11-27).
+        <button
+          type="button"
+          className="unarchive"
+          tabIndex={-1}
+          aria-label="Archived. Press to unarchive."
+          title="Archived. Press to unarchive."
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={() => cmdSlotUnarchive(row.id)}
+        >
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="2.5" y="3.5" width="15" height="4" rx="1" />
+            <path d="M4 7.5v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8M8 11h4" />
+          </svg>
+        </button>
       )}
     </div>
   )

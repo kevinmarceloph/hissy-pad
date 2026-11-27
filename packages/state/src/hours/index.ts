@@ -8,7 +8,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import {
-  applyPatch, cleanDayStart, createMemoryBackend, formatChimes, HoursStore, parseChimes,
+  cleanDayStart, createMemoryBackend, formatChimes, HoursStore, parseChimes,
   type Category, type ChimeOutcome, type ColorKey, type DayKey, type HoursBackend,
 } from '@hissypad/core/hours';
 
@@ -20,6 +20,8 @@ import { createFlagStore, type FlagsStore } from './flag-store';
 import { createRecurringStore, type RecurringPlansStore } from './recurring-store';
 import { createSupabaseRemote } from './remote';
 import { adoptLineCategories } from './line-categories';
+import { cmdSlotAdd } from './slots';
+import { usePad } from '../store';
 
 export * from './category-store';
 export * from './chime-store';
@@ -122,13 +124,16 @@ export function openHours(): Promise<HoursStores> {
     // The day on the screen depends on the day start, so it is read before anything draws.
     day.getState().adoptStart(cleanDayStart(store.getSetting(DAY_START_KEY)));
     chimes.getState().adopt(parseChimes(store.getSetting(CHIMES_KEY)));
-    // A reply typed into a chime's notification lands in its hour, then the open day refreshes.
+    // A reply typed into a chime's notification becomes a line in its hour (an hour has no
+    // summary of its own since 2026-11-27), once the pad is there to take it.
     platform?.listenForReplies?.((slotDay, hour, note) => {
-      void (async () => {
-        const before = (await store.listDay(slotDay)).find((e) => e.hour === hour);
-        await store.put(applyPatch(before, slotDay, hour, { note }, Date.now()));
-        await day.getState().refresh();
-      })();
+      const add = () => void cmdSlotAdd(slotDay, hour, note);
+      if (usePad.getState().load === 'ready') return add();
+      const stop = usePad.subscribe((s) => {
+        if (s.load !== 'ready') return;
+        stop();
+        add();
+      });
     });
     const stores: HoursStores = { store, day, categories, flags, recurring, chimes, sync: syncStore };
     ready = stores;

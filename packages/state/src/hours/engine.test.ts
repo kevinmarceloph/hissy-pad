@@ -14,8 +14,6 @@ const entry = (hour: number, note: string, updatedAt: number, category: string |
   hour,
   note,
   category,
-  planned: null,
-  plannedNote: '',
   flags: [],
   state: 'open',
   updatedAt,
@@ -79,7 +77,7 @@ describe('sync engine', () => {
     expect(await b.store.sync.categories.dirty()).toEqual([]);
   });
 
-  it('syncs the flag list and an hour`s plan and flags', async () => {
+  it('syncs the flag list and an hour`s flags', async () => {
     const remote = createFakeRemote();
     const a = device(remote);
     const b = device(remote);
@@ -89,13 +87,13 @@ describe('sync engine', () => {
 
     await a.store.putFlag(patchFlag(SAMPLE_FLAGS[2], { label: 'Hungry or tired' }, 500));
     await a.store.put(
-      applyPatch(undefined, DAY, 9, { note: 'scrolled', category: 'drift', planned: 'deep', plannedNote: 'proposals', flags: ['halts'] }, 500),
+      applyPatch(undefined, DAY, 9, { note: 'scrolled', category: 'drift', flags: ['halts'] }, 500),
     );
     await a.engine.sync();
     await b.engine.sync();
 
     expect((await b.store.listFlags()).find((f) => f.id === 'halts')!.label).toBe('Hungry or tired');
-    expect((await b.store.listDay(DAY))[0]).toMatchObject({ planned: 'deep', plannedNote: 'proposals', flags: ['halts'] });
+    expect((await b.store.listDay(DAY))[0]).toMatchObject({ note: 'scrolled', category: 'drift', flags: ['halts'] });
     expect(await b.store.sync.flags.dirty()).toEqual([]);
   });
 
@@ -150,7 +148,7 @@ describe('sync engine', () => {
     await a.store.put(applyPatch(before, DAY, 9, { note: '', category: null }, 300));
     await a.engine.sync();
     await b.engine.sync();
-    expect(await b.store.listDay(DAY)).toEqual([{ day: DAY, hour: 9, note: '', category: null, planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 300 }]);
+    expect(await b.store.listDay(DAY)).toEqual([{ day: DAY, hour: 9, note: '', category: null, flags: [], state: 'open', updatedAt: 300 }]);
   });
 
   it('syncs a renamed, recolored and archived category', async () => {
@@ -219,7 +217,7 @@ describe('sync engine', () => {
 
   it('reads everything again once, and takes the server`s row over a clean local one that differs', async () => {
     const remote = createFakeRemote();
-    const a = device(remote, [{ ...entry(10, '', 5), planned: 'deep', plannedNote: 'market trip' }]);
+    const a = device(remote, [{ ...entry(10, '', 5), flags: ['halts'] }]);
     await a.engine.sync();
 
     // The other device holds an empty copy of that hour, clean, with its cursor past it,
@@ -229,10 +227,10 @@ describe('sync engine', () => {
     await b.store.put(entry(10, '', 5));
     await b.store.sync.entries.markClean([entry(10, '', 5)]);
     await b.store.sync.setMeta('sync.epoch', '1');
-    expect((await b.store.listDay(DAY))[0].plannedNote).toBe('');
+    expect((await b.store.listDay(DAY))[0].flags).toEqual([]);
 
     await b.engine.sync();
-    expect((await b.store.listDay(DAY))[0]).toMatchObject({ planned: 'deep', plannedNote: 'market trip' });
+    expect((await b.store.listDay(DAY))[0]).toMatchObject({ flags: ['halts'] });
     expect(await b.store.sync.getMeta('sync.epoch')).toBe(PULL_EPOCH);
 
     // The next sync starts from the cursor again and lands nothing.

@@ -1,9 +1,9 @@
 import { vi } from 'vitest';
 import { fireEvent as dom } from '@testing-library/react';
-import { idOf, insertAt, slotCounts, slotKey } from '@hissypad/core';
+import { idOf, insertAt, setDone, slotKey } from '@hissypad/core';
 import { dayDate, MemoryStore } from '@hissypad/core/hours';
-import { applyAll, cmdDeleteSelection, loadPad, resetStore, select, usePad, zoomTo } from '@hissypad/state';
-import { cmdSetSlot, cmdSlotDone, createCategoryStore, createDayStore, createFlagStore, openHours } from '@hissypad/state/hours';
+import { applyAll, cmdDeleteSelection, cmdSetText, loadPad, resetStore, select, usePad, zoomTo } from '@hissypad/state';
+import { cmdSetSlot, cmdSlotUnarchive, createCategoryStore, createDayStore, createFlagStore, openHours, setSlotFinder } from '@hissypad/state/hours';
 
 import { act, fireEvent, render, screen, within } from '../testing/rntl';
 import { DayScreen } from './DayScreen';
@@ -15,8 +15,16 @@ import { SlotPicker } from './SlotPicker';
 const clock = () => new Date(2026, 10, 19, 14, 25);
 const all = () => usePad.getState().all;
 const id = (text: string) => idOf(all(), text);
+const cross = (line: string) => applyAll((rows, ctx) => setDone(rows, ctx, [line], true, true));
 
-async function setup() {
+// The host's editor, reduced to what matters here: it draws the store's rows.
+function HostRows() {
+  const rows = usePad((s) => s.rows);
+  return <p data-testid="host-rows">{Object.values(rows).map((r) => r.text).sort().join(' | ')}</p>;
+}
+
+// `host`: with an editor handed in, as both apps do. Without one an open hour draws no lines.
+async function setup(host = false) {
   resetStore('call the bank\nsend invoice\nbuy milk');
   await loadPad();
   const store = new MemoryStore();
@@ -27,61 +35,65 @@ async function setup() {
   await flags.getState().load();
   await render(
     <StoresProvider day={day} categories={categories} flags={flags}>
-      <DayScreen clock={clock} />
+      <LinesContext.Provider value={host ? () => <HostRows /> : null}>
+        <DayScreen clock={clock} />
+      </LinesContext.Provider>
     </StoresProvider>,
   );
   await screen.findByLabelText('2pm, now: blank');
   return { day };
 }
+const hosted = () => setup(true);
 
 describe('the pad\'s lines in an hour', () => {
-  it('shows the line on top of an hour on its row, with no count of its lines done out of all', async () => {
+  it('titles an hour with its first line and +N for the others, and is done when that line is', async () => {
     await setup();
     await act(async () => {
-      select([id('call the bank'), id('send invoice')]);
+      select([id('call the bank'), id('send invoice'), id('buy milk')]);
       cmdSetSlot(slotKey('2026-11-19', 14));
-      cmdSlotDone(id('call the bank'), true);
     });
-    // No summary was typed, so the row says its first line as the pad has them, crossed
-    // out or not: an hour keeps no order of its own.
-    expect(screen.getByLabelText('2pm, now: call the bank')).toBeTruthy();
-    expect(screen.queryByText('1/2')).toBeNull();
+    // The first line as the pad has them, and how many more follow it.
+    expect(screen.getByLabelText('2pm, now: call the bank, and 2 more')).toBeTruthy();
+    expect(screen.getByText('+2')).toBeTruthy();
+    // A later line crossed out changes nothing about the hour.
+    await act(async () => void cross(id('send invoice')));
+    expect(screen.getByLabelText('2pm, now: call the bank, and 2 more')).toBeTruthy();
+    // First item done = hour done. There is no switch for it.
+    await act(async () => void cross(id('call the bank')));
+    expect(screen.getByLabelText('2pm, now: call the bank, and 2 more, done')).toBeTruthy();
+    expect(screen.queryByRole('radio')).toBeNull();
     // An hour with nothing assigned says nothing about items.
     expect(screen.getByLabelText('1pm: blank')).toBeTruthy();
   });
 
-  it('says the lines put in the hour, not what is under them', async () => {
+  it('says the lines put in the hour, not what is under them, and stores nothing on the hour', async () => {
     const { day } = await setup();
     await act(async () => {
       cmdSetSlot(slotKey('2026-11-19', 14), [id('send invoice'), id('buy milk')]);
     });
-    expect(screen.getByLabelText('2pm, now: send invoice')).toBeTruthy();
-    // Nothing is stored on the hour until it is written to.
-    expect(day.getState().byHour[14]).toBeUndefined();
-
+    expect(screen.getByLabelText('2pm, now: send invoice, and 1 more')).toBeTruthy();
     await act(async () => {
       const invoice = id('send invoice');
       applyAll((rows, ctx) => insertAt(insertAt(rows, ctx, { parentId: invoice, afterId: null }, 'find the PO number').rows, ctx, { parentId: invoice, afterId: null }, 'export the PDF').rows);
-      cmdSlotDone(id('export the PDF'), true);
-      cmdSlotDone(id('buy milk'), true);
+      cross(id('export the PDF'));
+      cross(id('buy milk'));
     });
     // The lines under one are not counted, nor as extra.
-    expect(screen.getByLabelText('2pm, now: send invoice')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: send invoice, and 1 more')).toBeTruthy();
     expect(screen.queryByText(/^✕/)).toBeNull();
-    expect(screen.queryByText(/\d\/\d/)).toBeNull();
-
-    // Done is the hour's own, said by hand; the line stays what the row shows.
-    await fireEvent.press(screen.getByRole('radio', { name: '2pm: Done' }));
-    expect(screen.getByLabelText('2pm, now: send invoice, done')).toBeTruthy();
-    expect(day.getState().byHour[14]).toMatchObject({ state: 'done', note: '', plannedNote: '' });
+    // The hour has nothing of its own: no summary, no state, no flags to set.
+    expect(day.getState().byHour[14]).toBeUndefined();
+    expect(screen.queryByText('Summary')).toBeNull();
+    expect(screen.queryByText('Flags')).toBeNull();
+    expect(screen.queryByText('Clear this hour')).toBeNull();
   });
 
-  it('adds the lines crossed out during an hour that were not assigned to it, cleared ones too', async () => {
+  it('keeps the lines crossed out during an hour that were not assigned to it behind a text toggle', async () => {
     await setup();
     await act(async () => {
       select([id('call the bank')]);
       cmdSetSlot(slotKey('2026-11-19', 14));
-      cmdSlotDone(id('call the bank'), true);
+      cross(id('call the bank'));
       // Crossed out at 2:25pm (the clock) without an hour of its own, then cleared.
       const t = clock().toISOString();
       usePad.setState((s) => {
@@ -89,115 +101,74 @@ describe('the pad\'s lines in an hour', () => {
         return { all: { ...s.all, [r.id]: r } };
       });
     });
-    expect(screen.getByLabelText('2pm, now: call the bank, 1 more done')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: call the bank, done, 1 more done')).toBeTruthy();
     expect(screen.getByText('✕1')).toBeTruthy();
-    // The open hour lists it under a heading of its own; its own line is not listed there.
+    // Not listed until asked for.
+    expect(screen.queryByRole('list', { name: 'Lines done in this hour' })).toBeNull();
+    const toggle = screen.getByLabelText('Done in this hour: 1');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await fireEvent.press(toggle);
     const list = screen.getByRole('list', { name: 'Lines done in this hour' });
     expect(within(list).getByText('buy milk')).toBeTruthy();
     expect(within(list).queryByText('call the bank')).toBeNull();
+    await fireEvent.press(screen.getByLabelText('Done in this hour: 1'));
+    expect(screen.queryByRole('list', { name: 'Lines done in this hour' })).toBeNull();
   });
 
-  it('puts a new item at the top of Today, already in the hour', async () => {
-    await setup();
-    await fireEvent.changeText(screen.getByLabelText('Add a line to this hour'), 'renew passport');
-    await fireEvent.press(screen.getByLabelText('Add the line'));
-    const made = all()[id('renew passport')]!;
-    expect(made.slot).toBe('2026-11-19T14');
-    expect(all()[made.parentId!]).toMatchObject({ pad: true, text: 'Today' });
-    expect(slotCounts(all())).toEqual({ '2026-11-19T14': { done: 0, open: 1 } });
+  it('opens a new line in the hour from a tap on the empty space under its lines', async () => {
+    await hosted();
+    // An hour with nothing in it says so, in the space that takes the tap.
+    expect(screen.getByText('Nothing in this hour. Tap here to add a line.')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Add a line to this hour'));
+    const made = usePad.getState().editing!.id;
+    await act(async () => void cmdSetText(made, 'renew passport'));
+    expect(all()[made]).toMatchObject({ text: 'renew passport', slot: '2026-11-19T14' });
+    expect(all()[all()[made]!.parentId!]).toMatchObject({ pad: true, text: 'Today' });
+    expect(screen.getByLabelText('2pm, now: renew passport')).toBeTruthy();
+    expect(screen.queryByText('Nothing in this hour. Tap here to add a line.')).toBeNull();
+    // The next tap opens a line after it.
+    await fireEvent.press(screen.getByLabelText('Add a line to this hour'));
+    const next = usePad.getState().editing!.id;
+    await act(async () => void cmdSetText(next, 'book the dentist'));
+    expect(screen.getByLabelText('2pm, now: renew passport, and 1 more')).toBeTruthy();
   });
 
-  it('keeps an archived line in its hour, under an Archived heading, and unarchives it from there', async () => {
-    await setup();
-    const invoice = id('send invoice');
-    await act(async () => {
-      select([id('call the bank'), invoice]);
-      cmdSetSlot(slotKey('2026-11-19', 14));
-      cmdSlotDone(invoice, true);
-      select([invoice]);
-      cmdDeleteSelection();
-    });
-    expect(all()[invoice]!.deletedAt).not.toBeNull();
-    // It still counts: it was the hour's, and it was done.
-    expect(screen.getByLabelText('2pm, now: call the bank')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Archived' })).toBeTruthy();
-    expect(screen.getByText('send invoice')).toBeTruthy();
-    // Its way out is back to its pad, not out of the hour.
-    expect(screen.queryByLabelText('Take “send invoice” out of this hour')).toBeNull();
-    await fireEvent.press(screen.getByLabelText('Unarchive “send invoice”'));
-    expect(all()[invoice]).toMatchObject({ deletedAt: null, slot: '2026-11-19T14', done: true });
-    expect(screen.queryByRole('heading', { name: 'Archived' })).toBeNull();
-    // Nothing jumps to the line: it is not selected, and the pad that is open stays open.
-    expect(usePad.getState().selection).not.toContain(invoice);
-    expect(usePad.getState().padId).toBeNull();
-  });
-
-  it('draws an archived line with what was archived under it, nested, and unarchives them together', async () => {
-    await setup();
-    const invoice = id('send invoice');
-    await act(async () => {
-      applyAll((rows, ctx) => insertAt(insertAt(rows, ctx, { parentId: invoice, afterId: null }, 'export the PDF').rows, ctx, { parentId: invoice, afterId: null }, 'find the PO number').rows);
-      select([invoice]);
-      cmdSetSlot(slotKey('2026-11-19', 14));
-      cmdSlotDone(invoice, true);
-      cmdSlotDone(id('export the PDF'), true);
-      select([invoice]);
-      cmdDeleteSelection();
-    });
-    const list = screen.getByRole('list', { name: 'Archived lines in this hour' });
-    const items = within(list).getAllByRole('listitem');
-    // The hour's line, then what was under it, in the pad's order, one step in.
-    expect(items.map((el) => el.textContent?.replace(/Unarchive$/, '').replace('×', ''))).toEqual(['send invoice', 'find the PO number', 'export the PDF']);
-    expect(getComputedStyle(items[1]!).paddingLeft).not.toBe(getComputedStyle(items[0]!).paddingLeft);
-    // One way back, on the hour's line: the lines under it come back with it.
-    expect(within(list).getAllByText('Unarchive')).toHaveLength(1);
-    await fireEvent.press(screen.getByLabelText('Unarchive “send invoice”'));
-    expect(all()[id('export the PDF')]).toMatchObject({ deletedAt: null, parentId: invoice });
-    expect(screen.queryByRole('heading', { name: 'Archived' })).toBeNull();
-  });
-
-  it('puts items into an hour that has not come', async () => {
-    await setup();
+  it('puts a line into an hour that has not come', async () => {
+    await hosted();
     await fireEvent.press(screen.getByLabelText('5pm: not yet'));
-    await fireEvent.changeText(screen.getByLabelText('Add a line to this hour'), 'pack for the trip');
-    await fireEvent.press(screen.getByLabelText('Add the line'));
+    await fireEvent.press(screen.getByLabelText('Add a line to this hour'));
+    await act(async () => void cmdSetText(usePad.getState().editing!.id, 'pack for the trip'));
     expect(all()[id('pack for the trip')]!.slot).toBe('2026-11-19T17');
     expect(screen.getByLabelText('5pm: pack for the trip')).toBeTruthy();
   });
-});
 
-describe('finding a line for an hour', () => {
-  it('searches every pad as the item field is typed in and puts a line found in the hour', async () => {
+  it('starts an hour fresh: the lines not done leave it, marked, and the done ones stay', async () => {
     await setup();
+    // Nothing in the hour, nothing to take out.
+    expect(screen.getByLabelText(/^Fresh start/)).toHaveAttribute('aria-disabled', 'true');
     await act(async () => {
-      select([id('call the bank')]);
-      cmdSetSlot(slotKey('2026-11-19', 9));
+      select([id('call the bank'), id('send invoice'), id('buy milk')]);
+      cmdSetSlot(slotKey('2026-11-19', 14));
+      cross(id('call the bank'));
     });
-    await fireEvent.changeText(screen.getByLabelText('Add a line to this hour'), 'BAN');
-    // A line in another hour says where it is now.
-    const found = screen.getByRole('option', { name: /^Put “call the bank” in this hour, now in .*9am$/ });
-    expect(screen.queryByRole('option', { name: /buy milk/ })).toBeNull();
-    await fireEvent.press(found);
-    expect(all()[id('call the bank')]!.slot).toBe('2026-11-19T14');
-    // The field is cleared, and a line already in the hour is not offered again.
-    await fireEvent.changeText(screen.getByLabelText('Add a line to this hour'), 'bank');
-    expect(screen.queryByRole('option')).toBeNull();
+    await fireEvent.press(screen.getByLabelText(/^Fresh start/));
+    expect(all()[id('send invoice')]).toMatchObject({ slot: null, fresh: true });
+    expect(all()[id('buy milk')]).toMatchObject({ slot: null, fresh: true });
+    expect(all()[id('call the bank')]).toMatchObject({ slot: '2026-11-19T14', done: true });
+    expect(screen.getByLabelText('2pm, now: call the bank, done')).toBeTruthy();
+    expect(screen.getByLabelText(/^Fresh start/)).toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('puts the find the arrow keys are on with Return, and adds a new line without one', async () => {
+  it('asks the app for its search from the hour\'s search button', async () => {
     await setup();
-    const field = screen.getByLabelText('Add a line to this hour');
-    await fireEvent.changeText(field, 'in');
-    expect(screen.getAllByRole('option')).toHaveLength(1); // send invoice
-    await act(async () => {
-      dom.keyDown(field, { key: 'ArrowDown' });
-    });
-    expect(screen.getByRole('option', { name: /send invoice/ })).toHaveAttribute('aria-selected', 'true');
-    await act(async () => {
-      dom.keyDown(field, { key: 'Enter' });
-    });
-    expect(all()[id('send invoice')]!.slot).toBe('2026-11-19T14');
-    expect(Object.values(all()).filter((r) => r.text === 'in')).toHaveLength(0);
+    const asked: string[] = [];
+    setSlotFinder((slot) => asked.push(slot));
+    try {
+      await fireEvent.press(screen.getByLabelText('Find a line in a pad for this hour'));
+      expect(asked).toEqual(['2026-11-19T14']);
+    } finally {
+      setSlotFinder(null);
+    }
   });
 });
 
@@ -433,31 +404,6 @@ describe('a line in a run of hours', () => {
 });
 
 describe('an open hour drawn by the host\'s own editor', () => {
-  // The host's editor, reduced to what matters here: it draws the store's rows.
-  function HostRows() {
-    const rows = usePad((s) => s.rows);
-    return <p data-testid="host-rows">{Object.values(rows).map((r) => r.text).sort().join(' | ')}</p>;
-  }
-
-  async function hosted() {
-    resetStore('call the bank\nsend invoice\nbuy milk');
-    await loadPad();
-    const store = new MemoryStore();
-    const day = createDayStore(store, clock);
-    const categories = createCategoryStore(store);
-    const flags = createFlagStore(store);
-    await categories.getState().load();
-    await flags.getState().load();
-    await render(
-      <StoresProvider day={day} categories={categories} flags={flags}>
-        <LinesContext.Provider value={() => <HostRows />}>
-          <DayScreen clock={clock} />
-        </LinesContext.Provider>
-      </StoresProvider>,
-    );
-    await screen.findByLabelText('2pm, now: blank');
-  }
-
   it('asks the store to show the hour, and gives the view back when the hour closes', async () => {
     await hosted();
     await act(async () => {
@@ -467,8 +413,8 @@ describe('an open hour drawn by the host\'s own editor', () => {
     // The hour in progress is open: the store shows it, and the host draws its lines.
     expect(usePad.getState().slotId).toBe('2026-11-19T14');
     expect(screen.getByTestId('host-rows').textContent).toBe('send invoice');
-    // The small pad and its drawer are not drawn; the field that brings lines in is.
-    expect(screen.queryByRole('checkbox', { name: /^Select/ })).toBeNull();
+    // No field: the space under the lines takes a tap for a new one.
+    expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.getByLabelText('Add a line to this hour')).toBeTruthy();
 
     // Another hour takes the view; closing it gives the view back to the pad.
@@ -497,20 +443,29 @@ describe('an open hour drawn by the host\'s own editor', () => {
     expect(screen.getByTestId('host-rows').textContent).toBe('send invoice');
   });
 
-  it('lists an archived line under the editor, since a view holds live lines only', async () => {
+  it('keeps an archived line among the hour\'s lines, with what was archived under it', async () => {
     await hosted();
     const invoice = id('send invoice');
     await act(async () => {
+      applyAll((rows, ctx) => insertAt(rows, ctx, { parentId: invoice, afterId: null }, 'export the PDF').rows);
       cmdSetSlot(slotKey('2026-11-19', 14), [id('call the bank'), invoice]);
+      cross(invoice);
       select([invoice]);
       cmdDeleteSelection();
     });
-    expect(screen.getByTestId('host-rows').textContent).toBe('call the bank');
-    expect(screen.getByRole('heading', { name: 'Archived' })).toBeTruthy();
-    // Unarchived, it is a live line again: the host's editor draws it with the others.
-    await fireEvent.press(screen.getByLabelText('Unarchive “send invoice”'));
-    expect(all()[invoice]!.deletedAt).toBeNull();
-    expect(screen.getByTestId('host-rows').textContent).toBe('call the bank | send invoice');
-    expect(screen.queryByRole('heading', { name: 'Archived' })).toBeNull();
+    expect(all()[invoice]!.deletedAt).not.toBeNull();
+    // No heading of its own: the host's editor draws it with the others, and its row
+    // carries the archived mark (each app's Row).
+    expect(screen.getByTestId('host-rows').textContent).toBe('call the bank | export the PDF | send invoice');
+    expect(screen.queryByText('Archived')).toBeNull();
+    // It still counts in the hour's title.
+    expect(screen.getByLabelText('2pm, now: call the bank, and 1 more')).toBeTruthy();
+    // The mark brings it back in place, as done as it was, with the line under it.
+    await act(async () => void cmdSlotUnarchive(invoice));
+    expect(all()[invoice]).toMatchObject({ deletedAt: null, slot: '2026-11-19T14', done: true });
+    expect(all()[id('export the PDF')]).toMatchObject({ deletedAt: null, parentId: invoice });
+    expect(screen.getByTestId('host-rows').textContent).toBe('call the bank | export the PDF | send invoice');
+    // Nothing jumps to the line: the pad that is open stays open.
+    expect(usePad.getState().padId).toBeNull();
   });
 });

@@ -7,12 +7,15 @@ test('an open hour edits its lines with the pad\'s own rows, keys and toolbar', 
   await page.goto('/')
   await page.getByRole('button', { name: 'Hours', exact: true }).click()
 
-  // Hours opens on the hour in progress. An item typed there goes to Today, in the hour.
-  const add = page.getByLabel('Add a line to this hour')
-  await add.fill('Write the proposal')
-  await add.press('Enter')
+  // Hours opens on the hour in progress. The empty space under its lines takes a tap for a
+  // new line, which goes to Today, in the hour. There is no field for it.
+  await expect(page.locator('.hours input, .hours textarea')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Add a line to this hour' }).click()
+  await page.keyboard.type('Write the proposal')
   const rows = page.locator('.hour-lines .row')
   await expect(rows).toHaveCount(1)
+  // The hour's row says its first line.
+  await expect(page.getByRole('button', { name: /, now: Write the proposal$/ })).toBeVisible()
   // The line's chip for this very hour is left out of the hour's own list.
   await expect(rows.first().locator('.slot')).toBeHidden()
 
@@ -50,13 +53,16 @@ test('an open hour edits its lines with the pad\'s own rows, keys and toolbar', 
 test('in an open hour the toolbar offers Out of this hour, not Make pad, and no reorder for the hour\'s own lines', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Hours', exact: true }).click()
-  const add = page.getByLabel('Add a line to this hour')
-  for (const text of ['Call the bank', 'Send invoice']) {
-    await add.fill(text)
-    await add.press('Enter')
-  }
+  await page.getByRole('button', { name: 'Add a line to this hour' }).click()
+  await page.keyboard.type('Call the bank')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Send invoice')
+  await page.keyboard.press('Escape')
   const rows = page.locator('.hour-lines .row')
   await expect(rows).toHaveCount(2)
+  // The first line, and how many more.
+  await expect(page.getByRole('button', { name: /, now: Call the bank, and 1 more$/ })).toBeVisible()
+  await rows.nth(1).getByRole('button', { name: 'Deselect line' }).click()
 
   await rows.first().getByRole('button', { name: 'Select line' }).click()
   // An hour keeps no order for its lines: the arrows that would change it are off.
@@ -70,15 +76,31 @@ test('in an open hour the toolbar offers Out of this hour, not Make pad, and no 
   await expect(rows).toHaveCount(1)
   await expect(page.getByText('Took 1 line out of the hour.')).toBeVisible()
 
-  // Archiving the hour's last line leaves the hour empty: no blank line is made for it.
+  // An archived line stays among the hour's lines, with a mark at its right that brings it
+  // back. No blank line is made for the hour.
   await rows.first().getByRole('button', { name: 'Select line' }).click()
   await page.getByRole('button', { name: 'Archive', exact: true }).click()
-  await expect(rows).toHaveCount(0)
-  // It is listed under Archived, drawn like a line, and comes back from there.
-  await expect(page.getByRole('heading', { name: 'Archived' })).toBeVisible()
-  await page.getByRole('button', { name: /^Unarchive/ }).click()
   await expect(rows).toHaveCount(1)
-  await expect(page.getByRole('heading', { name: 'Archived' })).toHaveCount(0)
+  await expect(rows.first()).toHaveClass(/is-archived/)
+  await rows.first().getByRole('button', { name: 'Archived. Press to unarchive.' }).click()
+  await expect(rows).toHaveCount(1)
+  await expect(rows.first()).not.toHaveClass(/is-archived/)
+
+  // Fresh start takes the lines that are not done out of the hour.
+  await page.getByRole('button', { name: /^Fresh start/ }).click()
+  await expect(rows).toHaveCount(0)
+  await expect(page.getByText('Nothing in this hour. Tap here to add a line.')).toBeVisible()
+
+  // The search button opens Search for this hour: the line picked is put in it, and the
+  // view stays in Hours. A hit says how many lines are under it.
+  await page.getByRole('button', { name: 'Find a line in a pad for this hour' }).click()
+  const search = page.getByRole('dialog', { name: /^Find a line for Today/ })
+  await search.getByRole('combobox').fill('bank')
+  await expect(search.getByRole('option')).toHaveCount(1)
+  await page.keyboard.press('Enter')
+  await expect(search).toBeHidden()
+  await expect(rows).toHaveCount(1)
+  await expect(rows.first()).toContainText('Call the bank')
 })
 
 // The hour picker in a real browser: hours that are apart with a tap on each, and on a

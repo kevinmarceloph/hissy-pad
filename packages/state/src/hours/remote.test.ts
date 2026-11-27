@@ -15,14 +15,12 @@ import {
 
 describe('wire rows', () => {
   it('maps an entry to the table and back', () => {
-    const entry = { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', planned: null, plannedNote: '', flags: [], state: 'open', updatedAt: 1795000000000 };
+    const entry = { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', flags: [], state: 'open', updatedAt: 1795000000000 };
     expect(entryToWire(entry)).toEqual({
       day: '2026-11-19',
       hour: 9,
       note: 'proposals',
       category: 'deep',
-      planned: null,
-      planned_note: '',
       flags: [],
       state: 'open',
       updated_at: 1795000000000,
@@ -43,14 +41,18 @@ describe('wire rows', () => {
     expect(categoryFromWire(old).row.icon).toBe('');
   });
 
-  it('carries the plan and the flags, and reads a row from before they existed', () => {
-    const entry = { day: '2026-11-20', hour: 9, note: 'scrolled', category: 'drift', planned: 'deep', plannedNote: 'proposals', flags: ['distracted', 'halts'], state: 'open', updatedAt: 5 };
-    expect(entryToWire(entry)).toMatchObject({ planned: 'deep', planned_note: 'proposals', flags: ['distracted', 'halts'] });
-    expect(entryFromWire(entryToWire(entry)).row).toEqual(entry);
+  it('carries the flags, leaves the plan columns alone, and reads a row from before flags existed', () => {
+    const entry = { day: '2026-11-20', hour: 9, note: 'scrolled', category: 'drift', flags: ['distracted', 'halts'], state: 'open', updatedAt: 5 };
+    expect(entryToWire(entry)).toMatchObject({ flags: ['distracted', 'halts'] });
+    // The server still has `planned` and `planned_note` (deprecated 2026-11-27): they are
+    // not sent, so an upsert leaves them as they are, and not read.
+    expect(entryToWire(entry)).not.toHaveProperty('planned');
+    expect(entryToWire(entry)).not.toHaveProperty('planned_note');
+    expect(entryFromWire({ ...entryToWire(entry), planned: 'deep', planned_note: 'proposals' } as never).row).toEqual(entry);
 
     const old = { day: '2026-11-19', hour: 9, note: 'proposals', category: 'deep', updated_at: 5 };
     // And from before hours had a state: an hour that was logged counts as done.
-    expect(entryFromWire(old).row).toMatchObject({ planned: null, plannedNote: '', flags: [], state: 'done' });
+    expect(entryFromWire(old).row).toMatchObject({ flags: [], state: 'done' });
     expect(entryFromWire({ ...old, note: '', category: null }).row.state).toBe('open');
     expect(entryFromWire({ ...old, state: 'doing' }).row.state).toBe('doing');
   });

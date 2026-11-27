@@ -457,6 +457,16 @@ body.is-dragging-rows .row .category { cursor: grabbing; }
 }
 .row.is-done .category { opacity: 0.55; }
 /* The hour a line is assigned to (Hours): small, after the text, in words. */
+/* An archived line shown in its hour (Hours): quieter ink, and a box at the right that
+   brings it back. The box, not the shade, says it is archived. */
+.row.is-archived > .text { color: var(--ink-soft); padding-right: 2rem; }
+.row .unarchive {
+  position: absolute; top: 0; right: 0;
+  height: calc(var(--size) * var(--lh)); width: 1.9rem;
+  display: grid; place-items: center;
+  border: 0; padding: 0; background: transparent; color: var(--ink-soft); border-radius: 4px; cursor: pointer;
+}
+.row .unarchive:hover { color: var(--ink); background: var(--paper-raised); }
 .row .slot.is-late { color: var(--accent); border-color: var(--accent); font-weight: 700; }
 .row .slot {
   margin-left: 0.5rem;

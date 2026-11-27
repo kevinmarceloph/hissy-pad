@@ -1,12 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
-import { slotDoneElsewhere, slotKey, slotLines, stateOf, type Rows } from '@hissypad/core';
-import { archiveLines, closeSlot, cmdUnarchive, openSlot, usePad, type ArchiveLine } from '@hissypad/state';
+import { slotDoneElsewhere, slotKey, slotLeftovers } from '@hissypad/core';
+import { closeSlot, cmdAppendAtEnd, openSlot, usePad } from '@hissypad/state';
+import { cmdFindForSlot, cmdSlotFresh } from '@hissypad/state/hours';
 
-import { SlotAdder } from './SlotAdder';
 import { StateMark } from './StateMark';
 import { Tap } from './Tap';
-import { LINE, serif, SIZE, SMALL, useTheme } from './theme';
+import { LINE, ROW, serif, SIZE, SMALL, useTheme } from './theme';
 
 // The app's own pad editor, handed to Hours by its host: these screens cannot import it
 // (the web's is DOM, the phone's its own rows). It draws the store's `rows`, which are the
@@ -22,11 +22,12 @@ type Props = {
   onClose(): void;
 };
 
-// An open hour's lines, drawn by the pad's own editor (PLAN.md, "Hours joins the pad"): the store is
-// asked to show this hour, the host draws its rows, and the host's toolbar acts on them.
-// Under them, what a view of live rows leaves out: the lines crossed out during the hour
-// that were not put in it, and the hour's archived lines, each under a heading of their
-// own; then the field that brings lines in.
+// An open hour: a pad scoped to it (PLAN.md, "Hours joins the pad" and "The hour view,
+// round 3"). The store is asked to show this hour, the host draws its rows, archived ones
+// among them, and the host's toolbar acts on them. Under the lines, empty space that takes
+// a tap for a new line, the way the space under a pad does. Under that, one quiet line: a
+// search button that finds a line in any pad for this hour, a text toggle ("✕2 done") for
+// the lines crossed out while the hour ran that were not put in it, Fresh start, and Close.
 export function HostedLines({ day, hour, onClose }: Props) {
   const theme = useTheme();
   // Both apps hand an editor in. Without one (a screen under test) no lines are drawn and
@@ -36,6 +37,8 @@ export function HostedLines({ day, hour, onClose }: Props) {
   const shown = usePad((s) => s.slotId);
   const zoomed = usePad((s) => s.zoomId !== null);
   const all = usePad((s) => s.all);
+  const empty = usePad((s) => s.slotId === slot && Object.keys(s.rows).length === 0);
+  const mine = render !== null && shown === slot;
 
   // The store shows one thing at a time. A card that zooms into a line (a new item's)
   // takes the view while it is open; the hour takes it back when the card is gone.
@@ -50,94 +53,90 @@ export function HostedLines({ day, hour, onClose }: Props) {
     [slot],
   );
 
-  const archived = useMemo(() => archivedTrees(all, slot), [all, slot]);
   // What the row counts as ✕N, in the order it was crossed out (Kevin, 2026-11-25).
   const finished = useMemo(() => slotDoneElsewhere(all)[slot] ?? [], [all, slot]);
+  const [listed, setListed] = useState(false);
+  // What Fresh start would take out of the hour: its lines that are not crossed out.
+  const leftovers = useMemo(() => slotLeftovers(all, slot).length, [all, slot]);
 
   return (
-    <View style={styles.group}>
-      {render && shown === slot && render({ day, hour, slot })}
-      {finished.length > 0 && (
+    <View>
+      {mine && render({ day, hour, slot })}
+      {mine && (
+        // Empty space under the lines: a tap opens a new line at the end of the hour, as a
+        // tap under a pad does (Kevin, 2026-11-27). An hour with nothing in it says so.
+        <Tap aria-label="Add a line to this hour" onPress={cmdAppendAtEnd} style={empty ? styles.blank : styles.space} activeStyle={null}>
+          {empty ? <Text style={[styles.small, styles.hint, { color: theme.inkQuiet }]}>Nothing in this hour. Tap here to add a line.</Text> : null}
+        </Tap>
+      )}
+      <View style={styles.foot}>
+        <Tap aria-label="Find a line in a pad for this hour" onPress={() => cmdFindForSlot(day, hour)} hitSlop={6} style={styles.icon} activeStyle={{ backgroundColor: theme.paper }}>
+          <FindIcon color={theme.inkSoft} />
+        </Tap>
+        {finished.length > 0 && (
+          <Tap aria-expanded={listed} aria-label={`Done in this hour: ${finished.length}`} onPress={() => setListed(!listed)} hitSlop={6} style={styles.link} activeStyle={{ backgroundColor: theme.paper }}>
+            <Text style={[styles.small, styles.underline, { color: theme.inkSoft }]}>
+              ✕{finished.length} done {listed ? '▴' : '▾'}
+            </Text>
+          </Tap>
+        )}
+        <View style={styles.gap} />
+        <Tap
+          aria-label="Fresh start: take the lines that are not done out of this hour"
+          disabled={leftovers === 0}
+          onPress={() => cmdSlotFresh(day, hour)}
+          hitSlop={6}
+          style={[styles.link, leftovers === 0 && styles.off]}
+          activeStyle={{ backgroundColor: theme.paper }}>
+          <Text style={[styles.small, { color: theme.inkSoft }]}>Fresh start</Text>
+        </Tap>
+        <Tap aria-label="Close this hour" onPress={onClose} hitSlop={6} style={styles.link} activeStyle={{ backgroundColor: theme.paper }}>
+          <Text style={[styles.small, { color: theme.ink }]}>Close</Text>
+        </Tap>
+      </View>
+      {listed && finished.length > 0 && (
         // Lines from any pad, crossed out while this hour ran, cleared ones too. Read only:
         // they live in their own pads, and in their own hours if they have one.
-        <View>
-          <Text role="heading" aria-level={3} style={[styles.heading, { color: theme.inkSoft }]}>
-            Done in this hour
-          </Text>
-          <View role="list" aria-label="Lines done in this hour">
-            {finished.map((r) => (
-              <View key={r.id} role="listitem" style={styles.line}>
-                <View aria-hidden style={styles.bullet}>
-                  <StateMark state="done" color={theme.inkQuiet} />
-                </View>
-                <Text style={[styles.text, styles.struck, { color: theme.inkQuiet, textDecorationColor: theme.accent }]}>{r.text}</Text>
+        <View role="list" aria-label="Lines done in this hour">
+          {finished.map((r) => (
+            <View key={r.id} role="listitem" style={styles.line}>
+              <View aria-hidden style={styles.bullet}>
+                <StateMark state="done" color={theme.inkQuiet} />
               </View>
-            ))}
-          </View>
+              <Text style={[styles.text, styles.struck, { color: theme.inkQuiet, textDecorationColor: theme.accent }]}>{r.text}</Text>
+            </View>
+          ))}
         </View>
       )}
-      {archived.length > 0 && (
-        // Drawn as the pad draws a line: its bullet says its state (a cross when done), done
-        // words struck through in the accent, and what was archived with it nested under it
-        // (Kevin, 2026-11-25). Unarchiving a line puts it at the top of its pad with what is
-        // under it (cmdUnarchive), and so back among the hour's lines above.
-        <View>
-          <Text role="heading" aria-level={3} style={[styles.heading, { color: theme.inkSoft }]}>
-            Archived
-          </Text>
-          <View role="list" aria-label="Archived lines in this hour">
-            {archived.map(({ row: r, depth }) => (
-              <View key={r.id} role="listitem" style={[styles.line, { paddingLeft: depth * INDENT }]}>
-                <View aria-hidden style={styles.bullet}>
-                  <StateMark state={stateOf(r)} color={r.done ? theme.inkQuiet : theme.inkSoft} />
-                </View>
-                <Text style={[styles.text, { color: r.done ? theme.inkQuiet : theme.ink }, r.done && [styles.struck, { textDecorationColor: theme.accent }]]}>{r.text}</Text>
-                {depth === 0 && (
-                  <Tap
-                    aria-label={`Unarchive “${r.text}”`}
-                    onPress={() => cmdUnarchive([r.id])}
-                    hitSlop={8}
-                    style={styles.back}
-                    activeStyle={{ backgroundColor: theme.paper }}>
-                    <Text style={[styles.small, styles.link, { color: theme.inkSoft }]}>Unarchive</Text>
-                  </Tap>
-                )}
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-      <SlotAdder day={day} hour={hour} onClose={onClose} />
     </View>
   );
 }
 
-// How far a line under another sits in: the pad's own step on each app (the web's 1.6rem,
-// the phone's INDENT).
-const INDENT = Platform.OS === 'web' ? 25.6 : 22;
-
-// The hour's archived lines, each with what was archived under it in the same archive, in
-// the order the Archive screen draws them (archiveLines). A line under another archived
-// line of this hour is drawn under it, not again on its own. Depth counts from the hour's line.
-function archivedTrees(all: Rows, slot: string): ArchiveLine[] {
-  const mine = new Set(slotLines(all, slot).filter((r) => r.deletedAt !== null).map((r) => r.id));
-  if (mine.size === 0) return [];
-  const out: ArchiveLine[] = [];
-  const lines = archiveLines(all);
-  for (let i = 0; i < lines.length; i++) {
-    const top = lines[i]!;
-    if (!mine.has(top.id)) continue;
-    out.push({ ...top, depth: 0 });
-    let j = i + 1;
-    for (; j < lines.length && lines[j]!.depth > top.depth; j++) out.push({ ...lines[j]!, depth: lines[j]!.depth - top.depth });
-    i = j - 1;
-  }
-  return out;
+// A magnifier with a plus in its glass: find a line and add it. Drawn with Views, so both
+// apps have it without an icon font.
+function FindIcon({ color }: { color: string }) {
+  return (
+    <View style={{ width: 20, height: 20 }}>
+      <View style={{ width: 15, height: 15, borderRadius: 7.5, borderWidth: 1.5, borderColor: color, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ position: 'absolute', width: 7, height: 1.5, backgroundColor: color }} />
+        <View style={{ position: 'absolute', width: 1.5, height: 7, backgroundColor: color }} />
+      </View>
+      <View style={{ position: 'absolute', left: 11.5, top: 14.5, width: 7.5, height: 1.5, borderRadius: 1, backgroundColor: color, transform: [{ rotate: '45deg' }] }} />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  group: { gap: 8 },
-  heading: { fontFamily: serif, fontSize: SMALL, lineHeight: 20, marginBottom: 2 },
+  // The tap target under the lines: a line and a half of nothing, like the foot of a pad.
+  space: { minHeight: Math.round(LINE * 1.5) },
+  blank: { minHeight: ROW, justifyContent: 'center', paddingLeft: Platform.OS === 'web' ? 9 : 10 },
+  hint: { fontStyle: 'italic' },
+  foot: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4, minHeight: 32 },
+  gap: { flex: 1 },
+  icon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 4 },
+  link: { minHeight: 32, justifyContent: 'center', paddingHorizontal: 8, borderRadius: 4 },
+  off: { opacity: 0.45 },
+  underline: { textDecorationLine: 'underline' },
   // A line as the pad draws one: a bullet in its own column, the words in the pad's line.
   // The bullet sits where each app's pad puts its own: measured against the web's rows,
   // and the phone's 36pt gutter.
@@ -146,7 +145,4 @@ const styles = StyleSheet.create({
   text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
   struck: { textDecorationLine: 'line-through' },
   small: { fontFamily: serif, fontSize: SMALL, lineHeight: 20 },
-  // A quiet link the height of a line, so the row is as tall as the pad's; hitSlop widens the target.
-  back: { height: LINE, justifyContent: 'center', paddingHorizontal: 6, borderRadius: 4 },
-  link: { textDecorationLine: 'underline' },
 });

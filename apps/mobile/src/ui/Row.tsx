@@ -2,8 +2,8 @@ import { memo, useEffect, useRef, useState, type ComponentRef } from 'react'
 import { Platform, Pressable, StyleSheet, Text, TextInput, View, useColorScheme, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
 import { apply, clickSelect, cmdClearFresh, edit, usePad, usePadCategoryOf, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
-import { inlineSpans, slotLabel, slotPast, todayKey, toggleCollapsed } from '@hissypad/core'
-import { useLineCategory } from '@hissypad/state/hours'
+import { inlineSpans, scopeSlot, slotLabel, slotPast, todayKey, toggleCollapsed } from '@hissypad/core'
+import { cmdSlotUnarchive, useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
 import { PALETTES } from '@hissypad/ui/palette'
 import { GUTTER, INDENT, INPUT_SHIFT, LINE, SIZE, mono, serif, type Theme } from '../theme'
@@ -36,6 +36,8 @@ interface Props {
 
 export const Row = memo(function Row({ row, depth, childCount, foldCount, editing, selected, selectedChild, number, dragging, preview, theme, onLayout, onBulletLongPress, inSlot = null }: Props) {
   const isEditing = editing?.id === row.id
+  // In an open hour, an archived line of the hour is drawn among the others (core's slotShown).
+  const archived = usePad((st) => st.slotId !== null && scopeSlot(st.all, st.slotId).archived.has(row.id))
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
   const category = useLineCategory(row.category)
@@ -173,7 +175,7 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
         // Today). A tap on the dot, or any edit to the line, takes it off.
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Back from a boomerang. Tap to clear the mark."
+          accessibilityLabel="Came back from a boomerang or an hour. Tap to clear the mark."
           hitSlop={8}
           onPress={() => cmdClearFresh(row.id)}
           style={[s.fresh, { backgroundColor: theme.accent, borderColor: theme.accentSoft }]}
@@ -254,9 +256,34 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
           </Text>
         </Pressable>
       )}
+      {archived && (
+        // Archived, and still in its hour: the box at the right brings it back where it was
+        // in its pad, as done or as open as it is (Kevin, 2026-11-27).
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Archived. Tap to unarchive."
+          hitSlop={8}
+          onPress={() => cmdSlotUnarchive(row.id)}
+          style={({ pressed }) => [s.archived, { opacity: pressed ? 0.5 : 1 }]}
+        >
+          <ArchivedMark color={theme.inkSoft} />
+        </Pressable>
+      )}
     </View>
   )
 })
+
+// An archive box drawn with Views: a lid, a body, a slot for the label.
+function ArchivedMark({ color }: { color: string }) {
+  return (
+    <View style={{ width: 16, alignItems: 'center' }}>
+      <View style={{ width: 16, height: 5, borderWidth: 1.5, borderColor: color, borderRadius: 1.5 }} />
+      <View style={{ width: 13, height: 9, borderWidth: 1.5, borderTopWidth: 0, borderColor: color, borderBottomLeftRadius: 1.5, borderBottomRightRadius: 1.5, alignItems: 'center' }}>
+        <View style={{ width: 5, height: 1.5, marginTop: 2, borderRadius: 1, backgroundColor: color }} />
+      </View>
+    </View>
+  )
+}
 
 // A pushpin drawn with Views (no icon font, no SVG module): a cap, a body that flares at
 // the foot, and the needle, leaning like the web's.
@@ -274,6 +301,7 @@ export function PinMark({ color }: { color: string }) {
 const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: 4, paddingRight: 8 },
   bullet: { width: GUTTER, minHeight: LINE, alignItems: 'center', justifyContent: 'center' },
+  archived: { width: 28, height: LINE, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 6, height: 6, borderRadius: 3 },
   pinBox: { width: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
   pin: { width: 12, height: 14, alignItems: 'center', transform: [{ rotate: '40deg' }] },

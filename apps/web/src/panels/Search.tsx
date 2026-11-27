@@ -3,11 +3,16 @@
 // line: its pad opens, anything folded over it unfolds, and the line is selected. A text
 // toggle under the field adds the archived lines; going to one opens the Archive at it.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
-import { cmdOpenHit, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
+import { parseSlot, slotLabel, todayKey } from '@hissypad/core'
+import { cmdOpenHit, hitNote, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
+import { cmdSlotPut, inSlot } from '@hissypad/state/hours'
 
 // `onOpen` runs when a line found is gone to: the app comes back to the pad from Hours or Sort.
 // `onArchived` is handed an archived line that was picked: the app shows it in the Archive.
-export function SearchPanel({ dialog, onOpen, onArchived }: { dialog: RefObject<HTMLDialogElement | null>; onOpen?: () => void; onArchived?: (id: string) => void }) {
+// `assign` is an hour (a slot key) the search was opened for, from that hour in Hours: the
+// line picked is put in the hour instead of gone to, and the view stays where it is. Pads,
+// archived lines and the lines already in the hour are left out then.
+export function SearchPanel({ dialog, onOpen, onArchived, assign = null, onDone }: { dialog: RefObject<HTMLDialogElement | null>; onOpen?: () => void; onArchived?: (id: string) => void; assign?: string | null; onDone?: () => void }) {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
   const [query, setQuery] = useState('')
@@ -16,8 +21,15 @@ export function SearchPanel({ dialog, onOpen, onArchived }: { dialog: RefObject<
   const list = useRef<HTMLDivElement>(null)
   const field = useRef<HTMLInputElement>(null)
 
-  const result = useMemo(() => search(all, query, padId, undefined, archived), [all, query, padId, archived])
+  const found = useMemo(() => search(all, query, padId, undefined, archived && assign === null), [all, query, padId, archived, assign])
+  const result = useMemo(() => {
+    if (assign === null) return found
+    const groups = found.groups.map((g) => ({ ...g, hits: g.hits.filter((h) => !h.isPad && !h.archived && !inSlot(h.id, assign)) })).filter((g) => g.hits.length > 0)
+    return { groups, total: groups.reduce((n, g) => n + g.hits.length, 0) }
+  }, [found, assign])
   const hits = useMemo(() => result.groups.flatMap((g) => g.hits), [result])
+  const hour = assign === null ? null : parseSlot(assign)
+  const what = hour && assign ? `Find a line for ${slotLabel(assign, todayKey())}` : 'Search every pad'
   const at = Math.min(active, hits.length - 1)
 
   useEffect(() => {
@@ -27,6 +39,7 @@ export function SearchPanel({ dialog, onOpen, onArchived }: { dialog: RefObject<
   function open(hit: SearchHit | undefined) {
     if (!hit) return
     dialog.current?.close()
+    if (hour) return cmdSlotPut(hit.id, hour.day, hour.hour)
     if (hit.archived) return onArchived?.(hit.id)
     cmdOpenHit(hit.id)
     onOpen?.()
@@ -43,19 +56,19 @@ export function SearchPanel({ dialog, onOpen, onArchived }: { dialog: RefObject<
   let n = 0
 
   return (
-    <dialog ref={dialog} className="import search" aria-label="Search" onClose={() => { setQuery(''); setActive(0) }}>
+    <dialog ref={dialog} className="import search" aria-label={hour ? what : 'Search'} onClose={() => { setQuery(''); setActive(0); onDone?.() }}>
       <form method="dialog" onSubmit={(e) => { e.preventDefault(); open(hits[at]) }}>
         <div className="bar">
         <input
           ref={field}
           type="search"
           role="combobox"
-          aria-label="Search every pad"
+          aria-label={what}
           aria-expanded={hits.length > 0}
           aria-controls="search-results"
           aria-activedescendant={hits[at] ? `hit-${hits[at].id}` : undefined}
           aria-autocomplete="list"
-          placeholder="Search every pad"
+          placeholder={what}
           autoComplete="off"
           spellCheck={false}
           value={query}
@@ -64,9 +77,11 @@ export function SearchPanel({ dialog, onOpen, onArchived }: { dialog: RefObject<
         />
         <button type="button" onClick={() => dialog.current?.close()}>Close</button>
         </div>
+        {!hour && (
         <button type="button" className="link toggle" aria-pressed={archived} onClick={() => { setArchived(!archived); setActive(0); field.current?.focus() }}>
           {archived ? 'Leave out archived lines' : 'Search archived lines too'}
         </button>
+        )}
         <div className="results" id="search-results" role="listbox" aria-label="Lines found" ref={list}>
           {result.groups.map((g) => (
             <div key={g.archived ? 'archive' : g.padId ?? 'main'} role="group" aria-label={g.name}>
@@ -86,7 +101,7 @@ export function SearchPanel({ dialog, onOpen, onArchived }: { dialog: RefObject<
                     <span className="txt">
                       {h.parts.map((p, k) => (p.hit ? <mark key={k}>{p.text}</mark> : <span key={k}>{p.text}</span>))}
                     </span>
-                    <span className="sub">{[h.isPad && 'Pad', ...h.path].filter(Boolean).join(' › ')}</span>
+                    <span className="sub">{hitNote(h)}</span>
                   </div>
                 )
               })}
@@ -94,7 +109,7 @@ export function SearchPanel({ dialog, onOpen, onArchived }: { dialog: RefObject<
           ))}
         </div>
         <p className="note" role="status">
-          {!typed ? `Lines from every pad, crossed-out ones${archived ? ' and archived ones' : ''} too. Enter goes to the line${archived ? ', or to an archived one in the Archive' : ''}.` : hits.length === 0 ? 'Nothing found.' : `${searchCount(result)}.`}
+          {hour ? (!typed ? 'Lines from every pad. Enter puts the line in this hour, where it is in its pad.' : hits.length === 0 ? 'Nothing found.' : `${searchCount(result)}.`) : !typed ? `Lines from every pad, crossed-out ones${archived ? ' and archived ones' : ''} too. Enter goes to the line${archived ? ', or to an archived one in the Archive' : ''}.` : hits.length === 0 ? 'Nothing found.' : `${searchCount(result)}.`}
         </p>
       </form>
     </dialog>

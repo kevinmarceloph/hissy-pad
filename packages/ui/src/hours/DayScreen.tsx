@@ -3,10 +3,8 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle
 
 import { CHIME_CHOICES, chimesSpoken, minuteLabel, toggleChime } from '@hissypad/core/hours';
 import { dayDate, dayKey, dayOf, daySlots, dayTitle, fromDayKey, hourLabel, HOURS, shiftDay, slotState, type DayKey } from '@hissypad/core/hours';
-import type { EntryPatch } from '@hissypad/core/hours';
-import { pinRecurring } from '@hissypad/core/hours';
 import { summarize, type SummaryHour } from '@hissypad/core/hours';
-import { useCategories, useChimes, useDay, useFlags, useRecurring, useSync } from './provider';
+import { useCategories, useChimes, useDay, useRecurring, useSync } from './provider';
 import { slotDoneExtra, slotKey } from '@hissypad/core';
 import { usePad } from '@hissypad/state';
 import { getChimePlatform } from '@hissypad/state/hours';
@@ -46,11 +44,10 @@ type Panel = 'calendar' | 'menu' | 'settings';
 
 type Props = {
   clock?: (() => Date) | undefined;
-  onEditFlags?: (() => void) | undefined;
   onEditPlans?: (() => void) | undefined;
 };
 
-export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props) {
+export function DayScreen({ clock = realClock, onEditPlans }: Props) {
   const theme = useTheme();
   const now = useNow(clock);
 
@@ -62,9 +59,7 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
   const error = useDay((s) => s.error);
   const byHour = useDay((s) => s.byHour);
   const open = useDay((s) => s.open);
-  const save = useDay((s) => s.save);
   const categories = useCategories((s) => s.list);
-  const flags = useFlags((s) => s.list);
   const recurring = useRecurring((s) => s.list);
   // Pulling the hours down syncs now and re-reads the day, signed in or not.
   const { syncNow } = useSync();
@@ -117,9 +112,9 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
     void open(to);
   };
 
-  // Each hour as the screen shows it: with the recurring plan that covers it, when it has
-  // no plan stored (`byHour` stays what is stored; `entry` here is what is drawn and
-  // edited), and with the line on top of its list and what its row counts.
+  // Each hour as the screen shows it: the line on top of its list and how many more it
+  // has, or, with no lines, what it falls back on (`byHour` is what was written on the
+  // hours before 2026-11-27, read only; then the recurring plan that covers it).
   const hours = useMemo(
     () => drawHours(daySlots(day, start), byHour, recurring, all, categories, theme.palette),
     [day, start, byHour, recurring, all, categories, theme.palette],
@@ -220,7 +215,7 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
                 automaticallyAdjustKeyboardInsets
                 onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
                 contentContainerStyle={[{ paddingBottom: Math.max(48, listHeight - ROW) }, BACK]}>
-                {hours.map(({ day: on, hour, plan, top, entry }) => {
+                {hours.map(({ day: on, hour, says }) => {
                   const state = slotState(on, hour, now);
                   return (
                     <View
@@ -236,18 +231,13 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
                       <HourRow
                         day={on}
                         hour={hour}
-                        top={top}
+                        says={says}
                         extra={extras[slotKey(on, hour)]}
-                        entry={entry}
                         state={state}
                         open={editing === hour}
                         categories={categories}
-                        flags={flags}
-                        onEditFlags={onEditFlags}
                         onOpen={() => setEditing(hour)}
                         onClose={() => setEditing(null)}
-                        // The first write to an hour pins the recurring plan it was showing.
-                        onSave={(patch: EntryPatch) => void save(hour, pinRecurring(patch, byHour[hour], plan))}
                       />
                     </View>
                   );
@@ -266,7 +256,6 @@ export function DayScreen({ clock = realClock, onEditFlags, onEditPlans }: Props
           )}
           {panel === 'menu' && (
             <Menu
-              onEditFlags={leave(onEditFlags)}
               onEditPlans={leave(onEditPlans)}
               onSettings={() => setPanel('settings')}
             />
@@ -411,9 +400,9 @@ export function DayPicker({ day, today, onPick, from }: { day: DayKey; today: Da
 
 // ---- the menu: the ways out to the user's own lists, the settings, and where the log lives ----
 
-type MenuProps = Pick<Props, 'onEditFlags' | 'onEditPlans'> & { onSettings(): void };
+type MenuProps = Pick<Props, 'onEditPlans'> & { onSettings(): void };
 
-function Menu({ onEditFlags, onEditPlans, onSettings }: MenuProps) {
+function Menu({ onEditPlans, onSettings }: MenuProps) {
   const theme = useTheme();
   const sync = useSync();
   const item = (name: string, label: string, onPress: () => void, role: 'link' | 'button' = 'link') => (
@@ -423,7 +412,6 @@ function Menu({ onEditFlags, onEditPlans, onSettings }: MenuProps) {
   );
   return (
     <View role="menu" aria-label="Hours menu" style={[styles.panel, styles.menu, { backgroundColor: theme.paperRaised, borderColor: theme.line }]}>
-      {onEditFlags && item('Edit flags', 'Flags', onEditFlags)}
       {onEditPlans && item('Edit recurring plans', 'Recurring plans', onEditPlans)}
       {item('Settings', 'Settings', onSettings, 'button')}
       <Text role="status" style={[styles.count, styles.syncLine, { color: theme.inkSoft, borderTopColor: theme.line }]}>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSlot, slotCounts, slotCovers, slotDoneElsewhere, slotDoneExtra, slotHours, slotKey, slotOfHours, slotRuns, lineOrder, scopeSlot, slotLabel, slotLines, slotProgress, slotPast, slotTops } from './slot'
+import { parseSlot, slotCounts, slotCovers, slotDoneElsewhere, slotDoneExtra, slotHours, slotKey, slotOfHours, slotRuns, lineOrder, scopeSlot, slotLabel, slotLeftovers, slotLines, slotProgress, slotPast, slotShown, slotTops, unscopeSlot } from './slot'
 import type { NodeRow, Rows } from './types'
 import { buildIndex, homeNumbers, listNumbers } from './tree'
 import { toOutline, toOutlineHtml } from './paste'
@@ -42,7 +42,9 @@ describe('a run of hours', () => {
     const gone = { ...row('a', '2026-11-24T14', true), deletedAt: '2026-11-24T15:00:00.000Z' }
     const all = table(gone, row('b', '2026-11-24T14'))
     expect(slotCounts(all)).toEqual({ '2026-11-24T14': { done: 1, open: 1 } })
-    expect(slotLines(all, '2026-11-24T14').map((r) => r.id)).toEqual(['b', 'a'])
+    // Where it was in its pad, not after the live ones, and as the row is stored.
+    expect(slotLines(all, '2026-11-24T14').map((r) => r.id)).toEqual(['a', 'b'])
+    expect(slotLines(all, '2026-11-24T14')[0]!.deletedAt).toBe('2026-11-24T15:00:00.000Z')
   })
 
   it('reads to the hour it ends at', () => {
@@ -113,12 +115,14 @@ describe('an hour as a pad of its own', () => {
 
   it('counts its own lines only, never what is under them', () => {
     const one = table(row('a', H), under('a1', 'a', { done: true }), under('a2', 'a'))
-    expect(slotProgress(one, H)).toMatchObject({ top: { id: 'a' }, count: { done: 0, open: 1 } })
+    expect(slotProgress(one, H)).toMatchObject({ top: { id: 'a' }, more: 0, count: { done: 0, open: 1 } })
     const many = table(row('a', H), under('a1', 'a', { done: true }), row('b', H, true), row('c', H, true))
-    expect(slotProgress(many, H)).toMatchObject({ top: { id: 'a' }, count: { done: 2, open: 1 } })
+    expect(slotProgress(many, H)).toMatchObject({ top: { id: 'a' }, more: 2, count: { done: 2, open: 1 } })
+    // A divider is not an item: never the top, never counted.
+    expect(slotProgress(table({ ...row('0', H), divider: true }, row('a', H), row('b', H)), H)).toMatchObject({ top: { id: 'a' }, more: 1 })
     // A line under another line of the same hour is listed under it, not counted beside it.
     expect(slotProgress(table(row('a', H), under('a1', 'a', { slot: H, done: true })), H).count).toEqual({ done: 0, open: 1 })
-    expect(slotProgress(table(), H)).toEqual({ top: undefined, count: { done: 0, open: 0 } })
+    expect(slotProgress(table(), H)).toEqual({ top: undefined, more: 0, count: { done: 0, open: 0 } })
   })
 })
 
@@ -146,8 +150,11 @@ describe('the order of an hour\'s lines', () => {
     )
     const view = scopeSlot(all, H)
     const roots = Object.values(view.rows).filter((r) => r.parentId === null).sort((a, b) => (a.rank < b.rank ? -1 : 1))
-    // An empty line is in the view (it may be about to be typed in); an archived one is not.
-    expect(roots.map((r) => r.id)).toEqual(['t1', 'i1', 'empty'])
+    // An empty line is in the view (it may be about to be typed in), and so is an archived
+    // one, alive, where it was in its pad: `archived` says which.
+    expect(roots.map((r) => r.id)).toEqual(['t1', 'i1', 'empty', 'gone'])
+    expect(view.rows['gone']!.deletedAt).toBeNull()
+    expect([...view.archived]).toEqual(['gone'])
     expect(view.rows['t1a']!.parentId).toBe('t1')
     expect(view.homes.get('t1')).toEqual({ parentId: 'pt', rank: 'a0' })
     // An unchanged hour gives the same row objects back.
@@ -180,6 +187,44 @@ describe('a numbered line in an hour', () => {
     const numbers = homeNumbers(all)
     expect(toOutline(view, ['three'], { numbers })).toBe('3. three')
     expect(toOutlineHtml(view, ['three', 'p2'], undefined, numbers)).toContain('<li value="3">three</li>')
+  })
+})
+
+describe('archived lines in an hour', () => {
+  const H = '2026-11-24T14'
+  const AT = '2026-11-24T15:00:00.000Z'
+  const under = (id: string, parentId: string, over: Partial<NodeRow> = {}): NodeRow => ({ ...row(id, null), parentId, ...over })
+
+  it('come with what was archived under them in the same archive, and nothing else', () => {
+    const all = table(
+      row('a', H), { ...row('b', H), deletedAt: AT }, under('b1', 'b', { deletedAt: AT }),
+      // Archived on its own, an hour before: it stays out.
+      under('b0', 'b', { deletedAt: '2026-11-24T14:00:00.000Z' }),
+      // A blank tombstone with the hour on it (an undone Enter) is not a line of the hour.
+      { ...row('x', H), text: '', deletedAt: AT },
+    )
+    expect([...slotShown(all, H).archived].sort()).toEqual(['b', 'b1'])
+    const view = scopeSlot(all, H)
+    expect(Object.keys(view.rows).sort()).toEqual(['a', 'b', 'b1'])
+    expect(view.rows['b1']!.parentId).toBe('b')
+    // An hour with none reads the table as it is.
+    expect(slotShown(all, '2026-11-24T15').table).toBe(all)
+  })
+
+  it('stay archived through an edit, and take a line put under them along', () => {
+    const all = table(row('a', H), { ...row('b', H, true), deletedAt: AT }, under('a1', 'a'))
+    const view = scopeSlot(all, H)
+    // The view's row is alive; the text changes, and the row goes back archived.
+    const typed = { ...view.rows['b']!, text: 'b, again', updatedAt: '2026-11-24T16:00:00.000Z' }
+    expect(unscopeSlot(all, H, view, [typed])).toEqual([{ ...all['b']!, text: 'b, again', updatedAt: '2026-11-24T16:00:00.000Z' }])
+    // A live line moved in under it is archived with it.
+    const moved = { ...view.rows['a1']!, parentId: 'b', updatedAt: '2026-11-24T16:00:00.000Z' }
+    expect(unscopeSlot(all, H, view, [moved])).toEqual([{ ...moved, deletedAt: AT }])
+  })
+
+  it('are left where they are by a fresh start, which takes the open lines out of the hour', () => {
+    const all = table(row('a', H), row('b', H, true), { ...row('c', H), deletedAt: AT }, row('d', `${H}+2`), row('e', '2026-11-24T09'))
+    expect(slotLeftovers(all, H)).toEqual([{ id: 'a', slot: null }, { id: 'd', slot: '2026-11-24T15' }])
   })
 })
 
