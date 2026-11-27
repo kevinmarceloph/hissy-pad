@@ -4,8 +4,9 @@
 // toggle under the field adds the archived lines; going to one opens the Archive at it.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import { parseSlot, slotLabel, todayKey } from '@hissypad/core'
-import { cmdOpenHit, hitNote, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
+import { cmdOpenHit, hitKids, hitNote, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
 import { cmdSlotPut, inSlot } from '@hissypad/state/hours'
+import { CatMark } from '../pad/CatMark'
 
 // `onOpen` runs when a line found is gone to: the app comes back to the pad from Hours or Sort.
 // `onArchived` is handed an archived line that was picked: the app shows it in the Archive.
@@ -98,8 +99,12 @@ export function SearchPanel({ dialog, onOpen, onArchived, assign = null, onDone 
                     onClick={() => open(h)}
                     onMouseMove={() => { if (i !== at) setActive(i) }}
                   >
-                    <span className="txt">
-                      {h.parts.map((p, k) => (p.hit ? <mark key={k}>{p.text}</mark> : <span key={k}>{p.text}</span>))}
+                    <span className="line">
+                      <CatMark id={h.category} />
+                      <span className="txt">
+                        {h.parts.map((p, k) => (p.hit ? <mark key={k}>{p.text}</mark> : <span key={k}>{p.text}</span>))}
+                      </span>
+                      {hitKids(h) && <span className="kids" title={`${h.children} ${h.children === 1 ? 'line' : 'lines'} under it`}>{hitKids(h)}</span>}
                     </span>
                     <span className="sub">{hitNote(h)}</span>
                   </div>

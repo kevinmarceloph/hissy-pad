@@ -111,6 +111,9 @@ describe('the pad\'s lines in an hour', () => {
     const list = screen.getByRole('list', { name: 'Lines done in this hour' });
     expect(within(list).getByText('buy milk')).toBeTruthy();
     expect(within(list).queryByText('call the bank')).toBeNull();
+    // It reads like a hit in Search: the pad it is in under its text.
+    expect(within(list).getByText('Inbox')).toBeTruthy();
+    expect(within(list).getByRole('listitem')).toHaveAttribute('aria-label', 'buy milk, Inbox');
     await fireEvent.press(screen.getByLabelText('Done in this hour: 1'));
     expect(screen.queryByRole('list', { name: 'Lines done in this hour' })).toBeNull();
   });

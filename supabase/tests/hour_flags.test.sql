@@ -1,7 +1,7 @@
--- pgTAP: RLS and last-write-wins on public.hour_flags, and the plan and flags columns on
+-- pgTAP: RLS and last-write-wins on public.hour_flags, and the flags column on
 -- public.hour_entries. Run with `supabase test db`.
 begin;
-select plan(21);
+select plan(23);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
 values
@@ -81,23 +81,24 @@ update public.hour_flags set archived = true, updated_at = 3000 where id = 'halt
 select is((select archived from public.hour_flags where id = 'halts'), true, 'archive is an update');
 select throws_ok($$ delete from public.hour_flags $$, '42501', null, 'clients cannot delete');
 
--- An hour carries its plan and its flags; a row written without them reads as no plan
--- and no flags.
+-- An hour carries its flags; a row written without them reads as no flags. The plan
+-- columns are gone (2026-11-27).
+select hasnt_column('public', 'hour_entries', 'planned', 'the plan column is dropped');
+select hasnt_column('public', 'hour_entries', 'planned_note', 'the plan words column is dropped');
 insert into public.hour_entries (day, hour, note, category, updated_at) values ('2026-11-20', 8, 'email', 'admin', 1);
-select is((select coalesce(planned, 'null') || '|' || planned_note || '|' || cardinality(flags) from public.hour_entries where hour = 8),
-  'null||0', 'an older client''s row has no plan and no flags');
+select is((select cardinality(flags) from public.hour_entries where hour = 8), 0, 'an older client''s row has no flags');
 
-insert into public.hour_entries (day, hour, note, category, planned, planned_note, flags, updated_at)
-values ('2026-11-20', 9, 'scrolled', 'drift', 'deep', 'proposals', '{distracted,halts}', 1);
-select is((select planned || '|' || planned_note || '|' || array_to_string(flags, ',') from public.hour_entries where hour = 9),
-  'deep|proposals|distracted,halts', 'the plan, its words and the flags are stored');
+insert into public.hour_entries (day, hour, note, category, flags, updated_at)
+values ('2026-11-20', 9, 'scrolled', 'drift', '{distracted,halts}', 1);
+select is((select array_to_string(flags, ',') from public.hour_entries where hour = 9),
+  'distracted,halts', 'the flags are stored');
 
--- An older client edits the hour without sending the new columns: they are kept.
+-- An older client edits the hour without sending the flags: they are kept.
 insert into public.hour_entries (day, hour, note, category, updated_at) values ('2026-11-20', 9, 'scrolled a lot', 'drift', 2)
 on conflict (user_id, day, hour) do update
   set note = excluded.note, category = excluded.category, updated_at = excluded.updated_at;
-select is((select note || '|' || planned || '|' || planned_note || '|' || array_to_string(flags, ',') from public.hour_entries where hour = 9),
-  'scrolled a lot|deep|proposals|distracted,halts', 'an upsert that leaves the new columns out keeps them');
+select is((select note || '|' || array_to_string(flags, ',') from public.hour_entries where hour = 9),
+  'scrolled a lot|distracted,halts', 'an upsert that leaves the flags out keeps them');
 
 -- A flag's answer is a token in the same array, beside tokens from before options.
 update public.hour_entries set flags = '{distracted,halts:o1a2b3,mindful:no}', updated_at = 3 where hour = 9;

@@ -41,11 +41,11 @@ describe('wire rows', () => {
     expect(categoryFromWire(old).row.icon).toBe('');
   });
 
-  it('carries the flags, leaves the plan columns alone, and reads a row from before flags existed', () => {
+  it('carries the flags, sends no plan columns, and reads a row from before flags existed', () => {
     const entry = { day: '2026-11-20', hour: 9, note: 'scrolled', category: 'drift', flags: ['distracted', 'halts'], state: 'open', updatedAt: 5 };
     expect(entryToWire(entry)).toMatchObject({ flags: ['distracted', 'halts'] });
-    // The server still has `planned` and `planned_note` (deprecated 2026-11-27): they are
-    // not sent, so an upsert leaves them as they are, and not read.
+    // The server dropped `planned` and `planned_note` on 2026-11-27: sending either would
+    // be refused. A row that still carries them (a cached pull) reads without them.
     expect(entryToWire(entry)).not.toHaveProperty('planned');
     expect(entryToWire(entry)).not.toHaveProperty('planned_note');
     expect(entryFromWire({ ...entryToWire(entry), planned: 'deep', planned_note: 'proposals' } as never).row).toEqual(entry);

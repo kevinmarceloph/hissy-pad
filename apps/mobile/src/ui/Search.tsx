@@ -6,8 +6,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { parseSlot, slotLabel, todayKey } from '@hissypad/core'
-import { cmdOpenHit, hitNote, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
-import { cmdSlotPut, inSlot } from '@hissypad/state/hours'
+import { cmdOpenHit, hitKids, hitNote, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
+import { cmdSlotPut, inSlot, useLineCategory } from '@hissypad/state/hours'
+import { CategoryBadge } from '@hissypad/ui'
 import { serif, type Theme, SHEET_TOP } from '../theme'
 
 // `onOpen` runs when a line found is gone to: the app comes back to the pad from Hours or Sort.
@@ -91,9 +92,13 @@ export function SearchSheet({ visible, onClose, onOpen, onArchived, assign = nul
                   accessibilityRole="button"
                   style={({ pressed }) => [s.hit, { borderTopColor: theme.rule }, pressed && { backgroundColor: theme.accentSoft }]}
                 >
-                  <Text numberOfLines={2} style={[s.txt, { color: h.done ? theme.inkMute : h.archived ? theme.inkSoft : theme.ink }, h.archived && { fontStyle: 'italic' }, h.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
+                  <View style={s.line}>
+                    <HitCategory id={h.category} />
+                    <Text numberOfLines={2} style={[s.txt, s.grow, { color: h.done ? theme.inkMute : h.archived ? theme.inkSoft : theme.ink }, h.archived && { fontStyle: 'italic' }, h.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
                     {h.parts.map((p, k) => (p.hit ? <Text key={k} style={{ color: theme.accent, fontWeight: '600' }}>{p.text}</Text> : p.text))}
                   </Text>
+                    {hitKids(h) !== '' && <Text style={[s.kids, { color: theme.inkSoft }]}>{hitKids(h)}</Text>}
+                  </View>
                   {hitNote(h) !== '' && (
                     <Text numberOfLines={1} style={[s.sub, { color: theme.inkMute }]}>{hitNote(h)}</Text>
                   )}
@@ -110,7 +115,16 @@ export function SearchSheet({ visible, onClose, onOpen, onArchived, assign = nul
   )
 }
 
+// A hit's category, as the pad's rows draw one: nothing for a line with none.
+function HitCategory({ id }: { id: string | null }) {
+  const category = useLineCategory(id)
+  return category ? <CategoryBadge category={category} size={20} /> : null
+}
+
 const s = StyleSheet.create({
+  line: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  grow: { flex: 1 },
+  kids: { fontFamily: serif, fontSize: 14, lineHeight: 24, fontVariant: ['tabular-nums'] },
   root: { flex: 1, paddingTop: 12 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 8 },
   field: { flex: 1, minHeight: 44, paddingHorizontal: 12, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth, fontFamily: serif, fontSize: 17 },

@@ -794,6 +794,11 @@ dialog.search .hit .txt, dialog.search .hit .sub { overflow: hidden; white-space
 dialog.search .hit.is-done .txt { color: var(--ink-mute); text-decoration: line-through; text-decoration-color: var(--accent); text-decoration-thickness: 1px; }
 dialog.search .hit .sub { font-size: 0.82rem; color: var(--ink-mute); }
 dialog.search .hit .sub:empty { display: none; }
+/* A hit's first line: its category's mark, its text, then +N for the lines under it. */
+dialog.search .hit .line { display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; }
+dialog.search .hit .line .txt { min-width: 0; }
+dialog.search .hit .line .cat-mark { flex: none; align-self: center; }
+dialog.search .hit .kids { flex: none; font-size: 0.82rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 dialog.search mark { background: none; color: var(--accent); font-weight: 600; }
 dialog.search .note { margin: 0.6rem 0.6rem 0.1rem; font-size: 0.85rem; color: var(--ink-mute); font-style: italic; }
 

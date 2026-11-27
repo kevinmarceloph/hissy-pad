@@ -30,6 +30,7 @@ export interface SearchHit {
   done: boolean
   kind: NodeKind      // plain, numbered, a header or a divider
   children: number    // the lines right under it (a pad's own lines), blank ones not counted
+  category: string | null // its category's id (Hours' list), drawn as a mark in front of its text
   path: string[]      // the lines it sits under, outermost first, the pad itself not included
   parts: SearchPart[] // the line of its text that matched
 }
@@ -137,7 +138,7 @@ export function search(all: Rows, query: string, current: PadId = null, limit = 
   }
   const walk = (parentId: string, padId: PadId, path: string[]) => {
     for (const r of childrenOf(index, parentId)) {
-      if (matches(r.text)) add({ id: r.id, padId, isPad: false, archived: false, done: r.done, kind: kindOf(r), children: countLines(childrenOf(index, r.id)), path, parts: searchParts(r.text, terms) })
+      if (matches(r.text)) add({ id: r.id, padId, isPad: false, archived: false, done: r.done, kind: kindOf(r), category: r.category, children: countLines(childrenOf(index, r.id)), path, parts: searchParts(r.text, terms) })
       if (childrenOf(index, r.id).length > 0) walk(r.id, padId, [...path, firstLineOf(r.text) || '(blank line)'])
     }
   }
@@ -146,10 +147,10 @@ export function search(all: Rows, query: string, current: PadId = null, limit = 
     const isPad: boolean = isPadNode(r)
     if (isPad) {
       order.push(r.id)
-      if (matches(r.text)) add({ id: r.id, padId: r.id, isPad: true, archived: false, done: false, kind: 'plain', children: countLines(childrenOf(index, r.id)), path: [], parts: searchParts(r.text, terms) })
+      if (matches(r.text)) add({ id: r.id, padId: r.id, isPad: true, archived: false, done: false, kind: 'plain', category: r.category, children: countLines(childrenOf(index, r.id)), path: [], parts: searchParts(r.text, terms) })
       walk(r.id, r.id, [])
     } else {
-      if (matches(r.text)) add({ id: r.id, padId: null, isPad: false, archived: false, done: r.done, kind: kindOf(r), children: countLines(childrenOf(index, r.id)), path: [], parts: searchParts(r.text, terms) })
+      if (matches(r.text)) add({ id: r.id, padId: null, isPad: false, archived: false, done: r.done, kind: kindOf(r), category: r.category, children: countLines(childrenOf(index, r.id)), path: [], parts: searchParts(r.text, terms) })
       if (childrenOf(index, r.id).length > 0) walk(r.id, null, [firstLineOf(r.text) || '(blank line)'])
     }
   }
@@ -202,17 +203,47 @@ function archivedHits(all: Rows, terms: readonly string[]): SearchHit[] {
       }
       path.unshift(firstLineOf(p.text) || '(blank line)')
     }
-    return { id: r.id, padId: null, isPad, archived: true, done: r.done, kind: kindOf(r), children: under.get(r.id) ?? 0, path: isPad ? [] : [pad, ...path], parts: searchParts(r.text, terms) }
+    return { id: r.id, padId: null, isPad, archived: true, done: r.done, kind: kindOf(r), category: r.category, children: under.get(r.id) ?? 0, path: isPad ? [] : [pad, ...path], parts: searchParts(r.text, terms) }
   })
 }
 
-// What a hit says under its text: what kind of line it is when it is not a plain one, how
-// many lines are right under it, then where it sits. Both apps draw this one line.
+// How a line reads in a list that is not its pad: Search's hits, and the lines done in an
+// hour (Kevin, 2026-11-27: the two look alike). Its category's mark, its text, and "+N" for
+// the lines right under it; under that, what kind of line it is when it is not a plain
+// one, then where it sits. Both apps and Hours draw these two.
 const KIND_NAMES: Record<NodeKind, string> = { plain: '', numbered: 'Numbered', header: 'Header', divider: 'Divider' }
 export function hitNote(h: SearchHit): string {
-  const kind = h.isPad ? 'Pad' : KIND_NAMES[h.kind]
-  const kids = h.children > 0 ? (h.isPad ? `${h.children} ${h.children === 1 ? 'line' : 'lines'}` : `${h.children} sub ${h.children === 1 ? 'item' : 'items'}`) : ''
-  return [[kind, kids].filter(Boolean).join(', '), ...h.path].filter(Boolean).join(' › ')
+  return [h.isPad ? 'Pad' : KIND_NAMES[h.kind], ...h.path].filter(Boolean).join(' › ')
+}
+export function hitKids(h: SearchHit): string {
+  return h.children > 0 ? `+${h.children}` : ''
+}
+
+// One line as a hit, found or not: what the list of lines done in an hour draws. The path
+// starts with the pad it is in, since nothing groups those by pad. An archived line counts
+// the archived lines under it; a live one the live ones.
+export function lineHit(all: Rows, id: string): SearchHit | null {
+  const r = all[id]
+  if (!r) return null
+  const dead = r.deletedAt !== null
+  let children = 0
+  for (const key in all) {
+    const c = all[key]!
+    if (c.parentId === id && c.text.trim() !== '' && (dead || c.deletedAt === null)) children++
+  }
+  const path: string[] = []
+  let pad = MAIN_PAD_NAME
+  for (let p = r.parentId === null ? undefined : all[r.parentId], hops = 0; p && hops < 1000; p = p.parentId === null ? undefined : all[p.parentId], hops++) {
+    if (padRow(p)) {
+      pad = p.text || 'Untitled pad'
+      break
+    }
+    path.unshift(firstLineOf(p.text) || '(blank line)')
+  }
+  return {
+    id, padId: null, isPad: false, archived: dead, done: r.done, kind: kindOf(r), category: r.category, children,
+    path: [pad, ...path], parts: [{ text: firstLineOf(r.text), hit: false }],
+  }
 }
 
 // "3 lines", "1 line", or "the first 60 of 214 lines" when the list was cut short.

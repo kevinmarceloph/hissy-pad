@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { slotDoneElsewhere, slotKey, slotLeftovers } from '@hissypad/core';
-import { closeSlot, cmdAppendAtEnd, openSlot, usePad } from '@hissypad/state';
-import { cmdFindForSlot, cmdSlotFresh } from '@hissypad/state/hours';
+import { closeSlot, cmdAppendAtEnd, hitKids, hitNote, lineHit, openSlot, usePad, type SearchHit } from '@hissypad/state';
+import { cmdFindForSlot, cmdSlotFresh, useLineCategory } from '@hissypad/state/hours';
+
+import { CategoryBadge } from './CategoryBadge';
 
 import { StateMark } from './StateMark';
 import { Tap } from './Tap';
@@ -99,15 +101,40 @@ export function HostedLines({ day, hour, onClose }: Props) {
         // they live in their own pads, and in their own hours if they have one.
         <View role="list" aria-label="Lines done in this hour">
           {finished.map((r) => (
-            <View key={r.id} role="listitem" style={styles.line}>
-              <View aria-hidden style={styles.bullet}>
-                <StateMark state="done" color={theme.inkQuiet} />
-              </View>
-              <Text style={[styles.text, styles.struck, { color: theme.inkQuiet, textDecorationColor: theme.accent }]}>{r.text}</Text>
-            </View>
+            <DoneLine key={r.id} hit={lineHit(all, r.id)!} />
           ))}
         </View>
       )}
+    </View>
+  );
+}
+
+// One line done in the hour, read like a hit in Search (Kevin, 2026-11-27: the two look
+// alike): its category's mark, its text crossed out, "+N" for the lines under it; under
+// that, what kind of line it is and where it sits, pad first.
+function DoneLine({ hit }: { hit: SearchHit }) {
+  const theme = useTheme();
+  const category = useLineCategory(hit.category);
+  const note = hitNote(hit);
+  const kids = hitKids(hit);
+  const said = [hit.parts.map((p) => p.text).join(''), category ? category.label : null, kids ? `${hit.children} under it` : null, note || null].filter(Boolean).join(', ');
+  return (
+    <View role="listitem" aria-label={said} style={styles.line}>
+      <View aria-hidden style={styles.bullet}>
+        <StateMark state="done" color={theme.inkQuiet} />
+      </View>
+      <View aria-hidden style={styles.words}>
+        <View style={styles.first}>
+          {category && <CategoryBadge category={category} size={20} style={styles.badge} />}
+          <Text style={[styles.text, styles.struck, { color: theme.inkQuiet, textDecorationColor: theme.accent }]}>{hit.parts.map((p) => p.text).join('')}</Text>
+          {kids !== '' && <Text style={[styles.small, styles.kids, { color: theme.inkSoft }]}>{kids}</Text>}
+        </View>
+        {note !== '' && (
+          <Text numberOfLines={1} style={[styles.note, { color: theme.inkQuiet }]}>
+            {note}
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -142,7 +169,12 @@ const styles = StyleSheet.create({
   // and the phone's 36pt gutter.
   line: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 2, ...(Platform.OS === 'web' ? { marginLeft: 4, gap: 5 } : null) },
   bullet: { width: Platform.OS === 'web' ? 28 : 36, height: LINE, alignItems: 'center', justifyContent: 'center' },
-  text: { flex: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
+  text: { flexShrink: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
+  words: { flex: 1 },
+  first: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  badge: { marginTop: (LINE - 20) / 2 },
+  kids: { lineHeight: LINE, fontVariant: ['tabular-nums'] },
+  note: { fontFamily: serif, fontSize: 13, lineHeight: 18 },
   struck: { textDecorationLine: 'line-through' },
   small: { fontFamily: serif, fontSize: SMALL, lineHeight: 20 },
 });

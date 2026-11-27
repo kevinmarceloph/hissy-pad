@@ -6,7 +6,7 @@ import { undo } from './history'
 import { select } from './selection'
 import { cmdDeleteSelection, cmdToggleDone } from './commands'
 import { cmdDeletePad, cmdMoveToPad, cmdNewPad } from './pads'
-import { cmdOpenHit, foldText, hitNote, search, searchCount, searchParts, searchTerms } from './search'
+import { cmdOpenHit, foldText, hitKids, hitNote, lineHit, search, searchCount, searchParts, searchTerms } from './search'
 
 const all = () => usePad.getState().all
 const id = (t: string) => idOf(all(), t)
@@ -66,13 +66,25 @@ describe('search', () => {
     expect(hitNote(one('buy'))).toBe('')
     // The lines right under it, not the ones further in.
     expect(one('cebu')).toMatchObject({ kind: 'plain', children: 2 })
-    expect(hitNote(one('cebu'))).toBe('2 sub items')
+    expect([hitKids(one('cebu')), hitNote(one('cebu'))]).toEqual(['+2', ''])
+    expect(hitKids(one('airline'))).toBe('')
     applyAll((rows, ctx) => setKind(rows, ctx, [id('Trip to Cebu')], 'header'))
-    expect(hitNote(one('cebu'))).toBe('Header, 2 sub items')
-    expect(hitNote(one('flights'))).toBe('1 sub item › Trip to Cebu')
+    expect(hitNote(one('cebu'))).toBe('Header')
+    expect([hitKids(one('flights')), hitNote(one('flights'))]).toEqual(['+1', 'Trip to Cebu'])
     // A pad says how many lines it holds.
     const pad = search(all(), 'work').groups.find((g) => g.padId === work)!.hits[0]!
-    expect(hitNote(pad)).toBe('Pad, 2 lines')
+    expect([hitKids(pad), hitNote(pad)]).toEqual(['+2', 'Pad'])
+  })
+
+  it('carries a line\'s category, and reads any line as a hit that says its pad', () => {
+    applyAll((rows) => ({ ...rows, [id('Book flights')]: { ...rows[id('Book flights')]!, category: 'travel' } }))
+    expect(search(all(), 'flights').groups[0]!.hits[0]!.category).toBe('travel')
+    const hit = lineHit(all(), id('Book flights'))!
+    expect(hit).toMatchObject({ category: 'travel', children: 1, archived: false })
+    // Nothing groups these by pad, so the pad leads where it sits.
+    expect(hitNote(hit)).toBe('Inbox › Trip to Cebu')
+    expect(hitNote(lineHit(all(), id('work one'))!)).toBe('Work')
+    expect(lineHit(all(), 'nope')).toBeNull()
   })
 
   it('leaves deleted lines out, keeps crossed-out ones, and stops at the limit', () => {

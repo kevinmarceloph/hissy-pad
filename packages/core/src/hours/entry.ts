@@ -20,7 +20,7 @@ export function cleanHourState(raw: unknown): HourState | null {
 // The rows stay for what they already hold (a summary, a category and a state typed before
 // that day, shown only for an hour with no lines) and for the flags, which are hidden for
 // now and kept for a later version. The plan columns (`planned`, `planned_note`) are gone
-// from the code; the server still has them, unread.
+// from the code and, since the same day, from the server.
 export type Entry = {
   day: DayKey;
   hour: number; // 0-23, device local time
