@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { openHours, type HoursStores } from '@hissypad/state/hours';
 
 import { CategoriesScreen } from './CategoriesScreen';
 import type { TodayPart } from '@hissypad/core';
 import { dayKey, type Slot } from '@hissypad/core/hours';
 
-import { DayScreen } from './DayScreen';
+import { DayScreen, Settings } from './DayScreen';
+import { BrandContext } from './host';
 import { FocusScreen, PartScreen } from './FocusScreen';
 import { LinesContext, type RenderLines } from './HostedLines';
-import { StoresProvider } from './provider';
+import { StoresProvider, useDay } from './provider';
 import { RecurringScreen } from './RecurringScreen';
 import { LINE, SchemeContext, serif, SIZE, useTheme } from './theme';
 
@@ -25,6 +26,9 @@ type Props = {
   // The host's own pad editor for the lines of an open hour. Both apps hand one in;
   // without it (a screen under test) an open hour draws no lines.
   renderLines?: RenderLines;
+  // The app's name, for the left of each screen's first row (host.tsx). The phone hands it
+  // in; with it, the day's own menu is left out.
+  brand?: ReactNode;
 };
 
 // The Hours mode, whole. It opens on one hour, the one the clock is in, as a pad of the
@@ -32,7 +36,7 @@ type Props = {
 // the list of the day's hours (a tap on one comes back on that hour), Today's lines with
 // no hour and its schedule, and the screen for recurring plans. The web app and the phone
 // both mount this; it opens the hours' local rows on first use.
-export function HoursApp({ scheme = null, renderLines }: Props) {
+export function HoursApp({ scheme = null, renderLines, brand = null }: Props) {
   const { ready: stores, failed } = useHoursStores();
   const [screen, setScreen] = useState<Screen>('focus');
   // The hour the focus screen is on; null follows the clock.
@@ -43,6 +47,7 @@ export function HoursApp({ scheme = null, renderLines }: Props) {
 
   return (
     <SchemeContext.Provider value={scheme}>
+    <BrandContext.Provider value={brand}>
       {!stores ? (
         <Notice title={failed ? 'Hours could not open its rows.' : 'Opening your hours.'} detail={failed} />
       ) : (
@@ -75,6 +80,7 @@ export function HoursApp({ scheme = null, renderLines }: Props) {
           )}
         </StoresProvider>
       )}
+    </BrandContext.Provider>
     </SchemeContext.Provider>
   );
 }
@@ -95,6 +101,48 @@ export function CategoriesApp({ scheme = null, onClose }: CategoriesProps) {
         </StoresProvider>
       )}
     </SchemeContext.Provider>
+  );
+}
+
+// The recurring plans and Hours' settings on their own, for a host that has them in its own
+// menu (the phone, whose Hours has no menu of its own).
+export function RecurringApp({ scheme = null, onClose }: CategoriesProps) {
+  const stores = useHoursStores();
+  return (
+    <SchemeContext.Provider value={scheme}>
+      {!stores.ready ? (
+        <Notice title={stores.failed ? 'Hours could not open its rows.' : 'Opening your plans.'} detail={stores.failed} />
+      ) : (
+        <StoresProvider day={stores.ready.day} categories={stores.ready.categories} flags={stores.ready.flags} recurring={stores.ready.recurring}>
+          <RecurringScreen onBack={onClose} backLabel="Close" />
+        </StoresProvider>
+      )}
+    </SchemeContext.Provider>
+  );
+}
+
+export function HoursSettingsApp({ scheme = null }: Pick<Props, 'scheme'>) {
+  const stores = useHoursStores();
+  return (
+    <SchemeContext.Provider value={scheme}>
+      {!stores.ready ? (
+        <Notice title={stores.failed ? 'Hours could not open its rows.' : 'Opening your settings.'} detail={stores.failed} />
+      ) : (
+        <StoresProvider day={stores.ready.day} categories={stores.ready.categories} flags={stores.ready.flags} chimes={stores.ready.chimes}>
+          <SettingsBody />
+        </StoresProvider>
+      )}
+    </SchemeContext.Provider>
+  );
+}
+
+function SettingsBody() {
+  const start = useDay((s) => s.start);
+  const setStart = useDay((s) => s.setStart);
+  return (
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.settings}>
+      <Settings start={start} onStart={(hour) => void setStart(hour)} />
+    </ScrollView>
   );
 }
 
@@ -125,6 +173,7 @@ function Notice({ title, detail }: { title: string; detail: string | null }) {
 }
 
 const styles = StyleSheet.create({
+  settings: { gap: 20, padding: 20 },
   notice: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 },
   text: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE, textAlign: 'center', maxWidth: 480 },
 });

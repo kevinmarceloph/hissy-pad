@@ -108,6 +108,7 @@ Screens written once in React Native. The phone draws them natively; the web app
 | `src/hours/theme.ts` | paper and ink tokens with the 12 label colors searched for a deuteranope; `SchemeContext` lets the host force light or dark |
 | `src/hours/palette.ts` | the 12 label colors' values per scheme and `inkOn` (black or white text on one), with no React Native: the web pad imports it as `@hissypad/ui/palette` |
 | `src/hours/CategoryBadge.tsx` | a category as its icon in a squircle of its color (its name in a pill where it has no icon): the picker, the Categories screen and the phone's row prefix |
+| `src/hours/host.tsx` | `BrandContext`: the app's name a host hands the Hours screens for the left of their first row (the phone); with it the day's own menu is left out. `RecurringApp` and `HoursSettingsApp` (`HoursApp.tsx`) are the recurring plans and the settings on their own, for the host's menu |
 | `src/hours/Mark.tsx`, `FlagMark.tsx`, `DayStrip.tsx`, `Tap.tsx`, `MoveButtons.tsx`, `ColorField.tsx`, `FlagOptions.tsx`, `PullRefresh.tsx` | the parts |
 | `src/testing/` | `rntl.ts` (the tests' events over React Testing Library), `setup.ts` |
 
@@ -131,8 +132,9 @@ Expo. `App.tsx` mounts the pad; `src/setup.ts` wires the platform (SQLite, clipb
 
 | file | what is in it |
 |---|---|
-| `src/ui/Pad.tsx` | the screen: pad chips (no top bar since 2026-11-27: the modes and the menu are the bottom nav, at the foot, away while the keyboard is up; New item and Search are in its menu), "Archive N completed", then the pad's list (long-press drag, pull to sync: the web's line of words on iOS, the platform spinner on Android), Sort or Hours by mode |
-| `src/ui/TopIcons.tsx` | the nav's icons, drawn with Views (no icon font, no SVG module), and `BottomNav`: Hours, Pad, Categories, Sort and the menu, five cells across the foot of the screen |
+| `src/ui/Pad.tsx` | the screen: the first row (the app's name, and at its right the mode's control: the pads' jump list and +, or the category dropdown; Hours and Sort draw theirs with the same name), the pad chips, the menu's screen (`MenuScreen.tsx`) and the sheets it opens (no top bar since 2026-11-27: the modes and the menu are the bottom nav, at the foot, away while the keyboard is up), "Archive N completed", then the pad's list (long-press drag, pull to sync: the web's line of words on iOS, the platform spinner on Android), Sort or Hours by mode |
+| `src/ui/TopIcons.tsx` | the nav's icons, drawn with Views (no icon font, no SVG module), and `Brand` (the app's name at the left of a screen's first row), and `BottomNav`: Hours, Pad, Categories, Sort and the menu, five cells across the foot of the screen |
+| `src/ui/MenuScreen.tsx` | the menu as a screen: New item and Search as tiles, then Recently done, Archive, Categories, Recurring plans, Hours settings, the debug log, and the account |
 | `src/ui/Menu.tsx` | `menu()` (a list of choices, Alert.alert's arguments) and `askText()` (a line of text): the system's alert and prompt on iOS, a sheet of our own on Android drawn by `MenuHost` at the root |
 | `src/ui/LineIcons.tsx` | the line toolbar's icons, drawn with Views: the same set as the web's `icons.tsx`, change both together |
 | `src/ui/Row.tsx` | one line |

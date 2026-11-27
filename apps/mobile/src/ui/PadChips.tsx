@@ -12,7 +12,7 @@ import { categoryPrefix, cmdOpenCategories, lineCategories, useCategoryChoices, 
 import { CategoryBadge } from '@hissypad/ui'
 import { activeCategories, categoryName } from '@hissypad/core/hours'
 import { serif, type Theme } from '../theme'
-import { CalendarIcon, HoursIcon } from './TopIcons'
+import { CalendarIcon, HoursIcon, PlusIcon } from './TopIcons'
 import { LineIcon } from './LineIcons'
 
 // Today is the day (Hours' clock), Inbox is what is still to sort (Sort's tray), Later is
@@ -123,14 +123,35 @@ export function PadChips({ theme }: { theme: Theme }) {
           </View>
         )
       })}
-      <Pressable accessibilityRole="button" accessibilityLabel="New pad" onPress={() => ask('New pad', 'A name for it', '', (n) => cmdNewPad(n))} style={[s.chip, { borderBottomColor: 'transparent' }]}>
-        <Text style={[s.chipText, { color: theme.inkMute, fontSize: 19 }]}>+</Text>
-      </Pressable>
     </ScrollView>
   )
 }
 
-// The Categories mode's dropdown, centered where the Pad mode has its pads: the open
+// The Pad mode's two buttons at the right of the top row: jump to any pad or sub-pad (for
+// when the chips run past the edge), and a new pad.
+export function PadTools({ theme }: { theme: Theme }) {
+  const all = usePad((st) => st.all)
+  const jump = () =>
+    menu('Jump to', undefined, [
+      ...placeList(all).map((p) => ({
+        text: categoryPrefix(p.category) + (p.count > 0 ? `${p.label}  ${p.count}` : p.label),
+        onPress: () => { if (p.subId) openSubPad(p.subId); else openPad(p.padId) },
+      })),
+      { text: 'Cancel', style: 'cancel' as const },
+    ])
+  return (
+    <View style={s.tools}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Jump to any pad or sub-pad" onPress={jump} style={s.tool}>
+        <View style={[s.chevron, { borderColor: theme.inkSoft, width: 9, height: 9 }]} />
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="New pad" onPress={() => ask('New pad', 'A name for it', '', (n) => cmdNewPad(n))} style={s.tool}>
+        <PlusIcon color={theme.inkSoft} />
+      </Pressable>
+    </View>
+  )
+}
+
+// The Categories mode's dropdown, at the right of the top row: the open
 // category (its mark, its name, how many lines are in it), and a tap lists them all, with
 // "No category" last: the lines that have none. The open one's lines, from every pad, are
 // the pad drawn under it (the store's catId, scopeCategory in core). The same as the web's CategoryTabs.
@@ -156,7 +177,6 @@ export function CategoryChips({ theme }: { theme: Theme }) {
       { text: 'Cancel', style: 'cancel' as const },
     ])
   return (
-    <View style={s.pickRow}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Category: ${none ? 'No category' : (shown?.label ?? 'none open')}${n > 0 ? `, ${n} ${n === 1 ? 'line' : 'lines'}` : ''}. Pick another`}
@@ -170,7 +190,6 @@ export function CategoryChips({ theme }: { theme: Theme }) {
         </Text>
         <View style={[s.chevron, { borderColor: theme.inkMute, marginLeft: 6 }]} />
       </Pressable>
-    </View>
   )
 }
 
@@ -182,8 +201,9 @@ function ChipCategory({ id }: { id: string | null }) {
 
 const s = StyleSheet.create({
   strip: { flexGrow: 0 },
-  pickRow: { flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 12 },
-  pick: { maxWidth: 300, borderBottomWidth: 0 },
+  pick: { flexShrink: 1, maxWidth: 240, borderBottomWidth: 0, paddingRight: 4 },
+  tools: { flexDirection: 'row', alignItems: 'center' },
+  tool: { width: 40, height: 36, alignItems: 'center', justifyContent: 'center' },
   noneMark: { width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderStyle: 'dashed' },
   inner: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, gap: 2 },
   chip: { minHeight: 36, paddingHorizontal: 10, justifyContent: 'center', borderBottomWidth: 2, maxWidth: 180 },

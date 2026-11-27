@@ -3,7 +3,6 @@
 // measured layouts; this file only measures and draws.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react'
 import { Animated, Keyboard, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
-import { menu } from './Menu'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
@@ -18,15 +17,16 @@ import { DoneSheet } from './Lists'
 import { ArchiveView } from './Archive'
 import { SortView } from './Sort'
 import { SubRows } from './SubRows'
-import { BoomerangPicker, CategoriesApp, CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
+import { BoomerangPicker, CategoriesApp, CategoryPicker, HoursApp, HoursSettingsApp, RecurringApp, SlotPicker } from '@hissypad/ui'
 import { CategoryAdd, CategoryHead, DueHead, ScheduledHead } from './Boomerangs'
 import {
   cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotFinder, setSlotPickerOpener, targetCategory, targetSlot, targetsHaveCategory, useCategoryChoices,
   cmdOpenCategories,
 } from '@hissypad/state/hours'
 import { SearchSheet } from './Search'
-import { CategoryChips, PadChips } from './PadChips'
-import { BottomNav, type Mode } from './TopIcons'
+import { CategoryChips, PadChips, PadTools } from './PadChips'
+import { BottomNav, Brand, type Mode } from './TopIcons'
+import { MenuScreen } from './MenuScreen'
 import { CreateSheet, openCreate, useCreating } from './Create'
 import { useKeyboardHeight } from '../keyboard'
 
@@ -110,14 +110,18 @@ export function Pad() {
   const [logText, setLogText] = useState<string | null>(null)
   // Pad, Hours, Categories or Sort: the switcher in the top bar. The pad stays mounted under the other
   // ones, so it is where it was left on the way back (Categories draws its lines with it).
-  const [mode, setMode] = useState<Mode>('hours')
-  const [sheet, setSheet] = useState<'done' | 'search' | 'categories' | null>(null)
+  const [mode, setModeState] = useState<Mode>('hours')
+  // The menu's screen (the bottom nav's fifth cell): no mode, over whichever one is open.
+  const [menuOpen, setMenuOpen] = useState(false)
+  // Going to a mode always leaves the menu.
+  const setMode = (next: Mode) => { setMenuOpen(false); setModeState(next) }
+  const [sheet, setSheet] = useState<'done' | 'search' | 'categories' | 'plans' | 'settings' | null>(null)
   // The hour Search was opened for (Hours' search button), or null for a search that goes to the line.
   const [assign, setAssign] = useState<string | null>(null)
   // The Archive: a screen that is no mode, over whichever mode is open. `id` is the line it
   // opens at (an archived line picked in Search); `rev` makes a second trip scroll again.
   const [archive, setArchive] = useState<{ id: string | null; rev: number } | null>(null)
-  const screen = archive ? 'archive' : mode
+  const screen = archive ? 'archive' : menuOpen ? 'menu' : mode
   // Sort keeps a pad of its own: the store swaps to it in Sort and back out of it.
   useEffect(() => { if (load === 'ready') setSortMode(screen === 'sort') }, [screen, load])
   // Categories shows a category in place of the pad (the store's catId), drawn by the same
@@ -130,8 +134,8 @@ export function Pad() {
   }, [screen, load])
   // Opening a pad from there (a pad's heading over its lines) ends the category's view: the
   // mode follows it to the Pad.
-  const shownMode = useRef(mode)
-  shownMode.current = mode
+  const shownMode = useRef(screen)
+  shownMode.current = screen
   useEffect(() => usePad.subscribe((st, was) => {
     if (was.catId !== null && st.catId === null && shownMode.current === 'category') setMode('pad')
   }), [])
@@ -500,6 +504,7 @@ export function Pad() {
   function switchMode(next: Mode) {
     // From the Archive, a tap on any mode goes there, the one it was opened over included.
     setArchive(null)
+    setMenuOpen(false)
     if (next === mode) return
     stopEditing()
     Keyboard.dismiss()
@@ -514,18 +519,13 @@ export function Pad() {
     setArchive((was) => ({ id, rev: (was?.rev ?? 0) + 1 }))
   }
 
-  // The hamburger: the lists that are looked at now and then.
+  // The bottom nav's menu: a screen of its own (MenuScreen). A second tap goes back to the mode.
   function openMenu() {
     stopEditing()
-    menu('HissyPad', undefined, [
-      { text: 'New item', onPress: () => openCreate() },
-      { text: 'Search', onPress: () => { setAssign(null); setSheet('search') } },
-      { text: 'Done', onPress: () => setSheet('done') },
-      { text: 'Archive', onPress: () => openArchive(null) },
-      { text: 'Categories', onPress: () => setSheet('categories') },
-      ...(logEnabled() ? [{ text: 'Log', onPress: () => setLogText(dumpLog()) }] : []),
-      { text: 'Cancel', style: 'cancel' as const },
-    ])
+    clearSelection()
+    Keyboard.dismiss()
+    setArchive(null)
+    setMenuOpen((was) => !was)
   }
 
   const doneCount = Object.values(rows).filter((r) => r.deletedAt === null && r.done).length
@@ -613,9 +613,33 @@ export function Pad() {
 
   return (
     <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: kb > 0 ? kb : insets.bottom }]}>
+      {/* The first row: the app's name, and at its right the mode's own control (the pads'
+          jump list and +, the category). Hours and Sort draw theirs themselves, with the same name. */}
+      {(screen === 'pad' || screen === 'category' || screen === 'menu') && (
+        <View style={s.top}>
+          <Brand theme={theme} />
+          <View style={{ flex: 1 }} />
+          {screen === 'pad' && <PadTools theme={theme} />}
+          {screen === 'category' && <CategoryChips theme={theme} />}
+        </View>
+      )}
+      {screen === 'menu' && (
+        <MenuScreen
+          theme={theme}
+          actions={{
+            onNew: () => openCreate(),
+            onSearch: () => { setAssign(null); setSheet('search') },
+            onDone: () => setSheet('done'),
+            onArchive: () => { setMenuOpen(false); openArchive(null) },
+            onCategories: () => setSheet('categories'),
+            onPlans: () => setSheet('plans'),
+            onSettings: () => setSheet('settings'),
+            onLog: logEnabled() ? () => setLogText(dumpLog()) : undefined,
+          }}
+        />
+      )}
       {/* The pad chips are the pad's only: Sort picks its pad in its own title. */}
       {screen === 'pad' && <PadChips theme={theme} />}
-      {screen === 'category' && <CategoryChips theme={theme} />}
       {screen === 'category' && catId === null && load === 'ready' && <Text style={[s.hint, { color: theme.inkMute }]}>No categories yet. Make one from the menu's Categories, or from Category… on a line's toolbar.</Text>}
       {/* The pad's status line: the toast on the left, Archive x completed flush right. It keeps
           its height when both are empty, so neither one pushes the pad down when it shows up. */}
@@ -650,6 +674,23 @@ export function Pad() {
           {sheet === 'categories' && <CategoriesApp onClose={() => setSheet(null)} />}
         </View>
       </Modal>
+      {/* Hours' recurring plans and settings, from the menu's screen (Hours has no menu of its own here). */}
+      <Modal visible={sheet === 'plans'} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSheet(null)}>
+        {SHEET_TOP > 0 && <View style={{ height: SHEET_TOP, backgroundColor: theme.paper }} />}
+        <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
+          {sheet === 'plans' && <RecurringApp onClose={() => setSheet(null)} />}
+        </View>
+      </Modal>
+      <Modal visible={sheet === 'settings'} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSheet(null)}>
+        {SHEET_TOP > 0 && <View style={{ height: SHEET_TOP, backgroundColor: theme.paper }} />}
+        <View style={{ flex: 1, backgroundColor: theme.paper, paddingTop: 12 }}>
+          <View style={[s.top, { gap: 16 }]}>
+            <Text accessibilityRole="header" style={[s.title, { color: theme.inkSoft, flex: 1 }]}>Hours settings</Text>
+            <Pressable onPress={() => setSheet(null)} style={s.topBtn} accessibilityRole="button"><Text style={[s.topText, { color: theme.inkSoft }]}>Close</Text></Pressable>
+          </View>
+          {sheet === 'settings' && <HoursSettingsApp />}
+        </View>
+      </Modal>
       <SearchSheet visible={sheet === 'search'} assign={assign} onClose={() => { setSheet(null); setAssign(null) }} onOpen={() => { setArchive(null); setMode('pad') }} onArchived={openArchive} theme={theme} />
       <DoneSheet visible={sheet === 'done'} onClose={() => setSheet(null)} theme={theme} />
       {toast && !padShown && screen !== 'archive' && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
@@ -659,11 +700,11 @@ export function Pad() {
         <View style={s.scroll}>
           {/* An open hour's lines are the pad's own rows (the store shows that hour), so
               the toolbar and the floating buttons below act on them. */}
-          <HoursApp renderLines={(what) => ('slot' in what ? <SubRows slot={what.slot} theme={theme} /> : <SubRows part={what.part} theme={theme} />)} />
+          <HoursApp brand={<Brand theme={theme} />} renderLines={(what) => ('slot' in what ? <SubRows slot={what.slot} theme={theme} /> : <SubRows part={what.part} theme={theme} />)} />
           {hourOpen && !creating && (liveEditing !== null || liveSelection.length > 0) && <FloatingButtons theme={theme} />}
         </View>
       )}
-      {screen === 'sort' && <SortView key={padId ?? 'main'} theme={theme} paused={creating} onOpen={() => setMode('pad')} />}
+      {screen === 'sort' && <SortView key={padId ?? 'main'} theme={theme} paused={creating} onOpen={() => setMode('pad')} brand={<Brand theme={theme} />} />}
       {load === 'loading' ? (
         screen === 'pad' && <Text style={[s.hint, { color: theme.inkMute }]}>Opening your pad…</Text>
       ) : (
@@ -745,14 +786,14 @@ export function Pad() {
       {!creating && <Toolbar theme={theme} />}
       {/* The bottom nav: the modes and the menu. Away while the keyboard is up, so the
           toolbar sits on the keyboard as before. */}
-      {kb === 0 && <BottomNav mode={archive ? null : mode} onMode={switchMode} onMenu={openMenu} theme={theme} />}
+      {kb === 0 && <BottomNav mode={archive || menuOpen ? null : mode} onMode={switchMode} onMenu={openMenu} menuOn={menuOpen && !archive} theme={theme} />}
     </View>
   )
 }
 
 const s = StyleSheet.create({
   root: { flex: 1 },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6 }, // the debug log's title row
+  top: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingLeft: 20, paddingRight: 12 }, // a screen's first row: the name, then its control
   status: { flexDirection: 'row', alignItems: 'center', height: 24, paddingLeft: 16, paddingRight: 6, gap: 12 },
   statusToast: { flex: 1, fontFamily: serif, fontStyle: 'italic', fontSize: 14 },
   clear: { height: 24, paddingHorizontal: 10, justifyContent: 'center' },

@@ -7,6 +7,7 @@ import { usePad } from '@hissypad/state';
 
 import { Chevron } from './DayScreen';
 import { HostedLines, PartLines } from './HostedLines';
+import { useBrand } from './host';
 import { useDay, useRecurring } from './provider';
 import { Tap } from './Tap';
 import { GUTTER, LINE, MAX_WIDTH, ROW, serif, SIZE, SMALL, useTheme } from './theme';
@@ -84,17 +85,21 @@ export function FocusScreen({ at, clock = realClock, onList, onGo, onPart }: Pro
   const after = stepSlot(slot, 1);
   const go = (to: Slot) => onGo(sameSlot(to, slotNow(clock())) ? null : to);
   const waiting = unscheduledCount(all);
+  // On the phone: the app's name at the left of the first row, the hour at its right.
+  const brand = useBrand();
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.paper }]}>
       <View style={styles.column}>
+        <View style={styles.top}>
+        {brand}
         <Tap
           aria-label={`${label}, ${when === date ? date : `${when}, ${date}`}. Show every hour`}
           onPress={onList}
-          style={styles.head}
+          style={[styles.head, brand ? styles.headRight : null]}
           activeStyle={{ backgroundColor: theme.paperRaised }}>
           <Text style={[styles.hour, { color: isNow ? theme.accent : theme.ink }]}>{label}</Text>
-          <View style={styles.when}>
+          <View style={brand ? styles.whenRight : styles.when}>
             <Text numberOfLines={1} style={[styles.day, { color: theme.ink }]}>
               {when}
             </Text>
@@ -104,6 +109,7 @@ export function FocusScreen({ at, clock = realClock, onList, onGo, onPart }: Pro
           </View>
           <ListIcon color={theme.inkSoft} />
         </Tap>
+        </View>
 
         <ScrollView role="main" keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets contentContainerStyle={styles.body}>
           <View style={[styles.pad, { borderColor: theme.rule }]}>
@@ -158,14 +164,17 @@ type PartProps = { part: TodayPart; onBack(): void };
 export function PartScreen({ part, onBack }: PartProps) {
   const theme = useTheme();
   const name = part === 'own' ? 'Unscheduled' : 'Schedule';
+  const brand = useBrand();
   return (
     <View style={[styles.screen, { backgroundColor: theme.paper }]}>
       <View style={styles.column}>
-        <Tap aria-label={`${name}. Back to the hour`} onPress={onBack} style={styles.head} activeStyle={{ backgroundColor: theme.paperRaised }}>
+        <View style={styles.top}>
+        {brand}
+        <Tap aria-label={`${name}. Back to the hour`} onPress={onBack} style={[styles.head, brand ? styles.headRight : null]} activeStyle={{ backgroundColor: theme.paperRaised }}>
           <View style={styles.back}>
             <Chevron color={theme.inkSoft} />
           </View>
-          <View style={styles.when}>
+          <View style={brand ? styles.whenRight : styles.when}>
             <Text role="heading" aria-level={1} style={[styles.day, { color: theme.ink }]}>
               {name}
             </Text>
@@ -174,6 +183,7 @@ export function PartScreen({ part, onBack }: PartProps) {
             </Text>
           </View>
         </Tap>
+        </View>
         <ScrollView role="main" keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets contentContainerStyle={styles.body}>
           <PartLines part={part} />
         </ScrollView>
@@ -200,9 +210,13 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   column: { flex: 1, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', paddingHorizontal: GUTTER },
   // The hour line: the hour large, the day beside it, and the list it leads to at the right.
-  head: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 4, borderRadius: 4 },
+  head: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 4, borderRadius: 4 },
   hour: { fontFamily: serif, fontSize: 30, lineHeight: 38, fontWeight: '700', fontVariant: ['tabular-nums'] },
   when: { flex: 1 },
+  // With the app's name at the left (the phone): the row holds both, and the head is at the right.
+  top: { flexDirection: 'row', alignItems: 'center' },
+  headRight: { flex: 1, justifyContent: 'flex-end' },
+  whenRight: { flexShrink: 1 },
   day: { fontFamily: serif, fontSize: SIZE, lineHeight: 22, fontWeight: '700' },
   date: { fontFamily: serif, fontSize: SMALL, lineHeight: 18 },
   back: { width: 28, alignItems: 'center' },

@@ -1,8 +1,8 @@
 // The top bar's icons and the mode switcher (Hours, Pad, Sort). The icons are drawn with
 // plain Views: no icon font and no SVG module, so they ship in an update without a new
 // native build. Each sits in a Pressable that carries the name for VoiceOver.
-import { Pressable, StyleSheet, View } from 'react-native'
-import type { Theme } from '../theme'
+import { Pressable, StyleSheet, View, Text } from 'react-native'
+import { serif, type Theme } from '../theme'
 import { LineIcon } from './LineIcons'
 
 export type Mode = 'pad' | 'hours' | 'category' | 'sort'
@@ -81,7 +81,14 @@ const MODES: { mode: Mode; label: string }[] = [
 // mode is a raised cell with a line of the accent over it and full ink, so which one is open
 // does not rest on color alone. `mode` is null on a screen that is no mode (the Archive):
 // nothing is lit.
-export function BottomNav({ mode, onMode, onMenu, theme }: { mode: Mode | null; onMode: (mode: Mode) => void; onMenu: () => void; theme: Theme }) {
+// The app's name, at the left of every screen's first row (Kevin, 2026-11-28): each mode's
+// own control sits at the right of the same row.
+export function Brand({ theme }: { theme: Theme }) {
+  return <Text accessibilityRole="header" style={[i.brand, { color: theme.inkSoft }]}>HissyPad</Text>
+}
+
+// `menuOn`: the menu's screen is up; its cell is lit and no mode is.
+export function BottomNav({ mode, onMode, onMenu, menuOn = false, theme }: { mode: Mode | null; onMode: (mode: Mode) => void; onMenu: () => void; menuOn?: boolean; theme: Theme }) {
   return (
     <View style={[i.nav, { borderTopColor: theme.rule, backgroundColor: theme.paper }]}>
       <View accessibilityRole="tablist" style={i.navModes}>
@@ -105,8 +112,8 @@ export function BottomNav({ mode, onMode, onMenu, theme }: { mode: Mode | null; 
           )
         })}
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel="Menu: New item, Search, Done, Archive and Categories" onPress={onMenu} style={[i.navCell, { borderTopColor: 'transparent' }]}>
-        <MenuIcon color={theme.inkSoft} />
+      <Pressable accessibilityRole="tab" accessibilityState={{ selected: menuOn }} accessibilityLabel="Menu: New item, Search, the lists and the settings" onPress={onMenu} style={[i.navCell, { backgroundColor: menuOn ? theme.paperRaised : theme.paper, borderTopColor: menuOn ? theme.accent : 'transparent' }]}>
+        <MenuIcon color={menuOn ? theme.ink : theme.inkMute} />
       </Pressable>
     </View>
   )
@@ -115,6 +122,7 @@ export function BottomNav({ mode, onMode, onMenu, theme }: { mode: Mode | null; 
 const i = StyleSheet.create({
   box: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
   padRow: { flexDirection: 'row', alignItems: 'center', gap: 2.5, height: 5.5 },
+  brand: { fontFamily: serif, fontStyle: 'italic', fontSize: 19 },
   nav: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth },
   navModes: { flex: 4, flexDirection: 'row' },
   navCell: { flex: 1, height: 48, borderTopWidth: 2, alignItems: 'center', justifyContent: 'center' },

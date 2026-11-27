@@ -10,6 +10,7 @@ import { usePad } from '@hissypad/state';
 import { getChimePlatform } from '@hissypad/state/hours';
 
 import { DayStrip } from './DayStrip';
+import { useBrand } from './host';
 import { drawHours } from './drawn';
 import { HourRow } from './HourRow';
 import type { HourCell } from './Mark';
@@ -52,6 +53,8 @@ type Props = {
 export function DayScreen({ clock = realClock, onEditPlans, onPick }: Props) {
   const theme = useTheme();
   const now = useNow(clock);
+  // On the phone: the app's name at the left, the days at the right, and no menu here.
+  const brand = useBrand();
 
   const day = useDay((s) => s.day);
   const start = useDay((s) => s.start);
@@ -136,7 +139,8 @@ export function DayScreen({ clock = realClock, onEditPlans, onPick }: Props) {
       <View style={styles.column}>
         {/* One line: earlier, the day, the calendar, later, and the menu at the far right. */}
         <View role="banner" style={styles.header}>
-          <View role="navigation" aria-label="Days" style={styles.days}>
+          {brand && <View style={styles.brand}>{brand}</View>}
+          <View role="navigation" aria-label="Days" style={[styles.days, brand ? styles.daysRight : null]}>
             <Tap aria-label="Earlier" onPress={() => go(shiftDay(day, -1))} style={styles.iconButton} activeStyle={{ backgroundColor: theme.paperRaised }}>
               <Chevron color={theme.ink} />
             </Tap>
@@ -162,14 +166,14 @@ export function DayScreen({ clock = realClock, onEditPlans, onPick }: Props) {
               <Chevron color={theme.ink} forward />
             </Tap>
           </View>
-          <Tap
+          {!brand && <Tap
             aria-label="Hours menu"
             aria-expanded={panel === 'menu' || panel === 'settings'}
             onPress={() => toggle('menu')}
             style={[styles.iconButton, (panel === 'menu' || panel === 'settings') && { backgroundColor: theme.paperRaised }]}
             activeStyle={{ backgroundColor: theme.paperRaised }}>
             <MenuIcon color={theme.ink} />
-          </Tap>
+          </Tap>}
         </View>
 
         <View style={styles.body}>
@@ -247,7 +251,7 @@ export function DayScreen({ clock = realClock, onEditPlans, onPick }: Props) {
           {/* The calendar and the menu open over the hours; a press outside closes them. */}
           {panel && <Pressable aria-hidden onPress={() => setPanel(null)} style={styles.away} />}
           {panel === 'calendar' && (
-            <View style={[styles.panel, styles.calendar, { backgroundColor: theme.paperRaised, borderColor: theme.line }]}>
+            <View style={[styles.panel, styles.calendar, brand ? styles.calendarRight : null, { backgroundColor: theme.paperRaised, borderColor: theme.line }]}>
               <DayPicker day={day} today={today} onPick={go} />
             </View>
           )}
@@ -419,7 +423,7 @@ function Menu({ onEditPlans, onSettings }: MenuProps) {
 }
 
 // The device's settings: the hour a day starts at, and the chimes.
-function Settings({ start, onStart }: { start: number; onStart(hour: number): void }) {
+export function Settings({ start, onStart }: { start: number; onStart(hour: number): void }) {
   const theme = useTheme();
   const chimesNeedThePageOpen = getChimePlatform()?.needsPageOpen ?? false;
   const soundChime = getChimePlatform()?.sound ?? null;
@@ -515,6 +519,9 @@ const styles = StyleSheet.create({
   column: { flex: 1, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center', paddingHorizontal: GUTTER },
   header: { flexDirection: 'row', alignItems: 'center', paddingTop: 4, marginHorizontal: -10 },
   days: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  brand: { paddingLeft: 10, paddingRight: 4 },
+  daysRight: { justifyContent: 'flex-end' },
+  calendarRight: { left: undefined, right: 0 },
   titleRow: { flexShrink: 1, flexDirection: 'row', alignItems: 'baseline', columnGap: 8, paddingHorizontal: 4 },
   title: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE, fontWeight: '700', flexShrink: 0 },
   date: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE, flexShrink: 1 },

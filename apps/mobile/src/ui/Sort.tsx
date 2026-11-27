@@ -58,7 +58,8 @@ export function CardLine({ category, onCategory, children }: { category: ReturnT
 // the mode switcher is the way out.
 // `paused`: something else has the store's zoom (the new item's sheet is up), so the card
 // draws no sub items and leaves the zoom alone until it is back.
-export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOpen?: () => void; paused?: boolean }) {
+// `brand`: the app's name, for the left of the first row.
+export function SortView({ theme, onOpen, paused = false, brand = null }: { theme: Theme; onOpen?: () => void; paused?: boolean; brand?: ReactNode }) {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
   const zoomId = usePad((s) => s.zoomId)
@@ -206,15 +207,15 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
   return (
       <Pressable style={[s.root, { backgroundColor: theme.paper }]} onPress={Keyboard.dismiss} accessible={false}>
         <View style={s.head}>
-          <View style={{ flex: 1 }}>
+          {brand}
+          <View style={{ flex: 1, alignItems: 'flex-end' }}>
             {/* No pad chips in Sort: tapping the pad's name in the title picks the pad to sort. */}
-            <Pressable onPress={pickPad} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Pad to sort: ${padName(all, padId)}, change`} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, alignSelf: 'flex-start' })}>
+            <Pressable onPress={pickPad} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Pad to sort: ${padName(all, padId)}, change`} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
               <Text style={[s.title, { color: theme.ink }]} numberOfLines={1}>
                 Sort <Text style={{ textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: theme.inkMute }}>{padName(all, padId)}</Text>
                 <Text style={{ color: theme.inkMute }}> ▾</Text>
               </Text>
             </Pressable>
-            <Text style={[s.lede, { color: theme.inkSoft }]}>{id ? `${progress.left} to go. Swipe the card.` : 'One line at a time.'}</Text>
           </View>
         </View>
 
@@ -345,10 +346,10 @@ export function SortView({ theme, onOpen, paused = false }: { theme: Theme; onOp
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12 },
-  head: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
-  title: { fontFamily: serif, fontSize: 21 },
-  lede: { fontFamily: serif, fontSize: 15, marginTop: 2 },
+  root: { flex: 1, paddingHorizontal: 16, paddingBottom: 12 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingHorizontal: 4, marginBottom: 12 },
+  title: { fontFamily: serif, fontSize: 19 },
+  lede: { fontFamily: serif, fontSize: 15, marginTop: 2 }, // the summary under "All sorted."
   stage: { flex: 1 },
   card: {
     paddingHorizontal: 18, paddingTop: 14, paddingBottom: 14, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth,

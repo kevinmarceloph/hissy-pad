@@ -37,7 +37,8 @@ function planTitle(plan: Pick<RecurringPlan, 'note' | 'category'>, categories: C
 // Where the plans that repeat are edited: sleep every night, a class on two weekdays. The
 // flags screen's shape, with one difference: a plan has several fields that only make sense
 // together, so an editor here is a draft until Save.
-export function RecurringScreen({ onBack }: { onBack(): void }) {
+// `backLabel`: what the way out says; a host that opens this from its own menu says Close.
+export function RecurringScreen({ onBack, backLabel = 'Back to the day' }: { onBack(): void; backLabel?: string }) {
   const theme = useTheme();
   const list = useRecurring((s) => s.list);
   const error = useRecurring((s) => s.error);
@@ -58,7 +59,7 @@ export function RecurringScreen({ onBack }: { onBack(): void }) {
         <View role="banner" style={styles.header}>
           <View role="navigation" aria-label="Screens" style={styles.nav}>
             <Tap role="link" onPress={onBack} style={styles.navButton} activeStyle={{ backgroundColor: theme.paperRaised }}>
-              <Text style={[styles.body, { color: theme.ink }]}>Back to the day</Text>
+              <Text style={[styles.body, { color: theme.ink }]}>{backLabel}</Text>
             </Tap>
           </View>
           <Text role="heading" aria-level={1} style={[styles.title, { color: theme.ink }]}>
