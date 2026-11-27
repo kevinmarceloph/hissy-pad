@@ -8,7 +8,7 @@ import { activeCategories, categoryName, type Category } from '@hissypad/core/ho
 
 import { applyAll, applyQuiet, getLocalStore, setClassifier, usePad } from '../store';
 import { holdEditing, targets } from '../selection';
-import { setCopyPrefix } from '../commands';
+import { setCopyPrefix, setFieldPrefix } from '../commands';
 
 // ---- the list the pad draws from ----------------------------------------------------------
 
@@ -35,6 +35,14 @@ setCopyPrefix((row) => {
   if (!icon) return '';
   const bare = (t: string) => t.replace(/\uFE0F/g, '');
   return bare(row.text).startsWith(bare(icon) + ' ') ? '' : `${icon} `;
+});
+
+// While a line is edited, its field shows the same icon or code in front (commands.ts,
+// fieldPrefix), in a category's own pad and its view too, where the badge is hidden: that is
+// where it can be deleted.
+setFieldPrefix((row) => {
+  const icon = row.category ? lineCategories.getState().byId[row.category]?.icon : undefined;
+  return icon ? `${icon} ` : '';
 });
 
 // Once per device, the lines already in the table that start with a category's emoji go in

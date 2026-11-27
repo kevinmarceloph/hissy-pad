@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState, type ComponentRef } from 'react'
 import { Platform, Pressable, StyleSheet, Text, TextInput, View, useColorScheme, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
-import { apply, categoryShown, clickSelect, cmdClearFresh, edit, usePad, usePadCategoryOf, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
+import { apply, categoryShown, clickSelect, cmdClearFresh, edit, usePad, usePadCategoryOf, type Editing, cmdBackspaceAtStart, cmdTextChanged, fieldPrefix } from '@hissypad/state'
 import { inlineSpans, scopeSlot, slotLabel, slotPast, todayKey, toggleCollapsed } from '@hissypad/core'
 import { cmdSlotUnarchive, useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
@@ -60,7 +60,11 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
   const place = useRef({ key: `${row.parentId}/${row.rank}`, movedAt: 0 })
   if (place.current.key !== `${row.parentId}/${row.rank}`) place.current = { key: `${row.parentId}/${row.rank}`, movedAt: Date.now() }
   // Local mirror of the text while editing, so each keystroke renders before the store.
-  const [draft, setDraft] = useState(row.text)
+  // While editing, the field shows the category's icon or code before the text (state's
+  // fieldPrefix); the store counts carets in the text alone, so the prefix's length is added
+  // here and taken off by cmdTextChanged.
+  const field = () => fieldPrefix(usePad.getState().all[row.id] ?? row) + row.text
+  const [draft, setDraft] = useState(() => (isEditing ? field() : row.text))
   // The caret is placed declaratively: a one-shot controlled `selection` on mount (or when
   // the store asks again via rev), released as soon as the input reports a selection. No
   // imperative calls on a ref that may be mid-unmount.
@@ -75,13 +79,14 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
   const [wasEditing, setWasEditing] = useState(isEditing)
   if (wasEditing !== isEditing) {
     setWasEditing(isEditing)
-    if (isEditing) setDraft(row.text)
+    if (isEditing) setDraft(field())
   }
   useEffect(() => {
     if (!isEditing) return
     // Do not reset the draft here: it is seeded on mount and keystrokes may already have
     // landed by the time this effect runs.
-    const pos = editing!.caret === 'end' ? row.text.length : Math.min(editing!.caret, row.text.length)
+    const pre = fieldPrefix(usePad.getState().all[row.id] ?? row).length
+    const pos = editing!.caret === 'end' ? pre + row.text.length : Math.min(editing!.caret + pre, pre + row.text.length)
     setPendingSel({ start: pos, end: pos })
     // Hand the selection back to the native input right after it has been applied; a
     // controlled selection left in place holds back typed text until the next event.
@@ -156,7 +161,7 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
       style={[s.row, { paddingLeft: depth * INDENT }, selected && { backgroundColor: theme.accentSoft }, selectedChild && { backgroundColor: theme.accentFaint }, dragging && { opacity: 0.35 }, preview && { backgroundColor: theme.accentSoft, opacity: 0.75 }]}
     >
       {bullet}
-      {category && row.category !== padCategory && !inCategory && (
+      {category && !isEditing && row.category !== padCategory && !inCategory && (
         // The line's category (toolbar: More, Category…): its icon in a squircle of its color,
         // or its name where it has none. It works as the bullet does: a tap selects the line,
         // a press and hold drags it (the pad's pan over the left strip; the long press here

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent
 import type { NodeRow } from '@hissypad/core'
 import { categoryShown, clickSelect, edit, select, selectWithSibling, usePad, usePadCategoryOf, type Editing } from '@hissypad/state'
 import {
-  cmdBackspaceAtStart, cmdDedent, cmdDeleteSelection, cmdEditNeighbor, cmdEnter, cmdIndent, cmdMove, cmdPasteInto, cmdSetText,
+  cmdBackspaceAtStart, cmdDedent, cmdDeleteSelection, cmdEditNeighbor, cmdEnter, cmdIndent, cmdMove, cmdPasteInto, cmdSetFieldText, fieldPrefix, textCaret,
   cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
 import { cmdClearFresh, redo, undo } from '@hissypad/state'
@@ -96,12 +96,17 @@ function caretFromPoint(el: HTMLElement, x: number, y: number): number | 'end' {
 export function Row({ row, depth, childCount, foldCount, editing, selected, selectedChild, number, dragging, preview, onBulletPointerDown, onBulletClickCapture }: Props) {
   const isEditing = editing?.id === row.id
   const ref = useRef<HTMLTextAreaElement>(null)
+  const category = useLineCategory(row.category)
+  // While editing, the field shows the category's icon or code before the text (state's
+  // fieldPrefix); the store counts carets in the text alone, so the field adds and takes off
+  // the prefix's length at each handoff.
+  const prefix = isEditing ? fieldPrefix(row) : ''
 
   // Focus + caret whenever this row becomes the editing row (or asks to be refocused).
   useLayoutEffect(() => {
     const ta = ref.current
     if (!isEditing || !ta) return
-    const pos = editing!.caret === 'end' ? ta.value.length : Math.min(editing!.caret, ta.value.length)
+    const pos = editing!.caret === 'end' ? ta.value.length : Math.min(editing!.caret + prefix.length, ta.value.length)
     if (document.activeElement !== ta) ta.focus({ preventScroll: true })
     ta.setSelectionRange(pos, pos)
     ta.scrollIntoView({ block: 'nearest' })
@@ -123,8 +128,8 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
     const { selectionStart, selectionEnd, value } = ta
     if (e.key === 'Enter' && !e.shiftKey && !mod(e)) {
       e.preventDefault()
-      if (selectionStart !== selectionEnd) cmdSetText(row.id, value.slice(0, selectionStart) + value.slice(selectionEnd))
-      cmdEnter(row.id, selectionStart)
+      if (selectionStart !== selectionEnd) cmdSetFieldText(row.id, value.slice(0, selectionStart) + value.slice(selectionEnd))
+      cmdEnter(row.id, textCaret(row.id, selectionStart))
     } else if (e.key === 'Enter' && mod(e)) {
       e.preventDefault()
       cmdToggleDone()
@@ -181,14 +186,14 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
     edit(row.id, caretFromPoint(e.currentTarget, e.clientX, e.clientY))
   }
 
-  const category = useLineCategory(row.category)
   // In an open hour, an archived line of the hour is drawn among the others (core's slotShown).
   const archived = usePad((s) => s.slotId !== null && scopeSlot(s.all, s.slotId).archived.has(row.id))
   // In its category's own pad a line shows no icon, only the bullet in the category's color.
   const padCategory = usePadCategoryOf(row.id)
   // Nor in a category's view, its own or another's: there the colors alone show what is mixed.
   const inCategory = usePad((s) => categoryShown(s) !== null)
-  const badge = category && row.category !== padCategory && !inCategory
+  // While editing, the prefix in the field stands in for it.
+  const badge = category && !isEditing && row.category !== padCategory && !inCategory
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
   const cls = ['row', row.done && 'is-done', row.doing && 'is-doing', row.pinned && 'is-pinned', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', row.divider && number === null && 'is-divider', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', selectedChild && 'is-selected-child', isEditing && 'is-editing', folded && 'is-collapsed', category && 'has-category', category && `cat-${category.color}`, archived && 'is-archived']
@@ -227,9 +232,9 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
           ref={ref}
           className="text"
           rows={1}
-          value={row.text}
+          value={prefix + row.text}
           aria-label="Line text"
-          onChange={(e) => cmdSetText(row.id, e.target.value)}
+          onChange={(e) => cmdSetFieldText(row.id, e.target.value)}
           onKeyDown={onKeyDown}
           onPaste={(e) => {
             const text = e.clipboardData.getData('text/plain')
