@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { dedent, findFixedPad, idOf, indent, insertAfter, insertAt, moveSibling, remove, setSlot, setText, shape, slotKey } from '@hissypad/core'
 
 import { resetStore, tableShape } from './testing'
 import { apply, applyAll, closeSlot, loadPad, openPad, openSlot, usePad, zoomTo } from './store'
 import { redo, undo } from './history'
 import { LINE_ACTIONS, lineAbilities, lineActions } from './actions'
-import { cmdAddAbove, cmdAddBelow, cmdDeleteSelection, cmdPasteAfterSelection, cmdSetText } from './commands'
+import { cmdAddAbove, cmdAddBelow, cmdDeleteSelection, cmdPasteAfterSelection, cmdSetState, cmdSetText } from './commands'
 import { cmdMoveToPad } from './pads'
 import { edit, select } from './selection'
 
@@ -252,5 +252,31 @@ describe('the toolbar in an open hour', () => {
     cmdPasteAfterSelection('one\n  under one\ntwo')
     expect(tableShape()).toContain('@Today\n  T\n  U\n  one\n    under one\n  two')
     expect(view()).toBe('U\none\n  under one\ntwo\nA\n  A1\n  A2')
+  })
+})
+
+describe('doing puts a line in the hour it is now', () => {
+  afterEach(() => vi.useRealTimers())
+  const at = (hour: number) => vi.useFakeTimers({ toFake: ['Date'] }).setSystemTime(new Date(2026, 10, 25, hour, 20))
+
+  it('from the switch: doing adds the hour, done does not, and undo takes it back', () => {
+    at(14)
+    select([id('B')], id('B'))
+    cmdSetState('doing')
+    expect(all()[id('B')]).toMatchObject({ doing: true, slot: slotKey('2026-11-25', 14) })
+    undo()
+    expect(all()[id('B')]).toMatchObject({ doing: false, slot: null })
+    select([id('C')], id('C'))
+    cmdSetState('done')
+    expect(all()[id('C')]).toMatchObject({ done: true, slot: null })
+  })
+
+  it('inside an open hour: the line keeps that hour and gains this one', () => {
+    at(10)
+    openSlot(H)
+    select([id('A')], id('A'))
+    cmdSetState('doing')
+    expect(all()[id('A')]).toMatchObject({ doing: true, slot: slotKey('2026-11-25', 9, 2) })
+    expect(view()).toBe('U\nA\n  A1\n  A2')
   })
 })

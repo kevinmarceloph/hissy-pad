@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSlot, slotCounts, slotCovers, slotDoneElsewhere, slotDoneExtra, slotHours, slotKey, slotOfHours, slotRuns, lineOrder, scopeSlot, slotLabel, slotLeftovers, slotLines, slotProgress, slotPast, slotShown, slotTops, unscopeSlot } from './slot'
+import { parseSlot, slotDoingHour, slotCounts, slotCovers, slotDoneElsewhere, slotDoneExtra, slotHours, slotKey, slotOfHours, slotRuns, lineOrder, scopeSlot, slotLabel, slotLeftovers, slotLines, slotProgress, slotPast, slotShown, slotTops, unscopeSlot } from './slot'
 import type { NodeRow, Rows } from './types'
 import { buildIndex, homeNumbers, listNumbers } from './tree'
 import { toOutline, toOutlineHtml } from './paste'
@@ -237,5 +237,36 @@ describe('slotPast', () => {
     expect(slotPast('2026-11-23T22+4', at(1))).toBe(false)
     expect(slotPast('2026-11-23T22+4', at(2))).toBe(true)
     expect(slotPast(null, at(2))).toBe(false)
+  })
+})
+
+describe('marking a line doing puts it in the hour it is now', () => {
+  const ctx = { now: () => '2026-11-27T07:00:00.000Z', newId: () => 'x' }
+  const NOW = '2026-11-27T15'
+
+  it('gives a line with no hour this one, and adds it to the hours a line already has', () => {
+    const rows = table(row('a', null), row('b', '2026-11-27T14'), row('c', '2026-11-27T09'))
+    const out = slotDoingHour(rows, ctx, ['a', 'b', 'c'], NOW)
+    expect(out.a!.slot).toBe(NOW)
+    expect(out.b!.slot).toBe('2026-11-27T14+2')
+    expect(out.c!.slot).toBe('2026-11-27T09,2026-11-27T15')
+    expect(out.a!.updatedAt).toBe(ctx.now())
+  })
+
+  it('leaves a line already doing, already in the hour, blank, a divider or a pad row as it is', () => {
+    const rows = table(
+      { ...row('doing', null), doing: true },
+      row('here', '2026-11-27T14+3'),
+      { ...row('blank', null), text: ' ' },
+      { ...row('rule', null), divider: true },
+      { ...row('pad', null), pad: true, header: true },
+      { ...row('gone', null), deletedAt: '2026-11-26T00:00:00.000Z' },
+    )
+    expect(slotDoingHour(rows, ctx, Object.keys(rows), NOW)).toBe(rows)
+  })
+
+  it('takes a done line going back to doing', () => {
+    const rows = table(row('a', null, true))
+    expect(slotDoingHour(rows, ctx, ['a'], NOW).a!.slot).toBe(NOW)
   })
 })

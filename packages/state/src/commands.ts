@@ -3,7 +3,7 @@
 // selection goes afterwards.
 import {
   buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, moveToBottom, moveToTop, remove, removeDone, ungroup, splitOpen,
-  homeNumbers, setCategory, setKind, setText as setTextOp, splitNode, togglePinned, toggleDone, setState, toggleNumbered, type LineState, type NodeRow, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
+  homeNumbers, setCategory, setKind, setText as setTextOp, splitNode, togglePinned, toggleDone, setState, slotDoingHour, slotKey, todayKey, toggleNumbered, type LineState, type NodeRow, toOutline, toOutlineHtml, type NodeKind, type OpCtx, type Placement, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
 // dialog fallback; mobile: expo-clipboard). `html` is the same outline as nested lists,
@@ -259,10 +259,17 @@ export function cmdToggleDone() {
   if (ids.length) apply((rows, ctx) => toggleDone(rows, ctx, ids), { label: 'cmdToggleDone' })
 }
 
+// setState, plus the hour it is now for the lines it makes doing (slotDoingHour). Done
+// stays as it was: a line crossed out shows in its hour's done list, put in it or not.
+export function doingState(rows: Rows, ctx: OpCtx, ids: readonly string[], state: LineState, now: Date = new Date()): Rows {
+  const placed = state === 'doing' ? slotDoingHour(rows, ctx, ids, slotKey(todayKey(now), now.getHours())) : rows
+  return setState(placed, ctx, ids, state)
+}
+
 // The floating switch: each side puts the lines in its state (open, doing, done).
 export function cmdSetState(state: LineState) {
   const ids = targets()
-  if (ids.length) apply((rows, ctx) => setState(rows, ctx, ids, state), { label: 'cmdSetState' })
+  if (ids.length) apply((rows, ctx) => doingState(rows, ctx, ids, state), { label: 'cmdSetState' })
 }
 
 // Fold or unfold. With every target that has lines under it already folded, they all

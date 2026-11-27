@@ -6,11 +6,12 @@
 // JSON values through shared storage (apps/mobile/src/widget.ts writes and reads them,
 // targets/widget/*.swift is the other end).
 import {
-  buildIndex, childrenOf, countLines, padLines, descendantIds, insertAt, isBlank, isLive, isPadNode, setDone, setState, slotHours, slotKey,
+  buildIndex, childrenOf, countLines, padLines, descendantIds, insertAt, isBlank, isLive, isPadNode, setDone, slotHours, slotKey,
   slotTops, stateOf, todayKey,
   type LineState, type NodeRow, type PadId, type Rows, type TreeIndex,
 } from '@hissypad/core'
 import { applyAll, usePad } from './store'
+import { doingState } from './commands'
 import { MAIN_PAD_NAME, padList } from './pads'
 import { padOf } from './lists'
 import { sendToTarget, sortTarget, useSort, type SortChoice } from './sort'
@@ -195,7 +196,7 @@ export function cmdWidgetActions(actions: readonly WidgetAction[]): number {
     if (a.dir === 'state') {
       const { id, state } = a
       if (!isLive(all[id]) || !['open', 'doing', 'done'].includes(state) || stateOf(all[id]!) === state) continue
-      applyAll((rows, ctx) => setState(rows, ctx, [id], state), { label: `widget:${state}` })
+      applyAll((rows, ctx) => doingState(rows, ctx, [id], state), { label: `widget:${state}` })
       n++
       continue
     }

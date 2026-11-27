@@ -6,9 +6,10 @@
 // midnight into the next day. A single hour never carries '+1'. Hours that do not touch
 // are runs with commas between them, earliest first: 'YYYY-MM-DDT09,YYYY-MM-DDT14+2'
 // (Kevin, 2026-11-25: tap hours that are apart). slotOfHours writes that form.
-import { sameRow, type NodeRow, type Rows } from './types'
+import { sameRow, stateOf, type NodeRow, type OpCtx, type Rows } from './types'
 import { buildIndex, childrenOf, isBlank, isLive } from './tree'
 import { findFixedPad, listPads } from './pads'
+import { setSlot } from './ops'
 import { between, ranksBetween } from './rank'
 
 export const MAX_SLOT_HOURS = 24
@@ -86,6 +87,21 @@ export function slotOfHours(keys: readonly string[]): string | null {
   }
   if (run) runs.push(slotKey(run.day, run.hour, run.hours))
   return runs.length ? runs.join(',') : null
+}
+
+// Marking a line doing puts it in the hour it is being done in (Kevin, 2026-11-27): that
+// tells the lines worked on in an hour from the ones crossed out after the fact, which
+// only show in the hour's done list. The hour joins whatever hours the line already had.
+// Only a line going into doing takes it (one already doing keeps what it has), and never a
+// pad row, a divider or a blank line. Run it on the rows before the state changes.
+export function slotDoingHour(rows: Rows, ctx: OpCtx, ids: Iterable<string>, hourKey: string): Rows {
+  let out = rows
+  for (const id of ids) {
+    const r = out[id]
+    if (!r || !isLive(r) || stateOf(r) === 'doing' || r.pad || r.divider || isBlank(r) || slotCovers(r.slot, hourKey)) continue
+    out = setSlot(out, ctx, [id], slotOfHours([...slotHours(r.slot), hourKey]))
+  }
+  return out
 }
 
 // Whether a line's slot takes in one hour (a single-hour key, as Hours asks for its rows).

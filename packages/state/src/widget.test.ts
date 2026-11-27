@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { findFixedPad, idOf, listPads, setCategory, setSlot } from '@hissypad/core'
 import { applyAll, loadPad, usePad } from './store'
 import { undo } from './history'
@@ -149,8 +149,11 @@ describe('the widget', () => {
     expect(all()[id('C')]!.done).toBe(true)
   })
 
+  afterEach(() => vi.useRealTimers())
+
   it('the snapshot holds each hour from this one on that has lines: the lines put in it and what is under them', () => {
     const now = new Date(2026, 10, 25, 14, 30)
+    vi.useFakeTimers({ toFake: ['Date'] }).setSystemTime(now) // doing puts D in the hour it is now: 2pm, which it has
     const put = (text: string, slot: string) => applyAll((rows, ctx) => setSlot(rows, ctx, [id(text)], slot), { label: 'test' })
     put('B', '2026-11-25T14')
     put('D', '2026-11-25T14+2')
