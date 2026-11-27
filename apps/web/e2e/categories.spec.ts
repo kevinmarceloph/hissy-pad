@@ -20,7 +20,7 @@ test('the top menu edits categories, and the picker makes one in place for the l
   await expect(list).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Select line' }).first().click()
-  const give = page.getByRole('button', { name: /categor/i }).first()
+  const give = page.getByRole('button', { name: 'Give a category' }).first()
   await give.scrollIntoViewIfNeeded()
   await give.click()
   const picker = page.getByRole('dialog', { name: 'Pick a category' })

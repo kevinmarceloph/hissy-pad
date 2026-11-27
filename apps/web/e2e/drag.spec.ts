@@ -157,7 +157,7 @@ test('Escape cancels a drag', async ({ page }) => {
 test('a line drags by its category icon too, and a tap on the icon still selects it', async ({ page }, info) => {
   await typeOutline(page, ['one', 'two', 'three'])
   await bullet(page, 'three').click()
-  const give = page.getByRole('button', { name: /categor/i }).first()
+  const give = page.getByRole('button', { name: 'Give a category' }).first()
   await give.scrollIntoViewIfNeeded()
   await give.click()
   const picker = page.getByRole('dialog', { name: 'Pick a category' })
