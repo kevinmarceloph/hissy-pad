@@ -26,7 +26,7 @@ export function resetStore(outline?: string) {
   const mem = createMemoryStore(Object.values(outline ? pad(outline) : {}))
   configureLocalStore(mem)
   usePad.setState({
-    all: {}, rows: {}, padId: null, zoomId: null, slotId: null, catId: null, load: 'loading', storageError: null, editing: null,
+    all: {}, rows: {}, padId: null, zoomId: null, slotId: null, partId: null, catId: null, load: 'loading', storageError: null, editing: null,
     selection: [], anchorId: null, focusId: null, past: [], future: [], session: null, sync: null,
   })
   useSort.setState({ left: null, right: null }, true)

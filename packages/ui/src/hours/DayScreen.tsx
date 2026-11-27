@@ -45,9 +45,11 @@ type Panel = 'calendar' | 'menu' | 'settings';
 type Props = {
   clock?: (() => Date) | undefined;
   onEditPlans?: (() => void) | undefined;
+  // A tap on an hour: its calendar slot. The Hours shell opens the hour's own screen.
+  onPick?: ((slot: { day: DayKey; hour: number }) => void) | undefined;
 };
 
-export function DayScreen({ clock = realClock, onEditPlans }: Props) {
+export function DayScreen({ clock = realClock, onEditPlans, onPick }: Props) {
   const theme = useTheme();
   const now = useNow(clock);
 
@@ -74,9 +76,6 @@ export function DayScreen({ clock = realClock, onEditPlans }: Props) {
   };
   const refreshControl = useRefreshControl(pulled);
 
-  // Hours opens with the hour in progress open (Kevin, 2026-11-24): today is the day it
-  // starts on. Another day opens with every hour closed.
-  const [editing, setEditing] = useState<number | null>(() => (day === today ? now.getHours() : null));
   const [panel, setPanel] = useState<Panel | null>(null);
   const list = useRef<ComponentRef<typeof ScrollView>>(null);
 
@@ -107,7 +106,6 @@ export function DayScreen({ clock = realClock, onEditPlans }: Props) {
   }, [status, placeKey, listHeight, nowAt]);
 
   const go = (to: string) => {
-    setEditing(null);
     setPanel(null);
     void open(to);
   };
@@ -235,10 +233,8 @@ export function DayScreen({ clock = realClock, onEditPlans }: Props) {
                         count={count}
                         extra={extras[slotKey(on, hour)]}
                         state={state}
-                        open={editing === hour}
                         categories={categories}
-                        onOpen={() => setEditing(hour)}
-                        onClose={() => setEditing(null)}
+                        onOpen={() => onPick?.({ day: on, hour })}
                       />
                     </View>
                   );

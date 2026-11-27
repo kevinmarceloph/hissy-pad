@@ -71,7 +71,9 @@ export function Pad() {
   const liveSelection = usePad((s) => s.selection)
   const zoomed = usePad((s) => s.zoomId !== null)
   // An hour is open in Hours: `rows` is that hour's lines, drawn there by SubRows.
-  const hourOpen = usePad((s) => s.slotId !== null)
+  // An hour of Hours, or one of Today's two sections there: the store's rows are that, and
+  // Hours draws them.
+  const hourOpen = usePad((s) => s.slotId !== null || s.partId !== null)
   // A category's view: the first line of each pad's group, where the pad's name is drawn.
   const catHeads = usePad((s) => {
     const cat = categoryShown(s)
@@ -654,7 +656,7 @@ export function Pad() {
         <View style={s.scroll}>
           {/* An open hour's lines are the pad's own rows (the store shows that hour), so
               the toolbar and the floating buttons below act on them. */}
-          <HoursApp renderLines={({ slot }) => <SubRows slot={slot} theme={theme} />} />
+          <HoursApp renderLines={(what) => ('slot' in what ? <SubRows slot={what.slot} theme={theme} /> : <SubRows part={what.part} theme={theme} />)} />
           {hourOpen && !creating && (liveEditing !== null || liveSelection.length > 0) && <FloatingButtons theme={theme} />}
         </View>
       )}

@@ -6,7 +6,6 @@ import type { SlotCount } from '@hissypad/core';
 import { hourLabel, type HourShown, type SlotState } from '@hissypad/core/hours';
 
 import { Mark } from './Mark';
-import { HostedLines } from './HostedLines';
 import { StateMark } from './StateMark';
 import { Tap } from './Tap';
 import { LINE, ROW, serif, SIZE, SMALL, useTheme } from './theme';
@@ -23,22 +22,19 @@ type Props = {
   // Lines crossed out during this hour that were not assigned to it (cleared ones too).
   extra?: number | undefined;
   state: SlotState;
-  open: boolean;
   // Every category in order, archived ones included.
   categories: Category[];
+  // A tap on the row: the hour's own screen (FocusScreen).
   onOpen(): void;
-  onClose(): void;
 };
 
-// One hour: a row that says what is in it, or, open, a pad scoped to it (Kevin,
-// 2026-11-27, "rethink the hour view, round 3"). The hour has nothing of its own to set:
-// no state, no summary, no category, no flags (hidden, kept for a later version). Closed,
-// its title is its first line, its bullet that line's state, and "1/3" counts its lines
-// done out of all ("+N" is for a line's sub items, so not that). Open, the title is not
-// drawn: the pad's first line sits where it was, beside the hour, and is what the row will
-// say again once closed. A summary for the hour is a line typed into it.
+// One hour in the list of a day: a row that says what is in it, and opens the hour's own
+// screen on a tap (FocusScreen; until round 4 the hour opened in place, under its row).
+// The hour has nothing of its own to set: no state, no summary, no category, no flags
+// (hidden, kept for a later version). Its title is its first line, its bullet that line's
+// state, and "1/3" counts its lines done out of all ("+N" is for a line's sub items).
 export function HourRow(props: Props) {
-  const { hour, says, state, open, categories, extra = 0, onOpen, onClose } = props;
+  const { hour, says, state, categories, extra = 0, onOpen } = props;
   const done = props.count?.done ?? 0;
   const total = done + (props.count?.open ?? 0);
   // One line needs no count: its bullet says whether it is done.
@@ -75,23 +71,9 @@ export function HourRow(props: Props) {
       {label}
     </Text>
   );
-  if (open) {
-    // The hour beside its pad: the hour's own label closes it, and the pad's first line
-    // is on the label's row, where the title was.
-    return (
-      <View style={[styles.wrap, styles.opened, { borderBottomColor: theme.rule, backgroundColor: theme.paperRaised }]}>
-        <Tap onPress={onClose} aria-expanded aria-label={name} style={styles.side} activeStyle={{ backgroundColor: theme.paper }}>
-          {hourText}
-        </Tap>
-        <View style={styles.editor}>
-          <HostedLines day={props.day} hour={hour} onClose={onClose} />
-        </View>
-      </View>
-    );
-  }
   return (
     <View style={[styles.wrap, { borderBottomColor: theme.rule }]}>
-      <Tap onPress={onOpen} aria-expanded={false} aria-label={name} style={styles.row} activeStyle={{ backgroundColor: theme.paperRaised }}>
+      <Tap onPress={onOpen} aria-label={name} style={styles.row} activeStyle={{ backgroundColor: theme.paperRaised }}>
         {hourText}
         {/* The hour's bullet is its first line's: a dot, a dot in a ring, a cross (first
             item done = hour done). In its category's color; an hour still ahead with
@@ -214,11 +196,6 @@ const styles = StyleSheet.create({
   swatch: { width: 18, height: 18 },
   text: { flex: 1 },
   note: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
-  // The open hour: its label in a column of its own, as wide as a closed row's label and
-  // gap, and the pad beside it, its first line on the label's row.
-  opened: { flexDirection: 'row', alignItems: 'flex-start' },
-  side: { width: 53, minHeight: ROW, justifyContent: 'center', paddingLeft: 4, borderRadius: 4 },
-  editor: { flex: 1, paddingRight: 4, paddingTop: (ROW - LINE) / 2, paddingBottom: 8 },
   group: { gap: 6 },
   label: { fontFamily: serif, fontSize: SMALL, lineHeight: 20 },
   items: { fontFamily: serif, fontSize: SMALL, lineHeight: 20, fontVariant: ['tabular-nums'] },

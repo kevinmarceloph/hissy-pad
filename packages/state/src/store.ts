@@ -8,7 +8,7 @@ import type { Session } from '@supabase/supabase-js'
 import {
   buildIndex, changedRows, childrenOf, createClock, createMemoryStore, fixedPadOf, inheritPadCategory, isPadNode, isTodayPad, scheduledKey, settleBoomerangs, settleRepeats, settleFixedPads, settlePins, settleSchedule,
   insertAt, insertOutline, isLive, newUuid, normalizeRow, parseOutline, parseSlot, sameRow, scopeCategory, scopeNode, scopePad, scopeSlot, unscopeCategory, unscopeRow, unscopeSlot,
-  type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus,
+  type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus, findFixedPad, scopeTodayPart, fitOwnPart, type TodayPart,
 } from '@hissypad/core'
 import { log, rowBrief } from './log'
 import { seedSample } from './sample'
@@ -40,6 +40,7 @@ export interface PadState {
   padId: PadId              // null = the main pad
   zoomId: string | null     // a line shown as a pad of its own: `rows` is what is under it (the new item's card)
   slotId: string | null     // an hour shown as a pad of its own: `rows` is the lines put in it and what is under them (scopeSlot)
+  partId: TodayPart | null  // one of Today's two sections shown in place of the pad, from Hours: its own lines, or its lines with an hour (scopeTodayPart)
   catId: string | null      // a category shown in place of the pad: `rows` is its lines from every pad, with what is over and under them (scopeCategory)
   load: LoadState
   storageError: string | null
@@ -101,6 +102,7 @@ export const usePad = create<PadState>(() => ({
   padId: null,
   zoomId: null,
   slotId: null,
+  partId: null,
   catId: null,
   load: 'loading',
   storageError: null,
@@ -122,9 +124,11 @@ const set = usePad.setState
 // while an hour is open, that hour's lines. One of the three at a time: a zoom and an open
 // hour each end the other. A category view stands where the pad does: a zoom or an open
 // hour is shown over it, and it is there again when they end.
-function view(all: Rows, padId: PadId, zoomId: string | null = get().zoomId, slotId: string | null = get().slotId, catId: string | null = get().catId): Rows {
+// A part of Today (Hours' Unscheduled and Schedule) stands where the pad does too.
+function view(all: Rows, padId: PadId, zoomId: string | null = get().zoomId, slotId: string | null = get().slotId, catId: string | null = get().catId, partId: TodayPart | null = get().partId): Rows {
   if (slotId !== null) return scopeSlot(all, slotId).rows
   if (zoomId !== null && isLive(all[zoomId])) return scopeNode(all, zoomId)
+  if (partId !== null) return scopeTodayPart(all, partId)
   return catId !== null ? scopeCategory(all, catId).rows : padView(all, padId)
 }
 
@@ -167,9 +171,10 @@ export function breakCoalesce() {
   lastCoalesce = null
 }
 export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { label?: string; coalesce?: string } = {}): Rows {
-  const { rows, all, padId, zoomId, slotId, catId } = get()
+  const { rows, all, padId, zoomId, slotId, catId, partId } = get()
   const zoomed = zoomId !== null && isLive(all[zoomId])
-  const root = zoomed ? zoomId : padId
+  // A part of Today is Today's own rows: they go back under Today.
+  const root = zoomed ? zoomId : partId !== null ? (findFixedPad(all, 'Today')?.id ?? padId) : padId
   const next = fn(rows, ctx)
   const label = opts.label ?? 'op'
   if (next === rows) {
@@ -180,9 +185,11 @@ export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { label?: stri
   // A category's go back to their pads too, and a new one takes the category.
   const changed = slotId !== null
     ? unscopeSlot(all, slotId, scopeSlot(all, slotId), changedRows(rows, next), padId)
-    : catId !== null && !zoomed
+    : catId !== null && !zoomed && partId === null
       ? unscopeCategory(all, catId, scopeCategory(all, catId), changedRows(rows, next), padId)
-      : changedRows(rows, next).map((r) => unscopeRow(r, root))
+      : partId === 'own' && !zoomed && root !== null
+        ? fitOwnPart(all, root, changedRows(rows, next).map((r) => unscopeRow(r, root)))
+        : changedRows(rows, next).map((r) => unscopeRow(r, root))
   for (const id in rows) if (!(id in next)) changed.push(tombstone(all[id]!))
   // An hour's view can leave nothing to write (a move among its lines: it keeps no order).
   if (changed.length === 0) return rows
@@ -402,7 +409,7 @@ export function openPad(padId: PadId): boolean {
   const { all } = get()
   if (padId !== null && !isPadNode(all[padId])) return false
   log('pad:open', { padId: padId?.slice(0, 8) ?? 'main' })
-  set({ padId, zoomId: null, slotId: null, catId: null, rows: padView(all, padId), editing: null, selection: [], anchorId: null, focusId: null })
+  set({ padId, zoomId: null, slotId: null, partId: null, catId: null, rows: padView(all, padId), editing: null, selection: [], anchorId: null, focusId: null })
   void local.setMeta(sortMode ? SORT_PAD_KEY : PAD_KEY, padId ?? '').catch(() => {})
   return true
 }
@@ -419,7 +426,7 @@ export function openCategory(catId: string) {
   const { all, padId } = get()
   log('category:open', { catId: catId.slice(0, 8) })
   lastCat = catId
-  set({ catId, zoomId: null, slotId: null, rows: view(all, padId, null, null, catId), editing: null, selection: [], anchorId: null, focusId: null })
+  set({ catId, zoomId: null, slotId: null, partId: null, rows: view(all, padId, null, null, catId, null), editing: null, selection: [], anchorId: null, focusId: null })
   void local.setMeta(CAT_KEY, catId).catch(() => {})
 }
 export function closeCategory() {
@@ -451,6 +458,18 @@ export function openSlot(slot: string | null): boolean {
 }
 export const closeSlot = () => void openSlot(null)
 
+// Show one of Today's two sections as a pad of its own (null: back to what was shown):
+// 'own' is its own lines, pins included; 'scheduled' its lines with an hour. Hours' focus
+// screen opens them ("Unscheduled", "Schedule"). The pad's own commands edit them. An open
+// hour and a zoom end; the pad that is open in the Pads tab stays the same.
+export function openPart(part: TodayPart | null) {
+  const { all, padId, catId } = get()
+  if (part === get().partId && get().slotId === null && get().zoomId === null) return
+  log('part:open', { part: part ?? 'none' })
+  set({ partId: part, zoomId: null, slotId: null, rows: view(all, padId, null, null, catId, part), editing: null, selection: [], anchorId: null, focusId: null })
+}
+export const closePart = () => void openPart(null)
+
 // Ask the pad on screen to scroll to a row. The apps watch `reveal` and do the scrolling.
 export function revealRow(id: string) {
   set({ reveal: { id, n: (get().reveal?.n ?? 0) + 1 } })
@@ -470,8 +489,8 @@ export function setAll(all: Rows, extra: Partial<PadState> = {}) {
 
 // Whether the pad on screen is Today as itself (not a line zoomed into, not an open hour):
 // the view that has the Scheduled section.
-export function todayShown(s: Pick<PadState, 'all' | 'padId' | 'zoomId' | 'slotId' | 'catId'> = get()): boolean {
-  return s.zoomId === null && s.slotId === null && s.catId === null && isTodayPad(s.all, s.padId)
+export function todayShown(s: Pick<PadState, 'all' | 'padId' | 'zoomId' | 'slotId' | 'catId' | 'partId'> = get()): boolean {
+  return s.zoomId === null && s.slotId === null && s.catId === null && s.partId === null && isTodayPad(s.all, s.padId)
 }
 
 // The last of the shown pad's own top-level lines: in Later, above the lines that are out

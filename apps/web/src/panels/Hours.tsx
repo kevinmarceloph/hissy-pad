@@ -48,9 +48,11 @@ export function useScheme(): 'light' | 'dark' {
 // app's SelectionBar is the toolbar. `embedded`: no hint, tail or floating +.
 // A line's chip for the hour it is in says nothing inside that hour, so it is left out
 // there; a run of hours, or another hour on a line further in, still shows.
-const hourLines = ({ slot }: { slot: string }) => (
+// One of Today's two sections (Hours' Unscheduled and Schedule) is drawn the same way; its
+// lines keep their chips.
+const hourLines = (what: { slot: string } | { part: string }) => (
   <div className="hour-lines">
-    <style>{`.hour-lines .slot[data-slot="${slot}"] { display: none; }`}</style>
+    {'slot' in what && <style>{`.hour-lines .slot[data-slot="${what.slot}"] { display: none; }`}</style>}
     <Pad embedded />
   </div>
 )

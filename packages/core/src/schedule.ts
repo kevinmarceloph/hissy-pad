@@ -6,9 +6,10 @@
 // A pinned line stays with the pins whatever its hour, and only a top-level line counts: a
 // line under another rides with it. A line in several hours goes by the first.
 import type { NodeRow, OpCtx, Rows } from './types'
-import { buildIndex, childrenOf, isLive, type FlatRow } from './tree'
-import { findFixedPad } from './pads'
+import { buildIndex, childrenOf, descendantIds, isBlank, isLive, type FlatRow } from './tree'
+import { findFixedPad, scopePad } from './pads'
 import { slotKey, slotRuns } from './slot'
+import { ranksBetween } from './rank'
 import { joins, keepGroups } from './boomerang'
 
 // What a top-level line of Today is ordered by: '' for one of the pad's own (and a pin),
@@ -61,4 +62,68 @@ export function settleSchedule(all: Rows, ctx: OpCtx, prev?: Rows): Rows {
 export function scheduleHead(flat: readonly Pick<FlatRow, 'id' | 'depth'>[], rows: Rows): string | null {
   for (const f of flat) if (f.depth === 0 && scheduledKey(rows[f.id])) return f.id
   return null
+}
+
+// ---- Today's two sections, each as a pad of its own ----------------------------------------
+// Hours' focus screen opens them (Kevin, 2026-11-27, round 4): "Unscheduled" is Today's own
+// lines, pins included, and "Schedule" its lines with an hour, in hour order. Each is the
+// rows of Today's pad view with the other section's top-level lines left out, so they are
+// the pad's real rows and ranks, and the store writes an edit back as it does a pad's
+// (settleSchedule then puts a line that changed sides where it belongs).
+export type TodayPart = 'own' | 'scheduled'
+
+export function scopeTodayPart(all: Rows, part: TodayPart): Rows {
+  const today = findFixedPad(all, 'Today')
+  if (!today) return {}
+  const rows = scopePad(all, today.id)
+  const index = buildIndex(rows)
+  const out: Record<string, NodeRow> = {}
+  for (const top of childrenOf(index, null)) {
+    if ((scheduledKey(top) !== '') !== (part === 'scheduled')) continue
+    out[top.id] = top
+    for (const id of descendantIds(index, top.id)) out[id] = rows[id]!
+  }
+  return out
+}
+
+// How many of Today's own lines are waiting for an hour: its top-level lines with none,
+// open, with something to read. Pins are not counted (they are kept, not waiting), nor
+// dividers.
+export function unscheduledCount(all: Rows): number {
+  const rows = scopeTodayPart(all, 'own')
+  let n = 0
+  for (const id in rows) {
+    const r = rows[id]!
+    if (r.parentId === null && !r.pinned && !r.done && !r.divider && !isBlank(r)) n++
+  }
+  return n
+}
+
+// The view of Today's own lines does not hold the lines with an hour, so an op there can
+// give a line a rank past them: "after the last line" lands inside the Scheduled section,
+// where settleSchedule would hand it the hour of the line above. These are the rows such
+// an op changed (in table terms), with any of Today's own top-level lines that ended up
+// there put back at the end of the pad's own, in the order the op left them.
+export function fitOwnPart(all: Rows, todayId: string, changed: readonly NodeRow[]): NodeRow[] {
+  const now = new Map(changed.map((r) => [r.id, r]))
+  let first: string | null = null
+  for (const id in all) {
+    const r = now.get(id) ?? all[id]!
+    if (isLive(r) && r.parentId === todayId && scheduledKey(r) !== '' && (first === null || r.rank < first)) first = r.rank
+  }
+  if (first === null) return [...changed]
+  const edge = first
+  const movers = changed.filter((r) => isLive(r) && r.parentId === todayId && scheduledKey(r) === '' && r.rank >= edge).sort((a, b) => (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0))
+  if (movers.length === 0) return [...changed]
+  const moving = new Set(movers.map((r) => r.id))
+  let last: string | null = null
+  const seen = new Set<string>()
+  for (const r of [...changed, ...Object.values(all)]) {
+    if (seen.has(r.id)) continue
+    seen.add(r.id)
+    if (!moving.has(r.id) && isLive(r) && r.parentId === todayId && r.rank < edge && (last === null || r.rank > last)) last = r.rank
+  }
+  const ranks = ranksBetween(last, edge, movers.length)
+  const placed = new Map(movers.map((r, i) => [r.id, ranks[i]!]))
+  return changed.map((r) => (placed.has(r.id) ? { ...r, rank: placed.get(r.id)! } : r))
 }

@@ -100,7 +100,7 @@ export {
 } from './pads'
 export { settlePins, togglePinned, pinDivider } from './pins'
 export { FOREVER, isBoomeranged, boomerang, comeBack, boomerangGroups, deliverDue, dayStartAt, clearFresh, dueLabel, dueHeads, settleBoomerangs, type BoomerangGroup } from './boomerang'
-export { settleSchedule, scheduleHead, scheduledKey, isTodayPad } from './schedule'
+export { settleSchedule, scheduleHead, scheduledKey, isTodayPad, scopeTodayPart, unscheduledCount, fitOwnPart, type TodayPart } from './schedule'
 export { lastPinned } from './ops'
 export { hourPrefix, slotByPrefix } from './hourprefix'
 export { parseOutline, insertOutline, toOutline, toOutlineHtml, dividerText, type OutlineLine, type OutlineFormat } from './paste'

@@ -3,7 +3,11 @@ import { StyleSheet, Text, View } from 'react-native';
 import { openHours, type HoursStores } from '@hissypad/state/hours';
 
 import { CategoriesScreen } from './CategoriesScreen';
+import type { TodayPart } from '@hissypad/core';
+import { dayKey, type Slot } from '@hissypad/core/hours';
+
 import { DayScreen } from './DayScreen';
+import { FocusScreen, PartScreen } from './FocusScreen';
 import { LinesContext, type RenderLines } from './HostedLines';
 import { StoresProvider } from './provider';
 import { RecurringScreen } from './RecurringScreen';
@@ -11,7 +15,9 @@ import { LINE, SchemeContext, serif, SIZE, useTheme } from './theme';
 
 // Flags are hidden since 2026-11-27 (Kevin: kept for a later version): FlagsScreen and the
 // flag store are still here, with no way in.
-type Screen = 'day' | 'plans';
+// 'focus' is home (Kevin, 2026-11-27, round 4): one hour. 'day' is the list of a day's
+// hours, 'own' and 'scheduled' are Today's two sections.
+type Screen = 'focus' | 'day' | 'plans' | TodayPart;
 
 type Props = {
   // The host's own Light / Dark choice; null or absent follows the device.
@@ -21,14 +27,19 @@ type Props = {
   renderLines?: RenderLines;
 };
 
-// The Hours mode, whole: one row per hour, each a pad of the lines put in it, and the
-// screen for recurring plans. The web app and the
-// phone both mount this; it opens the hours' local rows on first use.
+// The Hours mode, whole. It opens on one hour, the one the clock is in, as a pad of the
+// lines put in it (FocusScreen): somewhere to stay while getting things done. From there:
+// the list of the day's hours (a tap on one comes back on that hour), Today's lines with
+// no hour and its schedule, and the screen for recurring plans. The web app and the phone
+// both mount this; it opens the hours' local rows on first use.
 export function HoursApp({ scheme = null, renderLines }: Props) {
   const { ready: stores, failed } = useHoursStores();
-  const [screen, setScreen] = useState<Screen>('day');
+  const [screen, setScreen] = useState<Screen>('focus');
+  // The hour the focus screen is on; null follows the clock.
+  const [at, setAt] = useState<Slot | null>(null);
 
   const back = () => setScreen('day');
+  const home = () => setScreen('focus');
 
   return (
     <SchemeContext.Provider value={scheme}>
@@ -46,9 +57,20 @@ export function HoursApp({ scheme = null, renderLines }: Props) {
             <RecurringScreen onBack={back} />
           ) : (
             <LinesContext.Provider value={renderLines ?? null}>
-              <DayScreen
-                onEditPlans={() => setScreen('plans')}
-              />
+              {screen === 'day' ? (
+                <DayScreen
+                  onEditPlans={() => setScreen('plans')}
+                  onPick={(slot) => {
+                    const now = new Date();
+                    setAt(slot.day === dayKey(now) && slot.hour === now.getHours() ? null : slot);
+                    home();
+                  }}
+                />
+              ) : screen === 'focus' ? (
+                <FocusScreen at={at} onList={back} onGo={setAt} onPart={setScreen} />
+              ) : (
+                <PartScreen part={screen} onBack={home} />
+              )}
             </LinesContext.Provider>
           )}
         </StoresProvider>

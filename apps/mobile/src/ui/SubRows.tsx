@@ -7,6 +7,7 @@
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { buildIndex, childrenOf, countLines, descendantIds, flatten, homeNumbers, listNumbers, slotShown } from '@hissypad/core'
+import type { TodayPart } from '@hissypad/core'
 import { usePad, visibleIds } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 import { Row } from './Row'
@@ -16,9 +17,10 @@ const noop = () => {}
 // `id` is the line whose sub items these are, or null when it is not made yet; `slot` is
 // the hour whose lines these are instead. `onAdd` opens a new blank sub item at the end
 // (the caller makes or zooms into the line first); without it there is no button for one.
-export function SubRows({ id = null, slot = null, theme, onAdd }: { id?: string | null; slot?: string | null; theme: Theme; onAdd?: () => void }) {
+export function SubRows({ id = null, slot = null, part = null, theme, onAdd }: { id?: string | null; slot?: string | null; part?: TodayPart | null; theme: Theme; onAdd?: () => void }) {
   const rows = usePad((st) => st.rows)
-  const zoomed = usePad((st) => (slot !== null ? st.slotId === slot : id !== null && st.zoomId === id))
+  // `part`: one of Today's two sections, shown by the store for Hours (openPart).
+  const zoomed = usePad((st) => (part !== null ? st.partId === part && st.slotId === null && st.zoomId === null : slot !== null ? st.slotId === slot : id !== null && st.zoomId === id))
   const editing = usePad((st) => st.editing)
   const selection = usePad((st) => st.selection)
   const subs = zoomed ? rows : null

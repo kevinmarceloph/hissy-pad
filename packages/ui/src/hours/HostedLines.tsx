@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
-import { slotDoneElsewhere, slotKey, slotLeftovers, slotProgress } from '@hissypad/core';
-import { closeSlot, cmdAppendAtEnd, hitKids, hitNote, lineHit, openSlot, usePad, type SearchHit } from '@hissypad/state';
+import { slotDoneElsewhere, slotKey, slotLeftovers, slotProgress, type TodayPart } from '@hissypad/core';
+import { closePart, closeSlot, cmdAppendAtEnd, openPart, hitKids, hitNote, lineHit, openSlot, usePad, type SearchHit } from '@hissypad/state';
 import { cmdFindForSlot, cmdSlotFresh, useLineCategory } from '@hissypad/state/hours';
 
 import { CategoryBadge } from './CategoryBadge';
@@ -12,8 +12,9 @@ import { LINE, serif, SIZE, SMALL, useTheme } from './theme';
 
 // The app's own pad editor, handed to Hours by its host: these screens cannot import it
 // (the web's is DOM, the phone's its own rows). It draws the store's `rows`, which are the
-// open hour's lines while the store shows that hour (openSlot).
-export type RenderLines = (hour: { day: string; hour: number; slot: string }) => ReactNode;
+// open hour's lines while the store shows that hour (openSlot), or one of Today's two
+// sections while it shows that (openPart).
+export type RenderLines = (what: { day: string; hour: number; slot: string } | { part: TodayPart }) => ReactNode;
 export const LinesContext = createContext<RenderLines | null>(null);
 export const useHostedLines = () => useContext(LinesContext);
 
@@ -21,7 +22,10 @@ type Props = {
   // The calendar day and hour of the slot, never the day as drawn.
   day: string;
   hour: number;
-  onClose(): void;
+  // Closes the hour, where it is one of a list. The focus screen has nothing to close.
+  onClose?: (() => void) | undefined;
+  // More empty space under the lines to tap for a new one: the hour has the screen to itself.
+  roomy?: boolean | undefined;
 };
 
 // An open hour: a pad scoped to it (PLAN.md, "Hours joins the pad" and "The hour view,
@@ -30,7 +34,7 @@ type Props = {
 // a tap for a new line, the way the space under a pad does. Under that, one quiet line: a
 // search button that finds a line in any pad for this hour, a text toggle ("✕2 done") for
 // the lines crossed out while the hour ran that were not put in it, Fresh start, and Close.
-export function HostedLines({ day, hour, onClose }: Props) {
+export function HostedLines({ day, hour, onClose, roomy = false }: Props) {
   const theme = useTheme();
   // Both apps hand an editor in. Without one (a screen under test) no lines are drawn and
   // the store's view is left alone.
@@ -69,7 +73,7 @@ export function HostedLines({ day, hour, onClose }: Props) {
       {mine && (
         // Empty space under the lines: a tap opens a new line at the end of the hour, as a
         // tap under a pad does (Kevin, 2026-11-27). An hour with nothing in it says so.
-        <Tap aria-label="Add a line to this hour" onPress={cmdAppendAtEnd} style={empty ? styles.blank : styles.space} activeStyle={null}>
+        <Tap aria-label="Add a line to this hour" onPress={cmdAppendAtEnd} style={[empty ? styles.blank : styles.space, roomy && styles.roomy]} activeStyle={null}>
           {empty ? <Text style={[styles.small, styles.hint, { color: theme.inkQuiet }]}>Nothing in this hour. Tap here to add a line.</Text> : null}
         </Tap>
       )}
@@ -100,9 +104,11 @@ export function HostedLines({ day, hour, onClose }: Props) {
           activeStyle={{ backgroundColor: theme.paper }}>
           <Text style={[styles.small, { color: theme.inkSoft }]}>Fresh start</Text>
         </Tap>
-        <Tap aria-label="Close this hour" onPress={onClose} hitSlop={6} style={styles.link} activeStyle={{ backgroundColor: theme.paper }}>
-          <Text style={[styles.small, { color: theme.ink }]}>Close</Text>
-        </Tap>
+        {onClose && (
+          <Tap aria-label="Close this hour" onPress={onClose} hitSlop={6} style={styles.link} activeStyle={{ backgroundColor: theme.paper }}>
+            <Text style={[styles.small, { color: theme.ink }]}>Close</Text>
+          </Tap>
+        )}
       </View>
       {listed && finished.length > 0 && (
         // Lines from any pad, crossed out while this hour ran, cleared ones too. Read only:
@@ -112,6 +118,40 @@ export function HostedLines({ day, hour, onClose }: Props) {
             <DoneLine key={r.id} hit={lineHit(all, r.id)!} />
           ))}
         </View>
+      )}
+    </View>
+  );
+}
+
+// One of Today's two sections as a pad of its own, drawn by the host's editor the way an
+// hour is: the store is asked to show it, and gives the view back when this goes. Under
+// Today's own lines, empty space that takes a tap for a new one.
+export function PartLines({ part }: { part: TodayPart }) {
+  const theme = useTheme();
+  const render = useHostedLines();
+  const shown = usePad((s) => (s.slotId === null && s.zoomId === null ? s.partId : null));
+  const busy = usePad((s) => s.slotId !== null || s.zoomId !== null);
+  const empty = usePad((s) => s.partId === part && Object.keys(s.rows).length === 0);
+  useEffect(() => {
+    if (render && !busy && shown !== part) openPart(part);
+  }, [render, busy, shown, part]);
+  useEffect(
+    () => () => {
+      if (usePad.getState().partId === part) closePart();
+    },
+    [part],
+  );
+  const mine = render !== null && shown === part;
+  return (
+    <View>
+      {mine && render({ part })}
+      {mine && part === 'own' && (
+        <Tap aria-label="Add a line to Today" onPress={cmdAppendAtEnd} style={empty ? styles.blank : styles.space} activeStyle={null}>
+          {empty ? <Text style={[styles.small, styles.hint, { color: theme.inkQuiet }]}>Nothing is waiting for an hour. Tap here to add a line.</Text> : null}
+        </Tap>
+      )}
+      {mine && part === 'scheduled' && empty && (
+        <Text style={[styles.small, styles.hint, styles.blank, { color: theme.inkQuiet }]}>Nothing in Today has an hour yet.</Text>
       )}
     </View>
   );
@@ -164,6 +204,7 @@ function FindIcon({ color }: { color: string }) {
 const styles = StyleSheet.create({
   // The tap target under the lines: a line and a half of nothing, like the foot of a pad.
   space: { minHeight: Math.round(LINE * 1.5) },
+  roomy: { minHeight: LINE * 4, justifyContent: 'flex-start' },
   // (One line tall: the hour's label beside it is centered on the pad's first line.)
   blank: { minHeight: LINE + 8, paddingBottom: 8, justifyContent: 'center', paddingLeft: Platform.OS === 'web' ? 9 : 10 },
   hint: { fontStyle: 'italic' },

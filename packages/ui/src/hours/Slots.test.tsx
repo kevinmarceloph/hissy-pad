@@ -1,12 +1,14 @@
+import { useState } from 'react';
 import { vi } from 'vitest';
 import { fireEvent as dom } from '@testing-library/react';
 import { idOf, insertAt, setDone, slotKey } from '@hissypad/core';
-import { dayDate, MemoryStore } from '@hissypad/core/hours';
+import { dayDate, MemoryStore, type Slot } from '@hissypad/core/hours';
 import { applyAll, cmdDeleteSelection, cmdSetText, loadPad, resetStore, select, usePad, zoomTo } from '@hissypad/state';
 import { cmdSetSlot, cmdSlotUnarchive, createCategoryStore, createDayStore, createFlagStore, openHours, setSlotFinder } from '@hissypad/state/hours';
 
 import { act, fireEvent, render, screen, within } from '../testing/rntl';
 import { DayScreen } from './DayScreen';
+import { FocusScreen } from './FocusScreen';
 import { LinesContext } from './HostedLines';
 import { StoresProvider } from './provider';
 import { SlotPicker } from './SlotPicker';
@@ -23,6 +25,19 @@ function HostRows() {
   return <p data-testid="host-rows">{Object.values(rows).map((r) => r.text).sort().join(' | ')}</p>;
 }
 
+// The list of the day's hours and the one-hour screen, both at once (the app shows one or
+// the other): a row of the list says what an hour holds, the focus screen is the hour open.
+// A tap on a row puts the focus screen on that hour, as in the app.
+function Both() {
+  const [at, setAt] = useState<Slot | null>(null);
+  return (
+    <>
+      <DayScreen clock={clock} onPick={setAt} />
+      <FocusScreen at={at} clock={clock} onList={() => {}} onGo={setAt} onPart={() => {}} />
+    </>
+  );
+}
+
 // `host`: with an editor handed in, as both apps do. Without one an open hour draws no lines.
 async function setup(host = false) {
   resetStore('call the bank\nsend invoice\nbuy milk');
@@ -36,7 +51,7 @@ async function setup(host = false) {
   await render(
     <StoresProvider day={day} categories={categories} flags={flags}>
       <LinesContext.Provider value={host ? () => <HostRows /> : null}>
-        <DayScreen clock={clock} />
+        <Both />
       </LinesContext.Provider>
     </StoresProvider>,
   );
@@ -54,7 +69,8 @@ describe('the pad\'s lines in an hour', () => {
     });
     // The first line as the pad has them, and how many of the hour's lines are done.
     expect(screen.getByLabelText('2pm, now: call the bank, 0 of 3 done')).toBeTruthy();
-    expect(screen.getByText('0/3')).toBeTruthy();
+    // On the hour's row in the list, and at the foot of the hour's own screen.
+    expect(screen.getAllByText('0/3')).toHaveLength(2);
     // A later line crossed out changes nothing about the hour.
     await act(async () => void cross(id('send invoice')));
     expect(screen.getByLabelText('2pm, now: call the bank, 1 of 3 done')).toBeTruthy();
@@ -408,7 +424,7 @@ describe('a line in a run of hours', () => {
 });
 
 describe('an open hour drawn by the host\'s own editor', () => {
-  it('asks the store to show the hour, and gives the view back when the hour closes', async () => {
+  it('asks the store to show the hour, and the next one when the screen moves on', async () => {
     await hosted();
     await act(async () => {
       cmdSetSlot(slotKey('2026-11-19', 14), [id('send invoice')]);
@@ -421,13 +437,17 @@ describe('an open hour drawn by the host\'s own editor', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.getByLabelText('Add a line to this hour')).toBeTruthy();
 
-    // Another hour takes the view; closing it gives the view back to the pad.
+    // The focus screen has nothing to close.
+    expect(screen.queryByText('Close')).toBeNull();
+
+    // Another hour, picked in the list, takes the view.
     await fireEvent.press(screen.getByLabelText('3pm: buy milk'));
     expect(usePad.getState().slotId).toBe('2026-11-19T15');
     expect(screen.getByTestId('host-rows').textContent).toBe('buy milk');
-    await fireEvent.press(screen.getByText('Close'));
-    expect(usePad.getState().slotId).toBeNull();
-    expect(Object.keys(usePad.getState().rows)).toHaveLength(3);
+    // And so does the hour after it, from the screen's own way on.
+    await fireEvent.press(screen.getByLabelText('Next hour, 4pm'));
+    expect(usePad.getState().slotId).toBe('2026-11-19T16');
+    expect(screen.getByTestId('host-rows').textContent).toBe('');
   });
 
   it('steps aside while a card zooms into a line, and takes the view back after', async () => {

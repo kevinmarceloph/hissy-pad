@@ -51,16 +51,17 @@ async function setup(store: EntryStore = new MemoryStore(seed, SAMPLE_CATEGORIES
   await flags.getState().load();
   await recurring.getState().load();
   const onEditPlans = vi.fn();
+  const onPick = vi.fn();
   await render(
     <StoresProvider day={day} categories={categories} flags={flags} recurring={recurring}>
-      <DayScreen clock={clock} onEditPlans={onEditPlans} />
+      <DayScreen clock={clock} onEditPlans={onEditPlans} onPick={onPick} />
     </StoresProvider>,
   );
-  return { store, day, categories, flags, recurring, onEditPlans };
+  return { store, day, categories, flags, recurring, onEditPlans, onPick };
 }
 
 describe('DayScreen', () => {
-  it('shows today, how much of it is done, and opens on the hour in progress', async () => {
+  it('shows today, how much of it is done, and every hour as a closed row', async () => {
     await setup();
     expect(await screen.findByLabelText(/1 of 14 hours done\./)).toBeTruthy();
     expect(screen.getByText('Today')).toBeTruthy();
@@ -68,17 +69,17 @@ describe('DayScreen', () => {
     expect(screen.getByLabelText('9am: Deep work: proposals, done')).toBeTruthy();
     expect(screen.getByLabelText('3pm: not yet')).toBeTruthy();
     expect(screen.getByLabelText(/Not done 13h/)).toBeTruthy();
-    // The hour in progress is open: the way to find a line for it, Fresh start and Close.
-    expect(screen.getByLabelText('2pm, now: blank')).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByLabelText('Find a line in a pad for this hour')).toBeTruthy();
-    expect(screen.getByText('Fresh start')).toBeTruthy();
-    expect(screen.getByText('Close')).toBeTruthy();
+    // No hour opens in the list: an hour has a screen of its own (FocusScreen).
+    expect(screen.getByLabelText('2pm, now: blank')).toBeTruthy();
+    expect(screen.queryByLabelText('Find a line in a pad for this hour')).toBeNull();
+    expect(screen.queryByText('Fresh start')).toBeNull();
   });
 
-  it('has nothing to set on an hour: no state, no summary, no category, no flags, no clearing', async () => {
-    const { store } = await setup();
+  it('hands the hour tapped to its host, and has nothing to set on an hour', async () => {
+    const { store, onPick } = await setup();
     await fireEvent.press(await screen.findByLabelText('9am: Deep work: proposals, done'));
-    expect(screen.getByLabelText('9am: Deep work: proposals, done')).toHaveAttribute('aria-expanded', 'true');
+    // The calendar slot, for the hour's own screen.
+    expect(onPick).toHaveBeenCalledWith({ day: '2026-11-19', hour: 9 });
     expect(screen.queryByRole('radio')).toBeNull();
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByText('Summary')).toBeNull();
@@ -87,9 +88,7 @@ describe('DayScreen', () => {
     expect(screen.queryByText('Clear this hour')).toBeNull();
     // The bullet is part of the row's button, not a checkbox of its own.
     expect(screen.queryByRole('checkbox')).toBeNull();
-    // Opening and closing an hour writes nothing.
-    await fireEvent.press(screen.getByText('Close'));
-    expect(screen.getByLabelText('9am: Deep work: proposals, done')).toHaveAttribute('aria-expanded', 'false');
+    // A tap on an hour writes nothing.
     expect((await store.listDay('2026-11-19'))[0]).toEqual(seed[0]);
   });
 
@@ -151,18 +150,16 @@ describe('DayScreen', () => {
     expect(screen.getByLabelText(/\u{1F4BB} 1h/u)).toBeTruthy();
   });
 
-  it('follows an edit that lands under the open hour', async () => {
+  it('follows an edit to an hour\'s own row that lands from another device', async () => {
     const { store, day } = await setup();
-    await fireEvent.press(await screen.findByLabelText('9am: Deep work: proposals, done'));
+    await screen.findByLabelText('9am: Deep work: proposals, done');
 
-    // A device on older code rewrites the hour and sync lands it while the hour is open.
+    // A device on older code rewrites the hour and sync lands it.
     await (store as MemoryStore).sync.entries.applyRemote([{ ...seed[0]!, note: 'proposals, then a call', updatedAt: 2 }]);
     await act(async () => {
       await day.getState().refresh();
     });
     expect(screen.getByLabelText('9am: Deep work: proposals, then a call, done')).toBeTruthy();
-    // Closing writes nothing over it.
-    await fireEvent.press(screen.getByText('Close'));
     expect((await store.listDay('2026-11-19'))[0]).toMatchObject({ note: 'proposals, then a call', updatedAt: 2 });
   });
 
@@ -203,9 +200,8 @@ describe('DayScreen', () => {
     expect(screen.getByLabelText('1am: blank')).toBeTruthy();
     expect(screen.getByLabelText('10am: blank')).toBeTruthy();
 
-    // Opening one writes nothing: a plan is never pinned into an hour.
+    // A tap on one writes nothing: a plan is never pinned into an hour.
     await fireEvent.press(screen.getByLabelText('2am: Sleep: sleep'));
-    await fireEvent.press(screen.getByText('Close'));
     expect(await at(2)).toBeUndefined();
 
     // The plan changes, and every hour it covered follows.
