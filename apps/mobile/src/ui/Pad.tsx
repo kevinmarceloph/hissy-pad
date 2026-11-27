@@ -2,7 +2,7 @@
 // via a long press on a bullet. Drop resolution is core's resolveDrop over the rows'
 // measured layouts; this file only measures and draws.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react'
-import { Animated, Keyboard, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { Animated, Keyboard, LayoutAnimation, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { menu } from './Menu'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
@@ -26,7 +26,7 @@ import {
 } from '@hissypad/state/hours'
 import { SearchSheet } from './Search'
 import { CategoryChips, PadChips } from './PadChips'
-import { MenuIcon, ModeBar, PlusIcon, SearchIcon, type Mode } from './TopIcons'
+import { BottomNav, type Mode } from './TopIcons'
 import { CreateSheet, openCreate, useCreating } from './Create'
 import { useKeyboardHeight } from '../keyboard'
 
@@ -53,12 +53,6 @@ const PULL_WORDS: Record<PullPhase, string> = { idle: '', pulling: 'Pull to sync
 // not, so it keeps the platform's own spinner.
 const PULL_WORDS_OK = Platform.OS === 'ios'
 
-// The top bar: its name, the four modes, and three icons need about 460pt. No phone held
-// upright is that wide, so there the name goes, never an icon; on one too narrow even for
-// the rest at its usual gaps (an Oppo A92 is 360 wide) the gaps close up.
-const SNUG_UNDER = 390
-const NAME_FITS = 460
-
 const NONE: string[] = []
 
 // The placeholder row of a + drag, in the displayed list.
@@ -72,8 +66,6 @@ export function Pad() {
   const theme = useTheme()
   const kb = useKeyboardHeight()
   const insets = useSafeAreaInsets()
-  const { width } = useWindowDimensions()
-  const snug = width < SNUG_UNDER
   const liveRows = usePad((s) => s.rows)
   const liveEditing = usePad((s) => s.editing)
   const liveSelection = usePad((s) => s.selection)
@@ -521,6 +513,8 @@ export function Pad() {
   function openMenu() {
     stopEditing()
     menu('HissyPad', undefined, [
+      { text: 'New item', onPress: () => openCreate() },
+      { text: 'Search', onPress: () => { setAssign(null); setSheet('search') } },
       { text: 'Done', onPress: () => setSheet('done') },
       { text: 'Archive', onPress: () => openArchive(null) },
       { text: 'Categories', onPress: () => setSheet('categories') },
@@ -609,14 +603,6 @@ export function Pad() {
 
   return (
     <View style={[s.root, { backgroundColor: theme.paper, paddingBottom: kb > 0 ? kb : insets.bottom }]}>
-      <View style={[s.top, snug && s.topSnug]}>
-        {width >= NAME_FITS ? <Text style={[s.title, { color: theme.inkSoft }]}>HissyPad</Text> : null}
-        <ModeBar mode={archive ? null : mode} onMode={switchMode} theme={theme} />
-        <View style={s.grow} />
-        <Pressable onPress={() => { stopEditing(); openCreate() }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="New item"><PlusIcon color={theme.inkSoft} /></Pressable>
-        <Pressable onPress={() => { stopEditing(); setAssign(null); setSheet('search') }} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="Search every pad"><SearchIcon color={theme.inkSoft} /></Pressable>
-        <Pressable onPress={openMenu} style={s.iconBtn} accessibilityRole="button" accessibilityLabel="More: Done, Archive and Categories"><MenuIcon color={theme.inkSoft} /></Pressable>
-      </View>
       {/* The pad chips are the pad's only: Sort picks its pad in its own title. */}
       {screen === 'pad' && <PadChips theme={theme} />}
       {screen === 'category' && <CategoryChips theme={theme} />}
@@ -746,16 +732,16 @@ export function Pad() {
       {/* The line toolbar: the pad's, Sort's for the sub items on its card, and Hours' for
           the lines of the open hour. */}
       {!creating && <Toolbar theme={theme} />}
+      {/* The bottom nav: the modes and the menu. Away while the keyboard is up, so the
+          toolbar sits on the keyboard as before. */}
+      {kb === 0 && <BottomNav mode={archive ? null : mode} onMode={switchMode} onMenu={openMenu} theme={theme} />}
     </View>
   )
 }
 
 const s = StyleSheet.create({
   root: { flex: 1 },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6 },
-  topSnug: { gap: 6 },
-  grow: { flex: 1 },
-  iconBtn: { width: 40, height: 36, alignItems: 'center', justifyContent: 'center' },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6 }, // the debug log's title row
   status: { flexDirection: 'row', alignItems: 'center', height: 24, paddingLeft: 16, paddingRight: 6, gap: 12 },
   statusToast: { flex: 1, fontFamily: serif, fontStyle: 'italic', fontSize: 14 },
   clear: { height: 24, paddingHorizontal: 10, justifyContent: 'center' },

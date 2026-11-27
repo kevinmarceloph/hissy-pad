@@ -76,32 +76,38 @@ const MODES: { mode: Mode; label: string }[] = [
   { mode: 'sort', label: 'Sort: the open pad, one line at a time' },
 ]
 
-// The open mode is a raised cell with a line of the accent under it and full ink, so
-// which one is open does not rest on color alone.
-// `mode` is null on a screen that is no mode (the Archive): nothing is lit.
-export function ModeBar({ mode, onMode, theme }: { mode: Mode | null; onMode: (mode: Mode) => void; theme: Theme }) {
+// The bottom nav (Kevin, 2026-11-27): the four modes and, last, the menu (New item, Search
+// and the rest), five cells across the foot of the screen in place of the top bar. The open
+// mode is a raised cell with a line of the accent over it and full ink, so which one is open
+// does not rest on color alone. `mode` is null on a screen that is no mode (the Archive):
+// nothing is lit.
+export function BottomNav({ mode, onMode, onMenu, theme }: { mode: Mode | null; onMode: (mode: Mode) => void; onMenu: () => void; theme: Theme }) {
   return (
-    <View accessibilityRole="tablist" style={[i.modes, { borderColor: theme.rule }]}>
-      {MODES.map((m) => {
-        const on = m.mode === mode
-        const color = on ? theme.ink : theme.inkMute
-        const ground = on ? theme.paperRaised : theme.paper
-        return (
-          <Pressable
-            key={m.mode}
-            accessibilityRole="tab"
-            accessibilityLabel={m.label}
-            accessibilityState={{ selected: on }}
-            onPress={() => onMode(m.mode)}
-            hitSlop={{ top: 6, bottom: 6 }}
-            style={[i.cell, { backgroundColor: ground, borderColor: on ? theme.rule : 'transparent', borderBottomColor: on ? theme.accent : 'transparent' }]}
-          >
-            {/* Sort is a line on its way into a tray: the toolbar's Move to… icon. */}
-            {/* Categories is the toolbar's Category… tag. */}
-            {m.mode === 'pad' ? <PadIcon color={color} /> : m.mode === 'hours' ? <HoursIcon color={color} /> : <LineIcon icon={m.mode === 'category' ? 'category' : 'move'} color={color} ground={ground} />}
-          </Pressable>
-        )
-      })}
+    <View style={[i.nav, { borderTopColor: theme.rule, backgroundColor: theme.paper }]}>
+      <View accessibilityRole="tablist" style={i.navModes}>
+        {MODES.map((m) => {
+          const on = m.mode === mode
+          const color = on ? theme.ink : theme.inkMute
+          const ground = on ? theme.paperRaised : theme.paper
+          return (
+            <Pressable
+              key={m.mode}
+              accessibilityRole="tab"
+              accessibilityLabel={m.label}
+              accessibilityState={{ selected: on }}
+              onPress={() => onMode(m.mode)}
+              style={[i.navCell, { backgroundColor: ground, borderTopColor: on ? theme.accent : 'transparent' }]}
+            >
+              {/* Sort is a line on its way into a tray: the toolbar's Move to… icon. */}
+              {/* Categories is the toolbar's Category… tag. */}
+              {m.mode === 'pad' ? <PadIcon color={color} /> : m.mode === 'hours' ? <HoursIcon color={color} /> : <LineIcon icon={m.mode === 'category' ? 'category' : 'move'} color={color} ground={ground} />}
+            </Pressable>
+          )
+        })}
+      </View>
+      <Pressable accessibilityRole="button" accessibilityLabel="Menu: New item, Search, Done, Archive and Categories" onPress={onMenu} style={[i.navCell, { borderTopColor: 'transparent' }]}>
+        <MenuIcon color={theme.inkSoft} />
+      </Pressable>
     </View>
   )
 }
@@ -109,6 +115,7 @@ export function ModeBar({ mode, onMode, theme }: { mode: Mode | null; onMode: (m
 const i = StyleSheet.create({
   box: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
   padRow: { flexDirection: 'row', alignItems: 'center', gap: 2.5, height: 5.5 },
-  modes: { flexDirection: 'row', gap: 2, padding: 2, borderWidth: StyleSheet.hairlineWidth, borderRadius: 7 },
-  cell: { width: 40, height: 32, borderRadius: 5, borderWidth: StyleSheet.hairlineWidth, borderBottomWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  nav: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth },
+  navModes: { flex: 4, flexDirection: 'row' },
+  navCell: { flex: 1, height: 48, borderTopWidth: 2, alignItems: 'center', justifyContent: 'center' },
 })
