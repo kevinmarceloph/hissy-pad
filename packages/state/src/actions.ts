@@ -153,7 +153,7 @@ export const LINE_ACTIONS: readonly LineAction[] = [
   { id: 'pasteBelow', group: 'clip', label: 'Paste below', name: 'Paste below', hint: 'Paste the clipboard as lines below', icon: 'pasteBelow', enabled: (c) => c.paste, run: () => paste('below') },
   { id: 'slot', group: 'pad', label: 'Hour…', name: 'Put in an hour', hint: 'Put in an hour of a day (Hours counts what is done there)', icon: 'hour', floats: true, run: cmdPickSlot },
   { id: 'category', group: 'pad', label: 'Category…', name: 'Give a category', hint: 'Give it one of Hours\' categories (its icon shows before the text)', icon: 'category', floats: true, run: cmdPickCategory },
-  // Out of the pads until a later day, then back at the top of the Inbox (boomerang.ts).
+  // Out of the pads until a later day, then back at the top of Later (boomerang.ts).
   { id: 'boomerang', group: 'pad', label: 'Boomerang…', name: 'Boomerang: send out until a later day', hint: 'Boomerang: out of the pads until a later day, then back in the Inbox', icon: 'boomerang', floats: true, run: cmdPickBoomerang },
   {
     // The lines leave the hour and stay where they are in their pads (the same as Hour…,

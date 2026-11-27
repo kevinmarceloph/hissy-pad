@@ -57,14 +57,14 @@ describe('boomerang commands', () => {
     setBoomerangPickerOpener(() => {})
     cmdBoomerang('2026-12-01', [id('C')])
     cmdPickBoomerang([id('C')])
-    expect(cmdApplyBoomerang(null, '2026-11-25')).toBe('Back in the Inbox.')
-    expect(tableShape()).toBe('C\nA\n  a1\nB')
+    expect(cmdApplyBoomerang(null, '2026-11-25')).toBe('Back in Later.')
+    expect(tableShape()).toBe('A\n  a1\nB\n@Later\n  C')
   })
 
   it('comes back by hand', () => {
     cmdBoomerang('2026-12-01', [id('C')])
     expect(cmdComeBack([id('C')])).toBe(1)
-    expect(tableShape()).toBe('C\nA\n  a1\nB')
+    expect(tableShape()).toBe('A\n  a1\nB\n@Later\n  C')
   })
 
   it('offers days counted from today', () => {
@@ -84,7 +84,7 @@ describe('delivery', () => {
     // 5am on the day: with a day that starts at 6 it is still the day before.
     expect(await deliverBoomerangs(new Date(2026, 11, 1, 5))).toBe(0)
     expect(await deliverBoomerangs(new Date(2026, 11, 1, 6))).toBe(1)
-    expect(tableShape()).toBe('*B\nA\n  a1\nC')
+    expect(tableShape()).toBe('A\n  a1\nC\n@Later\n  *B')
     expect(usePad.getState().past.length).toBe(undoDepth)
     expect(usePad.getState().all[id('B')]!.updatedAt).toBe(dayStartAt('2026-12-01', 6).toISOString())
   })
@@ -92,16 +92,18 @@ describe('delivery', () => {
   it('the dot goes when the line is touched, or pressed', async () => {
     cmdBoomerang('2026-12-01', [id('B'), id('C')])
     await deliverBoomerangs(new Date(2026, 11, 2, 12))
-    expect(tableShape()).toBe('*B\n*C\nA\n  a1')
+    expect(tableShape()).toBe('A\n  a1\n@Later\n  *B\n  *C')
+    openPad(findFixedPad(usePad.getState().all, 'Later')!.id)
     edit(id('B'))
     cmdSetText(id('B'), 'B!')
     cmdClearFresh(id('C'))
-    expect(tableShape()).toBe('B!\nC\nA\n  a1')
+    expect(tableShape()).toBe('A\n  a1\n@Later\n  B!\n  C')
   })
 
   it('crossing it out counts as touching it', async () => {
     cmdBoomerang('2026-12-01', [id('B')])
     await deliverBoomerangs(new Date(2026, 11, 2, 12))
+    openPad(findFixedPad(usePad.getState().all, 'Later')!.id)
     select([id('B')], id('B'))
     cmdToggleDone()
     expect(usePad.getState().all[id('B')]!.fresh).toBe(false)

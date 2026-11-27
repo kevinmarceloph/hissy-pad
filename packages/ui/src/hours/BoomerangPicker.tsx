@@ -65,7 +65,7 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
         {value
           ? `Out until ${dueLabel(value, today)} now. `
           : ''}
-        It leaves the pads and comes back to the top of the Inbox when that day starts, at {hour}.
+        It leaves the pads and comes back to the top of Later when that day starts, at {hour}.
       </Text>
       <View role="group" aria-label="Soon" style={styles.quick}>
         {boomerangChoices(today).map((c) => (

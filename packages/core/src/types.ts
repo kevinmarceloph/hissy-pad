@@ -19,7 +19,7 @@ export interface NodeRow {
   pinned: boolean           // kept at the top of its pad, above a divider (pins.ts); only ever true on a pad's top-level line
   countHidden: boolean      // a pad row whose tab leaves out its count of open lines (set from the pad's sheet; synced)
   due: string | null        // boomeranged: out of the pads until this day, 'YYYY-MM-DD' (boomerang.ts); kept under Later meanwhile
-  fresh: boolean            // came back to the Inbox from a boomerang and has not been touched since: drawn with a dot
+  fresh: boolean            // came back to Later from a boomerang and has not been touched since: drawn with a dot
   updatedAt: string         // ISO timestamp from the client that made the change (clock.ts)
   deletedAt: string | null  // tombstone; clients never hard-delete
 }

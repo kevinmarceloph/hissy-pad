@@ -1,6 +1,6 @@
 // Boomerang: send lines out of the pads until a later day (core/boomerang.ts). The commands
 // the toolbar and Later's section run, the picker's opener, and the delivery: when a day
-// starts (the hour set in Hours), what is due comes back to the top of the Inbox with a dot.
+// starts (the hour set in Hours), what is due comes back to the top of Later with a dot.
 import {
   boomerang, boomerangGroups, clearFresh, comeBack, dayStartAt, deliverDue, dueLabel, isBoomeranged, type BoomerangGroup, type Rows,
 } from '@hissypad/core'
@@ -33,7 +33,7 @@ export function cmdBoomerang(due: string, ids: readonly string[] = targets()): n
   return ids.filter((id) => after[id]?.due === due).length
 }
 
-// From Later's section: back to the top of the Inbox now.
+// From Later's section: back to the top of Later's own lines now.
 export function cmdComeBack(ids: readonly string[]): number {
   const n = ids.filter((id) => isBoomeranged(usePad.getState().all[id])).length
   if (n) applyAll((all, ctx) => comeBack(all, ctx, ids), { label: 'cmdComeBack' })
@@ -84,7 +84,7 @@ export function dueWords(due: string, now: Date = new Date()): string {
 export function cmdApplyBoomerang(due: string | null, today: string): string {
   const ids = picked.length ? picked : targets()
   picked = []
-  if (due === null) return cmdComeBack(ids) ? 'Back in the Inbox.' : ''
+  if (due === null) return cmdComeBack(ids) ? 'Back in Later.' : ''
   const n = cmdBoomerang(due, ids)
   void armDelivery()
   if (n === 0) return ''

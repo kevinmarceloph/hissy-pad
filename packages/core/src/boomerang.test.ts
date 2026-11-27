@@ -44,10 +44,13 @@ describe('boomerang', () => {
     expect(boomerang(rows, ctx, [idOf(rows, 'A')], 'soon')).toBe(rows)
   })
 
-  it('comes back by hand to the top of the Inbox, with no dot', () => {
+  it('comes back by hand to the top of Later, with no dot', () => {
     const { ctx, rows } = table('A\nB')
-    const out = comeBack(boomerang(rows, ctx, [idOf(rows, 'B')], '2026-12-01'), ctx, [idOf(rows, 'B')])
-    expect(shape(scopePad(out, null))).toBe('B\nA')
+    let out = insertAt(rows, ctx, { parentId: later(rows), afterId: null }, 'L').rows
+    out = comeBack(boomerang(out, ctx, [idOf(rows, 'B')], '2026-12-01'), ctx, [idOf(rows, 'B')])
+    expect(shape(scopePad(out, null))).toBe('A')
+    expect(shape(scopePad(out, later(out)))).toBe('B\nL')
+    expect(out[idOf(rows, 'B')]!.fresh).toBe(false)
   })
 })
 
@@ -60,7 +63,8 @@ describe('deliverDue', () => {
     rows = boomerang(rows, ctx, [idOf(rows, 'C')], '2026-12-09')
     expect(deliverDue(rows, ctx, '2026-11-30', 6)).toBe(rows)
     const out = deliverDue(rows, ctx, '2026-12-02', 6)
-    expect(shape(scopePad(out, null))).toBe('^P\n*B\n*A')
+    expect(shape(scopePad(out, null))).toBe('^P')
+    expect(shape(scopePad(out, later(out)))).toBe('*B\n*A')
     expect(boomerangGroups(out).map((g) => g.due)).toEqual(['2026-12-09'])
   })
 

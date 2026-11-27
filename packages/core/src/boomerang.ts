@@ -9,7 +9,7 @@
 // day wherever it is dragged: it only moves within its day's group.
 //
 // When its day starts (at the hour a day starts at in Hours), the line comes back to the top
-// of the Inbox with `fresh` set, which the pad draws as a dot before the line, the way Things
+// of Later's own lines with `fresh` set, which the pad draws as a dot before the line, the way Things
 // marks what turned up in Today. The dot goes when the line is next touched (the store
 // clears `fresh` on any edit to the row) or the dot itself is pressed.
 import type { NodeRow, OpCtx, Rows } from './types'
@@ -154,12 +154,13 @@ export function dueHeads(flat: readonly Pick<FlatRow, 'id' | 'depth'>[], rows: R
   return out
 }
 
-// Bring lines back to the top of the Inbox now (under its pins), in the order given. `fresh` marks them as
-// just arrived (a delivery); a line called back by hand needs no dot.
+// Bring lines back to the top of Later's own lines now (under its pins), in the order given.
+// `fresh` marks them as just arrived (a delivery); a line called back by hand needs no dot.
 export function comeBack(all: Rows, ctx: OpCtx, ids: readonly string[], fresh = false): Rows {
   const back = ids.filter((id) => isBoomeranged(all[id]))
   if (back.length === 0) return all
-  let out = moveNodes(all, ctx, back, { parentId: null, afterId: lastPinned(all, null, new Set(back)) })
+  const later = findFixedPad(all, 'Later')?.id ?? null
+  let out = moveNodes(all, ctx, back, { parentId: later, afterId: lastPinned(all, later, new Set(back)) })
   for (const id of back) out = { ...out, [id]: { ...out[id]!, due: null, fresh, updatedAt: ctx.now() } }
   return out
 }
@@ -203,7 +204,7 @@ export function dayStartAt(day: string, start: number): Date {
 }
 
 // Every line whose day has come (`today` is the day that holds this moment, by the day start)
-// goes back to the top of the Inbox, marked fresh: earlier days above later ones. Each row
+// goes back to the top of Later's own lines, marked fresh: earlier days above later ones. Each row
 // is stamped with the moment its day started, not with now, so every device that makes the
 // delivery writes the same thing, and a device that wakes up days later never overwrites
 // what was done to the line since. A row edited after that moment (it was sent out again
