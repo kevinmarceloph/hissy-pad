@@ -72,7 +72,9 @@ function Picker({ categories, value, hasAny, count = 1, title, onPick, onCancel,
                   role="radio"
                   aria-checked={on}
                   aria-label={c.label}
-                  onPress={() => onPick(c.id)}
+                  // The one the lines are in already takes them out of it (Kevin, 2026-11-27),
+                  // as No category does: a second tap undoes the first.
+                  onPress={() => onPick(on ? null : c.id)}
                   style={[styles.choice, { borderColor: on ? theme.ink : theme.line }, on && { backgroundColor: theme.paperRaised }]}
                   activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paperRaised }}>
                   <CategoryBadge category={c} size={26} />

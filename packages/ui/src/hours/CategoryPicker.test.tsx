@@ -17,6 +17,10 @@ describe('the category picker', () => {
     expect(onPick).toHaveBeenLastCalledWith(list[1]!.id);
     await fireEvent.press(screen.getByText('No category'));
     expect(onPick).toHaveBeenLastCalledWith(null);
+    // The current one takes the line out of it.
+    onPick.mockClear();
+    await fireEvent.press(screen.getByRole('radio', { name: list[0]!.label }));
+    expect(onPick).toHaveBeenLastCalledWith(null);
   });
 
   it('offers No category for lines in different categories, and not for lines with none', async () => {
