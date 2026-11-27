@@ -6,7 +6,7 @@
 // No drag here: the toolbar's arrows move a line.
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { buildIndex, childrenOf, countLines, descendantIds, flatten, listNumbers } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, descendantIds, flatten, homeNumbers, listNumbers } from '@hissypad/core'
 import { usePad, visibleIds } from '@hissypad/state'
 import { serif, type Theme } from '../theme'
 import { Row } from './Row'
@@ -22,12 +22,14 @@ export function SubRows({ id = null, slot = null, theme, onAdd }: { id?: string 
   const editing = usePad((st) => st.editing)
   const selection = usePad((st) => st.selection)
   const subs = zoomed ? rows : null
+  // In an hour the lines are lifted out of their lists: their numbers are the ones they have at home.
+  const home = usePad((st) => (slot !== null && st.slotId === slot ? st.all : null))
   const { index, visible, numbers } = useMemo(() => {
     const index = buildIndex(subs ?? {})
     const depthOf = new Map(flatten(index, true).map((r) => [r.id, r.depth]))
     const ids = subs ? visibleIds({ ...usePad.getState(), rows: subs }) : []
-    return { index, visible: ids.map((v) => ({ id: v, depth: depthOf.get(v) ?? 0 })), numbers: listNumbers(index) }
-  }, [subs])
+    return { index, visible: ids.map((v) => ({ id: v, depth: depthOf.get(v) ?? 0 })), numbers: home ? homeNumbers(home) : listNumbers(index) }
+  }, [subs, home])
   const selectedSet = useMemo(() => new Set(selection), [selection])
   const selectedChildSet = useMemo(() => {
     const out = new Set<string>()

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, listNumbers, pinDivider, scheduleHead } from '@hissypad/core'
+import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, homeNumbers, listNumbers, pinDivider, scheduleHead } from '@hissypad/core'
 import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
   todayShown, cmdAddAtTop, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
@@ -19,6 +19,8 @@ const NEW_ROW = '\u0000new'
 // `undo` off: the screen it is in has its own Undo (Sort's Back) for Cmd+Z outside a field.
 export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boolean; undo?: boolean }) {
   const rows = usePad((s) => s.rows)
+  // In an hour the lines are lifted out of their lists: their numbers are the ones they have at home.
+  const home = usePad((s) => (s.slotId !== null ? s.all : null))
   const editing = usePad((s) => s.editing)
   const selection = usePad((s) => s.selection)
 
@@ -33,8 +35,8 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
       }
     }
     walk(null, 0)
-    return { index, visible: ids.map((id) => ({ id, depth: depth.get(id) ?? 0 })), numbers: listNumbers(index) }
-  }, [rows])
+    return { index, visible: ids.map((id) => ({ id, depth: depth.get(id) ?? 0 })), numbers: home ? homeNumbers(home) : listNumbers(index) }
+  }, [rows, home])
 
   const selectedSet = useMemo(() => new Set(selection), [selection])
   // Descendants of a selected line come along with it (move, cut, delete), so they get a

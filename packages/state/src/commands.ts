@@ -3,7 +3,7 @@
 // selection goes afterwards.
 import {
   buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, moveToBottom, moveToTop, remove, removeDone, ungroup, splitOpen,
-  setKind, setText as setTextOp, splitNode, togglePinned, toggleDone, setState, toggleNumbered, type LineState, type NodeRow, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
+  homeNumbers, setKind, setText as setTextOp, splitNode, togglePinned, toggleDone, setState, toggleNumbered, type LineState, type NodeRow, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
 // dialog fallback; mobile: expo-clipboard). `html` is the same outline as nested lists,
@@ -272,15 +272,17 @@ export function setCopyPrefix(fn: (row: NodeRow) => string) {
   copyPrefix = fn
 }
 
-export function copyPayload(rows: Rows, ids: readonly string[]): { text: string; html?: string } {
-  const text = toOutline(rows, ids, { done: '', prefix: copyPrefix })
-  if (!text.includes('\n')) return { text: toOutline(rows, ids, { bullet: '', done: '', prefix: copyPrefix }) }
-  return { text, html: toOutlineHtml(rows, ids, copyPrefix) }
+// `numbers` is each line's number where it lives, for a view that lifts lines out of their
+// lists (an hour): the third of a list copies as "3.", not "1.".
+export function copyPayload(rows: Rows, ids: readonly string[], numbers?: ReadonlyMap<string, number>): { text: string; html?: string } {
+  const text = toOutline(rows, ids, { done: '', prefix: copyPrefix, numbers })
+  if (!text.includes('\n')) return { text: toOutline(rows, ids, { bullet: '', done: '', prefix: copyPrefix, numbers }) }
+  return { text, html: toOutlineHtml(rows, ids, copyPrefix, numbers) }
 }
 
 export function cmdCopySelection(): string {
-  const { rows } = usePad.getState()
-  const { text, html } = copyPayload(rows, targets())
+  const { rows, all, slotId } = usePad.getState()
+  const { text, html } = copyPayload(rows, targets(), slotId !== null ? homeNumbers(all) : undefined)
   void copyText(text, html)
   if (text.trim() !== '') useClipboard.setState({ hasText: true })
   return text

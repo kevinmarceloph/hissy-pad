@@ -145,6 +145,7 @@ export interface OutlineFormat {
   indent?: string // per depth, default two spaces
   done?: string   // suffix for done nodes, default ' (done)'
   prefix?: (row: NodeRow) => string // put in front of a line's text, after its marker (a category's emoji)
+  numbers?: ReadonlyMap<string, number> | undefined // each line's number, when `rows` is a view that lifts lines out of their lists (an hour)
 }
 
 // Plain-text outline of the given nodes (topmost only, with their subtrees), relative to
@@ -156,7 +157,7 @@ export function toOutline(rows: Rows, ids: Iterable<string>, fmt: OutlineFormat 
   const doneMark = fmt.done ?? ' (done)'
   const pre = fmt.prefix ?? (() => '')
   const index = buildIndex(rows)
-  const numbers = listNumbers(index)
+  const numbers = fmt.numbers ?? listNumbers(index)
   const mark = (id: string) => (numbers.has(id) ? `${numbers.get(id)}. ` : rows[id]!.header ? '# ' : bullet)
   const line = (row: NodeRow) => (row.divider ? dividerText(row.text) : mark(row.id) + pre(row) + row.text + (row.done ? doneMark : ''))
   const lines: string[] = []
@@ -179,15 +180,17 @@ function escapeHtml(s: string): string {
 // The same nodes as nested HTML lists, for the rich-text half of the clipboard: a word
 // processor or chat box pastes it as real bullets. Runs of numbered siblings become <ol>,
 // everything else <ul>; headers are bold, done lines struck through. Single-line, no
-// styling, so it pastes the same everywhere.
-export function toOutlineHtml(rows: Rows, ids: Iterable<string>, prefix: (row: NodeRow) => string = () => ''): string {
+// styling, so it pastes the same everywhere. With `numbers` (an hour's lines, lifted out of
+// their lists) each numbered item says its own number.
+export function toOutlineHtml(rows: Rows, ids: Iterable<string>, prefix: (row: NodeRow) => string = () => '', numbers?: ReadonlyMap<string, number>): string {
   const index = buildIndex(rows)
   const tops = topmost(index, ids).map((id) => rows[id]!)
   const item = (row: NodeRow): string => {
     if (row.divider) return `<li>${escapeHtml(dividerText(row.text))}</li>`
     const text = escapeHtml(prefix(row) + row.text)
     const body = row.header ? `<b>${text}</b>` : row.done ? `<s>${text}</s>` : text
-    return `<li>${body}${lists(childrenOf(index, row.id))}</li>`
+    const value = numbers?.has(row.id) ? ` value="${numbers.get(row.id)}"` : ''
+    return `<li${value}>${body}${lists(childrenOf(index, row.id))}</li>`
   }
   const lists = (siblings: readonly NodeRow[]): string => {
     let out = ''

@@ -31,7 +31,7 @@ Pure TypeScript. Every op takes the rows and returns new rows, with only the cha
 | file | what is in it |
 |---|---|
 | `types.ts` | `NodeRow` (one row of the `nodes` table), `normalizeRow` for rows from an older build, `ROW_KEYS` and `sameRow`, `kindOf` (plain, numbered, header, divider) |
-| `tree.ts` | the tree derived from `parentId` + `rank`: `buildIndex`, `childrenOf`, `flatten`, `descendantIds`, `topmost`, list numbers, and the counting rule (`isBlank`, `countLines`: a blank line is never counted) |
+| `tree.ts` | the tree derived from `parentId` + `rank`: `buildIndex`, `childrenOf`, `flatten`, `descendantIds`, `topmost`, list numbers (`listNumbers` for a view, `homeNumbers` for a line's number where it lives, used by an open hour), and the counting rule (`isBlank`, `countLines`: a blank line is never counted) |
 | `rank.ts` | fractional ranks: a rank between two others, re-ranking a run |
 | `ops.ts` | every edit to lines: insert, split, set text, done, the three states (open, doing, done: `setState`, `sharedState`), kind (`setKind`: a section divider's sub items come out beside it, and nothing is moved or indented under one), fold, remove, restore, move, move to top, indent, dedent, ungroup, split off open (`splitOpen`: a copy below takes the open sub items), merge, delete done |
 | `inline.ts` | inline marks drawn from the text, never stored: `inlineSpans` (bold, italic, underline, strikethrough, highlight, code, backslash escapes, symbols kept) and the shared `URL_RE` |

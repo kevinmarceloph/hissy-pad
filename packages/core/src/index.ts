@@ -14,6 +14,7 @@ export {
   depthOf,
   topmost,
   listNumbers,
+  homeNumbers,
   allocateRanks,
   isLive,
   isBlank,

@@ -144,17 +144,26 @@ export function allocateRanks(
 
 // 1-based position within a run of consecutive numbered siblings, or null for a plain
 // line. A plain sibling breaks the run, so one parent can hold several numbered lists,
-// each restarting at 1 (the way Docs numbers paragraphs).
+// each restarting at 1 (the way Docs numbers paragraphs). A pad row is not a line: over the
+// whole table it sits among Inbox's lines without breaking their run.
 export function listNumbers(index: TreeIndex): Map<string, number> {
   const out = new Map<string, number>()
   for (const kids of index.children.values()) {
     let n = 0
     for (const k of kids) {
+      if (k.pad) continue
       if (k.numbered) out.set(k.id, ++n)
       else n = 0
     }
   }
   return out
+}
+
+// A line's number where it lives, whatever view it is drawn in (Kevin, 2026-11-27): an hour
+// shows lines lifted out of their lists, and the third of a list is still "3." there. Worked
+// out from the whole table each time, never stored, so a reorder rewrites no sibling.
+export function homeNumbers(all: Rows): Map<string, number> {
+  return listNumbers(buildIndex(all))
 }
 
 // Given a set of ids, keep only those with no selected ancestor. Bulk ops (move, indent,

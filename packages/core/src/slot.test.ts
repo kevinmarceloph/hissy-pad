@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { parseSlot, slotCounts, slotCovers, slotDoneElsewhere, slotDoneExtra, slotHours, slotKey, slotOfHours, slotRuns, lineOrder, scopeSlot, slotLabel, slotLines, slotProgress, slotPast, slotTops } from './slot'
 import type { NodeRow, Rows } from './types'
+import { buildIndex, homeNumbers, listNumbers } from './tree'
+import { toOutline, toOutlineHtml } from './paste'
 
 const row = (id: string, slot: string | null, done = false): NodeRow => ({
   id, parentId: null, rank: id, text: id, done, doneAt: null, doing: false, collapsed: false, numbered: false, header: false, divider: false, pad: false,
@@ -150,6 +152,34 @@ describe('the order of an hour\'s lines', () => {
     expect(view.homes.get('t1')).toEqual({ parentId: 'pt', rank: 'a0' })
     // An unchanged hour gives the same row objects back.
     expect(scopeSlot(all, H).rows['t1']).toBe(view.rows['t1'])
+  })
+})
+
+describe('a numbered line in an hour', () => {
+  const H = '2026-11-27T09'
+  const num = (id: string, parentId: string | null, rank: string, slot: string | null = null): NodeRow => ({ ...row(id, slot), parentId, rank, numbered: true })
+  // Inbox: one, [a pad row], two, three; in the pad: p1, p2, plain, p3.
+  const all = table(
+    num('one', null, 'a'), { ...row('pad', null), rank: 'b', pad: true }, num('two', null, 'c'), num('three', null, 'd', H),
+    num('p1', 'pad', 'a'), num('p2', 'pad', 'b', H), { ...row('plain', null), parentId: 'pad', rank: 'c' }, num('p3', 'pad', 'd', H),
+  )
+
+  it('keeps the number it has in its own list', () => {
+    const home = homeNumbers(all)
+    // A pad row among Inbox's lines does not break their run; a plain line does.
+    expect([home.get('one'), home.get('two'), home.get('three')]).toEqual([1, 2, 3])
+    expect([home.get('p1'), home.get('p2'), home.get('p3')]).toEqual([1, 2, 1])
+    expect(home.has('pad')).toBe(false)
+    // The hour's own view would count them 1, 2, 3.
+    const view = scopeSlot(all, H).rows
+    expect([...listNumbers(buildIndex(view)).values()].sort()).toEqual([1, 2, 3])
+  })
+
+  it('copies with that number', () => {
+    const view = scopeSlot(all, H).rows
+    const numbers = homeNumbers(all)
+    expect(toOutline(view, ['three'], { numbers })).toBe('3. three')
+    expect(toOutlineHtml(view, ['three', 'p2'], undefined, numbers)).toContain('<li value="3">three</li>')
   })
 })
 
