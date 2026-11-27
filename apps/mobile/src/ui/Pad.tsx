@@ -542,6 +542,11 @@ export function Pad() {
               value={picking.value}
               count={picking.count}
               onCancel={() => setPicking(null)}
+              onOpenTemplate={() => {
+                setPicking(null)
+                setArchive(null)
+                setMode('pad')
+              }}
               onPick={(slot) => {
                 const said = cmdApplySlot(slot)
                 setPicking(null)

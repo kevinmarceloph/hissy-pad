@@ -51,6 +51,16 @@ Since 2026-11-25 a line can be sent out of the pads until a later day (the float
 - `fresh` (the dot on a line that came back) is cleared by `commit` on any edit to the row.
 - The watch does not know `due` yet.
 
+## Recurring items
+
+Since 2026-11-27 a line can be made a recurring item from the hour picker's Repeat section (two kinds: on a schedule, or so long after the last was done). Details in `PLAN.md` under "Recurring items"; the rules that bite:
+
+- The template is a row under Later with `repeat` (the rule, JSON: read and write it through `parseRepeat` and `formatRepeat`, never by hand) and `due` set to `FOREVER` ('9999-12-31'). It is a boomerang that never comes back, so `isBoomeranged` is true for it and whatever skips `due` skips it. Anything that reads `due` as a real day has to leave `FOREVER` out (`targetDue`, the delivery's timer and `dueLabel` do).
+- An instance has `origin`, the template's id. Whether a row is a template or a live instance of one is `repeatLink`; an `origin` whose template is gone or has stopped means nothing.
+- `settleRepeats` runs before `settleBoomerangs` in `commit` and `settleFixed`: a template anywhere but the top level of Later loses its rule. The template is in no hour: its instances' hours are in the rule (`cmdSetSlot` and `targetSlot` know).
+- The delivery (`deliverRepeats`, run by `deliverBoomerangs` through `applyQuiet`) must write the same rows on every device: ids from `derivedId(templateRowId, day)`, stamps from the moment the day started, nothing made twice. Keep all three if it changes. Instances land at the top of Today.
+- The watch does not know `repeat` or `origin`.
+
 ## Today's Scheduled section
 
 Since 2026-11-27 Today's top-level lines with an hour sit under its own lines, below a "Scheduled" heading, always in the order of their hours (`settleSchedule` in `core/schedule.ts`, run by `commit` and `settleFixed` like `settleBoomerangs`). It is kept by rank, not by the drawing. A new line in the section takes the hour of the line above it, so an op that adds a line "at the end" of a pad has to mean the end of its own lines (`lastOwn` in the store). Details in `PLAN.md` under "Today's Scheduled section".

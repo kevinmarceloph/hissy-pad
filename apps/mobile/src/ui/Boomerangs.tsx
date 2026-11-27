@@ -3,7 +3,7 @@
 // is the heading drawn before the first row of each group; the first one also carries the
 // section's name. The same as the web's (apps/web/src/pad/Boomerangs.tsx).
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { dueLabel, type PadId } from '@hissypad/core'
+import { dueLabel, FOREVER, type PadId } from '@hissypad/core'
 import { openPad, padName, usePad } from '@hissypad/state'
 import { dayOf } from '@hissypad/core/hours'
 import { hoursIfOpen } from '@hissypad/state/hours'
@@ -37,6 +37,16 @@ export function CategoryHead({ padId, theme }: { padId: PadId; theme: Theme }) {
 export function DueHead({ due, first, theme }: { due: string; first: boolean; theme: Theme }) {
   // The day this moment belongs to, by the hour a day starts at in Hours.
   const today = dayOf(new Date(), hoursIfOpen()?.day.getState().start ?? 0)
+  // The templates of the recurring items: a section of its own, under every day.
+  if (due === FOREVER) {
+    return (
+      <View style={[s.wrap, s.first, { borderTopColor: theme.rule }]}>
+        <View style={s.head}>
+          <Text accessibilityRole="header" style={[s.title, { color: theme.inkSoft }]}>↻ Recurring</Text>
+        </View>
+      </View>
+    )
+  }
   return (
     <View style={[s.wrap, first && s.first, first && { borderTopColor: theme.rule }]}>
       {first && (

@@ -68,7 +68,7 @@ export function Hours() {
 }
 
 // The hour picker the pad's toolbar opens ("Hour…"), in a dialog.
-export function SlotDialog({ value, count, onPick, onClose }: { value: string | null; count: number; onPick: (slot: string | null) => void; onClose: () => void }) {
+export function SlotDialog({ value, count, onPick, onClose, onOpenTemplate }: { value: string | null; count: number; onPick: (slot: string | null) => void; onClose: () => void; onOpenTemplate: () => void }) {
   const scheme = useScheme()
   return (
     <dialog
@@ -80,7 +80,7 @@ export function SlotDialog({ value, count, onPick, onClose }: { value: string | 
       onClose={onClose}
     >
       <Suspense fallback={<p className="hint" aria-busy="true">Opening…</p>}>
-        <SlotPicker value={value} count={count} scheme={scheme} onPick={onPick} onCancel={onClose} />
+        <SlotPicker value={value} count={count} scheme={scheme} onPick={onPick} onCancel={onClose} onOpenTemplate={onOpenTemplate} />
       </Suspense>
     </dialog>
   )

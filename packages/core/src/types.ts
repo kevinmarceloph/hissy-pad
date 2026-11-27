@@ -20,6 +20,8 @@ export interface NodeRow {
   countHidden: boolean      // a pad row whose tab leaves out its count of open lines (set from the pad's sheet; synced)
   due: string | null        // boomeranged: out of the pads until this day, 'YYYY-MM-DD' (boomerang.ts); kept under Later meanwhile
   fresh: boolean            // came back to Later from a boomerang and has not been touched since: drawn with a dot
+  repeat: string | null     // a recurring item's template: its rule as JSON (repeat.ts); kept under Later for good, with `due` set to FOREVER
+  origin: string | null     // an instance of a recurring item: the id of the template it was made from
   updatedAt: string         // ISO timestamp from the client that made the change (clock.ts)
   deletedAt: string | null  // tombstone; clients never hard-delete
 }
@@ -46,6 +48,8 @@ export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
     countHidden: r.countHidden === true,
     due: r.due ?? null,
     fresh: r.fresh === true,
+    repeat: r.repeat ?? null,
+    origin: r.origin ?? null,
     updatedAt: r.updatedAt ?? new Date(0).toISOString(),
     deletedAt: r.deletedAt ?? null,
   }
@@ -55,7 +59,7 @@ export function normalizeRow(r: Partial<NodeRow> & { id: string }): NodeRow {
 // new NodeRow field is added here too, which is what keeps sameRow honest.
 const ROW_FIELDS: Record<keyof NodeRow, true> = {
   id: true, parentId: true, rank: true, text: true, done: true, doneAt: true, doing: true, collapsed: true,
-  numbered: true, header: true, divider: true, pad: true, slot: true, category: true, pinned: true, countHidden: true, due: true, fresh: true, updatedAt: true, deletedAt: true,
+  numbered: true, header: true, divider: true, pad: true, slot: true, category: true, pinned: true, countHidden: true, due: true, fresh: true, repeat: true, origin: true, updatedAt: true, deletedAt: true,
 }
 export const ROW_KEYS = Object.keys(ROW_FIELDS) as (keyof NodeRow)[]
 

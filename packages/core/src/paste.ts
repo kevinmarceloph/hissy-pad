@@ -132,7 +132,7 @@ export function insertOutline(
       pinned: false,
       countHidden: false,
       due: null,
-      fresh: false,
+      fresh: false, repeat: null, origin: null,
       updatedAt: ctx.now(),
       deletedAt: null,
     }

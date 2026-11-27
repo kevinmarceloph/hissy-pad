@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState, type ComponentRef } from 'react'
 import { Platform, Pressable, StyleSheet, Text, TextInput, View, useColorScheme, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
-import { apply, categoryShown, clickSelect, cmdClearFresh, edit, usePad, usePadCategoryOf, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
+import { apply, categoryShown, clickSelect, cmdClearFresh, edit, repeatMark, usePad, usePadCategoryOf, type Editing, cmdBackspaceAtStart, cmdTextChanged } from '@hissypad/state'
 import { inlineSpans, scopeSlot, smallCapsRuns, slotLabel, slotPast, todayKey, toggleCollapsed } from '@hissypad/core'
 import { cmdSlotUnarchive, useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
@@ -38,6 +38,8 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
   const isEditing = editing?.id === row.id
   // In an open hour, an archived line of the hour is drawn among the others (core's slotShown).
   const archived = usePad((st) => st.slotId !== null && scopeSlot(st.all, st.slotId).archived.has(row.id))
+  // A recurring item: its template says its rule after its text, an instance carries the mark.
+  const repeat = usePad((st) => (row.repeat || row.origin ? repeatMark(st.all, row.id) : ''))
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
   const category = useLineCategory(row.category)
@@ -248,6 +250,7 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
               // The hour this line is in (Hours), in words, small, after the text.
               <Text style={[s.slot, { color: theme.inkSoft }, !row.done && slotPast(row.slot) && { color: theme.accent, fontWeight: '700' }]}>{'\u2002'}{slotLabel(row.slot, todayKey())}</Text>
             )}
+            {repeat !== '' && <Text style={[s.slot, { color: theme.inkSoft }]}>{'\u2002'}{repeat}</Text>}
             {folded && (
               // Nested so it sits right after the last word, wrapping with it. A nested Text
               // takes a background but no padding or radius on iOS, hence the spaces.

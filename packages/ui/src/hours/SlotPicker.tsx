@@ -3,11 +3,12 @@ import { PanResponder, Platform, StyleSheet, Text, useWindowDimensions, View, ty
 import { slotCovers, slotHours, slotKey, slotLabel, slotOfHours, slotRuns } from '@hissypad/core';
 import { dayDate, dayKey, dayOf, daySlots, dayTitle, hourLabel, shiftDay, type Entry } from '@hissypad/core/hours';
 import { usePad } from '@hissypad/state';
-import { hoursIfOpen, openHours, type HoursStores } from '@hissypad/state/hours';
+import { hoursIfOpen, openHours, slotPickerLines, type HoursStores } from '@hissypad/state/hours';
 
 import { CalendarIcon, Chevron, DayPicker } from './DayScreen';
 import { drawHours } from './drawn';
 import { hourBox, Mark } from './Mark';
+import { RepeatSection } from './RepeatSection';
 import { Tap } from './Tap';
 import { LINE, ROW, SchemeContext, serif, SIZE, SMALL, useTheme } from './theme';
 
@@ -19,6 +20,11 @@ type Props = {
   // An hour, a run of hours or hours that are apart were picked, or "No hour" (null).
   onPick(slot: string | null): void;
   onCancel(): void;
+  // The lines being placed: the ones the toolbar opened the picker on, unless given. With
+  // one line the picker has a Repeat section for it under the hours.
+  ids?: readonly string[];
+  // The Repeat section went to the line's template in Later: close, and show the pad.
+  onOpenTemplate?(): void;
   scheme?: 'light' | 'dark' | null;
   clock?: () => Date;
 };
@@ -69,8 +75,12 @@ function useHours(): HoursStores | null {
   return stores;
 }
 
-function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }: Omit<Props, 'scheme'>) {
+function Picker({ value, count = 1, onPick, onCancel, ids, onOpenTemplate, clock = () => new Date() }: Omit<Props, 'scheme'>) {
   const theme = useTheme();
+  // The one line the picker is for, if it is for one, and whether its Repeat section is
+  // open: open, it has the room of the hours.
+  const [lines] = useState(() => ids ?? slotPickerLines());
+  const [repeating, setRepeating] = useState(false);
   const now = clock();
   const stores = useHours();
   // The hour a day starts at: a day runs from it to the same hour of the next.
@@ -222,10 +232,12 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
   return (
     <View style={[styles.sheet, { backgroundColor: theme.paper }]}>
       <Text role="heading" aria-level={2} style={[styles.title, { color: theme.ink }]}>
-        {count === 1 ? 'Which hour is this line for?' : `Which hour are these ${count} lines for?`}
+        {repeating ? 'Repeat this line' : count === 1 ? 'Which hour is this line for?' : `Which hour are these ${count} lines for?`}
       </Text>
       <Text aria-live="polite" style={[styles.small, { color: theme.inkSoft }]}>
-        {run
+        {repeating
+          ? 'How often a new one of it is made.'
+          : run
           ? `${slotLabel(slotOf(run.from, run.to), today)}: let go to pick.`
           : over !== null
             ? `${slotLabel(slotOf(over, over), today)}.`
@@ -235,6 +247,7 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
                 ? `Now in ${slotLabel(value, today)}. Tap the hours, or swipe across several.`
                 : 'Tap the hours, or swipe across several.'}
       </Text>
+      {!repeating && (<>
       {/* One line, as on the Hours screen: earlier, the day, the calendar, later. */}
       <View role="navigation" aria-label="Days" style={styles.days}>
         {step('The day before', shiftDay(day, -1), false)}
@@ -349,6 +362,17 @@ function Picker({ value, count = 1, onPick, onCancel, clock = () => new Date() }
           </Text>
         </Tap>
       </View>
+      </>)}
+      {lines.length === 1 && (
+        <RepeatSection id={lines[0]!} open={repeating} onToggle={() => setRepeating((was) => !was)} {...(onOpenTemplate ? { onOpenTemplate } : {})} clock={clock} />
+      )}
+      {repeating && (
+        <View style={styles.actions}>
+          <Tap onPress={onCancel} style={[styles.action, { borderColor: theme.line }]} activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paperRaised }}>
+            <Text style={[styles.body, { color: theme.ink }]}>Done</Text>
+          </Tap>
+        </View>
+      )}
     </View>
   );
 }

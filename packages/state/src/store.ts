@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import {
-  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, fixedPadOf, inheritPadCategory, isPadNode, isTodayPad, scheduledKey, settleBoomerangs, settleFixedPads, settlePins, settleSchedule,
+  buildIndex, changedRows, childrenOf, createClock, createMemoryStore, fixedPadOf, inheritPadCategory, isPadNode, isTodayPad, scheduledKey, settleBoomerangs, settleRepeats, settleFixedPads, settlePins, settleSchedule,
   insertAt, insertOutline, isLive, newUuid, normalizeRow, parseOutline, parseSlot, sameRow, scopeCategory, scopeNode, scopePad, scopeSlot, unscopeCategory, unscopeRow, unscopeSlot,
   type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus,
 } from '@hissypad/core'
@@ -251,7 +251,8 @@ function commit(all: Rows, edited: Rows, label: string, coalesce?: string) {
   }
   // Lines out on a boomerang stay in their day's group under Later, the same way.
   const dued = changedRows(all, nextAll).filter((r) => r.due || all[r.id]?.due).map((r) => r.id)
-  if (moved.length || dued.length) nextAll = settleBoomerangs(nextAll, ctx, all, [...moved, ...dued])
+  // A recurring item's template first: it is out for good under Later, or it is no template (repeat.ts).
+  if (moved.length || dued.length) nextAll = settleBoomerangs(settleRepeats(nextAll, ctx, [...moved, ...dued]), ctx, all, [...moved, ...dued])
   // Today's lines with an hour stay in its Scheduled section, in the order of their hours.
   if (moved.length || changedRows(all, nextAll).some((r) => r.slot !== (all[r.id]?.slot ?? null))) nextAll = settleSchedule(nextAll, ctx, all)
   // A line that came back from a boomerang keeps its dot until it is touched: any edit to
@@ -349,7 +350,7 @@ async function loadPadOnce() {
 export function settleFixed() {
   const { all, padId, load } = get()
   if (load !== 'ready') return
-  const next = settleSchedule(settleBoomerangs(settlePins(settleFixedPads(all, ctx), ctx), ctx), ctx)
+  const next = settleSchedule(settleBoomerangs(settleRepeats(settlePins(settleFixedPads(all, ctx), ctx), ctx), ctx), ctx)
   if (next === all) return afterSettle?.()
   log('pad:settle', { changed: changedRows(all, next).length })
   const shown = padId === null || isPadNode(next[padId]) ? padId : null

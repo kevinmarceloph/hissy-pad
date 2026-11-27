@@ -127,6 +127,11 @@ export function App() {
             setPicking(null)
             resumeEditing()
           }}
+          // A recurring item's template was gone to: it is selected in Later, in the pad.
+          onOpenTemplate={() => {
+            setPicking(null)
+            setView('pad')
+          }}
         />
       )}
       {sending && (

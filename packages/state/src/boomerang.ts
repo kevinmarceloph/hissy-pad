@@ -2,7 +2,7 @@
 // the toolbar and Later's section run, the picker's opener, and the delivery: when a day
 // starts (the hour set in Hours), what is due comes back to the top of Later with a dot.
 import {
-  boomerang, boomerangGroups, clearFresh, comeBack, dayStartAt, deliverDue, dueLabel, isBoomeranged, type BoomerangGroup, type Rows,
+  boomerang, boomerangGroups, clearFresh, comeBack, dayStartAt, deliverDue, deliverRepeats, dueLabel, FOREVER, isBoomeranged, nextRepeatDay, type BoomerangGroup, type Rows,
 } from '@hissypad/core'
 import { dayOf, shiftDay } from '@hissypad/core/hours'
 
@@ -70,7 +70,9 @@ export function cmdPickBoomerang(ids: readonly string[] = targets()) {
 export function targetDue(ids: readonly string[] = targets()): string | null {
   const { all } = usePad.getState()
   const days = new Set(ids.map((id) => all[id]?.due ?? null))
-  return days.size === 1 ? [...days][0]! : null
+  const day = days.size === 1 ? [...days][0]! : null
+  // A recurring item's template is out for good, which is no day to open on.
+  return day === FOREVER ? null : day
 }
 
 // The day a line is out until, in words, counted from the day this moment belongs to: the
@@ -108,37 +110,46 @@ export function boomerangChoices(today: string): { label: string; due: string }[
 
 // ---- delivery ---------------------------------------------------------------------------------
 
-// Bring back every line whose day has started. Run after load, after every sync merge, when
+// Bring back every line whose day has started, and make the instances of the recurring
+// items whose day has come (core/repeat.ts). Run after load, after every sync merge, when
 // the app comes to the front (refresh) and by a timer set for the next day start that has
 // something due. Left out of undo: it is not an edit. Returns how many came back.
 export async function deliverBoomerangs(now: Date = new Date()): Promise<number> {
   if (boomerangGroups(usePad.getState().all).length === 0) return 0
   const start = await dayStart()
-  const before = boomerangGroups(usePad.getState().all).reduce((n, g) => n + g.lines.length, 0)
-  applyQuiet((all, ctx) => deliverDue(all, ctx, boomerangToday(start, now), start), 'boomerang:deliver')
-  const left = boomerangGroups(usePad.getState().all)
-  arm(left, start)
-  return before - left.reduce((n, g) => n + g.lines.length, 0)
+  const out = () => boomerangGroups(usePad.getState().all).reduce((n, g) => n + (g.due === FOREVER ? 0 : g.lines.length), 0)
+  const before = out()
+  const today = boomerangToday(start, now)
+  applyQuiet((all, ctx) => deliverDue(all, ctx, today, start), 'boomerang:deliver')
+  applyQuiet((all, ctx) => deliverRepeats(all, ctx, today, start), 'repeat:deliver')
+  arm(start, now)
+  return before - out()
 }
 
-// One timer, for the moment the earliest day still out starts. A timer cannot wait longer
-// than about 24 days, so a day further off is looked at again when that runs out.
+// One timer, for the moment the earliest day still out starts: a boomerang's day, or the
+// day a recurring item is next due. With a template in the table it never waits past the
+// next day start, since crossing an instance out can make the day after one. A timer cannot
+// wait longer than about 24 days, so a day further off is looked at again when that runs out.
 let timer: ReturnType<typeof setTimeout> | null = null
 const LONGEST = 2 ** 31 - 1
-function arm(left: readonly BoomerangGroup[], start: number) {
+function arm(start: number, now: Date = new Date()) {
   if (timer !== null) clearTimeout(timer)
   timer = null
-  const first = left[0]
+  const { all } = usePad.getState()
+  const groups = boomerangGroups(all)
+  const days = [groups.find((g) => g.due !== FOREVER)?.due, nextRepeatDay(all, start), groups.some((g) => g.due === FOREVER) ? shiftDay(boomerangToday(start, now), 1) : null]
+  // Only a day still ahead: what is due already was just delivered, or cannot be.
+  const today = boomerangToday(start, now)
+  const first = days.filter((d): d is string => !!d && d > today).sort()[0]
   if (!first) return
-  const wait = Math.max(1000, dayStartAt(first.due, start).getTime() - Date.now() + 500)
+  const wait = Math.max(1000, dayStartAt(first, start).getTime() - Date.now() + 500)
   timer = setTimeout(() => {
     timer = null
     void deliverBoomerangs()
   }, Math.min(wait, LONGEST))
 }
-async function armDelivery() {
-  const left = boomerangGroups(usePad.getState().all)
-  if (left.length) arm(left, await dayStart())
+export async function armDelivery() {
+  if (boomerangGroups(usePad.getState().all).length) arm(await dayStart())
 }
 
 // Tests: no timer left behind.

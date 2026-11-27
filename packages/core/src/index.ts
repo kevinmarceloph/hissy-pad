@@ -99,7 +99,7 @@ export {
   inheritPadCategory,
 } from './pads'
 export { settlePins, togglePinned, pinDivider } from './pins'
-export { isBoomeranged, boomerang, comeBack, boomerangGroups, deliverDue, dayStartAt, clearFresh, dueLabel, dueHeads, settleBoomerangs, type BoomerangGroup } from './boomerang'
+export { FOREVER, isBoomeranged, boomerang, comeBack, boomerangGroups, deliverDue, dayStartAt, clearFresh, dueLabel, dueHeads, settleBoomerangs, type BoomerangGroup } from './boomerang'
 export { settleSchedule, scheduleHead, scheduledKey, isTodayPad } from './schedule'
 export { lastPinned } from './ops'
 export { hourPrefix, slotByPrefix } from './hourprefix'
@@ -121,3 +121,9 @@ export { createFakeRemote, type FakeRemote } from './sync/fakeRemote'
 export { resolveDrop, type LayoutRow, type DropTarget, type DropInput } from './drop'
 export { inlineSpans, smallCapsRuns, URL_RE, type InlineSpan } from './inline'
 export { TEXT_SIZE, LINE_RATIO_WEB, LINE_WEB, LINE_NATIVE, PAPER_LIGHT, PAPER_DARK, type PaperColors } from './look'
+export {
+  parseRepeat, formatRepeat, isTemplate, makeRepeat, setRepeat, setRepeatSlot, stopRepeat, unlinkRepeat, settleRepeats, deliverRepeats, nextRepeatDay,
+  repeatLink, repeatLabel, repeatNote, repeatSlot, unitWord, addUnits, nextAfter, onOrAfter, daysBetween, shiftSlot, slotStartDay, derivedId,
+  REPEAT_DEFAULT, REPEAT_UNITS, REPEAT_KEEPS, REPEAT_MAX, KEEP_WORDS,
+  type Repeat, type RepeatChoice, type RepeatMode, type RepeatUnit, type RepeatKeep, type RepeatLink,
+} from './repeat'

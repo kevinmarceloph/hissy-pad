@@ -5,7 +5,7 @@ import {
   cmdBackspaceAtStart, cmdDedent, cmdDeleteSelection, cmdEditNeighbor, cmdEnter, cmdIndent, cmdMove, cmdPasteInto, cmdSetText,
   cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
-import { cmdClearFresh, redo, undo } from '@hissypad/state'
+import { cmdClearFresh, redo, repeatMark, undo } from '@hissypad/state'
 import { apply } from '@hissypad/state'
 import { scopeSlot, slotLabel, slotPast, todayKey, inlineSpans, toggleCollapsed, URL_RE } from '@hissypad/core'
 import { cmdSlotUnarchive, useLineCategory } from '@hissypad/state/hours'
@@ -184,6 +184,8 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
   const category = useLineCategory(row.category)
   // In an open hour, an archived line of the hour is drawn among the others (core's slotShown).
   const archived = usePad((s) => s.slotId !== null && scopeSlot(s.all, s.slotId).archived.has(row.id))
+  // A recurring item: its template says its rule after its text, an instance carries the mark.
+  const repeat = usePad((s) => (row.repeat || row.origin ? repeatMark(s.all, row.id) : ''))
   // In its category's own pad a line shows no icon, only the bullet in the category's color.
   const padCategory = usePadCategoryOf(row.id)
   // Nor in a category's view, its own or another's: there the colors alone show what is mixed.
@@ -265,6 +267,7 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
             const late = !row.done && slotPast(row.slot)
             return <span className={late ? 'slot is-late' : 'slot'} data-slot={row.slot} title={late ? 'Its hour is over and it is not done (toolbar: Hour…)' : 'The hour this line is in (toolbar: Hour…)'}>{slotLabel(row.slot, todayKey())}</span>
           })()}
+          {repeat && <span className="slot repeat" title={row.repeat ? 'A recurring item\'s template: the ones to come are copies of it (toolbar: Hour…, Repeat)' : 'One of a recurring item (toolbar: Hour…, Repeat)'}>{repeat}</span>}
           {folded && (
             <button
               type="button"

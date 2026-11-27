@@ -1,7 +1,7 @@
 // Lines of the pad inside an hour. A line carries the slot it is assigned to (core/slot.ts);
 // these are the commands the pad's toolbar and the Hours screen run on it. They go through
 // the pad's own store, so each one is an undo step and syncs like any other edit.
-import { fixedPadOf, insertAt, isLive, restore, setSlot, slotByPrefix, slotCovers, slotKey, slotLabel, slotLeftovers, slotLines, todayKey, type NodeRow } from '@hissypad/core';
+import { fixedPadOf, insertAt, isLive, isTemplate, parseRepeat, repeatSlot, restore, setRepeatSlot, setSlot, slotByPrefix, slotCovers, slotKey, slotLabel, slotLeftovers, slotLines, todayKey, type NodeRow } from '@hissypad/core';
 import { DAY_START_DEFAULT, dayOf } from '@hissypad/core/hours';
 
 import { applyAll, setClassifier, usePad } from '../store';
@@ -20,14 +20,24 @@ setClassifier((all, ctx, ids) => {
 // them out of theirs with null. Returns how many lines it was asked about.
 export function cmdSetSlot(slot: string | null, ids: readonly string[] = targets()): number {
   // The whole table: the line may not be in the view (a new item's card shows only what is under it).
-  if (ids.length) applyAll((all, ctx) => setSlot(all, ctx, [...ids], slot), { label: 'cmdSetSlot' });
+  // A recurring item's template is in no hour itself: its hours are its instances', kept in its rule.
+  const start = hoursIfOpen()?.day.getState().start ?? DAY_START_DEFAULT;
+  const today = dayOf(new Date(), start);
+  if (ids.length) {
+    applyAll((all, ctx) => {
+      let out = setSlot(all, ctx, ids.filter((id) => !isTemplate(all[id])), slot);
+      for (const id of ids) if (isTemplate(all[id])) out = setRepeatSlot(out, ctx, id, slot, today, start);
+      return out;
+    }, { label: 'cmdSetSlot' });
+  }
   return ids.length;
 }
 
 // The slot the targets share, null when they have none or differ: what the picker opens on.
 export function targetSlot(ids: readonly string[] = targets()): string | null {
   const { all } = usePad.getState();
-  const slots = new Set(ids.map((id) => all[id]?.slot ?? null));
+  // A template's are the hours its next instance goes in.
+  const slots = new Set(ids.map((id) => (isTemplate(all[id]) ? repeatSlot(parseRepeat(all[id]!.repeat)!) : all[id]?.slot ?? null)));
   return slots.size === 1 ? [...slots][0]! : null;
 }
 
@@ -119,6 +129,10 @@ let openPicker: ((ids: readonly string[]) => void) | null = null;
 let picked: string[] = [];
 export function setSlotPickerOpener(open: ((ids: readonly string[]) => void) | null) {
   openPicker = open;
+}
+// The lines the picker was opened on: its Repeat section works on the one, when there is one.
+export function slotPickerLines(): readonly string[] {
+  return picked;
 }
 export function cmdPickSlot(ids: readonly string[] = targets()) {
   if (ids.length === 0 || !openPicker) return;

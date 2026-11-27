@@ -19,6 +19,10 @@ import { createPad, findFixedPad } from './pads'
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/
 
+// The day of a line that is out for good: a recurring item's template (repeat.ts). It never
+// comes, and as the furthest day its group is the last under Later.
+export const FOREVER = '9999-12-31'
+
 export function isBoomeranged(r: NodeRow | undefined): r is NodeRow {
   return isLive(r) && !!r.due && !r.pad
 }
@@ -27,8 +31,9 @@ export function isBoomeranged(r: NodeRow | undefined): r is NodeRow {
 // of that day's group, out of their hour and off their pin; a line already out only changes
 // its day (and so its group). Pad rows are never sent. Returns `all` itself for a day that is not one.
 export function boomerang(all: Rows, ctx: OpCtx, ids: Iterable<string>, due: string): Rows {
-  if (!DAY.test(due)) return all
-  const tops = topmost(buildIndex(all), ids).filter((id) => isLive(all[id]) && !all[id]!.pad)
+  if (!DAY.test(due) || due === FOREVER) return all
+  // A template stays where it is: it is out already, for good.
+  const tops = topmost(buildIndex(all), ids).filter((id) => isLive(all[id]) && !all[id]!.pad && !all[id]!.repeat)
   if (tops.length === 0) return all
   let out = all
   let later = findFixedPad(out, 'Later')?.id
@@ -87,7 +92,7 @@ export function settleBoomerangs(all: Rows, ctx: OpCtx, prev?: Rows, touched?: I
     let day: string | null = null
     for (const s of sibs) {
       if (s.due) day = s.due
-      else if (day && joins(prev, s.id, later)) out = { ...out, [s.id]: { ...out[s.id]!, due: day, pinned: false, slot: null, updatedAt: ctx.now() } }
+      else if (day && day !== FOREVER && joins(prev, s.id, later)) out = { ...out, [s.id]: { ...out[s.id]!, due: day, pinned: false, slot: null, updatedAt: ctx.now() } }
     }
     sibs = sibs.map((s) => out[s.id]!)
   }
@@ -161,7 +166,8 @@ export function comeBack(all: Rows, ctx: OpCtx, ids: readonly string[], fresh = 
   if (back.length === 0) return all
   const later = findFixedPad(all, 'Later')?.id ?? null
   let out = moveNodes(all, ctx, back, { parentId: later, afterId: lastPinned(all, later, new Set(back)) })
-  for (const id of back) out = { ...out, [id]: { ...out[id]!, due: null, fresh, updatedAt: ctx.now() } }
+  // A template called back is an ordinary line again: its rule goes with its day.
+  for (const id of back) out = { ...out, [id]: { ...out[id]!, due: null, repeat: null, fresh, updatedAt: ctx.now() } }
   return out
 }
 
@@ -236,6 +242,7 @@ export function clearFresh(all: Rows, ctx: OpCtx, ids: Iterable<string>): Rows {
 // A day as the section's heading and the toast say it: "Tomorrow", else "Fri, Nov 28"
 // (with the year when it is not this one).
 export function dueLabel(due: string, today: string): string {
+  if (due === FOREVER) return 'Recurring'
   const [y = 1970, m = 1, d = 1] = due.split('-').map(Number)
   const date = new Date(y, m - 1, d)
   const [ty = 1970, tm = 1, td = 1] = today.split('-').map(Number)

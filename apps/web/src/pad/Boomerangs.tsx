@@ -2,7 +2,7 @@
 // lines and in groups by the day they come back (core/boomerang.ts keeps the groups). This
 // is the heading drawn before the first row of each group; the first one also carries the
 // section's name.
-import { dueLabel, type PadId } from '@hissypad/core'
+import { dueLabel, FOREVER, type PadId } from '@hissypad/core'
 import { openPad, padName, usePad } from '@hissypad/state'
 import { dayOf } from '@hissypad/core/hours'
 import { hoursIfOpen } from '@hissypad/state/hours'
@@ -32,6 +32,14 @@ export function CategoryHead({ padId }: { padId: PadId }) {
 export function DueHead({ due, first }: { due: string; first: boolean }) {
   // The day this moment belongs to, by the hour a day starts at in Hours.
   const today = dayOf(new Date(), hoursIfOpen()?.day.getState().start ?? 0)
+  // The templates of the recurring items: a section of its own, under every day.
+  if (due === FOREVER) {
+    return (
+      <div className="due-head is-first">
+        <h2><span aria-hidden="true">↻</span> Recurring</h2>
+      </div>
+    )
+  }
   return (
     <div className={first ? 'due-head is-first' : 'due-head'}>
       {first && <h2><LineIcon icon="boomerang" /> Boomerang</h2>}

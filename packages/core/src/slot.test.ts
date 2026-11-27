@@ -6,7 +6,7 @@ import { toOutline, toOutlineHtml } from './paste'
 
 const row = (id: string, slot: string | null, done = false): NodeRow => ({
   id, parentId: null, rank: id, text: id, done, doneAt: null, doing: false, collapsed: false, numbered: false, header: false, divider: false, pad: false,
-  slot, category: null, pinned: false, countHidden: false, due: null, fresh: false, updatedAt: '2026-11-24T00:00:00.000Z', deletedAt: null,
+  slot, category: null, pinned: false, countHidden: false, due: null, fresh: false, repeat: null, origin: null, updatedAt: '2026-11-24T00:00:00.000Z', deletedAt: null,
 })
 const table = (...rs: NodeRow[]): Rows => Object.fromEntries(rs.map((r) => [r.id, r]))
 

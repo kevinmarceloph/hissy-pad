@@ -1,6 +1,6 @@
 -- pgTAP: RLS and last-write-wins on public.nodes. Run with `supabase test db`.
 begin;
-select plan(41);
+select plan(45);
 
 -- Two users, created directly (no GoTrue in a db test).
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data)
@@ -137,6 +137,13 @@ select is((select fresh from public.nodes where id = 'aaaaaaaa-0000-0000-0000-00
 update public.nodes set due = '2026-12-01', fresh = true, updated_at = '2026-11-25T02:00:00Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
 select is((select due from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), '2026-12-01', 'due round-trips');
 select is((select fresh from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), true, 'fresh round-trips');
+
+-- repeat and origin (recurring items): a template's rule, and the template an instance came from.
+select is((select repeat from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), null, 'repeat defaults to null');
+select is((select origin from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), null, 'origin defaults to null');
+update public.nodes set repeat = '{"mode":"every","n":1,"unit":"w"}', origin = 'aaaaaaaa-0000-0000-0000-000000000002', updated_at = '2026-11-27T02:00:00Z' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select is((select repeat from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), '{"mode":"every","n":1,"unit":"w"}', 'repeat round-trips');
+select is((select origin from public.nodes where id = 'aaaaaaaa-0000-0000-0000-000000000001'), 'aaaaaaaa-0000-0000-0000-000000000002', 'origin round-trips');
 
 select * from finish();
 rollback;
