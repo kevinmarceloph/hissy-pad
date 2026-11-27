@@ -55,6 +55,10 @@ Since 2026-11-25 a line can be sent out of the pads until a later day (the float
 
 Since 2026-11-27 Today's top-level lines with an hour sit under its own lines, below a "Scheduled" heading, always in the order of their hours (`settleSchedule` in `core/schedule.ts`, run by `commit` and `settleFixed` like `settleBoomerangs`). It is kept by rank, not by the drawing. A new line in the section takes the hour of the line above it, so an op that adds a line "at the end" of a pad has to mean the end of its own lines (`lastOwn` in the store). Details in `PLAN.md` under "Today's Scheduled section".
 
+## Category views
+
+Since 2026-11-27 the row of pads has a Category dropdown that opens a category in place of the pad: its lines from every pad, in groups by pad, with the lines over and under them whatever their category (`catId` in the store, `scopeCategory` and `unscopeCategory` in `core/category.ts`). It is a view like an open hour: the pad's editor draws it and every pad command works in it. A line in it can have siblings the view leaves out, so anything new that acts on "everything under a line" from `rows` has to mean the table's (archiving does: `unscopeCategory`). Rows show no category icon there, only the colored bullet. `categoryShown()` says whether it is on screen as itself (not under a zoom or an open hour); check it wherever `slotId` is checked for "this is not a pad as itself". Details in `PLAN.md` under "Category views".
+
 ## Section dividers
 
 Since 2026-11-27 a line can be a section divider (`divider` on the row, the fourth type in `LINE_KINDS`): a rule with its text centered and gray. It never has lines under it and is never done or counted. `setKind` kicks the sub items out; `moveNodes`, `indent`, `resolveDrop` and `insertOutline` refuse to put a line under one, so a new op that gives a line a parent has to go through `moveNodes` or check `divider` itself. The watch does not know it yet. Details in `PLAN.md` under "Section dividers".

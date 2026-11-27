@@ -39,7 +39,7 @@ export interface LineAbilities {
 // change (an hour lists them as the pads have them), so up, down, top and bottom are off for them.
 // Pinned lines move only among the pins, and the others only under them (core's pins.ts).
 export function lineAbilities(
-  rows: Rows, ids: readonly string[], hour: boolean = usePad.getState().slotId !== null, zoomed: boolean = usePad.getState().zoomId !== null,
+  rows: Rows, ids: readonly string[], hour: boolean = usePad.getState().slotId !== null, zoomed: boolean = usePad.getState().zoomId !== null || usePad.getState().catId !== null,
   paste: boolean = useClipboard.getState().hasText,
 ): LineAbilities {
   const index = buildIndex(rows)

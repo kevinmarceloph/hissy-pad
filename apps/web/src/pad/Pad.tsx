@@ -1,12 +1,12 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, homeNumbers, listNumbers, pinDivider, scheduleHead, slotShown } from '@hissypad/core'
-import { clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
+import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, homeNumbers, listNumbers, pinDivider, scheduleHead, scopeCategory, slotShown } from '@hissypad/core'
+import { categoryShown, clearSelection, edit, redo, selectAll, stepSelection, undo, usePad, visibleIds } from '@hissypad/state'
 import {
   todayShown, cmdAddAtTop, cmdAppendAtEnd, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove,
   cmdPasteAfterSelection, cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
 } from '@hissypad/state'
 import { Row } from './Row'
-import { DueHead, ScheduledHead } from './Boomerangs'
+import { CategoryHead, DueHead, ScheduledHead } from './Boomerangs'
 import { useDrag } from './useDrag'
 import { forceSync } from '@hissypad/state'
 import { MOD } from '../platform/os'
@@ -21,7 +21,13 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
   const rows = usePad((s) => s.rows)
   // In an hour the lines are lifted out of their lists: their numbers are the ones they have at home.
   // (The table as the hour reads it: its archived lines alive, so they keep their numbers too.)
-  const home = usePad((s) => (s.slotId !== null ? slotShown(s.all, s.slotId).table : null))
+  // The same in a category's view, where the lines over a line may have siblings left out.
+  const home = usePad((s) => (s.slotId !== null ? slotShown(s.all, s.slotId).table : categoryShown(s) !== null ? s.all : null))
+  // A category's view: the first line of each pad's group, where the pad's name is drawn.
+  const catHeads = usePad((s) => {
+    const cat = categoryShown(s)
+    return cat === null ? null : scopeCategory(s.all, cat).heads
+  })
   const editing = usePad((s) => s.editing)
   const selection = usePad((s) => s.selection)
 
@@ -220,10 +226,10 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
   }, [])
 
   // The rule under the pinned lines, in a pad as itself (not in a card or an open hour).
-  const pinEnd = useMemo(() => (embedded ? null : pinDivider(displayed, rows)), [embedded, displayed, rows])
+  const pinEnd = useMemo(() => (embedded || catHeads ? null : pinDivider(displayed, rows)), [embedded, catHeads, displayed, rows])
 
   // In Later: a heading before each day's group of lines out on a boomerang.
-  const heads = useMemo(() => (embedded ? new Map<string, string>() : dueHeads(displayed, rows)), [embedded, displayed, rows])
+  const heads = useMemo(() => (embedded || catHeads ? new Map<string, string>() : dueHeads(displayed, rows)), [embedded, catHeads, displayed, rows])
   const firstHead = heads.keys().next().value
   // In Today: a heading before the lines with an hour, which sit under the pad's own.
   const isToday = usePad(todayShown)
@@ -238,6 +244,7 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
           <Fragment key={id}>
           {heads.has(id) && <DueHead due={heads.get(id)!} first={id === firstHead} />}
           {id === scheduled && <ScheduledHead />}
+          {catHeads?.has(id) && <CategoryHead padId={catHeads.get(id)!} />}
           {id === NEW_ROW ? (
             <div className="new-row" style={{ '--depth': depth } as React.CSSProperties} aria-hidden="true">+</div>
           ) : (
@@ -265,7 +272,8 @@ export function Pad({ embedded = false, undo: ownUndo = true }: { embedded?: boo
           {drag.count > 1 ? `${drag.count} lines` : drag.label}
         </div>
       )}
-      {lone && !embedded && (
+      {catHeads && visible.length === 0 && <p className="hint">Nothing in this category yet. A line typed here goes in it; so does one given it from the toolbar's Category….</p>}
+      {lone && !embedded && !catHeads && (
         <p className="hint">
           Type anything. <kbd>Enter</kbd> for a new line, <kbd>Tab</kbd> to nest, <kbd>Esc</kbd> to select a line,
           {' '}<kbd>{MOD}</kbd>+<kbd>Enter</kbd> to cross it out, <kbd>{MOD}</kbd>+<kbd>Shift</kbd>+<kbd>7</kbd> to number it. Paste an outline and it keeps its shape.

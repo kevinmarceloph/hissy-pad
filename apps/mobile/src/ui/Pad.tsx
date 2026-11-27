@@ -7,8 +7,8 @@ import { menu } from './Menu'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
-import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, flatten, listNumbers, pinDivider, scheduleHead, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, paintSelect, refresh, resumeEditing, select, setSortMode, stopEditing, todayShown, usePad, visibleIds } from '@hissypad/state'
+import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, flatten, homeNumbers, listNumbers, pinDivider, scheduleHead, scopeCategory, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
+import { apply, categoryShown, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, paintSelect, refresh, resumeEditing, select, setSortMode, stopEditing, todayShown, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme, SHEET_TOP } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -19,7 +19,7 @@ import { ArchiveView } from './Archive'
 import { SortView } from './Sort'
 import { SubRows } from './SubRows'
 import { BoomerangPicker, CategoriesApp, CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
-import { DueHead, ScheduledHead } from './Boomerangs'
+import { CategoryHead, DueHead, ScheduledHead } from './Boomerangs'
 import {
   cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotFinder, setSlotPickerOpener, targetCategory, targetSlot, targetsHaveCategory, useCategoryChoices,
 } from '@hissypad/state/hours'
@@ -79,6 +79,13 @@ export function Pad() {
   const zoomed = usePad((s) => s.zoomId !== null)
   // An hour is open in Hours: `rows` is that hour's lines, drawn there by SubRows.
   const hourOpen = usePad((s) => s.slotId !== null)
+  // A category's view: the first line of each pad's group, where the pad's name is drawn.
+  const catHeads = usePad((s) => {
+    const cat = categoryShown(s)
+    return cat === null ? null : scopeCategory(s.all, cat).heads
+  })
+  // There the lines over a line may have siblings left out: a numbered line's number is the one it has in its pad.
+  const home = usePad((s) => (categoryShown(s) !== null ? s.all : null))
   const load = usePad((s) => s.load)
   const session = usePad((s) => s.session)
   const padId = usePad((s) => s.padId)
@@ -145,8 +152,8 @@ export function Pad() {
     const ids = visibleIds({ ...usePad.getState(), rows })
     const depth = new Map<string, number>()
     for (const r of flatten(index, true)) depth.set(r.id, r.depth)
-    return { index, visible: ids.map((id) => ({ id, depth: depth.get(id) ?? 0 })), numbers: listNumbers(index) }
-  }, [rows])
+    return { index, visible: ids.map((id) => ({ id, depth: depth.get(id) ?? 0 })), numbers: home ? homeNumbers(home) : listNumbers(index) }
+  }, [rows, home])
   const selectedSet = useMemo(() => new Set(selection), [selection])
   // Descendants of a selected line come along with it, so they get a fainter wash.
   const selectedChildSet = useMemo(() => {
@@ -170,9 +177,9 @@ export function Pad() {
     return [...anchors.slice(0, t.gapIndex).map((v) => ({ ...v, preview: false })), ...placed, ...anchors.slice(t.gapIndex).map((v) => ({ ...v, preview: false }))]
   }, [visible, drag])
   // The rule under the pinned lines: in a pad as itself, not in an open hour.
-  const pinEnd = useMemo(() => (hourOpen ? null : pinDivider(displayed, rows)), [hourOpen, displayed, rows])
+  const pinEnd = useMemo(() => (hourOpen || catHeads ? null : pinDivider(displayed, rows)), [hourOpen, catHeads, displayed, rows])
   // In Later: a heading before each day's group of lines out on a boomerang.
-  const heads = useMemo(() => (hourOpen ? new Map<string, string>() : dueHeads(displayed, rows)), [hourOpen, displayed, rows])
+  const heads = useMemo(() => (hourOpen || catHeads ? new Map<string, string>() : dueHeads(displayed, rows)), [hourOpen, catHeads, displayed, rows])
   const firstHead = heads.keys().next().value
   // In Today: a heading before the lines with an hour, which sit under the pad's own.
   const isToday = usePad(todayShown)
@@ -669,6 +676,7 @@ export function Pad() {
               <Fragment key={id}>
               {heads.has(id) && <DueHead due={heads.get(id)!} first={id === firstHead} theme={theme} />}
               {id === scheduled && <ScheduledHead theme={theme} />}
+              {catHeads?.has(id) && <CategoryHead padId={catHeads.get(id)!} theme={theme} />}
               {id === NEW_ROW ? (
                 <View style={[s.newRow, { marginLeft: depth * INDENT, backgroundColor: theme.accentSoft }]}>
                   <Text style={[s.newBullet, { color: theme.accent }]}>+</Text>

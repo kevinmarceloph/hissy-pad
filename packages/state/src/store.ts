@@ -7,7 +7,7 @@ import { create } from 'zustand'
 import type { Session } from '@supabase/supabase-js'
 import {
   buildIndex, changedRows, childrenOf, createClock, createMemoryStore, fixedPadOf, inheritPadCategory, isPadNode, isTodayPad, scheduledKey, settleBoomerangs, settleFixedPads, settlePins, settleSchedule,
-  insertAt, insertOutline, isLive, newUuid, normalizeRow, parseOutline, parseSlot, sameRow, scopeNode, scopePad, scopeSlot, unscopeRow, unscopeSlot,
+  insertAt, insertOutline, isLive, newUuid, normalizeRow, parseOutline, parseSlot, sameRow, scopeCategory, scopeNode, scopePad, scopeSlot, unscopeCategory, unscopeRow, unscopeSlot,
   type LocalStore, type NodeRow, type OpCtx, type PadId, type Rows, type SyncStatus,
 } from '@hissypad/core'
 import { log, rowBrief } from './log'
@@ -40,6 +40,7 @@ export interface PadState {
   padId: PadId              // null = the main pad
   zoomId: string | null     // a line shown as a pad of its own: `rows` is what is under it (the new item's card)
   slotId: string | null     // an hour shown as a pad of its own: `rows` is the lines put in it and what is under them (scopeSlot)
+  catId: string | null      // a category shown in place of the pad: `rows` is its lines from every pad, with what is over and under them (scopeCategory)
   load: LoadState
   storageError: string | null
   editing: Editing | null
@@ -63,15 +64,20 @@ export const SORT_PAD_KEY = 'sort.pad' // which pad Sort had open: its own, apar
 // pad shown belongs to, and so which meta key openPad remembers it under.
 let sortMode = false
 let otherPad: PadId | undefined // the pad of the side not shown; undefined: none chosen yet
+let otherCat: string | null = null // the category view the Pads tab had while Sort is shown
 let sortPadMeta: PadId | undefined // Sort's pad as loaded from meta, until Sort is first opened
 export const inSortMode = () => sortMode
 export function setSortMode(on: boolean) {
   if (on === sortMode || get().load !== 'ready') return
   const was = get().padId
   const want = on ? (otherPad !== undefined ? otherPad : sortPadMeta) : otherPad
+  // A category view is the Pads tab's: Sort has pads only, and the view is back after it.
+  const cat = on ? null : otherCat
+  otherCat = on ? get().catId : null
   sortMode = on
   otherPad = was
   if (want !== undefined && want !== was && !openPad(want)) openPad(was)
+  if (get().catId !== cat) set({ catId: cat, rows: view(get().all, get().padId, get().zoomId, get().slotId, cat), editing: null, selection: [], anchorId: null, focusId: null })
 }
 
 export const clock = createClock()
@@ -99,6 +105,7 @@ export const usePad = create<PadState>(() => ({
   padId: null,
   zoomId: null,
   slotId: null,
+  catId: null,
   load: 'loading',
   storageError: null,
   editing: null,
@@ -117,10 +124,17 @@ const set = usePad.setState
 
 // What `rows` holds: the pad shown, or, while zoomed, the lines under the zoomed one, or,
 // while an hour is open, that hour's lines. One of the three at a time: a zoom and an open
-// hour each end the other.
-function view(all: Rows, padId: PadId, zoomId: string | null = get().zoomId, slotId: string | null = get().slotId): Rows {
+// hour each end the other. A category view stands where the pad does: a zoom or an open
+// hour is shown over it, and it is there again when they end.
+function view(all: Rows, padId: PadId, zoomId: string | null = get().zoomId, slotId: string | null = get().slotId, catId: string | null = get().catId): Rows {
   if (slotId !== null) return scopeSlot(all, slotId).rows
-  return zoomId !== null && isLive(all[zoomId]) ? scopeNode(all, zoomId) : padView(all, padId)
+  if (zoomId !== null && isLive(all[zoomId])) return scopeNode(all, zoomId)
+  return catId !== null ? scopeCategory(all, catId).rows : padView(all, padId)
+}
+
+// The category whose view is on screen as itself (not a line zoomed into, not an open hour).
+export function categoryShown(s: Pick<PadState, 'catId' | 'zoomId' | 'slotId'> = get()): string | null {
+  return s.zoomId === null && s.slotId === null ? s.catId : null
 }
 
 // A pad as the store shows it. Later's holds the lines that are out on a boomerang too,
@@ -157,8 +171,9 @@ export function breakCoalesce() {
   lastCoalesce = null
 }
 export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { label?: string; coalesce?: string } = {}): Rows {
-  const { rows, all, padId, zoomId, slotId } = get()
-  const root = zoomId !== null && isLive(all[zoomId]) ? zoomId : padId
+  const { rows, all, padId, zoomId, slotId, catId } = get()
+  const zoomed = zoomId !== null && isLive(all[zoomId])
+  const root = zoomed ? zoomId : padId
   const next = fn(rows, ctx)
   const label = opts.label ?? 'op'
   if (next === rows) {
@@ -166,9 +181,12 @@ export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { label?: stri
     return rows
   }
   // An hour's lines go back to the pads they came from; a pad's or a zoom's to their one root.
+  // A category's go back to their pads too, and a new one takes the category.
   const changed = slotId !== null
     ? unscopeSlot(all, slotId, scopeSlot(all, slotId), changedRows(rows, next), padId)
-    : changedRows(rows, next).map((r) => unscopeRow(r, root))
+    : catId !== null && !zoomed
+      ? unscopeCategory(all, catId, scopeCategory(all, catId), changedRows(rows, next), padId)
+      : changedRows(rows, next).map((r) => unscopeRow(r, root))
   for (const id in rows) if (!(id in next)) changed.push(tombstone(all[id]!))
   // An hour's view can leave nothing to write (a move among its lines: it keeps no order).
   if (changed.length === 0) return rows
@@ -314,6 +332,7 @@ async function loadPadOnce() {
     sortPadMeta = sortPad === null || sortPad === undefined ? undefined : sortPad === '' ? null : sortPad
     sortMode = false
     otherPad = undefined
+    otherCat = null
     set({ all: state, rows: padView(state, padId), padId, load: 'ready' })
     settleFixed()
     adoptLegacyCounts()
@@ -386,9 +405,18 @@ export function openPad(padId: PadId): boolean {
   const { all } = get()
   if (padId !== null && !isPadNode(all[padId])) return false
   log('pad:open', { padId: padId?.slice(0, 8) ?? 'main' })
-  set({ padId, zoomId: null, slotId: null, rows: padView(all, padId), editing: null, selection: [], anchorId: null, focusId: null })
+  set({ padId, zoomId: null, slotId: null, catId: null, rows: padView(all, padId), editing: null, selection: [], anchorId: null, focusId: null })
   void local.setMeta(sortMode ? SORT_PAD_KEY : PAD_KEY, padId ?? '').catch(() => {})
   return true
+}
+
+// Show a category in place of the pad: its lines from every pad, in groups by pad, with the
+// lines over and under them (scopeCategory in core). The pad's own commands then edit them.
+// Opening any pad ends it. Editing and selection belong to what was shown, so they clear.
+export function openCategory(catId: string) {
+  const { all, padId } = get()
+  log('category:open', { catId: catId.slice(0, 8) })
+  set({ catId, zoomId: null, slotId: null, rows: view(all, padId, null, null, catId), editing: null, selection: [], anchorId: null, focusId: null })
 }
 
 // Show the lines under one line as if it were a pad (null: back to the pad). Editing and
@@ -433,8 +461,8 @@ export function setAll(all: Rows, extra: Partial<PadState> = {}) {
 
 // Whether the pad on screen is Today as itself (not a line zoomed into, not an open hour):
 // the view that has the Scheduled section.
-export function todayShown(s: Pick<PadState, 'all' | 'padId' | 'zoomId' | 'slotId'> = get()): boolean {
-  return s.zoomId === null && s.slotId === null && isTodayPad(s.all, s.padId)
+export function todayShown(s: Pick<PadState, 'all' | 'padId' | 'zoomId' | 'slotId' | 'catId'> = get()): boolean {
+  return s.zoomId === null && s.slotId === null && s.catId === null && isTodayPad(s.all, s.padId)
 }
 
 // The last of the shown pad's own top-level lines: in Later, above the lines that are out

@@ -2,7 +2,8 @@
 // lines and in groups by the day they come back (core/boomerang.ts keeps the groups). This
 // is the heading drawn before the first row of each group; the first one also carries the
 // section's name.
-import { dueLabel } from '@hissypad/core'
+import { dueLabel, type PadId } from '@hissypad/core'
+import { openPad, padName, usePad } from '@hissypad/state'
 import { dayOf } from '@hissypad/core/hours'
 import { hoursIfOpen } from '@hissypad/state/hours'
 import { LineIcon } from '../app/icons'
@@ -13,6 +14,17 @@ export function ScheduledHead() {
   return (
     <div className="due-head is-first">
       <h2><LineIcon icon="hour" /> Scheduled</h2>
+    </div>
+  )
+}
+
+// In a category's view: the pad a group of lines is from, before the first of them. A
+// press opens that pad.
+export function CategoryHead({ padId }: { padId: PadId }) {
+  const name = usePad((s) => padName(s.all, padId))
+  return (
+    <div className="due-head cat-head">
+      <h3><button type="button" title={`Open ${name}`} onClick={() => openPad(padId)}>{name}</button></h3>
     </div>
   )
 }

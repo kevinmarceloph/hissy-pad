@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { listPads, shape } from '@hissypad/core'
+import { idOf, listPads, setCategory, shape } from '@hissypad/core'
 import { App } from '../app/App'
-import { initPrefs, resetStore, usePad } from '@hissypad/state'
+import { applyAll, initPrefs, resetStore, usePad } from '@hissypad/state'
+import { adoptLineCategories } from '@hissypad/state/hours'
 
 async function mount(outline?: string) {
   resetStore(outline)
@@ -266,5 +267,33 @@ describe('pads', () => {
     expect(screen.getByText(/“trip” is a pad now/)).toBeInTheDocument()
     await user.click(tab('trip'))
     expect(texts()).toBe('flights\nhotel')
+  })
+})
+
+describe('a category view', () => {
+  beforeEach(() => {
+    initPrefs({ get: () => null, set: () => {} })
+    Element.prototype.scrollIntoView = () => {}
+  })
+
+  it('opens from the dropdown beside the tabs: the category\'s lines by pad, with no icons, and a tab ends it', async () => {
+    const user = userEvent.setup()
+    await mount('a\n  a1\n  a2\nb')
+    const work = { id: 'c-work', label: 'Work', icon: '💻', color: 'cobalt' as const, position: 0, archived: false, updatedAt: 1 }
+    act(() => {
+      adoptLineCategories([work])
+      applyAll((all, ctx) => setCategory(all, ctx, [idOf(all, 'a1')], work.id))
+    })
+    expect(rowByText('💻a1')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Open a category' }))
+    await user.click(within(screen.getByRole('menu', { name: 'Categories' })).getByRole('menuitem', { name: /Work/ }))
+    expect(texts()).toBe('a\n  a1')
+    expect(document.querySelector('.cat-head')!.textContent).toBe('Inbox')
+    expect(document.querySelector('.row .category')).toBeNull()
+    expect(rowByText('a1')).toHaveClass('cat-cobalt')
+    expect(screen.getAllByRole('tab').every((t) => t.getAttribute('aria-selected') === 'false')).toBe(true)
+    await user.click(tab('Inbox'))
+    expect(texts()).toBe('a\n  a1\n  a2\nb')
+    expect(tab('Inbox')).toHaveAttribute('aria-selected', 'true')
   })
 })

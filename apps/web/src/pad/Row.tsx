@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react'
 import type { NodeRow } from '@hissypad/core'
-import { clickSelect, edit, select, selectWithSibling, usePad, usePadCategoryOf, type Editing } from '@hissypad/state'
+import { categoryShown, clickSelect, edit, select, selectWithSibling, usePad, usePadCategoryOf, type Editing } from '@hissypad/state'
 import {
   cmdBackspaceAtStart, cmdDedent, cmdDeleteSelection, cmdEditNeighbor, cmdEnter, cmdIndent, cmdMove, cmdPasteInto, cmdSetText,
   cmdToggleCollapsed, cmdToggleDone, cmdToggleNumbered,
@@ -186,7 +186,9 @@ export function Row({ row, depth, childCount, foldCount, editing, selected, sele
   const archived = usePad((s) => s.slotId !== null && scopeSlot(s.all, s.slotId).archived.has(row.id))
   // In its category's own pad a line shows no icon, only the bullet in the category's color.
   const padCategory = usePadCategoryOf(row.id)
-  const badge = category && row.category !== padCategory
+  // Nor in a category's view, its own or another's: there the colors alone show what is mixed.
+  const inCategory = usePad((s) => categoryShown(s) !== null)
+  const badge = category && row.category !== padCategory && !inCategory
   const hasChildren = childCount > 0
   const folded = row.collapsed && hasChildren
   const cls = ['row', row.done && 'is-done', row.doing && 'is-doing', row.pinned && 'is-pinned', row.text === '' && 'is-empty', number !== null && 'is-numbered', row.header && number === null && 'is-header', row.divider && number === null && 'is-divider', dragging && 'is-dragging', preview && 'is-preview', selected && 'is-selected', selectedChild && 'is-selected-child', isEditing && 'is-editing', folded && 'is-collapsed', category && 'has-category', category && `cat-${category.color}`, archived && 'is-archived']

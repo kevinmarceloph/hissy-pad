@@ -42,7 +42,7 @@ export async function refreshClipboard() {
   if (probe === p) useClipboard.setState({ hasText: has })
 }
 import { create } from 'zustand'
-import { apply, importOutline, lastOwn, usePad } from './store'
+import { apply, categoryShown, importOutline, lastOwn, usePad } from './store'
 import { dropLastOp } from './history'
 import { edit, neighbor, select, stopEditing, targets, visibleIds } from './selection'
 
@@ -209,9 +209,9 @@ export function cmdMoveToBottom() {
 // `held`: the lines to act on when the targets may be gone by the time it runs (the phone's
 // More sheet can end the edit before an option is tapped).
 export function cmdTogglePin(held?: readonly string[]) {
-  const { zoomId, slotId } = usePad.getState()
+  const { zoomId, slotId, catId } = usePad.getState()
   const ids = held ?? targets()
-  if (ids.length && zoomId === null && slotId === null) apply((rows, ctx) => togglePinned(rows, ctx, ids), { label: 'cmdTogglePin' })
+  if (ids.length && zoomId === null && slotId === null && catId === null) apply((rows, ctx) => togglePinned(rows, ctx, ids), { label: 'cmdTogglePin' })
 }
 
 export function cmdToggleDone() {
@@ -253,7 +253,7 @@ export function cmdDeleteSelection() {
     const out = remove(rows, ctx, selection)
     // Never leave the pad with nothing to type into.
     // (An open hour is left empty: a line made for it would land in Today.)
-    const anyLive = usePad.getState().slotId !== null || Object.values(out).some((r) => r.deletedAt === null)
+    const anyLive = usePad.getState().slotId !== null || categoryShown() !== null || Object.values(out).some((r) => r.deletedAt === null)
     return anyLive ? out : insertAt(out, ctx, { parentId: null, afterId: null }, '').rows
   }, { label: 'cmdDeleteSelection' })
   const left = new Set(visibleIds())
@@ -282,7 +282,7 @@ export function copyPayload(rows: Rows, ids: readonly string[], numbers?: Readon
 
 export function cmdCopySelection(): string {
   const { rows, all, slotId } = usePad.getState()
-  const { text, html } = copyPayload(rows, targets(), slotId !== null ? homeNumbers(all) : undefined)
+  const { text, html } = copyPayload(rows, targets(), slotId !== null || categoryShown() !== null ? homeNumbers(all) : undefined)
   void copyText(text, html)
   if (text.trim() !== '') useClipboard.setState({ hasText: true })
   return text
@@ -381,7 +381,7 @@ export function cmdDeleteDone(): number {
   apply((rows, ctx) => {
     const out = removeDone(rows, ctx)
     // (An open hour is left empty: a line made for it would land in Today.)
-    const anyLive = usePad.getState().slotId !== null || Object.values(out).some((r) => r.deletedAt === null)
+    const anyLive = usePad.getState().slotId !== null || categoryShown() !== null || Object.values(out).some((r) => r.deletedAt === null)
     return anyLive ? out : insertAt(out, ctx, { parentId: null, afterId: null }, '').rows
   }, { label: 'cmdDeleteDone' })
   const after = countLines(Object.values(usePad.getState().rows).filter((r) => r.deletedAt === null))

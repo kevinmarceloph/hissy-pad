@@ -2,8 +2,9 @@
 // lines and in groups by the day they come back (core/boomerang.ts keeps the groups). This
 // is the heading drawn before the first row of each group; the first one also carries the
 // section's name. The same as the web's (apps/web/src/pad/Boomerangs.tsx).
-import { StyleSheet, Text, View } from 'react-native'
-import { dueLabel } from '@hissypad/core'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { dueLabel, type PadId } from '@hissypad/core'
+import { openPad, padName, usePad } from '@hissypad/state'
 import { dayOf } from '@hissypad/core/hours'
 import { hoursIfOpen } from '@hissypad/state/hours'
 import { LineIcon } from './LineIcons'
@@ -19,6 +20,17 @@ export function ScheduledHead({ theme }: { theme: Theme }) {
         <Text accessibilityRole="header" style={[s.title, { color: theme.inkSoft }]}>Scheduled</Text>
       </View>
     </View>
+  )
+}
+
+// In a category's view: the pad a group of lines is from, before the first of them. A
+// press opens that pad. The same as the web's.
+export function CategoryHead({ padId, theme }: { padId: PadId; theme: Theme }) {
+  const name = usePad((st) => padName(st.all, padId))
+  return (
+    <Pressable accessibilityRole="header" accessibilityLabel={name} accessibilityHint="Opens this pad" onPress={() => openPad(padId)} hitSlop={{ top: 6, bottom: 6 }} style={s.wrap}>
+      <Text style={[s.day, { color: theme.inkMute }]}>{name.toUpperCase()}</Text>
+    </Pressable>
   )
 }
 

@@ -2,7 +2,7 @@
 // The data side is core's pads.ts; this file picks targets from the store and lands the
 // selection afterwards.
 import { buildIndex, countLines, FIXED_PADS, findFixedPad, fixedPadOf, isFixedName, type FixedPad, descendantIds, padCounts, padLines, listSubPads, moveToPlace, placeOf, isPlace, MAIN_PLACE, type Place, createPad, setCountHidden, freshStart, lineToPad, padToLine, movePad, topmost, insertAt, isPadNode, listPads, remove, setCategory, setText, type PadId, type Rows, type Sides } from '@hissypad/core'
-import { apply, applyAll, openPad, revealRow, usePad } from './store'
+import { apply, applyAll, categoryShown, openPad, revealRow, usePad } from './store'
 import { edit, stopEditing, targets } from './selection'
 import { log } from './log'
 import { padOf } from './lists'
@@ -103,7 +103,7 @@ export function countOf(ids: Iterable<string>, rows: Rows = usePad.getState().ro
 // deleting the last line). Returns that line's id, or null when the pad has lines.
 export function ensureLine(): string | null {
   // An open hour may be empty: a line made for it would land in Today, in the hour.
-  if (usePad.getState().slotId !== null) return null
+  if (usePad.getState().slotId !== null || usePad.getState().catId !== null) return null
   if (Object.keys(usePad.getState().rows).length > 0) return null
   let id = ''
   apply((rows, ctx) => {
@@ -192,8 +192,8 @@ export function cmdMoveToPad(padId: PadId): number {
 // many lines moved, subtrees included and blank ones not counted; 0 when nothing moved.
 export function cmdMoveTo(place: Place): number {
   const { padId: current, all, rows, slotId } = usePad.getState()
-  // In an open hour the lines come from any pad, the open one included.
-  if (!isPlace(all, place) || (slotId === null && place.subId === null && place.padId === current)) return 0
+  // In an open hour or a category's view the lines come from any pad, the open one included.
+  if (!isPlace(all, place) || (slotId === null && categoryShown() === null && place.subId === null && place.padId === current)) return 0
   const index = buildIndex(rows)
   const ids = topmost(index, targets()).filter((id) => place.subId === null || (id !== place.subId && rows[id]?.parentId !== place.subId))
   if (ids.length === 0) return 0
