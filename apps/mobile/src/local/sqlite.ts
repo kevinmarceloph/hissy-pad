@@ -54,6 +54,16 @@ const toRow = (r: Row): NodeRow => ({
   deletedAt: r.deleted_at,
 })
 
+// The upsert is built from one list of columns, so the placeholders always match it (they
+// fell two short when repeat and origin were added, and every sync failed: 2026-11-27).
+const NODE_COLUMNS = [
+  'id', 'parent_id', 'rank', 'text', 'done', 'done_at', 'collapsed', 'numbered', 'header', 'pad', 'updated_at', 'deleted_at',
+  'slot', 'category', 'doing', 'pinned', 'count_hidden', 'due', 'fresh', 'divider', 'repeat', 'origin',
+] as const
+const UPSERT_NODE =
+  `insert into nodes (${NODE_COLUMNS.join(', ')}) values (${NODE_COLUMNS.map(() => '?').join(', ')}) ` +
+  `on conflict (id) do update set ${NODE_COLUMNS.filter((c) => c !== 'id').map((c) => `${c} = excluded.${c}`).join(', ')}`
+
 export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: HoursBackend } {
   let dbp: Promise<SQLite.SQLiteDatabase> | null = null
   const db = () =>
@@ -139,11 +149,7 @@ export function createSqliteStore(name = 'hissypad.db'): LocalStore & { hours: H
       await oneAtATime(() => d.withTransactionAsync(async () => {
         for (const r of rows) {
           await d.runAsync(
-            `insert into nodes (id, parent_id, rank, text, done, done_at, collapsed, numbered, header, pad, updated_at, deleted_at, slot, category, doing, pinned, count_hidden, due, fresh, divider, repeat, origin)
-             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-             on conflict (id) do update set parent_id = excluded.parent_id, rank = excluded.rank, text = excluded.text,
-               done = excluded.done, done_at = excluded.done_at, collapsed = excluded.collapsed, numbered = excluded.numbered, header = excluded.header,
-               pad = excluded.pad, updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, slot = excluded.slot, category = excluded.category, doing = excluded.doing, pinned = excluded.pinned, count_hidden = excluded.count_hidden, due = excluded.due, fresh = excluded.fresh, divider = excluded.divider, repeat = excluded.repeat, origin = excluded.origin`,
+            UPSERT_NODE,
             r.id, r.parentId, r.rank, r.text, r.done ? 1 : 0, r.doneAt ?? null, r.collapsed ? 1 : 0, r.numbered ? 1 : 0, r.header ? 1 : 0, r.pad ? 1 : 0, r.updatedAt, r.deletedAt, r.slot ?? null, r.category ?? null, r.doing ? 1 : 0, r.pinned ? 1 : 0, r.countHidden ? 1 : 0, r.due ?? null, r.fresh ? 1 : 0, r.divider ? 1 : 0, r.repeat ?? null, r.origin ?? null,
           )
           if (opts.dirty) await d.runAsync('insert or ignore into dirty (id) values (?)', r.id)
