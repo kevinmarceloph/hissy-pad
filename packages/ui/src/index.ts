@@ -6,3 +6,4 @@ export { SlotPicker } from './hours/SlotPicker';
 export { CategoryPicker } from './hours/CategoryPicker';
 export { CategoryBadge } from './hours/CategoryBadge';
 export { BoomerangPicker } from './hours/BoomerangPicker';
+export { HitMark } from './hours/HitMark';

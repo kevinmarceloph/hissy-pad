@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { slotDoneElsewhere, slotKey, slotLeftovers, slotProgress, type TodayPart } from '@hissypad/core';
-import { closePart, closeSlot, cmdAppendAtEnd, openPart, hitKids, hitNote, lineHit, openSlot, usePad, type SearchHit } from '@hissypad/state';
+import { closePart, closeSlot, cmdAppendAtEnd, openPart, hitBulletSaid, hitKids, hitNote, lineHit, openSlot, usePad, type SearchHit } from '@hissypad/state';
 import { cmdFindForSlot, cmdSlotFresh, useLineCategory } from '@hissypad/state/hours';
 
 import { CategoryBadge } from './CategoryBadge';
 
-import { StateMark } from './StateMark';
+import { HitMark } from './HitMark';
 import { Tap } from './Tap';
 import { LINE, serif, SIZE, SMALL, useTheme } from './theme';
 
@@ -165,16 +165,16 @@ function DoneLine({ hit }: { hit: SearchHit }) {
   const category = useLineCategory(hit.category);
   const note = hitNote(hit);
   const kids = hitKids(hit);
-  const said = [hit.parts.map((p) => p.text).join(''), category ? category.label : null, kids ? `${hit.children} under it` : null, note || null].filter(Boolean).join(', ');
+  const said = [hit.parts.map((p) => p.text).join(''), hitBulletSaid({ ...hit, done: false, doing: false }) || null, category ? category.label : null, kids ? `${hit.children} under it` : null, note || null].filter(Boolean).join(', ');
   return (
     <View role="listitem" aria-label={said} style={styles.line}>
       <View aria-hidden style={styles.bullet}>
-        <StateMark state="done" color={theme.inkQuiet} />
+        <HitMark hit={hit} color={theme.inkQuiet} doneColor={theme.inkQuiet} accent={theme.accent} />
       </View>
       <View aria-hidden style={styles.words}>
         <View style={styles.first}>
           {category && <CategoryBadge category={category} size={20} style={styles.badge} />}
-          <Text style={[styles.text, styles.struck, { color: theme.inkQuiet, textDecorationColor: theme.accent }]}>{hit.parts.map((p) => p.text).join('')}</Text>
+          <Text style={[styles.text, styles.struck, hit.kind === 'header' && { fontWeight: '700' }, { color: theme.inkQuiet, textDecorationColor: theme.accent }]}>{hit.parts.map((p) => p.text).join('')}</Text>
           {kids !== '' && <Text style={[styles.small, styles.kids, { color: theme.inkSoft }]}>{kids}</Text>}
         </View>
         {note !== '' && (

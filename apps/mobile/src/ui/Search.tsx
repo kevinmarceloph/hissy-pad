@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { parseSlot, slotLabel, todayKey } from '@hissypad/core'
 import { cmdOpenHit, hitKids, hitNote, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
 import { cmdSlotPut, inSlot, useLineCategory } from '@hissypad/state/hours'
-import { CategoryBadge } from '@hissypad/ui'
+import { CategoryBadge, HitMark } from '@hissypad/ui'
 import { serif, type Theme, SHEET_TOP } from '../theme'
 
 // `onOpen` runs when a line found is gone to: the app comes back to the pad from Hours or Sort.
@@ -93,8 +93,11 @@ export function SearchSheet({ visible, onClose, onOpen, onArchived, assign = nul
                   style={({ pressed }) => [s.hit, { borderTopColor: theme.rule }, pressed && { backgroundColor: theme.accentSoft }]}
                 >
                   <View style={s.line}>
+                    <View style={s.mark}>
+                      <HitMark hit={h} color={theme.inkSoft} doneColor={theme.inkMute} accent={theme.accent} />
+                    </View>
                     <HitCategory id={h.category} />
-                    <Text numberOfLines={2} style={[s.txt, s.grow, { color: h.done ? theme.inkMute : h.archived ? theme.inkSoft : theme.ink }, h.archived && { fontStyle: 'italic' }, h.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
+                    <Text numberOfLines={2} style={[s.txt, s.grow, h.kind === 'header' && !h.isPad && { fontWeight: '700' },{ color: h.done ? theme.inkMute : h.archived ? theme.inkSoft : theme.ink }, h.archived && { fontStyle: 'italic' }, h.done && { textDecorationLine: 'line-through', textDecorationColor: theme.accent }]}>
                     {h.parts.map((p, k) => (p.hit ? <Text key={k} style={{ color: theme.accent, fontWeight: '600' }}>{p.text}</Text> : p.text))}
                   </Text>
                     {hitKids(h) !== '' && <Text style={[s.kids, { color: theme.inkSoft }]}>{hitKids(h)}</Text>}
@@ -135,6 +138,9 @@ const s = StyleSheet.create({
   pad: { fontFamily: serif, fontSize: 12, letterSpacing: 1, marginTop: 16, marginBottom: 4 },
   hit: { paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth },
   txt: { fontFamily: serif, fontSize: 17, lineHeight: 24 },
-  sub: { fontFamily: serif, fontSize: 13, marginTop: 2 },
+  // Under the text, past the bullet (24 wide, then the line's gap of 8).
+  sub: { fontFamily: serif, fontSize: 13, marginTop: 2, paddingLeft: 32 },
+  // The bullet's box is 20 tall, centered on the first line of 24.
+  mark: { paddingTop: 2 },
   note: { fontFamily: serif, fontStyle: 'italic', fontSize: 14, marginTop: 16 },
 })

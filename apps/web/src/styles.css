@@ -794,8 +794,23 @@ dialog.search .hit .txt, dialog.search .hit .sub { overflow: hidden; white-space
 dialog.search .hit.is-done .txt { color: var(--ink-mute); text-decoration: line-through; text-decoration-color: var(--accent); text-decoration-thickness: 1px; }
 dialog.search .hit .sub { font-size: 0.82rem; color: var(--ink-mute); }
 dialog.search .hit .sub:empty { display: none; }
-/* A hit's first line: its category's mark, its text, then +N for the lines under it. */
+/* A hit's first line: its bullet, its category's mark, its text, then +N for the lines under
+   it. The line under it starts under the text, past the bullet. */
 dialog.search .hit .line { display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; }
+dialog.search .hit .sub { padding-left: 1.6rem; }
+dialog.search .hit.is-header .txt { font-weight: 700; }
+/* The bullet, drawn as the pad draws its own: a dot, a dot in a ring (doing), a cross (done),
+   a "#" for a header, the number for a numbered line, a short rule for a divider. */
+dialog.search .hit-mark { flex: none; align-self: center; position: relative; width: 1.2rem; height: 1.2rem; color: var(--ink-soft); }
+dialog.search .hit-mark.kind-plain::before { content: ''; position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: 0.38rem; height: 0.38rem; border-radius: 50%; background: var(--ink-soft); }
+dialog.search .hit-mark.kind-plain.state-doing::before { outline: 1.5px solid var(--ink-soft); outline-offset: 2.5px; }
+dialog.search .hit-mark.kind-plain.state-done::before { content: '×'; width: auto; height: auto; background: none; border-radius: 0; color: var(--ink-mute); font-size: 1.15em; line-height: 1; translate: -50% -52%; }
+dialog.search .hit-mark:is(.kind-header, .kind-numbered)::before { content: attr(data-label); position: absolute; left: 50%; top: 50%; translate: -50% -52%; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+dialog.search .hit-mark.kind-header::before { font-weight: 700; }
+dialog.search .hit-mark.kind-numbered::before { font-size: 0.9em; }
+dialog.search .hit-mark:is(.kind-header, .kind-numbered).state-doing::before { outline: 1.5px solid var(--ink-soft); outline-offset: 1px; border-radius: 999px; padding: 0 0.2rem; }
+dialog.search .hit-mark:is(.kind-header, .kind-numbered).state-done::before { color: var(--ink-mute); text-decoration: line-through; text-decoration-color: var(--accent); }
+dialog.search .hit-mark.kind-divider::before { content: ''; position: absolute; left: 15%; right: 15%; top: 50%; height: 1px; background: var(--ink-mute); }
 dialog.search .hit .line .txt { min-width: 0; }
 dialog.search .hit .line .cat-mark { flex: none; align-self: center; }
 dialog.search .hit .kids { flex: none; font-size: 0.82rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }

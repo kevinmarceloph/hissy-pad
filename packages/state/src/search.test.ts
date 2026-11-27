@@ -6,7 +6,7 @@ import { undo } from './history'
 import { select } from './selection'
 import { cmdDeleteSelection, cmdToggleDone } from './commands'
 import { cmdDeletePad, cmdMoveToPad, cmdNewPad } from './pads'
-import { cmdOpenHit, foldText, hitKids, hitNote, lineHit, search, searchCount, searchParts, searchTerms } from './search'
+import { cmdOpenHit, foldText, hitBullet, hitBulletSaid, hitKids, hitNote, lineHit, search, searchCount, searchParts, searchTerms } from './search'
 
 const all = () => usePad.getState().all
 const id = (t: string) => idOf(all(), t)
@@ -69,11 +69,28 @@ describe('search', () => {
     expect([hitKids(one('cebu')), hitNote(one('cebu'))]).toEqual(['+2', ''])
     expect(hitKids(one('airline'))).toBe('')
     applyAll((rows, ctx) => setKind(rows, ctx, [id('Trip to Cebu')], 'header'))
-    expect(hitNote(one('cebu'))).toBe('Header')
+    // The kind is the bullet's, not a word under the line.
+    expect(hitNote(one('cebu'))).toBe('')
+    expect(hitBullet(one('cebu'))).toEqual({ kind: 'header', state: 'open', label: '#' })
     expect([hitKids(one('flights')), hitNote(one('flights'))]).toEqual(['+1', 'Trip to Cebu'])
-    // A pad says how many lines it holds.
+    // A pad says how many lines it holds, and has no bullet.
     const pad = search(all(), 'work').groups.find((g) => g.padId === work)!.hits[0]!
     expect([hitKids(pad), hitNote(pad)]).toEqual(['+2', 'Pad'])
+    expect(hitBullet(pad)).toBeNull()
+  })
+
+  it('draws a hit\'s bullet as its pad does: its state, a "#", or its number in the run', () => {
+    const one = (q: string) => search(all(), q).groups.flatMap((g) => g.hits)[0]!
+    expect(hitBullet(one('airline'))).toEqual({ kind: 'plain', state: 'open', label: null })
+    applyAll((rows, ctx) => setKind(rows, ctx, [id('Book flights'), id('Café list')], 'numbered'))
+    expect(hitBullet(one('list'))).toMatchObject({ kind: 'numbered', label: '2.' })
+    expect(hitBullet(lineHit(all(), id('Café list'))!)).toMatchObject({ label: '2.' })
+    expect(hitBulletSaid(one('list'))).toBe('number 2')
+    applyAll((rows) => ({ ...rows, [id('Café list')]: { ...rows[id('Café list')]!, done: true } }))
+    expect(hitBullet(one('list'))).toMatchObject({ state: 'done', label: '2.' })
+    expect(hitBulletSaid(one('list'))).toBe('number 2, done')
+    applyAll((rows) => ({ ...rows, [id('Call the airline')]: { ...rows[id('Call the airline')]!, doing: true } }))
+    expect(hitBullet(one('airline'))).toMatchObject({ kind: 'plain', state: 'doing' })
   })
 
   it('carries a line\'s category, and reads any line as a hit that says its pad', () => {

@@ -4,7 +4,7 @@
 // toggle under the field adds the archived lines; going to one opens the Archive at it.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import { parseSlot, slotLabel, todayKey } from '@hissypad/core'
-import { cmdOpenHit, hitKids, hitNote, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
+import { cmdOpenHit, hitBullet, hitBulletSaid, hitKids, hitNote, search, searchCount, usePad, type SearchHit } from '@hissypad/state'
 import { cmdSlotPut, inSlot } from '@hissypad/state/hours'
 import { CatMark } from '../pad/CatMark'
 
@@ -95,11 +95,12 @@ export function SearchPanel({ dialog, onOpen, onArchived, assign = null, onDone 
                     id={`hit-${h.id}`}
                     role="option"
                     aria-selected={i === at}
-                    className={['hit', h.done && 'is-done', h.archived && 'is-archived'].filter(Boolean).join(' ')}
+                    className={['hit', h.done && 'is-done', h.archived && 'is-archived', h.kind === 'header' && !h.isPad && 'is-header'].filter(Boolean).join(' ')}
                     onClick={() => open(h)}
                     onMouseMove={() => { if (i !== at) setActive(i) }}
                   >
                     <span className="line">
+                      <HitMark hit={h} />
                       <CatMark id={h.category} />
                       <span className="txt">
                         {h.parts.map((p, k) => (p.hit ? <mark key={k}>{p.text}</mark> : <span key={k}>{p.text}</span>))}
@@ -118,5 +119,23 @@ export function SearchPanel({ dialog, onOpen, onArchived, assign = null, onDone 
         </p>
       </form>
     </dialog>
+  )
+}
+
+// The hit's bullet, as its pad draws it: a dot, a dot in a ring (doing), a cross (done), a
+// "#" for a header, its number for a numbered line, a short rule for a divider (styles.css).
+// A pad's name has none; its column stays so the words line up.
+function HitMark({ hit }: { hit: SearchHit }) {
+  const b = hitBullet(hit)
+  if (!b) return <span className="hit-mark" aria-hidden="true" />
+  const said = hitBulletSaid(hit)
+  return (
+    <span
+      className={`hit-mark kind-${b.kind} state-${b.state}`}
+      data-label={b.label ?? undefined}
+      role={said ? 'img' : undefined}
+      aria-label={said || undefined}
+      aria-hidden={said ? undefined : true}
+    />
   )
 }
