@@ -3,7 +3,7 @@
 // selection goes afterwards.
 import {
   buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, moveToBottom, moveToTop, remove, removeDone, ungroup, splitOpen,
-  homeNumbers, setCategory, setKind, setText as setTextOp, splitNode, togglePinned, toggleDone, setState, slotDoingHour, slotKey, todayKey, toggleNumbered, type LineState, type NodeRow, toOutline, toOutlineHtml, type NodeKind, type OpCtx, type Placement, type Rows,
+  homeNumbers, setKind, setText as setTextOp, splitNode, togglePinned, toggleDone, setState, slotDoingHour, slotKey, todayKey, toggleNumbered, type LineState, type NodeRow, toOutline, toOutlineHtml, type NodeKind, type OpCtx, type Placement, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
 // dialog fallback; mobile: expo-clipboard). `html` is the same outline as nested lists,
@@ -131,46 +131,6 @@ export function cmdAddAt(placement: Placement): string {
 
 export function cmdSetText(id: string, text: string) {
   apply((rows, ctx) => setTextOp(rows, ctx, id, text), { label: 'cmdSetText', coalesce: `text:${id}` })
-}
-
-// While a line is edited, its field shows its category's icon or code before the text, as
-// "HP fix the drag" (Kevin, 2026-11-27), the way Markdown leaves its marks in the text. The
-// row still keeps the clean text and the category apart: the prefix is put on when the
-// field opens and read back off on every change. So the field and the store count the caret
-// differently: the store's `editing.caret` and every command count in the row's text, and
-// the field adds the prefix's length on the way in (`fieldPrefix`) and takes it off on the
-// way out (`textCaret`). Hours registers what the prefix is (line-categories.ts); '' for a
-// line with no category, or one whose category has not synced yet.
-let fieldPrefixOf: (row: NodeRow) => string = () => ''
-export function setFieldPrefix(fn: (row: NodeRow) => string) {
-  fieldPrefixOf = fn
-}
-export function fieldPrefix(row: NodeRow | undefined): string {
-  return row && !(row.pad && row.parentId === null) ? fieldPrefixOf(row) : ''
-}
-// What a line's field shows.
-export function fieldText(id: string): string {
-  const row = usePad.getState().all[id]
-  return row ? fieldPrefix(row) + row.text : ''
-}
-// A caret in the field as a caret in the row's text: anywhere in the prefix is the start.
-export function textCaret(id: string, offset: number): number {
-  return Math.max(0, offset - fieldPrefix(usePad.getState().all[id]).length)
-}
-
-// The field's whole value after a change. With the prefix still in front, the rest is the
-// text, as typed: an icon after the prefix is part of the text, not another category. With
-// the prefix gone or changed, the line has no category unless what is in front now is a
-// category's (the classifier reads it, as for any line typed). So deleting the prefix takes
-// the category off, and typing over it puts the line in another.
-export function cmdSetFieldText(id: string, value: string) {
-  const row = usePad.getState().all[id]
-  if (!row) return
-  const pre = fieldPrefix(row)
-  const opts = { label: 'cmdSetText', coalesce: `text:${id}` }
-  if (!pre) cmdSetText(id, value)
-  else if (value.startsWith(pre)) apply((rows, ctx) => setTextOp(rows, ctx, id, value.slice(pre.length)), { ...opts, skip: ['emoji'] })
-  else apply((rows, ctx) => setCategory(setTextOp(rows, ctx, id, value), ctx, [id], null), opts)
 }
 
 // Backspace at the start of a node.
@@ -360,20 +320,19 @@ export function cmdPasteInto(id: string, text: string): boolean {
 export function cmdTextChanged(id: string, text: string): string {
   const first = text.indexOf('\n')
   if (first < 0) {
-    cmdSetFieldText(id, text)
-    // What the field shows now, which an emoji or an hour read off the front may have changed.
-    return fieldText(id)
+    cmdSetText(id, text)
+    // The stored text, which an emoji turned into a category may have shortened.
+    return usePad.getState().all[id]?.text ?? text
   }
   const head = text.slice(0, first)
   if (text.indexOf('\n', first + 1) >= 0) {
-    cmdSetFieldText(id, head)
-    if (cmdPasteInto(id, text.slice(first + 1))) return fieldText(id)
+    cmdSetText(id, head)
+    if (cmdPasteInto(id, text.slice(first + 1))) return head
   }
   const flat = head + text.slice(first + 1)
-  cmdSetFieldText(id, flat)
-  const shown = fieldText(id)
-  cmdEnter(id, textCaret(id, first))
-  return shown
+  cmdSetText(id, flat)
+  cmdEnter(id, first)
+  return flat
 }
 
 export function cmdPasteAfterSelection(text: string) {

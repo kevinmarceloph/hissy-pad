@@ -7,7 +7,7 @@ import { resetStore } from '../testing';
 import { loadPad, usePad } from '../store';
 import { edit, resumeEditing, select, stopEditing } from '../selection';
 import { undo } from '../history';
-import { cmdEnter, cmdPasteAfterSelection, cmdSetFieldText, cmdTextChanged, copyPayload, fieldText, textCaret } from '../commands';
+import { cmdPasteAfterSelection, copyPayload } from '../commands';
 import {
   adoptLineCategories, cmdApplyCategory, cmdPickCategory, cmdSetCategory, lineCategories, setCategoryPickerOpener, targetCategory,
 } from './line-categories';
@@ -95,65 +95,5 @@ describe('a line with a category', () => {
     const { category: _gone, ...old } = toWire(row);
     expect(fromWire(old).row.category).toBeNull();
     expect(normalizeRow({ id: 'x' }).category).toBeNull();
-  });
-});
-
-// While a line is edited, its field shows its category's icon or code in front, and reads it
-// back on every change (commands.ts, fieldPrefix).
-describe('the prefix in the field', () => {
-  const HP = { ...SAMPLE_CATEGORIES[1]!, icon: 'HP' };
-  const row = (text: string) => usePad.getState().rows[id(text)]!;
-  beforeEach(async () => {
-    resetStore('fix the drag\nB');
-    await loadPad();
-    adoptLineCategories([WORK, HP]);
-    select([id('fix the drag')]);
-    cmdSetCategory(HP.id);
-  });
-
-  it('shows the icon or code before the text, and none for a line with no category', () => {
-    expect(fieldText(id('fix the drag'))).toBe('HP fix the drag');
-    expect(fieldText(id('B'))).toBe('B');
-  });
-
-  it('typing after the prefix edits the text and keeps the category, an icon there included', () => {
-    const line = id('fix the drag');
-    cmdSetFieldText(line, 'HP fix the drag now');
-    expect(row('fix the drag now')).toMatchObject({ category: HP.id });
-    cmdSetFieldText(line, 'HP 💻 fix the drag now');
-    expect(usePad.getState().rows[line]).toMatchObject({ text: '💻 fix the drag now', category: HP.id });
-  });
-
-  it('deleting the prefix takes the category off, typing another puts the line in that one', () => {
-    const line = id('fix the drag');
-    cmdSetFieldText(line, 'HPfix the drag'); // Backspace into the prefix: no category any more
-    expect(usePad.getState().rows[line]).toMatchObject({ text: 'HPfix the drag', category: null });
-    cmdSetFieldText(line, 'HP fix the drag'); // and the space back reads it again
-    expect(usePad.getState().rows[line]).toMatchObject({ text: 'fix the drag', category: HP.id });
-    cmdSetFieldText(line, '💻 fix the drag');
-    expect(usePad.getState().rows[line]).toMatchObject({ text: 'fix the drag', category: WORK.id });
-    cmdSetFieldText(line, 'fix the drag');
-    expect(usePad.getState().rows[line]!.category).toBeNull();
-    undo();
-    expect(usePad.getState().rows[line]!.category).toBe(HP.id); // the keystrokes were one undo step
-  });
-
-  it('counts the caret in the text: the prefix is the start, and Enter splits where the field says', () => {
-    const line = id('fix the drag');
-    expect(textCaret(line, 7)).toBe(4);
-    expect(textCaret(line, 1)).toBe(0);
-    expect(textCaret(id('B'), 1)).toBe(1);
-    cmdEnter(line, textCaret(line, 'HP fix'.length));
-    expect(row('fix')).toMatchObject({ category: HP.id });
-    expect(usePad.getState().editing).toMatchObject({ caret: 0 });
-    expect(fieldText(usePad.getState().editing!.id)).toBe(' the drag'); // the prefix stays with the first half, as Markdown's would
-  });
-
-  it('the phone reports the whole field: a newline in it splits the text at the same place', () => {
-    const line = id('fix the drag');
-    edit(line, 'end');
-    expect(cmdTextChanged(line, 'HP fix\n the drag')).toBe('HP fix the drag');
-    expect(row('fix').category).toBe(HP.id);
-    expect(fieldText(usePad.getState().editing!.id)).toBe(' the drag'); // the prefix stays with the first half, as Markdown's would
   });
 });

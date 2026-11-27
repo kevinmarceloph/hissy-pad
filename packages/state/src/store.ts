@@ -166,8 +166,7 @@ let lastCoalesce: { key: string; at: number } | null = null
 export function breakCoalesce() {
   lastCoalesce = null
 }
-// `skip` names classifiers (setClassifier's keys) that leave this edit alone.
-export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { label?: string; coalesce?: string; skip?: string[] } = {}): Rows {
+export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { label?: string; coalesce?: string } = {}): Rows {
   const { rows, all, padId, zoomId, slotId, catId } = get()
   const zoomed = zoomId !== null && isLive(all[zoomId])
   const root = zoomed ? zoomId : padId
@@ -189,7 +188,7 @@ export function apply(fn: (rows: Rows, ctx: OpCtx) => Rows, opts: { label?: stri
   if (changed.length === 0) return rows
   const nextAll: Record<string, NodeRow> = { ...all }
   for (const r of changed) nextAll[r.id] = r
-  commit(all, nextAll, label, opts.coalesce, opts.skip)
+  commit(all, nextAll, label, opts.coalesce)
   return get().rows
 }
 
@@ -235,7 +234,7 @@ export function setClassifier(fn: Classifier | null, key = 'emoji') {
   else classifiers.delete(key)
 }
 
-function commit(all: Rows, edited: Rows, label: string, coalesce?: string, skip: string[] = []) {
+function commit(all: Rows, edited: Rows, label: string, coalesce?: string) {
   const { past, padId } = get()
   // Pins stay first in their pad, and only a pad's top-level line stays pinned (pins.ts):
   // a drag or a paste that breaks that is put right in the same step, so one undo takes it back.
@@ -248,7 +247,7 @@ function commit(all: Rows, edited: Rows, label: string, coalesce?: string, skip:
   if (classifiers.size) {
     const typed = changedRows(all, nextAll).filter((r) => r.text !== all[r.id]?.text).map((r) => r.id)
     // Twice, so either one can come first: "3pm 💻 call" and "💻 3pm call" both read.
-    if (typed.length) for (let pass = 0; pass < 2; pass++) for (const [key, fn] of classifiers) if (!skip.includes(key)) nextAll = fn(nextAll, ctx, typed)
+    if (typed.length) for (let pass = 0; pass < 2; pass++) for (const fn of classifiers.values()) nextAll = fn(nextAll, ctx, typed)
   }
   // Lines out on a boomerang stay in their day's group under Later, the same way.
   const dued = changedRows(all, nextAll).filter((r) => r.due || all[r.id]?.due).map((r) => r.id)

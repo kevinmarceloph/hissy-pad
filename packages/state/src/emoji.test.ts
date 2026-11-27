@@ -53,7 +53,7 @@ describe('in the store', () => {
     await new Promise((r) => setTimeout(r, 0))
     const id = idOf(all(), 'plain')
     expect(cmdTextChanged(id, '🛒')).toBe('🛒')
-    expect(cmdTextChanged(id, '🛒 ')).toBe('🛒 ') // the field keeps it in front, the row keeps it as its category
+    expect(cmdTextChanged(id, '🛒 ')).toBe('')
     expect(all()[id]!.category).toBe('cart')
     cmdSetText(id, 'eggs')
     expect(all()[id]!.category).toBe('cart')
