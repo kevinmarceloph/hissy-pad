@@ -136,3 +136,18 @@ export function inlineSpans(text: string): InlineSpan[] {
   }
   return out
 }
+
+// Small caps drawn by hand, for a platform whose font has none to switch on (Charter on
+// iOS): the text in capitals, cut into runs of letters that were already capitals (`small`
+// false, drawn at full size) and the rest (`small` true, drawn a size down). A section
+// divider's words are drawn this way on the phone; the web asks the browser for small caps.
+export function smallCapsRuns(text: string): { text: string; small: boolean }[] {
+  const out: { text: string; small: boolean }[] = []
+  for (const ch of text) {
+    const small = ch !== ch.toUpperCase()
+    const last = out.at(-1)
+    if (last && last.small === small) last.text += ch.toUpperCase()
+    else out.push({ text: ch.toUpperCase(), small })
+  }
+  return out
+}

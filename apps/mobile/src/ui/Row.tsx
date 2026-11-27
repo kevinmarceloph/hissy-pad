@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState, type ComponentRef } from 'react'
 import { Platform, Pressable, StyleSheet, Text, TextInput, View, useColorScheme, type LayoutChangeEvent, type TextInputKeyPressEvent, type TextInputSelectionChangeEvent } from 'react-native'
 import type { NodeRow } from '@hissypad/core'
 import { apply, categoryShown, clickSelect, cmdClearFresh, edit, usePad, usePadCategoryOf, type Editing, cmdBackspaceAtStart, cmdTextChanged, fieldPrefix } from '@hissypad/state'
-import { inlineSpans, scopeSlot, slotLabel, slotPast, todayKey, toggleCollapsed } from '@hissypad/core'
+import { inlineSpans, scopeSlot, smallCapsRuns, slotLabel, slotPast, todayKey, toggleCollapsed } from '@hissypad/core'
 import { cmdSlotUnarchive, useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
 import { PALETTES } from '@hissypad/ui/palette'
@@ -216,7 +216,12 @@ export const Row = memo(function Row({ row, depth, childCount, foldCount, editin
         // A section divider: a rule across the line, its words (if any) centered in it and gray.
         <Pressable style={[s.textWrap, s.divider]} onPress={() => edit(row.id, 'end')} accessibilityLabel={row.text.trim() ? `Divider: ${row.text.trim()}` : 'Divider'}>
           <View style={[s.dividerRule, { backgroundColor: theme.rule }]} />
-          {row.text.trim() !== '' && <Text style={[s.dividerText, { color: theme.inkMute }]}>{row.text.trim()}</Text>}
+          {row.text.trim() !== '' && (
+            // In small caps, cut by hand: Charter on iOS has no small caps to switch on.
+            <Text style={[s.dividerText, { color: theme.inkMute }]}>
+              {smallCapsRuns(row.text.trim()).map((r, i) => (r.small ? <Text key={i} style={s.smallCap}>{r.text}</Text> : r.text))}
+            </Text>
+          )}
           {row.text.trim() !== '' && <View style={[s.dividerRule, { backgroundColor: theme.rule }]} />}
         </Pressable>
       ) : (
@@ -332,7 +337,8 @@ const s = StyleSheet.create({
   fresh: { width: 13, height: 13, borderRadius: 6.5, borderWidth: 2.5, marginTop: (LINE - 13) / 2, marginRight: 7 },
   divider: { flexDirection: 'row', alignItems: 'center' },
   dividerRule: { flexGrow: 1, flexShrink: 1, flexBasis: 16, minWidth: 16, height: StyleSheet.hairlineWidth * 2 },
-  dividerText: { flexShrink: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, textAlign: 'center', paddingHorizontal: 10 },
+  dividerText: { flexShrink: 1, fontFamily: serif, fontSize: SIZE, lineHeight: LINE, textAlign: 'center', paddingHorizontal: 10, letterSpacing: 0.7 },
+  smallCap: { fontSize: Math.round(SIZE * 0.8) },
   slot: { fontSize: SIZE - 5, fontWeight: '400', fontStyle: 'normal', textDecorationLine: 'none' },
   chip: { fontSize: SIZE - 5, fontWeight: '400', textDecorationLine: 'none', fontVariant: ['tabular-nums'] },
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { inlineSpans, URL_RE } from './inline'
+import { inlineSpans, smallCapsRuns, URL_RE } from './inline'
 
 // "b:**x**" style shorthand: each styled span as flags:text, plain spans as the text.
 const show = (text: string) =>
@@ -93,5 +93,14 @@ describe('inline marks', () => {
     expect(show('\\\\*i*')).toEqual(['\\\\', 'i:*i*'])
     expect(show('a\\b *i*')).toEqual(['a\\b ', 'i:*i*'])
     expect(show('\\==x==')).toEqual(['\\==x=='])
+  })
+})
+
+describe('smallCapsRuns', () => {
+  it('cuts the text into capitals kept full size and lower case drawn as small capitals', () => {
+    expect(smallCapsRuns('Part One: 2026')).toEqual([
+      { text: 'P', small: false }, { text: 'ART', small: true }, { text: ' O', small: false }, { text: 'NE', small: true }, { text: ': 2026', small: false },
+    ])
+    expect(smallCapsRuns('')).toEqual([])
   })
 })

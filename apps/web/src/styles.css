@@ -306,7 +306,7 @@ body.is-dragging-rows .row .bullet { cursor: grabbing; }
    selected and dragged. One line tall like any other, so nothing below it shifts. */
 .row.is-divider .bullet::before { background: transparent; }
 .row.is-divider.is-editing .bullet::before { background: var(--rule); }
-.row.is-divider .text { color: var(--ink-mute); text-align: center; }
+.row.is-divider .text { color: var(--ink-mute); text-align: center; font-variant-caps: small-caps; letter-spacing: 0.04em; }
 .row.is-divider div.text { display: flex; align-items: center; }
 .row.is-divider div.text::before, .row.is-divider div.text::after { content: ''; flex: 1 1 1rem; min-width: 1rem; height: 1px; background: var(--rule); }
 .row.is-divider .divider-label { flex: 0 1 auto; padding: 0 0.6rem; min-width: 0; }
