@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { categoryCounts, dedent, findFixedPad, idOf, insertAfter, insertAt, insertAtTop, moveNodes, remove, scopeCategory, setCategory, setText, shape } from '@hissypad/core'
+import { categoryCounts, NO_CATEGORY, dedent, findFixedPad, idOf, insertAfter, insertAt, insertAtTop, moveNodes, remove, scopeCategory, setCategory, setText, shape } from '@hissypad/core'
 
 import { resetStore, tableShape } from './testing'
 import { apply, applyAll, categoryShown, closeCategory, lastCategory, loadPad, openCategory, openPad, todayShown, usePad, zoomTo } from './store'
@@ -71,6 +71,10 @@ describe('a category as a view of the store', () => {
     // Open already: left as it is.
     openCategory('cat-home')
     expect(cmdOpenCategories()).toBe('cat-home')
+    // No category is remembered like any other.
+    openCategory(NO_CATEGORY)
+    closeCategory()
+    expect(cmdOpenCategories()).toBe(NO_CATEGORY)
     adoptLineCategories([])
   })
 
@@ -143,6 +147,21 @@ describe('a category as a view of the store', () => {
     expect(view()).toBe('U\nA\n  A1\n    A1x\nW2')
     undo()
     expect(tableShape()).toContain('B\n  B1\n    B11\n  B2\nC')
+  })
+
+  it('shows the lines with no category, with the lines over and under them, as No category', () => {
+    openCategory(NO_CATEGORY)
+    // Everything but U and W2, which are in the category and have no line of the other kind beside them.
+    expect(view()).toBe('T\nA\n  A1\n    A1x\n  A2\nB\n  B1\n    B11\n  B2\nC\nW1')
+    expect(categoryCounts(all()).get(NO_CATEGORY)).toBe(9)
+    // A new line there has no category and stays; one given a category leaves.
+    apply((rows, ctx) => insertAt(rows, ctx, { parentId: null, afterId: id('C') }, 'D').rows)
+    expect(all()[id('D')]).toMatchObject({ parentId: null, category: null })
+    expect(view()).toContain('C\nD\nW1')
+    applyAll((rows, ctx) => setCategory(rows, ctx, [id('C')], W))
+    expect(view()).toContain('B2\nD\nW1')
+    closeCategory()
+    expect(cmdOpenCategories()).toBeNull() // no categories on this device: nothing to open
   })
 
   it('lets a line go once it and its lines are out of the category', () => {

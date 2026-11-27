@@ -3,7 +3,7 @@
 // toolbar's "Category…" runs, and the category list the pad reads to draw the icons.
 import { createStore } from 'zustand/vanilla';
 import { useStore } from 'zustand';
-import { classifyByEmoji, iconMap, setCategory } from '@hissypad/core';
+import { classifyByEmoji, iconMap, NO_CATEGORY, setCategory } from '@hissypad/core';
 import { activeCategories, categoryName, type Category } from '@hissypad/core/hours';
 
 import { applyAll, applyQuiet, getLocalStore, lastCategory, openCategory, setClassifier, usePad } from '../store';
@@ -92,16 +92,16 @@ export function categoryPrefix(id: string | null | undefined): string {
   return c?.icon ? `${c.icon} ` : '';
 }
 
-// On the way into the Categories mode: the category this device had open last, or the first
-// one. Nothing while a category is open already, before the pad has loaded, or with no
+// On the way into the Categories mode: the category this device had open last ("No category"
+// included), or the first one. Nothing while a category is open already, before the pad has loaded, or with no
 // categories yet (the mode then says so). Returns the category shown.
 export function cmdOpenCategories(): string | null {
   const { catId, load } = usePad.getState();
   if (catId !== null || load !== 'ready') return catId;
   const active = activeCategories(lineCategories.getState().list);
-  const want = active.find((c) => c.id === lastCategory()) ?? active[0];
-  if (want) openCategory(want.id);
-  return want?.id ?? null;
+  const want = active.length > 0 && lastCategory() === NO_CATEGORY ? NO_CATEGORY : (active.find((c) => c.id === lastCategory()) ?? active[0])?.id;
+  if (want) openCategory(want);
+  return want ?? null;
 }
 
 // ---- commands --------------------------------------------------------------------------------

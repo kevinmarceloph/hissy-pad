@@ -14,6 +14,12 @@ import { findFixedPad, listPads, type PadId } from './pads'
 import { between, ranksBetween } from './rank'
 import type { SlotHome } from './slot'
 
+// "No category" as a view: the lines that have none, with the lines over and under them
+// (Kevin, 2026-11-27). It is asked for with this in place of a category's id, which is never
+// one: ids are ten letters and digits.
+export const NO_CATEGORY = '-'
+const inCategory = (r: NodeRow, category: string) => (category === NO_CATEGORY ? r.category === null : r.category === category)
+
 export interface CategoryView {
   rows: Rows
   // Where each top-level line of the view really is: its pad (as parentId) and its rank there.
@@ -45,16 +51,17 @@ function held(all: Rows, index: TreeIndex, category: string): Set<string> {
   for (const id in all) {
     const r = all[id]!
     // A pad's own row carries the pad's category, not a line's.
-    if (!isLive(r) || r.category !== category || (r.pad && r.parentId === null)) continue
+    if (!isLive(r) || !inCategory(r, category) || (r.pad && r.parentId === null)) continue
     keep.add(id)
     let up = index.parentOf.get(id) ?? null
-    for (let n = 0; up !== null && n < 64; n++) {
+    // Up to its pad's row, which is not a line.
+    for (let n = 0; up !== null && n < 64 && !(all[up]!.pad && all[up]!.parentId === null); n++) {
       keep.add(up)
       up = index.parentOf.get(up) ?? null
     }
   }
   // Everything under a line of the category, once the lines over them are in.
-  for (const id of [...keep]) if (all[id]!.category === category) under(id)
+  for (const id of [...keep]) if (inCategory(all[id]!, category)) under(id)
   return keep
 }
 
@@ -105,13 +112,15 @@ export function scopeCategory(all: Rows, category: string): CategoryView {
 }
 
 // How many lines each category has, for the list that offers the views: the category's
-// own lines only, blank ones and pads' rows left out.
+// own lines only, blank ones and pads' rows left out. The lines with none are counted
+// under NO_CATEGORY.
 export function categoryCounts(all: Rows): Map<string, number> {
   const out = new Map<string, number>()
   for (const id in all) {
     const r = all[id]!
-    if (!isLive(r) || r.category === null || (r.pad && r.parentId === null) || r.text.trim() === '') continue
-    out.set(r.category, (out.get(r.category) ?? 0) + 1)
+    if (!isLive(r) || (r.pad && r.parentId === null) || r.text.trim() === '') continue
+    const key = r.category ?? NO_CATEGORY
+    out.set(key, (out.get(key) ?? 0) + 1)
   }
   return out
 }
@@ -125,7 +134,7 @@ export function categoryCounts(all: Rows): Map<string, number> {
 //     group goes before the line below it instead, and so does anything with no line
 //     above it. In an empty view a new line goes to the top of `fallbackPad`.
 //   - a new line that the view would not hold (not under a line of the category) takes the
-//     category, so it stays where it was typed.
+//     category, so it stays where it was typed. In "No category" a new line has none, and stays.
 //   - archiving a line archives the lines under it that the view left out, too.
 // Anything else is stored as the op left it. A row that ends up as the table has it is left out.
 export function unscopeCategory(all: Rows, category: string, view: CategoryView, changed: readonly NodeRow[], fallbackPad: PadId = null): NodeRow[] {
@@ -188,7 +197,7 @@ export function unscopeCategory(all: Rows, category: string, view: CategoryView,
   const covered = (r: NodeRow) => {
     let up: NodeRow | undefined = r
     for (let n = 0; up && n < 64; n++) {
-      if (up.category === category) return true
+      if (inCategory(up, category)) return true
       up = up.parentId ? after[up.parentId] : undefined
     }
     return false

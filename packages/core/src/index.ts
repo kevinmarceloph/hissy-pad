@@ -59,7 +59,7 @@ export {
   classifyByEmoji,
 } from './ops'
 export { slotKey, parseSlot, slotRuns, slotOfHours, slotHours, slotCovers, slotCounts, slotDoneExtra, slotDoneElsewhere, slotLines, slotTops, slotProgress, slotLeftovers, slotShown, lineOrder, scopeSlot, unscopeSlot, slotLabel, slotPast, todayKey, MAX_SLOT_HOURS, type SlotCount, type SlotHome, type SlotView } from './slot'
-export { scopeCategory, unscopeCategory, categoryCounts, type CategoryView } from './category'
+export { scopeCategory, unscopeCategory, categoryCounts, NO_CATEGORY, type CategoryView } from './category'
 export {
   type PadId,
   type Side,

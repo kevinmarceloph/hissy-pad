@@ -6,7 +6,7 @@
 import { useEffect, useMemo } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { askText, menu } from './Menu'
-import { categoryCounts, type FixedPad, type PadId } from '@hissypad/core'
+import { categoryCounts, NO_CATEGORY, type FixedPad, type PadId } from '@hissypad/core'
 import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCategory, cmdSetPadCount, openCategory, openPad, openSubPad, subName, padList, padTopLines, placeList, usePad, type PadItem } from '@hissypad/state'
 import { categoryPrefix, cmdOpenCategories, lineCategories, useCategoryChoices, useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
@@ -130,43 +130,47 @@ export function PadChips({ theme }: { theme: Theme }) {
   )
 }
 
-// The Categories mode's row of chips, where the Pad mode has its pads: one per category,
-// with its mark and how many lines are in it. The open one's lines, from every pad, are the
-// pad drawn under it (the store's catId, scopeCategory in core). The same as the web's CategoryTabs.
+// The Categories mode's dropdown, centered where the Pad mode has its pads: the open
+// category (its mark, its name, how many lines are in it), and a tap lists them all, with
+// "No category" last: the lines that have none. The open one's lines, from every pad, are
+// the pad drawn under it (the store's catId, scopeCategory in core). The same as the web's CategoryTabs.
 export function CategoryChips({ theme }: { theme: Theme }) {
   const all = usePad((st) => st.all)
   const catId = usePad((st) => st.catId)
   const load = usePad((st) => st.load)
   const categories = useCategoryChoices()
+  const shown = useLineCategory(catId)
   const counts = useMemo(() => categoryCounts(all), [all])
   // The categories can arrive after the mode is open (they load with Hours' store).
   useEffect(() => {
     if (catId === null && load === 'ready' && categories.length > 0) cmdOpenCategories()
   }, [catId, load, categories.length])
-  if (categories.length === 0) return null
+  if (categories.length === 0 && catId === null) return null
+  const none = catId === NO_CATEGORY
+  const n = catId === null ? 0 : (counts.get(catId) ?? 0)
+  const withCount = (label: string, id: string) => (counts.get(id) ? `${label}  ${counts.get(id)}` : label)
+  const pick = () =>
+    menu('Category', undefined, [
+      ...categories.map((c) => ({ text: withCount(categoryName(c), c.id), onPress: () => openCategory(c.id) })),
+      { text: withCount('No category', NO_CATEGORY), onPress: () => openCategory(NO_CATEGORY) },
+      { text: 'Cancel', style: 'cancel' as const },
+    ])
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={s.strip} contentContainerStyle={s.inner}>
-      {categories.map((c) => {
-        const on = c.id === catId
-        const n = counts.get(c.id) ?? 0
-        return (
-          <Pressable
-            key={c.id}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={n > 0 ? `${c.label}: ${n} ${n === 1 ? 'line' : 'lines'}` : c.label}
-            onPress={() => openCategory(c.id)}
-            style={[s.chip, s.fixedChip, { borderBottomColor: on ? theme.accent : 'transparent' }]}
-          >
-            <CategoryBadge category={c} size={18} />
-            <Text style={[s.chipText, { color: on ? theme.ink : theme.inkSoft }]} numberOfLines={1}>
-              {subName(c.label)}
-              {n > 0 && <Text style={[s.chipCount, { color: theme.inkMute }]}>{'  '}{n}</Text>}
-            </Text>
-          </Pressable>
-        )
-      })}
-    </ScrollView>
+    <View style={s.pickRow}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Category: ${none ? 'No category' : (shown?.label ?? 'none open')}${n > 0 ? `, ${n} ${n === 1 ? 'line' : 'lines'}` : ''}. Pick another`}
+        onPress={pick}
+        style={[s.chip, s.fixedChip, s.pick]}
+      >
+        {none ? <View style={[s.noneMark, { borderColor: theme.inkMute }]} /> : shown ? <CategoryBadge category={shown} size={18} /> : null}
+        <Text style={[s.chipText, { color: theme.ink, flexShrink: 1 }]} numberOfLines={1}>
+          {none ? 'No category' : shown ? subName(shown.label) : 'Category'}
+          {n > 0 && <Text style={[s.chipCount, { color: theme.inkMute }]}>{'  '}{n}</Text>}
+        </Text>
+        <View style={[s.chevron, { borderColor: theme.inkMute, marginLeft: 6 }]} />
+      </Pressable>
+    </View>
   )
 }
 
@@ -178,6 +182,9 @@ function ChipCategory({ id }: { id: string | null }) {
 
 const s = StyleSheet.create({
   strip: { flexGrow: 0 },
+  pickRow: { flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 12 },
+  pick: { maxWidth: 300, borderBottomWidth: 0 },
+  noneMark: { width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderStyle: 'dashed' },
   inner: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, gap: 2 },
   chip: { minHeight: 36, paddingHorizontal: 10, justifyContent: 'center', borderBottomWidth: 2, maxWidth: 180 },
   tab: { flexDirection: 'row', alignItems: 'stretch' },
