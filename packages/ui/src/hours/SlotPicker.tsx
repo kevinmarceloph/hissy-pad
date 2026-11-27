@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { PanResponder, Platform, StyleSheet, Text, useWindowDimensions, View, type ViewStyle } from 'react-native';
-import { slotCovers, slotHours, slotKey, slotLabel, slotOfHours, slotRuns } from '@hissypad/core';
+import { repeatLink, slotCovers, slotHours, slotHoursLabel, slotKey, slotLabel, slotOfHours, slotRuns } from '@hissypad/core';
 import { dayDate, dayKey, dayOf, daySlots, dayTitle, hourLabel, shiftDay, type Entry } from '@hissypad/core/hours';
 import { usePad } from '@hissypad/state';
 import { hoursIfOpen, openHours, slotPickerLines, type HoursStores } from '@hissypad/state/hours';
@@ -89,7 +89,14 @@ function Picker({ value, count = 1, onPick, onCancel, ids, onOpenTemplate, clock
   const current = slotRuns(value)[0] ?? null;
   // The day on the screen: the one picked here, or the one the lines are in, or today.
   const [picked, setDay] = useState<string | null>(null);
-  const day = picked ?? (current ? (current.hour < start ? shiftDay(current.day, -1) : current.day) : today);
+  // A recurring item's template: the hours picked are for the items made from it, and the
+  // picker opens on the day of the next one.
+  const [template] = useState(() => {
+    const link = lines.length === 1 ? repeatLink(usePad.getState().all, lines[0]!) : null;
+    return link?.role === 'template' ? link.rule : null;
+  });
+  const opens = template && template.next > today ? template.next : today;
+  const day = picked ?? (current ? (current.hour < start ? shiftDay(current.day, -1) : current.day) : opens);
   const slots = useMemo(() => daySlots(day, start), [day, start]);
   // The swipe in progress, as places in the line: where it started and where the finger is.
   const [run, setRun] = useState<{ from: number; to: number } | null>(null);
@@ -232,7 +239,7 @@ function Picker({ value, count = 1, onPick, onCancel, ids, onOpenTemplate, clock
   return (
     <View style={[styles.sheet, { backgroundColor: theme.paper }]}>
       <Text role="heading" aria-level={2} style={[styles.title, { color: theme.ink }]}>
-        {repeating ? 'Repeat this line' : count === 1 ? 'Which hour is this line for?' : `Which hour are these ${count} lines for?`}
+        {repeating ? 'Repeat this line' : template ? 'Which hour are its items for?' : count === 1 ? 'Which hour is this line for?' : `Which hour are these ${count} lines for?`}
       </Text>
       <Text aria-live="polite" style={[styles.small, { color: theme.inkSoft }]}>
         {repeating
@@ -244,8 +251,10 @@ function Picker({ value, count = 1, onPick, onCancel, ids, onOpenTemplate, clock
             : chosen
               ? `Picked ${slotLabel(chosen, today)}. Tap an hour to add it or take it out.`
               : value && current
-                ? `Now in ${slotLabel(value, today)}. Tap the hours, or swipe across several.`
-                : 'Tap the hours, or swipe across several.'}
+                ? `${template ? 'The next one is in' : 'Now in'} ${slotLabel(value, today)}. Tap the hours, or swipe across several.`
+                : template
+                  ? 'Each new one is put in the hours picked, on its day. Tap the hours, or swipe across several.'
+                  : 'Tap the hours, or swipe across several.'}
       </Text>
       {!repeating && (<>
       {/* One line, as on the Hours screen: earlier, the day, the calendar, later. */}
@@ -358,7 +367,7 @@ function Picker({ value, count = 1, onPick, onCancel, ids, onOpenTemplate, clock
           style={[styles.action, styles.confirm, { borderColor: theme.ink, backgroundColor: chosen ? theme.ink : 'transparent' }]}
           activeStyle={{ opacity: 0.85 }}>
           <Text numberOfLines={1} style={[styles.body, { color: chosen ? theme.paper : theme.ink, fontWeight: '700' }]}>
-            {chosen ? `Put in ${slotLabel(chosen, today)}` : 'Pick an hour'}
+            {chosen ? (template ? `Each one at ${slotHoursLabel(chosen)}` : `Put in ${slotLabel(chosen, today)}`) : 'Pick an hour'}
           </Text>
         </Tap>
       </View>

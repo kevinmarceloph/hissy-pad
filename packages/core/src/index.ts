@@ -58,7 +58,7 @@ export {
   iconMap,
   classifyByEmoji,
 } from './ops'
-export { slotKey, slotDoingHour, parseSlot, slotRuns, slotOfHours, slotHours, slotCovers, slotCounts, slotDoneExtra, slotDoneElsewhere, slotLines, slotTops, slotProgress, slotLeftovers, slotShown, lineOrder, scopeSlot, unscopeSlot, slotLabel, slotPast, todayKey, MAX_SLOT_HOURS, type SlotCount, type SlotHome, type SlotView } from './slot'
+export { slotKey, slotDoingHour, parseSlot, slotRuns, slotOfHours, slotHours, slotCovers, slotCounts, slotDoneExtra, slotDoneElsewhere, slotLines, slotTops, slotProgress, slotLeftovers, slotShown, lineOrder, scopeSlot, unscopeSlot, slotLabel, slotHoursLabel, slotPast, todayKey, MAX_SLOT_HOURS, type SlotCount, type SlotHome, type SlotView } from './slot'
 export { scopeCategory, unscopeCategory, categoryCounts, categoryTails, NO_CATEGORY, type CategoryView } from './category'
 export {
   type PadId,

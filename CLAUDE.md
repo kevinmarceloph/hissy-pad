@@ -59,7 +59,7 @@ Since 2026-11-27 a line can be made a recurring item from the hour picker's Repe
 
 - The template is a row under Later with `repeat` (the rule, JSON: read and write it through `parseRepeat` and `formatRepeat`, never by hand) and `due` set to `FOREVER` ('9999-12-31'). It is a boomerang that never comes back, so `isBoomeranged` is true for it and whatever skips `due` skips it. Anything that reads `due` as a real day has to leave `FOREVER` out (`targetDue`, the delivery's timer and `dueLabel` do).
 - An instance has `origin`, the template's id. Whether a row is a template or a live instance of one is `repeatLink`; an `origin` whose template is gone or has stopped means nothing.
-- `settleRepeats` runs before `settleBoomerangs` in `commit` and `settleFixed`: a template anywhere but the top level of Later loses its rule. The template is in no hour: its instances' hours are in the rule (`cmdSetSlot` and `targetSlot` know).
+- `settleRepeats` runs before `settleBoomerangs` in `commit` and `settleFixed`: a template anywhere but the top level of Later loses its rule. The template is in no hour: its instances' hours are in the rule (`cmdSetSlot`, `targetSlot` and `cmdApplySlot`'s words know; the picker opens on the next one's day and words itself for a template; `slotHoursLabel` says the hours with no day).
 - The delivery (`deliverRepeats`, run by `deliverBoomerangs` through `applyQuiet`) must write the same rows on every device: ids from `derivedId(templateRowId, day)`, stamps from the moment the day started, nothing made twice. Keep all three if it changes. Instances land at the top of Today.
 - The watch does not know `repeat` or `origin`.
 

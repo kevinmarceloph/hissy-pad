@@ -300,3 +300,22 @@ describe('settleRepeats', () => {
     expect([back[t]!.repeat, back[t]!.due]).toEqual([null, null])
   })
 })
+
+describe('a template\'s hours', () => {
+  it('are said after the day of the next one, and given to each new instance on its day', () => {
+    const { rows: base, ctx, id, t } = made('A', weekly)
+    const rows = setRepeatSlot(base, ctx, t, '2026-12-01T09+2,2026-12-01T15', TODAY, 0)
+    expect(repeatNote(rows, t, TODAY, 0)).toBe('Every week, next Tue, Dec 8 at 9am-11am, 3pm')
+    const out = deliverRepeats(done(rows, ctx, id, '2026-12-02T03:00:00.000Z'), ctx, '2026-12-08', 0)
+    expect(out[derivedId(t, '2026-12-08')]!.slot).toBe('2026-12-08T09+2,2026-12-08T15')
+    // The one after, a week on, by the same rule.
+    const next = deliverRepeats(done(out, ctx, derivedId(t, '2026-12-08'), '2026-12-09T03:00:00.000Z'), ctx, '2026-12-15', 0)
+    expect(next[derivedId(t, '2026-12-15')]!.slot).toBe('2026-12-15T09+2,2026-12-15T15')
+  })
+
+  it('are said without a day while the next one waits on the last', () => {
+    const { rows: base, ctx, t } = made('A', { mode: 'after', n: 2, unit: 'd', keep: 'reuse' })
+    const rows = setRepeatSlot(base, ctx, t, '2026-12-01T07', TODAY, 0)
+    expect(repeatNote(rows, t, TODAY, 0)).toBe('2 days after it is done, at 7am')
+  })
+})

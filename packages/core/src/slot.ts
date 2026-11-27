@@ -545,6 +545,14 @@ function hourWord(hour: number): string {
 // to the hour it ends at. `today` (a day key) turns its own day into "Today", and the days
 // on either side into "Yesterday" and "Tomorrow" (Kevin, 2026-11-27). Hours apart
 // read "Today 9am, 2pm-5pm": the day once, and a semicolon before another day.
+// The hours of a slot with no day: "9am", "9am-11am, 3pm". A recurring item's template says
+// its instances' hours this way (repeat.ts).
+export function slotHoursLabel(slot: string | null | undefined): string {
+  return slotRuns(slot)
+    .map((p) => (p.hours > 1 ? `${hourWord(p.hour)}-${hourWord((p.hour + p.hours) % 24)}` : hourWord(p.hour)))
+    .join(', ')
+}
+
 export function slotLabel(slot: string, today?: string): string {
   const days: { day: string; hours: string[] }[] = []
   for (const p of slotRuns(slot)) {

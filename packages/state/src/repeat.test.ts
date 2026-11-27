@@ -116,3 +116,21 @@ describe('recurring items', () => {
     cmdPickBoomerang([t])
   })
 })
+
+describe('a template\'s hours', () => {
+  it('are set from the hour picker, said back in words about its items, and shown on its row', () => {
+    const t = cmdMakeRepeat(id('A'), weekly, NOW)
+    setSlotPickerOpener(() => {})
+    cmdPickSlot([t])
+    expect(cmdApplySlot('2020-01-01T09+2')).toBe('Its items go in 9am-11am of their day.')
+    expect(all()[t]!.slot).toBeNull()
+    expect(parseRepeat(all()[t]!.repeat)!.slot).toBe('2020-01-01T09+2')
+    expect(repeatMark(all(), t, NOW)).toBe('↻ Every week, next Tue, Dec 8 at 9am-11am')
+    cmdPickSlot([t])
+    expect(cmdApplySlot(null)).toBe('Its items come with no hour.')
+    expect(repeatMark(all(), t, NOW)).toBe('↻ Every week, next Tue, Dec 8')
+    // An ordinary line is still said the old way.
+    cmdPickSlot([id('B')])
+    expect(cmdApplySlot(null)).toBe('Took 1 line out of its hour.')
+  })
+})

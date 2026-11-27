@@ -1,7 +1,7 @@
 // Lines of the pad inside an hour. A line carries the slot it is assigned to (core/slot.ts);
 // these are the commands the pad's toolbar and the Hours screen run on it. They go through
 // the pad's own store, so each one is an undo step and syncs like any other edit.
-import { fixedPadOf, insertAt, isLive, isTemplate, parseRepeat, repeatSlot, restore, setRepeatSlot, setSlot, slotByPrefix, slotCovers, slotKey, slotLabel, slotLeftovers, slotLines, todayKey, type NodeRow } from '@hissypad/core';
+import { slotHoursLabel, fixedPadOf, insertAt, isLive, isTemplate, parseRepeat, repeatSlot, restore, setRepeatSlot, setSlot, slotByPrefix, slotCovers, slotKey, slotLabel, slotLeftovers, slotLines, todayKey, type NodeRow } from '@hissypad/core';
 import { DAY_START_DEFAULT, dayOf } from '@hissypad/core/hours';
 
 import { applyAll, setClassifier, usePad } from '../store';
@@ -36,8 +36,14 @@ export function cmdSetSlot(slot: string | null, ids: readonly string[] = targets
 // The slot the targets share, null when they have none or differ: what the picker opens on.
 export function targetSlot(ids: readonly string[] = targets()): string | null {
   const { all } = usePad.getState();
-  // A template's are the hours its next instance goes in.
-  const slots = new Set(ids.map((id) => (isTemplate(all[id]) ? repeatSlot(parseRepeat(all[id]!.repeat)!) : all[id]?.slot ?? null)));
+  // A template's are the hours its next instance goes in (on today, for one whose next day
+  // waits on the last being done).
+  const today = dayOf(new Date(), hoursIfOpen()?.day.getState().start ?? DAY_START_DEFAULT);
+  const ofTemplate = (id: string) => {
+    const rule = parseRepeat(all[id]!.repeat)!;
+    return repeatSlot(rule, rule.next > today ? rule.next : today);
+  };
+  const slots = new Set(ids.map((id) => (isTemplate(all[id]) ? ofTemplate(id) : all[id]?.slot ?? null)));
   return slots.size === 1 ? [...slots][0]! : null;
 }
 
@@ -143,8 +149,12 @@ export function cmdPickSlot(ids: readonly string[] = targets()) {
 
 // What the picker's answer does, with the line the app shows afterwards.
 export function cmdApplySlot(slot: string | null): string {
-  const n = cmdSetSlot(slot, picked.length ? picked : targets());
+  const ids = picked.length ? picked : targets();
+  // A recurring item's template is put in no hour: the hours are for the items made from it.
+  const templates = ids.length > 0 && ids.every((id) => isTemplate(usePad.getState().all[id]));
+  const n = cmdSetSlot(slot, ids);
   picked = [];
+  if (templates) return slot === null ? 'Its items come with no hour.' : `Its items go in ${slotHoursLabel(slot)} of their day.`;
   const lines = `${n} ${n === 1 ? 'line' : 'lines'}`;
   return slot === null ? `Took ${lines} out of ${n === 1 ? 'its' : 'their'} hour.` : `Put ${lines} in ${slotLabel(slot, todayKey())}.`;
 }

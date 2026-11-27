@@ -75,3 +75,21 @@ describe('the hour picker\'s Repeat section', () => {
     expect(all()[t]!.due).toBeNull();
   });
 });
+
+describe('the hour picker on a template', () => {
+  it('opens on the day of the next one and asks which hour its items are for', async () => {
+    const line = id('water the plants');
+    const first = await render(<SlotPicker value={null} ids={[line]} onPick={() => {}} onCancel={() => {}} clock={clock} />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Repeat: Does not repeat' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Repeat: every week' }));
+    first.unmount();
+    const onPick = vi.fn();
+    await render(<SlotPicker value={null} ids={[template().id]} onPick={onPick} onCancel={() => {}} clock={clock} />);
+    expect(screen.getByText('Which hour are its items for?')).toBeTruthy();
+    expect(screen.getByText(/Each new one is put in the hours picked, on its day/)).toBeTruthy();
+    // A week on from Tuesday 2026-12-01.
+    await fireEvent.press(screen.getByRole('checkbox', { name: '9am' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Each one at 9am' }));
+    expect(onPick).toHaveBeenCalledWith('2026-12-08T09');
+  });
+});

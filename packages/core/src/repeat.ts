@@ -20,7 +20,7 @@ import type { NodeRow, OpCtx, Rows } from './types'
 import { buildIndex, childrenOf, descendantIds, isLive } from './tree'
 import { insertAt, lastPinned, moveNodes, remove } from './ops'
 import { createPad, findFixedPad } from './pads'
-import { slotHours, slotKey, slotOfHours, slotRuns, parseSlot } from './slot'
+import { slotHours, slotHoursLabel, slotKey, slotOfHours, slotRuns, parseSlot } from './slot'
 import { dayStartAt, dueLabel, FOREVER } from './boomerang'
 import { settleSchedule } from './schedule'
 import { dayOf, shiftDay } from './hours/day'
@@ -456,13 +456,15 @@ function spawn(all: Rows, t: NodeRow, rule: Repeat, day: string, start: number):
   return next
 }
 
-// "Every 2 weeks, next Fri, Dec 11" for a template's row and the picker.
+// "Every 2 weeks, next Fri, Dec 11 at 9am" for a template's row and the picker: the rule, the
+// day of the next instance, and the hours its instances are put in, if it has any.
 export function repeatNote(all: Rows, templateId: string, today: string, start: number): string {
   const t = all[templateId]
   const rule = isTemplate(t) ? parseRepeat(t!.repeat) : null
   if (!rule) return ''
   const day = rule.mode === 'every' ? rule.next : afterDay(all, t!, rule, start)
-  if (!day) return repeatLabel(rule)
+  const hours = slotHoursLabel(rule.slot)
+  if (!day) return hours ? `${repeatLabel(rule)}, at ${hours}` : repeatLabel(rule)
   const label = day <= today ? 'today' : dueLabel(day, today)
-  return `${repeatLabel(rule)}, next ${label === 'Tomorrow' ? 'tomorrow' : label}`
+  return `${repeatLabel(rule)}, next ${label === 'Tomorrow' ? 'tomorrow' : label}${hours ? ` at ${hours}` : ''}`
 }
