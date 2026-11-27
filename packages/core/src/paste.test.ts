@@ -108,6 +108,8 @@ describe('toOutline', () => {
     const done = { ...rows, [a1]: { ...rows[a1]!, done: true } }
     expect(toOutline(done, [idOf(rows, 'A'), a1])).toBe('- A\n  - A1 (done)\n    - A1a\n  - A2')
     expect(toOutline(done, [a1], { bullet: '', indent: '\t', done: ' x' })).toBe('A1 x\n\tA1a')
+    // A prefix goes after the marker, before the text.
+    expect(toOutline(rows, [a1], { prefix: (r) => (r.text === 'A1a' ? '💻 ' : '') })).toBe('- A1\n  - 💻 A1a')
   })
 })
 

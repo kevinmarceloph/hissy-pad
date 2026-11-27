@@ -3,7 +3,7 @@
 // selection goes afterwards.
 import {
   buildIndex, childrenOf, countLines, setCollapsed, dedent, indent, insertAfter, insertAt, insertAtTop, insertBefore, mergeIntoPrev, moveSibling, moveToBottom, moveToTop, remove, removeDone, ungroup, splitOpen,
-  setKind, setText as setTextOp, splitNode, togglePinned, toggleDone, setState, toggleNumbered, type LineState, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
+  setKind, setText as setTextOp, splitNode, togglePinned, toggleDone, setState, toggleNumbered, type LineState, type NodeRow, toOutline, toOutlineHtml, type NodeKind, type Placement, type Rows,
 } from '@hissypad/core'
 // The platform registers how text reaches the clipboard (web: navigator.clipboard with a
 // dialog fallback; mobile: expo-clipboard). `html` is the same outline as nested lists,
@@ -264,10 +264,18 @@ export function cmdDeleteSelection() {
 // Copy as outline: "- " bullets and two-space indents in the plain-text half (so a text
 // box shows dashes), nested <ul>/<ol> in the HTML half (so a rich-text box shows real
 // bullets). A lone line copies as bare text, like copying from a text field.
+// A line with a category copies with the category's emoji in front of its text, so a paste
+// back in puts it in that category again (Kevin, 2026-11-27). Set by the categories module
+// (hours/line-categories.ts), which knows the icons.
+let copyPrefix: (row: NodeRow) => string = () => ''
+export function setCopyPrefix(fn: (row: NodeRow) => string) {
+  copyPrefix = fn
+}
+
 export function copyPayload(rows: Rows, ids: readonly string[]): { text: string; html?: string } {
-  const text = toOutline(rows, ids, { done: '' })
-  if (!text.includes('\n')) return { text: toOutline(rows, ids, { bullet: '', done: '' }) }
-  return { text, html: toOutlineHtml(rows, ids) }
+  const text = toOutline(rows, ids, { done: '', prefix: copyPrefix })
+  if (!text.includes('\n')) return { text: toOutline(rows, ids, { bullet: '', done: '', prefix: copyPrefix }) }
+  return { text, html: toOutlineHtml(rows, ids, copyPrefix) }
 }
 
 export function cmdCopySelection(): string {

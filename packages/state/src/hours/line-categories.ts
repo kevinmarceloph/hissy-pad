@@ -8,6 +8,7 @@ import { activeCategories, categoryName, type Category } from '@hissypad/core/ho
 
 import { applyAll, applyQuiet, getLocalStore, setClassifier, usePad } from '../store';
 import { holdEditing, targets } from '../selection';
+import { setCopyPrefix } from '../commands';
 
 // ---- the list the pad draws from ----------------------------------------------------------
 
@@ -25,6 +26,16 @@ export function adoptLineCategories(list: Category[]) {
 
 let icons = new Map<string, string>();
 setClassifier((all, ctx, ids) => classifyByEmoji(all, ctx, ids, icons));
+
+// And the other way: a copied line carries its category's emoji in front of its text, so
+// pasting it back puts it in that category again. A category with no icon adds nothing,
+// and neither does a line whose text already starts with the emoji.
+setCopyPrefix((row) => {
+  const icon = row.category ? lineCategories.getState().byId[row.category]?.icon : undefined;
+  if (!icon) return '';
+  const bare = (t: string) => t.replace(/\uFE0F/g, '');
+  return bare(row.text).startsWith(bare(icon) + ' ') ? '' : `${icon} `;
+});
 
 // Once per device, the lines already in the table that start with a category's emoji go in
 // that category too (Kevin, 2026-11-27). It waits for the pad to load and for at least one

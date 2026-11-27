@@ -134,6 +134,7 @@ export interface OutlineFormat {
   bullet?: string // prefix per line, default '- '
   indent?: string // per depth, default two spaces
   done?: string   // suffix for done nodes, default ' (done)'
+  prefix?: (row: NodeRow) => string // put in front of a line's text, after its marker (a category's emoji)
 }
 
 // Plain-text outline of the given nodes (topmost only, with their subtrees), relative to
@@ -143,16 +144,17 @@ export function toOutline(rows: Rows, ids: Iterable<string>, fmt: OutlineFormat 
   const bullet = fmt.bullet ?? '- '
   const indent = fmt.indent ?? '  '
   const doneMark = fmt.done ?? ' (done)'
+  const pre = fmt.prefix ?? (() => '')
   const index = buildIndex(rows)
   const numbers = listNumbers(index)
   const mark = (id: string) => (numbers.has(id) ? `${numbers.get(id)}. ` : rows[id]!.header ? '# ' : bullet)
   const lines: string[] = []
   for (const top of topmost(index, ids)) {
     const self = rows[top]!
-    lines.push(mark(top) + self.text + (self.done ? doneMark : ''))
+    lines.push(mark(top) + pre(self) + self.text + (self.done ? doneMark : ''))
     for (const r of flatten(index, false, top)) {
       const row = rows[r.id]!
-      lines.push(indent.repeat(r.depth + 1) + mark(r.id) + row.text + (row.done ? doneMark : ''))
+      lines.push(indent.repeat(r.depth + 1) + mark(r.id) + pre(row) + row.text + (row.done ? doneMark : ''))
     }
   }
   return lines.join('\n')
@@ -166,11 +168,11 @@ function escapeHtml(s: string): string {
 // processor or chat box pastes it as real bullets. Runs of numbered siblings become <ol>,
 // everything else <ul>; headers are bold, done lines struck through. Single-line, no
 // styling, so it pastes the same everywhere.
-export function toOutlineHtml(rows: Rows, ids: Iterable<string>): string {
+export function toOutlineHtml(rows: Rows, ids: Iterable<string>, prefix: (row: NodeRow) => string = () => ''): string {
   const index = buildIndex(rows)
   const tops = topmost(index, ids).map((id) => rows[id]!)
   const item = (row: NodeRow): string => {
-    const text = escapeHtml(row.text)
+    const text = escapeHtml(prefix(row) + row.text)
     const body = row.header ? `<b>${text}</b>` : row.done ? `<s>${text}</s>` : text
     return `<li>${body}${lists(childrenOf(index, row.id))}</li>`
   }

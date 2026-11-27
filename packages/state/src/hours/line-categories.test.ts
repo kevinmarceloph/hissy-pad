@@ -7,6 +7,7 @@ import { resetStore } from '../testing';
 import { loadPad, usePad } from '../store';
 import { edit, resumeEditing, select, stopEditing } from '../selection';
 import { undo } from '../history';
+import { cmdPasteAfterSelection, copyPayload } from '../commands';
 import {
   adoptLineCategories, cmdApplyCategory, cmdPickCategory, cmdSetCategory, lineCategories, setCategoryPickerOpener, targetCategory,
 } from './line-categories';
@@ -40,6 +41,22 @@ describe('a line with a category', () => {
     resumeEditing();
     expect(usePad.getState().editing).toBeNull();
     setCategoryPickerOpener(null);
+  });
+
+  it('copies a line with its category as the emoji in front of its text', () => {
+    select([id('A'), id('B')]);
+    cmdSetCategory(WORK.id);
+    select([id('C')]);
+    cmdSetCategory(BODY.id); // no icon: nothing in front
+    const all = usePad.getState().rows;
+    expect(copyPayload(all, [id('A')])).toEqual({ text: '💻 A' });
+    const many = copyPayload(all, [id('A'), id('B'), id('C')]);
+    expect(many.text).toBe('- 💻 A\n- 💻 B\n- C');
+    expect(many.html).toContain('<li>💻 A</li>');
+    // Pasted back in, the emoji puts the copy in the category again and leaves the text.
+    select([id('C')]);
+    cmdPasteAfterSelection('- 💻 D\n- E');
+    expect([cat('D'), cat('E')]).toEqual([WORK.id, null]);
   });
 
   it('gives the selected lines a category, reads it back, and undoes in one step', () => {
