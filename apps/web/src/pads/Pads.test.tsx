@@ -276,7 +276,7 @@ describe('a category view', () => {
     Element.prototype.scrollIntoView = () => {}
   })
 
-  it('opens from the dropdown beside the tabs: the category\'s lines by pad, with no icons, and a tab ends it', async () => {
+  it('is a mode between Pad and Sort: the category\'s lines by pad, with no icons; a pad\'s heading goes back to the Pad', async () => {
     const user = userEvent.setup()
     await mount('a\n  a1\n  a2\nb')
     const work = { id: 'c-work', label: 'Work', icon: '💻', color: 'cobalt' as const, position: 0, archived: false, updatedAt: 1 }
@@ -284,16 +284,27 @@ describe('a category view', () => {
       adoptLineCategories([work])
       applyAll((all, ctx) => setCategory(all, ctx, [idOf(all, 'a1')], work.id))
     })
+    const modes = within(screen.getByRole('group', { name: 'Mode' })).getAllByRole('button').map((b) => b.getAttribute('aria-label'))
+    expect(modes).toEqual(['Hours', 'Pad', 'Categories', 'Sort'])
+    await user.click(screen.getByRole('button', { name: 'Pad' }))
     expect(rowByText('💻a1')).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Open a category' }))
-    await user.click(within(screen.getByRole('menu', { name: 'Categories' })).getByRole('menuitem', { name: /Work/ }))
+    await user.click(screen.getByRole('button', { name: 'Categories' }))
+    expect(location.hash).toBe('#categories')
+    expect(within(screen.getByRole('tablist', { name: 'Categories' })).getByRole('tab', { name: /Work/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tablist', { name: 'Pads' })).toBeNull()
     expect(texts()).toBe('a\n  a1')
     expect(document.querySelector('.cat-head')!.textContent).toBe('Inbox')
     expect(document.querySelector('.row .category')).toBeNull()
     expect(rowByText('a1')).toHaveClass('cat-cobalt')
-    expect(screen.getAllByRole('tab').every((t) => t.getAttribute('aria-selected') === 'false')).toBe(true)
-    await user.click(tab('Inbox'))
+    // Sort and back: the category is closed on the way out and opened again on the way in.
+    await user.click(screen.getByRole('button', { name: 'Sort' }))
+    expect(usePad.getState().catId).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Categories' }))
+    expect(texts()).toBe('a\n  a1')
+    await user.click(screen.getByRole('button', { name: 'Inbox' }))
+    expect(location.hash).toBe('#pads')
     expect(texts()).toBe('a\n  a1\n  a2\nb')
     expect(tab('Inbox')).toHaveAttribute('aria-selected', 'true')
+    act(() => adoptLineCategories([]))
   })
 })

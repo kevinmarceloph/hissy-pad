@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { categoryCounts, dedent, findFixedPad, idOf, insertAfter, insertAt, insertAtTop, moveNodes, remove, scopeCategory, setCategory, setText, shape } from '@hissypad/core'
 
 import { resetStore, tableShape } from './testing'
-import { apply, applyAll, categoryShown, loadPad, openCategory, openPad, setSortMode, todayShown, usePad, zoomTo } from './store'
+import { apply, applyAll, categoryShown, closeCategory, lastCategory, loadPad, openCategory, openPad, todayShown, usePad, zoomTo } from './store'
+import { adoptLineCategories, cmdOpenCategories } from './hours/line-categories'
 import { undo } from './history'
 import { cmdNewPad } from './pads'
 
@@ -42,20 +43,35 @@ describe('a category as a view of the store', () => {
     expect(categoryCounts(all()).get(W)).toBe(4)
   })
 
-  it('ends when a pad is opened, and stands behind a zoom and Sort', () => {
+  it('ends when a pad is opened or it is closed, and stands behind a zoom', () => {
     openCategory(W)
     zoomTo(id('A'))
     expect(view()).toBe('A1\n  A1x\nA2')
     expect(categoryShown()).toBeNull()
     zoomTo(null)
     expect(view()).toContain('U\nA\n  A1')
-    setSortMode(true)
+    closeCategory()
     expect(usePad.getState().catId).toBeNull()
-    setSortMode(false)
-    expect(usePad.getState().catId).toBe(W)
+    expect(view()).toContain('A2')
+    openCategory(W)
     openPad(null)
     expect(usePad.getState().catId).toBeNull()
     expect(view()).toContain('A2')
+  })
+
+  it('opens the category it had last on the way into the mode, or the first one', () => {
+    const cat = (id: string, position: number) => ({ id, label: id, icon: id.slice(-1).toUpperCase(), color: 'blue' as const, position, archived: false, updatedAt: 1 })
+    adoptLineCategories([cat('cat-home', 0), cat(W, 1)])
+    openPad(null)
+    expect(cmdOpenCategories()).toBe(lastCategory() === W ? W : 'cat-home')
+    openCategory(W)
+    closeCategory()
+    expect(cmdOpenCategories()).toBe(W)
+    expect(usePad.getState().catId).toBe(W)
+    // Open already: left as it is.
+    openCategory('cat-home')
+    expect(cmdOpenCategories()).toBe('cat-home')
+    adoptLineCategories([])
   })
 
   it('edits a line where it lives', () => {

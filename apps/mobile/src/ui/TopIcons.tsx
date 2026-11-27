@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import type { Theme } from '../theme'
 import { LineIcon } from './LineIcons'
 
-export type Mode = 'pad' | 'hours' | 'sort'
+export type Mode = 'pad' | 'hours' | 'category' | 'sort'
 
 const W = 1.5 // stroke
 
@@ -72,6 +72,7 @@ export function PlusIcon({ color }: { color: string }) {
 const MODES: { mode: Mode; label: string }[] = [
   { mode: 'hours', label: 'Hours: the day, one row per hour' },
   { mode: 'pad', label: 'Pad: the outline' },
+  { mode: 'category', label: "Categories: one category's lines from every pad" },
   { mode: 'sort', label: 'Sort: the open pad, one line at a time' },
 ]
 
@@ -96,7 +97,8 @@ export function ModeBar({ mode, onMode, theme }: { mode: Mode | null; onMode: (m
             style={[i.cell, { backgroundColor: ground, borderColor: on ? theme.rule : 'transparent', borderBottomColor: on ? theme.accent : 'transparent' }]}
           >
             {/* Sort is a line on its way into a tray: the toolbar's Move to… icon. */}
-            {m.mode === 'pad' ? <PadIcon color={color} /> : m.mode === 'hours' ? <HoursIcon color={color} /> : <LineIcon icon="move" color={color} ground={ground} />}
+            {/* Categories is the toolbar's Category… tag. */}
+            {m.mode === 'pad' ? <PadIcon color={color} /> : m.mode === 'hours' ? <HoursIcon color={color} /> : <LineIcon icon={m.mode === 'category' ? 'category' : 'move'} color={color} ground={ground} />}
           </Pressable>
         )
       })}
@@ -108,5 +110,5 @@ const i = StyleSheet.create({
   box: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
   padRow: { flexDirection: 'row', alignItems: 'center', gap: 2.5, height: 5.5 },
   modes: { flexDirection: 'row', gap: 2, padding: 2, borderWidth: StyleSheet.hairlineWidth, borderRadius: 7 },
-  cell: { width: 44, height: 32, borderRadius: 5, borderWidth: StyleSheet.hairlineWidth, borderBottomWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  cell: { width: 40, height: 32, borderRadius: 5, borderWidth: StyleSheet.hairlineWidth, borderBottomWidth: 2, alignItems: 'center', justifyContent: 'center' },
 })

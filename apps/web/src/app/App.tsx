@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { cmdApplyBoomerang, cmdCreateBegin, dismissStorageError, loadPad, resumeEditing, setSortMode, setBoomerangPickerOpener, targetDue, usePad } from '@hissypad/state'
+import { useEffect, useRef, useState } from 'react'
+import { closeCategory, cmdApplyBoomerang, cmdCreateBegin, dismissStorageError, loadPad, resumeEditing, setSortMode, setBoomerangPickerOpener, targetDue, usePad } from '@hissypad/state'
 import { Pad } from '../pad/Pad'
 import { SelectionBar } from '../pad/SelectionBar'
 import { TopBar, type View } from './TopBar'
@@ -11,13 +11,13 @@ import { Archive } from '../panels/Archive'
 import { CreateDialog } from '../panels/Create'
 import { BoomerangDialog, CategoryDialog, Hours, preloadHours, SlotDialog } from '../panels/Hours'
 import {
-  cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot, targetsHaveCategory,
+  cmdAddCategory, cmdApplyCategory, cmdApplySlot, cmdOpenCategories, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot, targetsHaveCategory,
 } from '@hissypad/state/hours'
 import { showToast } from './toast'
 import { MOD } from '../platform/os'
 
-const VIEWS: Record<string, View> = { '#hours': 'hours', '#pads': 'pad', '#sort': 'sort', '#archive': 'archive' }
-const HASHES: Record<View, string> = { hours: '#hours', pad: '#pads', fresh: '#pads', sort: '#sort', archive: '#archive' }
+const VIEWS: Record<string, View> = { '#hours': 'hours', '#pads': 'pad', '#categories': 'category', '#sort': 'sort', '#archive': 'archive' }
+const HASHES: Record<View, string> = { hours: '#hours', pad: '#pads', fresh: '#pads', category: '#categories', sort: '#sort', archive: '#archive' }
 const viewFromHash = (): View => VIEWS[location.hash] ?? 'hours'
 
 export function App() {
@@ -58,6 +58,21 @@ export function App() {
 
   // Sort keeps a pad of its own: the store swaps to it in Sort and back out of it.
   useEffect(() => { if (load === 'ready') setSortMode(view === 'sort') }, [view, load])
+  // Categories shows a category in place of the pad (the store's catId): one is opened on
+  // the way in, after Sort has given the pad back, and closed on the way out.
+  const catId = usePad((s) => s.catId)
+  useEffect(() => {
+    if (load !== 'ready') return
+    if (view === 'category') cmdOpenCategories()
+    else closeCategory()
+  }, [view, load])
+  // Opening a pad from there (a pad's heading over its lines, a line found in Search) ends
+  // the category's view: the mode follows it to the Pad.
+  const shown = useRef(view)
+  shown.current = view
+  useEffect(() => usePad.subscribe((s, was) => {
+    if (was.catId !== null && s.catId === null && shown.current === 'category') setView('pad')
+  }), [])
 
   useEffect(() => {
     void loadPad()
@@ -95,9 +110,9 @@ export function App() {
           <button type="button" onClick={dismissStorageError} aria-label="Dismiss">×</button>
         </div>
       )}
-      {load === 'loading' ? <p className="hint" aria-busy="true">Opening your pad…</p> : view === 'fresh' ? <FreshStart onClose={() => setView('pad')} /> : view === 'sort' ? <Sort key={padId ?? 'main'} paused={creating !== null} onClose={() => setView('pad')} /> : view === 'hours' ? <Hours /> : view === 'archive' ? <Archive at={archiveAt} onClose={() => setView('pad')} /> : creating !== null ? null : <Pad />}
+      {load === 'loading' ? <p className="hint" aria-busy="true">Opening your pad…</p> : view === 'fresh' ? <FreshStart onClose={() => setView('pad')} /> : view === 'sort' ? <Sort key={padId ?? 'main'} paused={creating !== null} onClose={() => setView('pad')} /> : view === 'hours' ? <Hours /> : view === 'archive' ? <Archive at={archiveAt} onClose={() => setView('pad')} /> : creating !== null ? null : view === 'category' && catId === null ? <p className="hint">No categories yet. Make one from the menu's Categories…, or from Category… on a line's toolbar.</p> : <Pad />}
       {/* In Hours too: an open hour's lines are the pad's own rows (panels/Hours.tsx). */}
-      {(view === 'pad' || view === 'hours') && creating === null && <SelectionBar />}
+      {(view === 'pad' || view === 'hours' || (view === 'category' && catId !== null)) && creating === null && <SelectionBar />}
       {creating !== null && <CreateDialog depth={creating} onClose={() => setCreating(null)} onOpen={() => { setCreating(null); setView('pad') }} />}
       {picking && (
         <SlotDialog

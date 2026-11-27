@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as Haptics from 'expo-haptics'
 import { buildIndex, childrenOf, countLines, descendantIds, dueHeads, flatten, homeNumbers, listNumbers, pinDivider, scheduleHead, scopeCategory, moveNodes, resolveDrop, topmost, type DropTarget, type LayoutRow } from '@hissypad/core'
-import { apply, categoryShown, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, paintSelect, refresh, resumeEditing, select, setSortMode, stopEditing, todayShown, usePad, visibleIds } from '@hissypad/state'
+import { apply, categoryShown, closeCategory, cmdApplyBoomerang, setBoomerangPickerOpener, targetDue, clearSelection, cmdAddAt, cmdAppendAtEnd, cmdDeleteDone, clearLog, dumpLog, logEnabled, paintSelect, refresh, resumeEditing, select, setSortMode, stopEditing, todayShown, usePad, visibleIds } from '@hissypad/state'
 import { GUTTER, INDENT, LINE, serif, useTheme, SHEET_TOP } from '../theme'
 import { Row } from './Row'
 import { Toolbar } from './Toolbar'
@@ -22,9 +22,10 @@ import { BoomerangPicker, CategoriesApp, CategoryPicker, HoursApp, SlotPicker } 
 import { CategoryHead, DueHead, ScheduledHead } from './Boomerangs'
 import {
   cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotFinder, setSlotPickerOpener, targetCategory, targetSlot, targetsHaveCategory, useCategoryChoices,
+  cmdOpenCategories,
 } from '@hissypad/state/hours'
 import { SearchSheet } from './Search'
-import { PadChips } from './PadChips'
+import { CategoryChips, PadChips } from './PadChips'
 import { MenuIcon, ModeBar, PlusIcon, SearchIcon, type Mode } from './TopIcons'
 import { CreateSheet, openCreate, useCreating } from './Create'
 import { useKeyboardHeight } from '../keyboard'
@@ -52,11 +53,11 @@ const PULL_WORDS: Record<PullPhase, string> = { idle: '', pulling: 'Pull to sync
 // not, so it keeps the platform's own spinner.
 const PULL_WORDS_OK = Platform.OS === 'ios'
 
-// The top bar: its name, the three modes, and three icons need about 420pt in Android's
-// serif (Charter on iOS is narrower). Under that the gaps close up, and on a phone too
-// narrow for that as well (an Oppo A92 is 360 wide) the name goes, never an icon.
-const SNUG_UNDER = Platform.OS === 'android' ? 440 : 0
-const NAME_FITS = Platform.OS === 'android' ? 400 : 380
+// The top bar: its name, the four modes, and three icons need about 460pt. No phone held
+// upright is that wide, so there the name goes, never an icon; on one too narrow even for
+// the rest at its usual gaps (an Oppo A92 is 360 wide) the gaps close up.
+const SNUG_UNDER = 390
+const NAME_FITS = 460
 
 const NONE: string[] = []
 
@@ -112,8 +113,8 @@ export function Pad() {
   const container = useRef<ComponentRef<typeof View>>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [logText, setLogText] = useState<string | null>(null)
-  // Pad, Hours or Sort: the switcher in the top bar. The pad stays mounted under the other
-  // two, so it is where it was left on the way back.
+  // Pad, Hours, Categories or Sort: the switcher in the top bar. The pad stays mounted under the other
+  // ones, so it is where it was left on the way back (Categories draws its lines with it).
   const [mode, setMode] = useState<Mode>('hours')
   const [sheet, setSheet] = useState<'done' | 'search' | 'categories' | null>(null)
   // The hour Search was opened for (Hours' search button), or null for a search that goes to the line.
@@ -124,6 +125,23 @@ export function Pad() {
   const screen = archive ? 'archive' : mode
   // Sort keeps a pad of its own: the store swaps to it in Sort and back out of it.
   useEffect(() => { if (load === 'ready') setSortMode(screen === 'sort') }, [screen, load])
+  // Categories shows a category in place of the pad (the store's catId), drawn by the same
+  // list: one is opened on the way in, after Sort has given the pad back, and closed on the way out.
+  const catId = usePad((s) => s.catId)
+  useEffect(() => {
+    if (load !== 'ready') return
+    if (screen === 'category') cmdOpenCategories()
+    else closeCategory()
+  }, [screen, load])
+  // Opening a pad from there (a pad's heading over its lines) ends the category's view: the
+  // mode follows it to the Pad.
+  const shownMode = useRef(mode)
+  shownMode.current = mode
+  useEffect(() => usePad.subscribe((st, was) => {
+    if (was.catId !== null && st.catId === null && shownMode.current === 'category') setMode('pad')
+  }), [])
+  // The pad's list is on screen: in the Pad mode, and in Categories once a category is open.
+  const padShown = screen === 'pad' || (screen === 'category' && catId !== null)
   // The hour picker the toolbar's "Hour…" (behind More) opens.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
   // The same for "Category…".
@@ -601,12 +619,14 @@ export function Pad() {
       </View>
       {/* The pad chips are the pad's only: Sort picks its pad in its own title. */}
       {screen === 'pad' && <PadChips theme={theme} />}
+      {screen === 'category' && <CategoryChips theme={theme} />}
+      {screen === 'category' && catId === null && load === 'ready' && <Text style={[s.hint, { color: theme.inkMute }]}>No categories yet. Make one from the menu's Categories, or from Category… on a line's toolbar.</Text>}
       {/* The pad's status line: the toast on the left, Archive x completed flush right. It keeps
           its height when both are empty, so neither one pushes the pad down when it shows up. */}
-      {screen === 'pad' && (
+      {padShown && (
         <View style={s.status}>
           <Text style={[s.statusToast, { color: theme.inkSoft }]} numberOfLines={1} accessibilityLiveRegion="polite">{toast ?? ''}</Text>
-          {doneCount > 0 && (
+          {doneCount > 0 && screen === 'pad' && (
             <Pressable onPress={deleteDone} style={s.clear} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="button" accessibilityLabel={`Archive ${doneCount} completed`} accessibilityHint="Archives every crossed-out line in this pad. Shake to undo.">
               <Text style={[s.clearText, { color: theme.inkMute }]}>Archive {doneCount} completed</Text>
             </Pressable>
@@ -636,7 +656,7 @@ export function Pad() {
       </Modal>
       <SearchSheet visible={sheet === 'search'} assign={assign} onClose={() => { setSheet(null); setAssign(null) }} onOpen={() => { setArchive(null); setMode('pad') }} onArchived={openArchive} theme={theme} />
       <DoneSheet visible={sheet === 'done'} onClose={() => setSheet(null)} theme={theme} />
-      {toast && screen !== 'pad' && screen !== 'archive' && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
+      {toast && !padShown && screen !== 'archive' && <Text style={[s.toast, { color: theme.inkSoft }]}>{toast}</Text>}
       {/* Hours: the shared screens (packages/ui). Sort starts over when the pad changes. */}
       {screen === 'archive' && archive && <ArchiveView at={archive.id ? { id: archive.id, rev: archive.rev } : null} onClose={() => setArchive(null)} theme={theme} bottom={0} />}
       {screen === 'hours' && (
@@ -655,8 +675,8 @@ export function Pad() {
         // the detector attached at launch (the app opens on Hours) held on to nothing and no
         // drag reached the pad, its bullets or the floating + (Kevin, 2026-11-25). A fresh
         // detector each time the pad shows attaches to the views that are there.
-        <GestureDetector key={screen === 'pad' ? 'pad' : 'off'} gesture={gestures}>
-          <View ref={container} style={screen === 'pad' ? s.scroll : s.hidden} onLayout={() => container.current?.measureInWindow((x, y) => (origin.current = { x, y }))}>
+        <GestureDetector key={padShown ? 'pad' : 'off'} gesture={gestures}>
+          <View ref={container} style={padShown ? s.scroll : s.hidden} onLayout={() => container.current?.measureInWindow((x, y) => (origin.current = { x, y }))}>
           <ScrollView
             ref={scroller}
             style={s.scroll}

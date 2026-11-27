@@ -108,7 +108,7 @@ kbd {
   margin: 0;
   color: var(--ink-soft);
 }
-/* The mode switcher: Pad, Hours, Sort as icons in one ruled box. The open mode is a raised
+/* The mode switcher: Hours, Pad, Categories, Sort as icons in one ruled box. The open mode is a raised
    cell with an accent line under it and full ink, so it does not rest on color alone. */
 .top { align-items: center; }
 .modes { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; padding: 2px; gap: 2px; }
@@ -798,6 +798,15 @@ dialog.search mark { background: none; color: var(--accent); font-weight: 600; }
 dialog.search .note { margin: 0.6rem 0.6rem 0.1rem; font-size: 0.85rem; color: var(--ink-mute); font-style: italic; }
 
 @media (max-width: 480px) {
+  /* Four modes, the name and the three buttons on one row of a phone. */
+  .top { column-gap: 0.6rem; }
+  .modes button { width: 34px; }
+}
+/* Under that the name gives way, as it does in the phone app. */
+@media (max-width: 400px) {
+  .top h1 { display: none; }
+}
+@media (max-width: 480px) {
   :root { --size: 16px; --indent: 1.2rem; --gutter: 2rem; }
   .top { gap: 0.5rem 0.75rem; }
   .bar { font-size: 0.85rem; }
@@ -861,15 +870,6 @@ dialog.import input[type='email'] {
 .pads [role='tab'][aria-selected='true'] { color: var(--ink); border-bottom-color: var(--accent); }
 .pads .add { min-width: 32px; min-height: 32px; border-radius: 4px; color: var(--ink-mute); font-size: 1.1rem; line-height: 1; }
 .pads .add:hover { color: var(--ink); background: var(--paper-raised); }
-/* The category views' dropdown, at the right before the jump list: a dot (the open
-   category's color) and a name. Open, it is underlined as the open tab is. */
-.pads .cats { flex: none; margin-left: auto; align-self: center; display: inline-flex; align-items: center; gap: 0.35rem; min-height: 32px; max-width: 11rem; padding: 0 0.5rem; border-radius: 4px 4px 0 0; border-bottom: 2px solid transparent; color: var(--ink-soft); white-space: nowrap; }
-.pads .cats + .jump { margin-left: 0; }
-.pads .cats .name { overflow: hidden; text-overflow: ellipsis; }
-.pads .cats .dot { flex: none; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid currentColor; }
-.pads .cats.is-on { color: var(--ink); border-bottom-color: var(--accent); }
-.pads .cats.is-on .dot { border-color: var(--cat, currentColor); background: var(--cat, currentColor); }
-.pads .cats:hover, .pads .cats[aria-expanded='true'] { color: var(--ink); background: var(--paper-raised); }
 .due-head.cat-head h3 button { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; padding: 0; }
 .due-head.cat-head h3 button:hover { color: var(--ink); }
 .due-head.cat-head:first-child h3 { margin-top: 0.2rem; }

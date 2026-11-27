@@ -8,12 +8,13 @@ import { SearchPanel } from '../panels/Search'
 import { CategoriesDialog } from '../panels/Hours'
 import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
 import { PadTabs } from '../pads/PadTabs'
+import { CategoryTabs } from '../pads/CategoryTabs'
 import { showToast, useToast } from './toast'
 import { MOD } from '../platform/os'
-import { HoursIcon, MenuIcon, PadIcon, PlusIcon, SearchIcon, SortIcon } from './icons'
+import { CategoryIcon, HoursIcon, MenuIcon, PadIcon, PlusIcon, SearchIcon, SortIcon } from './icons'
 
 type Theme = 'system' | 'light' | 'dark'
-export type View = 'pad' | 'fresh' | 'sort' | 'hours' | 'archive'
+export type View = 'pad' | 'fresh' | 'category' | 'sort' | 'hours' | 'archive'
 
 
 function readTheme(): Theme {
@@ -29,9 +30,10 @@ export function applyTheme(t: Theme) {
   document.documentElement.dataset.theme = t === 'system' ? '' : t
 }
 
-const MODES: { view: 'pad' | 'hours' | 'sort'; label: string; title: string; icon: () => ReactNode }[] = [
+const MODES: { view: 'pad' | 'hours' | 'category' | 'sort'; label: string; title: string; icon: () => ReactNode }[] = [
   { view: 'hours', label: 'Hours', title: 'Hours: the day, one row per hour, with what each was for, what happened, and the lines you put in it', icon: HoursIcon },
   { view: 'pad', label: 'Pad', title: 'Pad: the outline', icon: PadIcon },
+  { view: 'category', label: 'Categories', title: "Categories: one category's lines from every pad, by pad, with the lines over and under them", icon: CategoryIcon },
   { view: 'sort', label: 'Sort', title: 'Sort: one line of the open pad at a time. Left for later, right for today, up for done, down to archive', icon: SortIcon },
 ]
 
@@ -163,6 +165,7 @@ export function TopBar({ view, onView, onCreate, onArchived }: { view: View; onV
       </nav>
       {/* The pad tabs are the pad's only: Sort picks its pad in its own title. */}
       {mode === 'pad' && <PadTabs />}
+      {mode === 'category' && <CategoryTabs />}
       {view === 'pad' && doneCount > 0 && (
         <button type="button" className="clear-done" onClick={deleteDone} title="Archive every crossed-out line in this pad (undo brings them back)">
           Archive {doneCount} completed

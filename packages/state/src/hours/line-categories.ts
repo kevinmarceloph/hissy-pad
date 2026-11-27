@@ -6,7 +6,7 @@ import { useStore } from 'zustand';
 import { classifyByEmoji, iconMap, setCategory } from '@hissypad/core';
 import { activeCategories, categoryName, type Category } from '@hissypad/core/hours';
 
-import { applyAll, applyQuiet, getLocalStore, setClassifier, usePad } from '../store';
+import { applyAll, applyQuiet, getLocalStore, lastCategory, openCategory, setClassifier, usePad } from '../store';
 import { holdEditing, targets } from '../selection';
 import { setCopyPrefix, setFieldPrefix } from '../commands';
 
@@ -90,6 +90,18 @@ export function useCategoryChoices(): Category[] {
 export function categoryPrefix(id: string | null | undefined): string {
   const c = id ? lineCategories.getState().byId[id] : undefined;
   return c?.icon ? `${c.icon} ` : '';
+}
+
+// On the way into the Categories mode: the category this device had open last, or the first
+// one. Nothing while a category is open already, before the pad has loaded, or with no
+// categories yet (the mode then says so). Returns the category shown.
+export function cmdOpenCategories(): string | null {
+  const { catId, load } = usePad.getState();
+  if (catId !== null || load !== 'ready') return catId;
+  const active = activeCategories(lineCategories.getState().list);
+  const want = active.find((c) => c.id === lastCategory()) ?? active[0];
+  if (want) openCategory(want.id);
+  return want?.id ?? null;
 }
 
 // ---- commands --------------------------------------------------------------------------------

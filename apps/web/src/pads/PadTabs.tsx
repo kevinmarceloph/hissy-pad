@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactElement } from 'react'
 import { createPortal } from 'react-dom'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCategory, cmdSetPadCount, openCategory, openPad, openSubPad, padList, padTopLines, placeList, subName, usePad } from '@hissypad/state'
-import { categoryPrefix, useCategoryChoices, useLineCategory } from '@hissypad/state/hours'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCategory, cmdSetPadCount, openPad, openSubPad, padList, padTopLines, placeList, subName, usePad } from '@hissypad/state'
+import { categoryPrefix, useCategoryChoices } from '@hissypad/state/hours'
 import { CatMark } from '../pad/CatMark'
 import { categoryName } from '@hissypad/core/hours'
-import { categoryCounts, type FixedPad, type PadId } from '@hissypad/core'
+import type { FixedPad, PadId } from '@hissypad/core'
 import { showToast } from '../app/toast'
 import { MOD } from '../platform/os'
 import { CalendarIcon, HoursIcon, SortIcon } from '../app/icons'
@@ -33,11 +33,6 @@ export function PadTabs() {
   const [subs, setSubs] = useState<{ key: string; left: number; top: number } | null>(null)
   // The list of every pad and sub-pad at the right end, for when the tabs run past the edge.
   const [jump, setJump] = useState<{ right: number; top: number } | null>(null)
-  // The categories, each to open as a view: its lines from every pad, in groups by pad.
-  const [cats, setCats] = useState<{ right: number; top: number } | null>(null)
-  const catId = usePad((s) => s.catId)
-  const shownCat = useLineCategory(catId)
-  const catCounts = useMemo(() => (cats ? categoryCounts(all) : null), [cats, all])
   const tablist = useRef<HTMLDivElement>(null)
   const places = useMemo(() => placeList(all), [all])
   const categories = useCategoryChoices()
@@ -54,7 +49,7 @@ export function PadTabs() {
   }, [sheet])
 
   function pick(id: PadId, fixed: boolean) {
-    if (id === padId && catId === null) {
+    if (id === padId) {
       if (id !== null && !fixed) setSheet({ mode: 'edit', padId: id })
       return
     }
@@ -91,10 +86,10 @@ export function PadTabs() {
   const foldTargets = sheet?.mode === 'edit' ? places.filter((p) => p.padId !== sheet.padId) : []
 
   useEffect(() => {
-    if (!subs && !jump && !cats) return
-    const shut = () => { setSubs(null); setJump(null); setCats(null) }
+    if (!subs && !jump) return
+    const shut = () => { setSubs(null); setJump(null) }
     const close = (e: Event) => {
-      if (!(e.target as HTMLElement).closest?.('.pads .subs, .pads .jump, .pads .cats, .sub-menu')) shut()
+      if (!(e.target as HTMLElement).closest?.('.pads .subs, .pads .jump, .sub-menu')) shut()
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') shut()
@@ -113,7 +108,7 @@ export function PadTabs() {
       window.removeEventListener('resize', gone)
       window.removeEventListener('scroll', gone, true)
     }
-  }, [subs, jump, cats])
+  }, [subs, jump])
 
   // The open tab stays in view when the row is wider than the page.
   useEffect(() => {
@@ -123,7 +118,7 @@ export function PadTabs() {
     const l = tab.offsetLeft - list.offsetLeft
     if (l < list.scrollLeft) list.scrollLeft = l - 8
     else if (l + tab.offsetWidth > list.scrollLeft + list.clientWidth) list.scrollLeft = l + tab.offsetWidth - list.clientWidth + 8
-  }, [padId, catId, pads.length])
+  }, [padId, pads.length])
 
   // A mouse wheel has no sideways: over the tabs, its up and down scroll them left and right.
   useEffect(() => {
@@ -138,25 +133,15 @@ export function PadTabs() {
     return () => list.removeEventListener('wheel', wheel)
   }, [])
 
-  function toggleCats(el: HTMLElement) {
-    if (cats) return setCats(null)
-    setSubs(null)
-    setJump(null)
-    const r = el.getBoundingClientRect()
-    setCats({ right: Math.max(8, window.innerWidth - r.right), top: r.bottom + 4 })
-  }
-
   function toggleJump(el: HTMLElement) {
     if (jump) return setJump(null)
     setSubs(null)
-    setCats(null)
     const r = el.getBoundingClientRect()
     setJump({ right: Math.max(8, window.innerWidth - r.right), top: r.bottom + 4 })
   }
 
   function toggleSubs(key: string, el: HTMLElement) {
     setJump(null)
-    setCats(null)
     if (subs?.key === key) return setSubs(null)
     const r = el.getBoundingClientRect()
     const half = 96
@@ -177,8 +162,8 @@ export function PadTabs() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={p.id === padId && catId === null}
-                title={(p.id === padId && catId === null && p.id !== null && !p.fixed ? 'Rename, fold in or delete this pad' : `Open ${p.name}`) + (p.count > 0 ? `: ${p.count} open ${p.count === 1 ? 'line' : 'lines'}` : '')}
+                aria-selected={p.id === padId}
+                title={(p.id === padId && p.id !== null && !p.fixed ? 'Rename, fold in or delete this pad' : `Open ${p.name}`) + (p.count > 0 ? `: ${p.count} open ${p.count === 1 ? 'line' : 'lines'}` : '')}
                 onClick={() => pick(p.id, p.fixed !== null)}
               >
                 {Glyph && <span className="glyph"><Glyph /></span>}
@@ -211,30 +196,6 @@ export function PadTabs() {
         })}
       </div>
       <button type="button" className="add" aria-label="New pad" title="New pad" onClick={() => setSheet({ mode: 'new' })}>+</button>
-      {(categories.length > 0 || catId !== null) && (
-        <button
-          type="button"
-          className={catId !== null ? `cats is-on cat-${shownCat?.color ?? ''}` : 'cats'}
-          aria-label={catId !== null ? `Category: ${shownCat?.label ?? 'archived'}. Pick another` : 'Open a category'}
-          aria-haspopup="menu"
-          aria-expanded={cats !== null}
-          title="A category's lines from every pad, by pad"
-          onClick={(e) => toggleCats(e.currentTarget)}
-        >
-          <span className="dot" aria-hidden="true" />
-          <span className="name">{catId !== null && shownCat ? subName(shownCat.label) : 'Category'}</span>
-        </button>
-      )}
-      {cats && createPortal(
-        <div className="bar moveto-menu sub-menu jump-menu" role="menu" aria-label="Categories" style={{ right: cats.right, top: cats.top }}>
-          {categories.map((c) => (
-            <button key={c.id} type="button" role="menuitem" aria-current={c.id === catId ? 'page' : undefined} title={c.label} onClick={() => { setCats(null); openCategory(c.id) }}>
-              <CatMark id={c.id} />{subName(c.label)}{(catCounts?.get(c.id) ?? 0) > 0 && <span className="n" aria-hidden="true"> {catCounts!.get(c.id)}</span>}
-            </button>
-          ))}
-        </div>,
-        document.body,
-      )}
       <button
         type="button"
         className="jump"

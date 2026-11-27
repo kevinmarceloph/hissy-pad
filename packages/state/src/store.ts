@@ -57,6 +57,7 @@ export interface PadState {
 export const SEED_KEY = 'seed.rows'
 export const PAD_KEY = 'pad.current' // which pad this device had open
 export const SORT_PAD_KEY = 'sort.pad' // which pad Sort had open: its own, apart from the Pads tab's
+export const CAT_KEY = 'category.current' // which category the Categories mode had open
 
 // Sort keeps a pad of its own (Kevin, 2026-11-27): picking a pad to sort does not change the
 // pad the Pads tab shows, and back. The store shows one pad at a time, so switching in or out
@@ -64,20 +65,15 @@ export const SORT_PAD_KEY = 'sort.pad' // which pad Sort had open: its own, apar
 // pad shown belongs to, and so which meta key openPad remembers it under.
 let sortMode = false
 let otherPad: PadId | undefined // the pad of the side not shown; undefined: none chosen yet
-let otherCat: string | null = null // the category view the Pads tab had while Sort is shown
 let sortPadMeta: PadId | undefined // Sort's pad as loaded from meta, until Sort is first opened
 export const inSortMode = () => sortMode
 export function setSortMode(on: boolean) {
   if (on === sortMode || get().load !== 'ready') return
   const was = get().padId
   const want = on ? (otherPad !== undefined ? otherPad : sortPadMeta) : otherPad
-  // A category view is the Pads tab's: Sort has pads only, and the view is back after it.
-  const cat = on ? null : otherCat
-  otherCat = on ? get().catId : null
   sortMode = on
   otherPad = was
   if (want !== undefined && want !== was && !openPad(want)) openPad(was)
-  if (get().catId !== cat) set({ catId: cat, rows: view(get().all, get().padId, get().zoomId, get().slotId, cat), editing: null, selection: [], anchorId: null, focusId: null })
 }
 
 export const clock = createClock()
@@ -333,7 +329,7 @@ async function loadPadOnce() {
     sortPadMeta = sortPad === null || sortPad === undefined ? undefined : sortPad === '' ? null : sortPad
     sortMode = false
     otherPad = undefined
-    otherCat = null
+    lastCat = (await local.getMeta(CAT_KEY)) || null
     set({ all: state, rows: padView(state, padId), padId, load: 'ready' })
     settleFixed()
     adoptLegacyCounts()
@@ -413,11 +409,23 @@ export function openPad(padId: PadId): boolean {
 
 // Show a category in place of the pad: its lines from every pad, in groups by pad, with the
 // lines over and under them (scopeCategory in core). The pad's own commands then edit them.
-// Opening any pad ends it. Editing and selection belong to what was shown, so they clear.
+// It is what the Categories mode shows: each app opens one on the way into the mode and
+// closes it on the way out, and opening any pad ends it (the apps then go to the Pad mode).
+// Editing and selection belong to what was shown, so they clear. The choice is remembered
+// per device.
+let lastCat: string | null = null
+export const lastCategory = () => lastCat
 export function openCategory(catId: string) {
   const { all, padId } = get()
   log('category:open', { catId: catId.slice(0, 8) })
+  lastCat = catId
   set({ catId, zoomId: null, slotId: null, rows: view(all, padId, null, null, catId), editing: null, selection: [], anchorId: null, focusId: null })
+  void local.setMeta(CAT_KEY, catId).catch(() => {})
+}
+export function closeCategory() {
+  const { all, padId, catId } = get()
+  if (catId === null) return
+  set({ catId: null, zoomId: null, slotId: null, rows: view(all, padId, null, null, null), editing: null, selection: [], anchorId: null, focusId: null })
 }
 
 // Show the lines under one line as if it were a pad (null: back to the pad). Editing and

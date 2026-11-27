@@ -3,15 +3,13 @@
 // one (or press and hold any other) to rename, move, fold into another pad or delete it; the chevron beside a
 // pad that has sub-pads jumps to one; the + chip makes a new pad. Names are asked for
 // with askText (Menu.tsx): the system's prompt on iOS, our own on Android.
-import { useMemo } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native'
+import { useEffect, useMemo } from 'react'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { askText, menu } from './Menu'
 import { categoryCounts, type FixedPad, type PadId } from '@hissypad/core'
-import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCategory, cmdSetPadCount, openCategory, openPad, openSubPad, padList, padTopLines, placeList, subName, usePad, type PadItem } from '@hissypad/state'
-import { categoryPrefix, lineCategories, useLineCategory } from '@hissypad/state/hours'
+import { cmdDeletePad, cmdMovePad, cmdNewPad, cmdPadToLine, cmdRenamePad, cmdSetPadCategory, cmdSetPadCount, openCategory, openPad, openSubPad, subName, padList, padTopLines, placeList, usePad, type PadItem } from '@hissypad/state'
+import { categoryPrefix, cmdOpenCategories, lineCategories, useCategoryChoices, useLineCategory } from '@hissypad/state/hours'
 import { CategoryBadge } from '@hissypad/ui'
-import { PALETTES } from '@hissypad/ui/palette'
-import { useStore } from 'zustand'
 import { activeCategories, categoryName } from '@hissypad/core/hours'
 import { serif, type Theme } from '../theme'
 import { CalendarIcon, HoursIcon } from './TopIcons'
@@ -87,23 +85,8 @@ export function PadChips({ theme }: { theme: Theme }) {
     ])
   }
 
-  // The category views: a category's lines from every pad, in groups by pad. The chip at the
-  // right end, which stays put while the pads scroll, lists the categories to open.
-  const catId = usePad((st) => st.catId)
-  const shownCat = useLineCategory(catId)
-  const anyCategory = useStore(lineCategories, (st) => activeCategories(st.list).length > 0)
-  const scheme = useColorScheme()
-  const catInk = shownCat ? PALETTES[scheme === 'dark' ? 'dark' : 'light'][shownCat.color] : null
-  function pickCategory() {
-    const counts = categoryCounts(all)
-    menu('Category', 'Its lines from every pad, by pad', [
-      ...activeCategories(lineCategories.getState().list).map((c) => ({ text: categoryName(c) + (counts.get(c.id) ? `  ${counts.get(c.id)}` : ''), onPress: () => openCategory(c.id) })),
-      { text: 'Cancel', style: 'cancel' as const },
-    ])
-  }
-
   function tap(id: PadId, name: string, fixed: boolean) {
-    if (id === padId && catId === null) {
+    if (id === padId) {
       if (id !== null && !fixed) manage(id, name)
       return
     }
@@ -111,10 +94,9 @@ export function PadChips({ theme }: { theme: Theme }) {
   }
 
   return (
-    <View style={s.bar}>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={s.strip} contentContainerStyle={s.inner}>
       {pads.map((p, i) => {
-        const on = p.id === padId && catId === null
+        const on = p.id === padId
         const after = i > 0 && pads[i - 1]!.fixed !== null && p.fixed === null
         return (
           <View key={p.id ?? 'main'} style={[s.tab, after && { marginLeft: 10 }]}>
@@ -145,20 +127,46 @@ export function PadChips({ theme }: { theme: Theme }) {
         <Text style={[s.chipText, { color: theme.inkMute, fontSize: 19 }]}>+</Text>
       </Pressable>
     </ScrollView>
-    {(anyCategory || catId !== null) && (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={catId !== null ? `Category: ${shownCat?.label ?? 'archived'}. Pick another` : 'Open a category'}
-        onPress={pickCategory}
-        style={[s.chip, s.fixedChip, s.cats, { borderBottomColor: catId !== null ? theme.accent : 'transparent' }]}
-      >
-        <View style={[s.dot, { borderColor: catInk ?? theme.inkSoft, backgroundColor: catInk ?? 'transparent' }]} />
-        {/* Closed, it is the ring and the chevron alone: the row is short on a phone. */}
-        {catId !== null && <Text style={[s.chipText, { color: theme.ink, flexShrink: 1 }]} numberOfLines={1}>{shownCat ? subName(shownCat.label) : 'Category'}</Text>}
-        <View style={[s.chevron, { borderColor: theme.inkMute, marginLeft: 2 }]} />
-      </Pressable>
-    )}
-    </View>
+  )
+}
+
+// The Categories mode's row of chips, where the Pad mode has its pads: one per category,
+// with its mark and how many lines are in it. The open one's lines, from every pad, are the
+// pad drawn under it (the store's catId, scopeCategory in core). The same as the web's CategoryTabs.
+export function CategoryChips({ theme }: { theme: Theme }) {
+  const all = usePad((st) => st.all)
+  const catId = usePad((st) => st.catId)
+  const load = usePad((st) => st.load)
+  const categories = useCategoryChoices()
+  const counts = useMemo(() => categoryCounts(all), [all])
+  // The categories can arrive after the mode is open (they load with Hours' store).
+  useEffect(() => {
+    if (catId === null && load === 'ready' && categories.length > 0) cmdOpenCategories()
+  }, [catId, load, categories.length])
+  if (categories.length === 0) return null
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={s.strip} contentContainerStyle={s.inner}>
+      {categories.map((c) => {
+        const on = c.id === catId
+        const n = counts.get(c.id) ?? 0
+        return (
+          <Pressable
+            key={c.id}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={n > 0 ? `${c.label}: ${n} ${n === 1 ? 'line' : 'lines'}` : c.label}
+            onPress={() => openCategory(c.id)}
+            style={[s.chip, s.fixedChip, { borderBottomColor: on ? theme.accent : 'transparent' }]}
+          >
+            <CategoryBadge category={c} size={18} />
+            <Text style={[s.chipText, { color: on ? theme.ink : theme.inkSoft }]} numberOfLines={1}>
+              {subName(c.label)}
+              {n > 0 && <Text style={[s.chipCount, { color: theme.inkMute }]}>{'  '}{n}</Text>}
+            </Text>
+          </Pressable>
+        )
+      })}
+    </ScrollView>
   )
 }
 
@@ -169,10 +177,7 @@ function ChipCategory({ id }: { id: string | null }) {
 }
 
 const s = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'flex-end' },
-  strip: { flexGrow: 0, flexShrink: 1 },
-  cats: { maxWidth: 130, marginLeft: 'auto', paddingRight: 12 },
-  dot: { width: 9, height: 9, borderRadius: 5, borderWidth: 1.5 },
+  strip: { flexGrow: 0 },
   inner: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, gap: 2 },
   chip: { minHeight: 36, paddingHorizontal: 10, justifyContent: 'center', borderBottomWidth: 2, maxWidth: 180 },
   tab: { flexDirection: 'row', alignItems: 'stretch' },

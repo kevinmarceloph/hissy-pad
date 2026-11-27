@@ -57,6 +57,8 @@ export const PadIcon = () => <Icon d="M7.5 5h9M7.5 10h9M7.5 15h9M3.5 5h.01M3.5 1
 export const HoursIcon = () => <LineIcon icon="hour" />
 // Sort: a line on its way into a tray. The same icon as the toolbar's Move to….
 export const SortIcon = () => <LineIcon icon="move" />
+// Categories is the toolbar's Category… tag.
+export const CategoryIcon = () => <LineIcon icon="category" />
 export const SearchIcon = () => <Icon d="M13 13l4 4"><circle cx="8.5" cy="8.5" r="5" /></Icon>
 // New item: a plus.
 export const PlusIcon = () => <Icon d="M10 4v12M4 10h12" />
