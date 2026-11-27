@@ -270,9 +270,10 @@ export function useDrag(rowsEl: React.RefObject<HTMLElement | null>) {
     if (e.button !== 0) return
     const touch = e.pointerType === 'touch'
     const st = usePad.getState()
-    // While a line is being edited no press on a bullet becomes a drag (Kevin, 2026-11-27):
-    // a tap still selects, through the click.
-    if (st.editing) return
+    // While a line is being edited no touch on a bullet becomes a drag (Kevin, 2026-11-27): a
+    // tap still selects, through the click. A mouse lands on the bullet on purpose, so there
+    // a press that moves still drags (Kevin, same day); the drag ends the edit as it begins.
+    if (st.editing && touch) return
     const paint = touch && st.selection.length > 0 && !st.editing ? [...st.selection] : undefined
     const start = { id, x: e.clientX, y: e.clientY, pointerId: e.pointerId, touch, timer: null as number | null, paint }
     if (touch) {

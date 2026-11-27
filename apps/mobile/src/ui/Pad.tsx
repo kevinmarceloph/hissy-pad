@@ -21,7 +21,7 @@ import { SubRows } from './SubRows'
 import { BoomerangPicker, CategoriesApp, CategoryPicker, HoursApp, SlotPicker } from '@hissypad/ui'
 import { DueHead, ScheduledHead } from './Boomerangs'
 import {
-  cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotFinder, setSlotPickerOpener, targetCategory, targetSlot, useCategoryChoices,
+  cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotFinder, setSlotPickerOpener, targetCategory, targetSlot, targetsHaveCategory, useCategoryChoices,
 } from '@hissypad/state/hours'
 import { SearchSheet } from './Search'
 import { PadChips } from './PadChips'
@@ -120,7 +120,7 @@ export function Pad() {
   // The hour picker the toolbar's "Hour…" (behind More) opens.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
   // The same for "Category…".
-  const [categorizing, setCategorizing] = useState<{ value: string | null; count: number } | null>(null)
+  const [categorizing, setCategorizing] = useState<{ value: string | null; hasAny: boolean; count: number } | null>(null)
   // And for the floating Boomerang button: the day the lines are out until, if they are.
   const [sending, setSending] = useState<{ value: string | null; count: number } | null>(null)
   const categoryChoices = useCategoryChoices()
@@ -130,7 +130,7 @@ export function Pad() {
     setSlotPickerOpener((ids) => setPicking({ value: targetSlot(ids), count: ids.length }))
     // An hour's search button in Hours: Search, opened to put the line found in that hour.
     setSlotFinder((slot) => { setAssign(slot); setSheet('search') })
-    setCategoryPickerOpener((ids) => setCategorizing({ value: targetCategory(ids), count: ids.length }))
+    setCategoryPickerOpener((ids) => setCategorizing({ value: targetCategory(ids), hasAny: targetsHaveCategory(ids), count: ids.length }))
     setBoomerangPickerOpener((ids) => setSending({ value: targetDue(ids), count: ids.length }))
     return () => {
       setSlotPickerOpener(null)
@@ -559,6 +559,7 @@ export function Pad() {
             <CategoryPicker
               categories={categoryChoices}
               value={categorizing.value}
+              hasAny={categorizing.hasAny}
               count={categorizing.count}
               onCancel={() => setCategorizing(null)}
               onPick={(category) => {

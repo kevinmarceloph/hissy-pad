@@ -11,7 +11,7 @@ import { Archive } from '../panels/Archive'
 import { CreateDialog } from '../panels/Create'
 import { BoomerangDialog, CategoryDialog, Hours, preloadHours, SlotDialog } from '../panels/Hours'
 import {
-  cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot,
+  cmdAddCategory, cmdApplyCategory, cmdApplySlot, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot, targetsHaveCategory,
 } from '@hissypad/state/hours'
 import { showToast } from './toast'
 import { MOD } from '../platform/os'
@@ -47,7 +47,7 @@ export function App() {
   // The hour picker the toolbar's "Hour…" opens: the slot the lines share and how many they are.
   const [picking, setPicking] = useState<{ value: string | null; count: number } | null>(null)
   // The same for "Category…".
-  const [categorizing, setCategorizing] = useState<{ value: string | null; count: number } | null>(null)
+  const [categorizing, setCategorizing] = useState<{ value: string | null; hasAny: boolean; count: number } | null>(null)
   // And for the floating Boomerang button: the day the lines are out until, if they are.
   const [sending, setSending] = useState<{ value: string | null; count: number } | null>(null)
   // The new item's card (the + in the top bar). The pad is taken off the page under it: the
@@ -67,7 +67,7 @@ export function App() {
     // wait for them. Not under test: nothing there waits for the fetch to finish.
     const idle = import.meta.env.MODE === 'test' ? null : setTimeout(preloadHours, 1200)
     setSlotPickerOpener((ids) => setPicking({ value: targetSlot(ids), count: ids.length }))
-    setCategoryPickerOpener((ids) => setCategorizing({ value: targetCategory(ids), count: ids.length }))
+    setCategoryPickerOpener((ids) => setCategorizing({ value: targetCategory(ids), hasAny: targetsHaveCategory(ids), count: ids.length }))
     setBoomerangPickerOpener((ids) => setSending({ value: targetDue(ids), count: ids.length }))
     return () => {
       if (idle) clearTimeout(idle)
@@ -133,6 +133,7 @@ export function App() {
       {categorizing && (
         <CategoryDialog
           value={categorizing.value}
+          hasAny={categorizing.hasAny}
           count={categorizing.count}
           onClose={() => {
             setCategorizing(null)

@@ -126,7 +126,7 @@ test('a drag held at the top edge keeps scrolling until a line can go above the 
   expect((await outline(page)).split('\n').slice(0, 2)).toEqual(['line 30', 'line 1'])
 })
 
-test('while a line is being edited, pressing and moving on a bullet drags nothing', async ({ page }) => {
+test('while a line is being edited, a mouse can still drag a bullet, and the edit ends', async ({ page }) => {
   await typeOutline(page, ['one', 'two', 'three'])
   await page.locator('.row .text', { hasText: /^two$/ }).click()
   await expect(page.locator('.row.is-editing')).toHaveCount(1)
@@ -135,9 +135,10 @@ test('while a line is being edited, pressing and moving on a bullet drags nothin
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
   await page.mouse.down()
   await page.mouse.move(to.x + 40, to.y + 2, { steps: 8 })
-  await expect(page.locator('.drag-ghost')).toHaveCount(0)
+  await expect(page.locator('.drag-ghost')).toHaveCount(1)
   await page.mouse.up()
-  expect(await outline(page)).toBe('one\ntwo\nthree')
+  expect(await outline(page)).toBe('three\none\ntwo')
+  await expect(page.locator('.row.is-editing')).toHaveCount(0)
 })
 
 test('Escape cancels a drag', async ({ page }) => {

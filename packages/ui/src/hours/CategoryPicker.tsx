@@ -16,6 +16,9 @@ type Props = {
   count?: number;
   // The heading, where what is given a category is not lines (an hour's summary).
   title?: string;
+  // Whether any of the lines has a category, when they do not all share one (`value` is
+  // null then): "No category" is offered while one does. Left out, it follows `value`.
+  hasAny?: boolean;
   // A category was picked, or "No category" (null).
   onPick(category: string | null): void;
   onCancel(): void;
@@ -36,8 +39,9 @@ export function CategoryPicker({ scheme = null, ...props }: Props) {
   );
 }
 
-function Picker({ categories, value, count = 1, title, onPick, onCancel, onCreate }: Omit<Props, 'scheme'>) {
+function Picker({ categories, value, hasAny, count = 1, title, onPick, onCancel, onCreate }: Omit<Props, 'scheme'>) {
   const theme = useTheme();
+  const noneOff = !(hasAny ?? value !== null);
   const [making, setMaking] = useState(false);
   if (making && onCreate) {
     return (
@@ -93,11 +97,11 @@ function Picker({ categories, value, count = 1, title, onPick, onCancel, onCreat
       )}
       <View style={styles.actions}>
         <Tap
-          disabled={value === null}
+          disabled={noneOff}
           onPress={() => onPick(null)}
           style={[styles.action, { borderColor: theme.line }]}
           activeStyle={{ borderColor: theme.ink, backgroundColor: theme.paperRaised }}>
-          <Text style={[styles.body, { color: value === null ? theme.inkQuiet : theme.ink }]}>No category</Text>
+          <Text style={[styles.body, { color: noneOff ? theme.inkQuiet : theme.ink }]}>No category</Text>
         </Tap>
         <Tap onPress={onCancel} style={[styles.action, { borderColor: theme.ink }]} activeStyle={{ backgroundColor: theme.paperRaised }}>
           <Text style={[styles.body, { color: theme.ink }]}>Cancel</Text>

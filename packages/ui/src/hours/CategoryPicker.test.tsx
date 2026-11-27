@@ -19,6 +19,18 @@ describe('the category picker', () => {
     expect(onPick).toHaveBeenLastCalledWith(null);
   });
 
+  it('offers No category for lines in different categories, and not for lines with none', async () => {
+    const onPick = vi.fn();
+    const { unmount } = await render(<CategoryPicker categories={list} value={null} hasAny count={2} onPick={onPick} onCancel={() => {}} />);
+    await fireEvent.press(screen.getByText('No category'));
+    expect(onPick).toHaveBeenLastCalledWith(null);
+    unmount();
+    onPick.mockClear();
+    await render(<CategoryPicker categories={list} value={null} hasAny={false} count={2} onPick={onPick} onCancel={() => {}} />);
+    await fireEvent.press(screen.getByText('No category'));
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
   it('points to where categories are made when there are none', async () => {
     await render(<CategoryPicker categories={[]} value={null} count={3} onPick={() => {}} onCancel={() => {}} />);
     expect(screen.getByText('Which category are these 3 lines?')).toBeTruthy();

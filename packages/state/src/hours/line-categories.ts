@@ -101,6 +101,13 @@ export function targetCategory(ids: readonly string[] = targets()): string | nul
   return cats.size === 1 ? [...cats][0]! : null;
 }
 
+// Whether any of the targets has a category: "No category" is offered when one does, mixed
+// or not (Kevin, 2026-11-27).
+export function targetsHaveCategory(ids: readonly string[] = targets()): boolean {
+  const { all } = usePad.getState();
+  return ids.some((id) => (all[id]?.category ?? null) !== null);
+}
+
 // The picker is each app's (the shared CategoryPicker in packages/ui, in a dialog on web
 // and a modal on the phone), opened the same way as the hour picker (slots.ts): the lines
 // are taken when it opens, since it ends the edit as it takes focus.

@@ -108,12 +108,13 @@ export function BoomerangDialog({ value, count, onPick, onClose }: { value: stri
 // The category picker the pad's toolbar opens ("Category…"), in a dialog.
 type CategoryDialogProps = {
   value: string | null
+  hasAny: boolean
   count: number
   onPick: (category: string | null) => void
   onCreate: (label: string, icon: string, color: ColorKey) => void
   onClose: () => void
 }
-export function CategoryDialog({ value, count, onPick, onCreate, onClose }: CategoryDialogProps) {
+export function CategoryDialog({ value, hasAny, count, onPick, onCreate, onClose }: CategoryDialogProps) {
   const scheme = useScheme()
   const categories = useCategoryChoices()
   return (
@@ -126,7 +127,7 @@ export function CategoryDialog({ value, count, onPick, onCreate, onClose }: Cate
       onClose={onClose}
     >
       <Suspense fallback={<p className="hint" aria-busy="true">Opening…</p>}>
-        <CategoryPicker categories={categories} value={value} count={count} scheme={scheme} onPick={onPick} onCreate={onCreate} onCancel={onClose} />
+        <CategoryPicker categories={categories} value={value} hasAny={hasAny} count={count} scheme={scheme} onPick={onPick} onCreate={onCreate} onCancel={onClose} />
       </Suspense>
     </dialog>
   )
