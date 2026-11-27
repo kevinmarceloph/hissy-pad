@@ -47,6 +47,11 @@ describe('a run of hours', () => {
     expect(slotLabel('2026-11-24T14+3', '2026-11-24')).toBe('Today 2pm-5pm')
     expect(slotLabel('2026-11-24T22+4', '2026-11-24')).toBe('Today 10pm-2am')
     expect(slotLabel('2026-11-24T09', '2026-11-24')).toBe('Today 9am')
+    expect(slotLabel('2026-11-23T09', '2026-11-24')).toBe('Yesterday 9am')
+    expect(slotLabel('2026-11-25T14+2', '2026-11-24')).toBe('Tomorrow 2pm-4pm')
+    // Across a month and a year end.
+    expect(slotLabel('2026-12-01T09', '2026-11-30')).toBe('Tomorrow 9am')
+    expect(slotLabel('2026-12-31T09', '2027-01-01')).toBe('Yesterday 9am')
   })
 
   it('holds hours that are apart as runs with commas between them', () => {
@@ -64,7 +69,7 @@ describe('a run of hours', () => {
     expect(parseSlot(apart)).toBeNull()
     expect(slotRuns('2026-11-24T09,nonsense')).toEqual([])
     expect(slotLabel(apart, '2026-11-24')).toBe('Today 9am, 2pm-4pm')
-    expect(slotLabel('2026-11-24T09,2026-11-24T14,2026-11-25T08', '2026-11-24')).toMatch(/^Today 9am, 2pm; .*, 8am$/)
+    expect(slotLabel('2026-11-24T09,2026-11-24T14,2026-11-25T08', '2026-11-24')).toBe('Today 9am, 2pm; Tomorrow 8am')
   })
 })
 

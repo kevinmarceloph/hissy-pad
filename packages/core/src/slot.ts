@@ -365,7 +365,8 @@ function hourWord(hour: number): string {
 }
 
 // "Mon 23 Nov, 2pm": how a line's hour reads in the pad; a run reads "Mon 23 Nov, 2pm-5pm",
-// to the hour it ends at. `today` (a day key) turns its own day into "Today". Hours apart
+// to the hour it ends at. `today` (a day key) turns its own day into "Today", and the days
+// on either side into "Yesterday" and "Tomorrow" (Kevin, 2026-11-27). Hours apart
 // read "Today 9am, 2pm-5pm": the day once, and a semicolon before another day.
 export function slotLabel(slot: string, today?: string): string {
   const days: { day: string; hours: string[] }[] = []
@@ -375,9 +376,11 @@ export function slotLabel(slot: string, today?: string): string {
     if (last?.day === p.day) last.hours.push(hour)
     else days.push({ day: p.day, hours: [hour] })
   }
+  const near = today ? { [shiftDay(today, -1)]: 'Yesterday', [today]: 'Today', [shiftDay(today, 1)]: 'Tomorrow' } : {}
   return days
     .map(({ day, hours }) => {
-      if (day === today) return `Today ${hours.join(', ')}`
+      const word = near[day]
+      if (word) return `${word} ${hours.join(', ')}`
       const [y = 1970, m = 1, d = 1] = day.split('-').map(Number)
       const name = new Date(y, m - 1, d).toLocaleDateString('en', { weekday: 'short', day: 'numeric', month: 'short' })
       return `${name}, ${hours.join(', ')}`
@@ -390,6 +393,12 @@ export function slotLabel(slot: string, today?: string): string {
 export function slotPast(slot: string | null | undefined, now: Date = new Date()): boolean {
   const last = slotHours(slot).at(-1)
   return last !== undefined && last < slotKey(todayKey(now), now.getHours())
+}
+
+// The day key `n` days from a day key, by the calendar (month and year ends included).
+function shiftDay(day: string, n: number): string {
+  const [y = 1970, m = 1, d = 1] = day.split('-').map(Number)
+  return todayKey(new Date(y, m - 1, d + n))
 }
 
 // Today's calendar day as a day key, device local time.

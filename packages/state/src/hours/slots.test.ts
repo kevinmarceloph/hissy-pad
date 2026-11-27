@@ -23,7 +23,8 @@ describe('lines in an hour', () => {
     expect(parseSlot('2026-11-23T24')).toBeNull();
     expect(parseSlot(null)).toBeNull();
     expect(slotLabel(SLOT, '2026-11-23')).toBe('Today 9am');
-    expect(slotLabel(slotKey('2026-11-24', 14), '2026-11-23')).toBe('Tue, Nov 24, 2pm');
+    expect(slotLabel(slotKey('2026-11-24', 14), '2026-11-23')).toBe('Tomorrow 2pm');
+    expect(slotLabel(slotKey('2026-11-25', 14), '2026-11-23')).toBe('Wed, Nov 25, 2pm');
   });
 
   it('assigns the selected lines, counts them by done and open, and undoes in one step', () => {

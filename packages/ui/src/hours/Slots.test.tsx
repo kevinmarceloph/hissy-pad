@@ -215,13 +215,13 @@ describe('SlotPicker', () => {
     // A pick is shown, not sent: the hour is checked and the button says it.
     expect(onPick).not.toHaveBeenCalled();
     expect(screen.getByRole('checkbox', { name: '9am' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByText('Picked Fri, Nov 20, 9am. Tap an hour to add it or take it out.')).toBeTruthy();
+    expect(screen.getByText('Picked Tomorrow 9am. Tap an hour to add it or take it out.')).toBeTruthy();
     // Another tap adds its hour, and a tap on a picked one takes it out.
     await fireEvent.press(screen.getByRole('checkbox', { name: '10am' }));
     expect(screen.getByRole('checkbox', { name: '9am' })).toHaveAttribute('aria-checked', 'true');
     await fireEvent.press(screen.getByRole('checkbox', { name: '9am' }));
     expect(screen.getByRole('checkbox', { name: '9am' })).toHaveAttribute('aria-checked', 'false');
-    await fireEvent.press(screen.getByRole('button', { name: 'Put in Fri, Nov 20, 10am' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Put in Tomorrow 10am' }));
     expect(onPick).toHaveBeenCalledTimes(1);
     expect(onPick).toHaveBeenCalledWith('2026-11-20T10');
   });
