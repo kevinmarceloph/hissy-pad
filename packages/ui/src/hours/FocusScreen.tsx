@@ -64,6 +64,16 @@ export function FocusScreen({ at, clock = realClock, onList, onGo, onPart }: Pro
   const day = slot.hour < start ? shiftDay(slot.day, -1) : slot.day;
   const title = dayTitle(day, now, start);
   const date = dayDate(day);
+  // What the hour line says beside the hour (Kevin, 2026-11-27): "Right now"; for another
+  // hour of the day the clock is in, how far off it is ("2 hours ago", "In 3 hours"); for
+  // an hour of another day, the day ("Yesterday", "Tomorrow", or its date).
+  const at0 = fromDayKey(slot.day);
+  at0.setHours(slot.hour);
+  const from = fromDayKey(current.day);
+  from.setHours(current.hour);
+  const away = Math.round((at0.getTime() - from.getTime()) / 3_600_000);
+  const hours = (n: number) => `${n} ${n === 1 ? 'hour' : 'hours'}`;
+  const when = isNow ? 'Right now' : title === 'Today' ? (away < 0 ? `${hours(-away)} ago` : `In ${hours(away)}`) : title;
 
   // What an hour beside this one holds, cut to a line: its first line, or its recurring plan.
   const says = (s: Slot) => {
@@ -79,17 +89,17 @@ export function FocusScreen({ at, clock = realClock, onList, onGo, onPart }: Pro
     <View style={[styles.screen, { backgroundColor: theme.paper }]}>
       <View style={styles.column}>
         <Tap
-          aria-label={`${label}${isNow ? ', now' : ''}, ${title === date ? date : `${title}, ${date}`}. Show every hour`}
+          aria-label={`${label}, ${when === date ? date : `${when}, ${date}`}. Show every hour`}
           onPress={onList}
           style={styles.head}
           activeStyle={{ backgroundColor: theme.paperRaised }}>
           <Text style={[styles.hour, { color: isNow ? theme.accent : theme.ink }]}>{label}</Text>
           <View style={styles.when}>
             <Text numberOfLines={1} style={[styles.day, { color: theme.ink }]}>
-              {isNow ? 'Now' : title}
+              {when}
             </Text>
             <Text numberOfLines={1} style={[styles.date, { color: theme.inkSoft }]}>
-              {isNow && title !== 'Today' ? `${title}, ${date}` : date}
+              {date}
             </Text>
           </View>
           <ListIcon color={theme.inkSoft} />
@@ -111,7 +121,7 @@ export function FocusScreen({ at, clock = realClock, onList, onGo, onPart }: Pro
             </Tap>
             {!isNow && (
               <Tap aria-label="Back to the hour it is now" onPress={() => onGo(null)} style={styles.nowLink} activeStyle={{ backgroundColor: theme.paperRaised }}>
-                <Text style={[styles.small, { color: theme.accent, fontWeight: '700' }]}>Now</Text>
+                <Text style={[styles.small, { color: theme.accent, fontWeight: '700' }]}>Right now</Text>
               </Tap>
             )}
             <Tap aria-label={`Next hour, ${hourLabel(after.hour)}${says(after) ? `: ${says(after)}` : ''}`} onPress={() => go(after)} style={[styles.step, styles.stepNext]} activeStyle={{ backgroundColor: theme.paperRaised }}>

@@ -53,8 +53,8 @@ describe('the focus screen', () => {
     const on = await setup();
     await act(async () => void cmdSetSlot(slotKey('2026-11-19', 14), [id('send invoice')]));
     // The hour line says the hour and the day, and leads to the list of every hour.
-    const line = screen.getByLabelText('2pm, now, Today, Thu, Nov 19. Show every hour');
-    expect(line).toHaveTextContent('2pmNowThu, Nov 19');
+    const line = screen.getByLabelText('2pm, Right now, Thu, Nov 19. Show every hour');
+    expect(line).toHaveTextContent('2pmRight nowThu, Nov 19');
     await fireEvent.press(line);
     expect(on.onList).toHaveBeenCalled();
     // The hour's pad is the store's view of that hour, drawn by the host.
@@ -91,6 +91,8 @@ describe('the focus screen', () => {
 
   it('steps onto the hour the clock is in as following it, not as a fixed hour', async () => {
     const on = await setup({ day: '2026-11-19', hour: 13 });
+    // Another hour of today says how far off it is, not "Today".
+    expect(screen.getByLabelText('1pm, 1 hour ago, Thu, Nov 19. Show every hour')).toHaveTextContent('1pm1 hour agoThu, Nov 19');
     await fireEvent.press(screen.getByLabelText('Next hour, 2pm'));
     expect(on.onGo).toHaveBeenLastCalledWith(null);
   });
@@ -114,6 +116,18 @@ describe('the focus screen', () => {
     expect(on.onPart).toHaveBeenLastCalledWith('own');
     await fireEvent.press(screen.getByLabelText("Schedule: Today's lines with an hour"));
     expect(on.onPart).toHaveBeenLastCalledWith('scheduled');
+  });
+});
+
+describe('the hour line of an hour still to come today', () => {
+  it('says in how many hours it starts', async () => {
+    const s = await stores();
+    await render(
+      <StoresProvider {...s}>
+        <FocusScreen at={{ day: '2026-11-19', hour: 17 }} clock={clock} onList={() => {}} onGo={() => {}} onPart={() => {}} />
+      </StoresProvider>,
+    );
+    expect(screen.getByLabelText('5pm, In 3 hours, Thu, Nov 19. Show every hour')).toBeTruthy();
   });
 });
 
