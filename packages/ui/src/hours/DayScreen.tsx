@@ -215,7 +215,7 @@ export function DayScreen({ clock = realClock, onEditPlans }: Props) {
                 automaticallyAdjustKeyboardInsets
                 onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
                 contentContainerStyle={[{ paddingBottom: Math.max(48, listHeight - ROW) }, BACK]}>
-                {hours.map(({ day: on, hour, says }) => {
+                {hours.map(({ day: on, hour, says, count }) => {
                   const state = slotState(on, hour, now);
                   return (
                     <View
@@ -232,6 +232,7 @@ export function DayScreen({ clock = realClock, onEditPlans }: Props) {
                         day={on}
                         hour={hour}
                         says={says}
+                        count={count}
                         extra={extras[slotKey(on, hour)]}
                         state={state}
                         open={editing === hour}

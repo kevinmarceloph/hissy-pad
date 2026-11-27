@@ -60,13 +60,19 @@ test('in an open hour the toolbar offers Out of this hour, not Make pad, and no 
   await page.keyboard.press('Escape')
   const rows = page.locator('.hour-lines .row')
   await expect(rows).toHaveCount(2)
-  // The first line, and how many more.
-  await expect(page.getByRole('button', { name: /, now: Call the bank, and 1 more$/ })).toBeVisible()
+  // The first line, and its lines done out of all.
+  await expect(page.getByRole('button', { name: /, now: Call the bank, 0 of 2 done$/ })).toBeVisible()
   await rows.nth(1).getByRole('button', { name: 'Deselect line' }).click()
 
   await rows.first().getByRole('button', { name: 'Select line' }).click()
-  // An hour keeps no order for its lines: the arrows that would change it are off.
-  for (const name of ['Move up', 'Move down', 'Move to top']) await expect(page.getByRole('button', { name, exact: true })).toBeDisabled()
+  // The hour's lines reorder: both are Today's, so the first can go down and not up.
+  await expect(page.getByRole('button', { name: 'Move up', exact: true })).toBeDisabled()
+  await page.getByRole('button', { name: 'Move down', exact: true }).click()
+  await expect(rows.first()).toContainText('Send invoice')
+  await expect(rows.nth(1)).toContainText('Call the bank')
+  await expect(page.getByRole('button', { name: /, now: Send invoice, 0 of 2 done$/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Move up', exact: true }).click()
+  await expect(rows.first()).toContainText('Call the bank')
 
   const more = page.getByRole('button', { name: 'More actions', exact: true })
   await more.scrollIntoViewIfNeeded()

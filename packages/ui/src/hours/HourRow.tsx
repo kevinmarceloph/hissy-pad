@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { categoryName, categoryShort, findCategory, type Category } from '@hissypad/core/hours';
+import type { SlotCount } from '@hissypad/core';
 import { hourLabel, type HourShown, type SlotState } from '@hissypad/core/hours';
 
 import { Mark } from './Mark';
@@ -17,6 +18,8 @@ type Props = {
   // What the row says: the first line put in the hour (its words, category and state) and
   // how many more follow, or what an hour with no lines falls back on.
   says: HourShown;
+  // The hour's own lines, crossed out and open: with two or more the row says "1/3".
+  count?: SlotCount | undefined;
   // Lines crossed out during this hour that were not assigned to it (cleared ones too).
   extra?: number | undefined;
   state: SlotState;
@@ -27,13 +30,19 @@ type Props = {
   onClose(): void;
 };
 
-// One hour: a row that says what is in it, and, open, a pad scoped to it (Kevin,
+// One hour: a row that says what is in it, or, open, a pad scoped to it (Kevin,
 // 2026-11-27, "rethink the hour view, round 3"). The hour has nothing of its own to set:
-// no state, no summary, no category, no flags (hidden, kept for a later version). Its
-// title is its first line and "+N" for the others; its bullet is that line's state. A
-// summary for the hour is a line typed into it.
+// no state, no summary, no category, no flags (hidden, kept for a later version). Closed,
+// its title is its first line, its bullet that line's state, and "1/3" counts its lines
+// done out of all ("+N" is for a line's sub items, so not that). Open, the title is not
+// drawn: the pad's first line sits where it was, beside the hour, and is what the row will
+// say again once closed. A summary for the hour is a line typed into it.
 export function HourRow(props: Props) {
   const { hour, says, state, open, categories, extra = 0, onOpen, onClose } = props;
+  const done = props.count?.done ?? 0;
+  const total = done + (props.count?.open ?? 0);
+  // One line needs no count: its bullet says whether it is done.
+  const counted = total > 1;
   const theme = useTheme();
   const label = hourLabel(hour);
   const isNow = state === 'now';
@@ -49,28 +58,41 @@ export function HourRow(props: Props) {
   // The row says in words what the mark and the counts show.
   const spoken = [
     words || (says.from !== null ? '(blank line)' : state === 'future' ? 'not yet' : 'blank'),
-    says.more > 0 ? `and ${says.more} more` : null,
+    counted ? `${done} of ${total} done` : null,
     mark === 'open' ? null : mark,
     extra > 0 ? `${extra} more done` : null,
   ]
     .filter(Boolean)
     .join(', ');
+  const name = `${label}${isNow ? ', now' : ''}: ${spoken}`;
+  const hourText = (
+    <Text
+      style={[
+        styles.hour,
+        { color: isNow ? theme.accent : theme.inkQuiet },
+        isNow && { fontWeight: '700' },
+      ]}>
+      {label}
+    </Text>
+  );
+  if (open) {
+    // The hour beside its pad: the hour's own label closes it, and the pad's first line
+    // is on the label's row, where the title was.
+    return (
+      <View style={[styles.wrap, styles.opened, { borderBottomColor: theme.rule, backgroundColor: theme.paperRaised }]}>
+        <Tap onPress={onClose} aria-expanded aria-label={name} style={styles.side} activeStyle={{ backgroundColor: theme.paper }}>
+          {hourText}
+        </Tap>
+        <View style={styles.editor}>
+          <HostedLines day={props.day} hour={hour} onClose={onClose} />
+        </View>
+      </View>
+    );
+  }
   return (
-    <View style={[styles.wrap, { borderBottomColor: theme.rule }, open && { backgroundColor: theme.paperRaised }]}>
-      <Tap
-        onPress={open ? onClose : onOpen}
-        aria-expanded={open}
-        aria-label={`${label}${isNow ? ', now' : ''}: ${spoken}`}
-        style={styles.row}
-        activeStyle={{ backgroundColor: theme.paperRaised }}>
-        <Text
-          style={[
-            styles.hour,
-            { color: isNow ? theme.accent : theme.inkQuiet },
-            isNow && { fontWeight: '700' },
-          ]}>
-          {label}
-        </Text>
+    <View style={[styles.wrap, { borderBottomColor: theme.rule }]}>
+      <Tap onPress={onOpen} aria-expanded={false} aria-label={name} style={styles.row} activeStyle={{ backgroundColor: theme.paperRaised }}>
+        {hourText}
         {/* The hour's bullet is its first line's: a dot, a dot in a ring, a cross (first
             item done = hour done). In its category's color; an hour still ahead with
             nothing in it draws its dot faint. It is part of the row's button. */}
@@ -91,26 +113,21 @@ export function HourRow(props: Props) {
             {isNow ? 'happening now' : state === 'past' && says.from === null ? 'blank' : ''}
           </Text>
         )}
-        {says.more > 0 && (
-          // The other lines put in the hour, after the one the row shows.
+        {counted && (
+          // The hour's own lines, done out of all.
           <Text aria-hidden style={[styles.items, { color: theme.inkSoft }]}>
-            +{says.more}
+            {done}/{total}
           </Text>
         )}
         {extra > 0 && (
           // The lines crossed out in this hour that were assigned elsewhere or nowhere,
           // cleared ones too: a cross, the pad's mark for a line done, and how many (Kevin,
-          // 2026-11-25). The open hour lists them behind "Done in this hour".
+          // 2026-11-25). The open hour lists them behind "✕N done".
           <Text aria-hidden style={[styles.items, { color: theme.inkSoft }]}>
             ✕{extra}
           </Text>
         )}
       </Tap>
-      {open && (
-        <View style={styles.editor}>
-          <HostedLines day={props.day} hour={hour} onClose={onClose} />
-        </View>
-      )}
     </View>
   );
 }
@@ -197,8 +214,11 @@ const styles = StyleSheet.create({
   swatch: { width: 18, height: 18 },
   text: { flex: 1 },
   note: { fontFamily: serif, fontSize: SIZE, lineHeight: LINE },
-  // The open hour is its lines, under the row's words: no box around them, no fields.
-  editor: { paddingLeft: 53, paddingRight: 4, paddingBottom: 8 },
+  // The open hour: its label in a column of its own, as wide as a closed row's label and
+  // gap, and the pad beside it, its first line on the label's row.
+  opened: { flexDirection: 'row', alignItems: 'flex-start' },
+  side: { width: 53, minHeight: ROW, justifyContent: 'center', paddingLeft: 4, borderRadius: 4 },
+  editor: { flex: 1, paddingRight: 4, paddingTop: (ROW - LINE) / 2, paddingBottom: 8 },
   group: { gap: 6 },
   label: { fontFamily: serif, fontSize: SMALL, lineHeight: 20 },
   items: { fontFamily: serif, fontSize: SMALL, lineHeight: 20, fontVariant: ['tabular-nums'] },

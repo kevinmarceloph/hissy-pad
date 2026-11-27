@@ -71,7 +71,7 @@ describe('an hour as a view of the store', () => {
     expect(tableShape()).toContain('A\n  A1\n    A1 and a half\n    A2\nB')
   })
 
-  it('writes nothing for a move among the hour\'s own lines: an hour keeps no order', () => {
+  it('writes nothing for a move past a line of another pad: the hour lists its lines as the pads have them', () => {
     openSlot(H)
     const before = all()
     const steps = usePad.getState().past.length
@@ -79,6 +79,28 @@ describe('an hour as a view of the store', () => {
     expect(all()).toBe(before)
     expect(usePad.getState().past.length).toBe(steps)
     expect(view()).toBe('U\nA\n  A1\n  A2')
+  })
+
+  it('moves a line in its pad when it is moved among the hour\'s lines of that pad', () => {
+    // B and C join A in the hour: three lines of the Inbox, after Today's U.
+    applyAll((rows, ctx) => setSlot(rows, ctx, [id('B'), id('C')], H))
+    openSlot(H)
+    expect(view()).toBe('U\nA\n  A1\n  A2\nB\nC')
+    apply((rows, ctx) => moveSibling(rows, ctx, [id('C')], 'up'))
+    expect(view()).toBe('U\nA\n  A1\n  A2\nC\nB')
+    // It moved in the Inbox, with nothing else touched; one undo step takes it back.
+    expect(tableShape()).toContain('A\n  A1\n  A2\nC\nB')
+    apply((rows, ctx) => moveSibling(rows, ctx, [id('C')], 'up'))
+    expect(view()).toBe('U\nC\nA\n  A1\n  A2\nB')
+    expect(tableShape()).toContain('C\nA\n  A1\n  A2\nB')
+    // Up again would pass Today's line: nothing to write.
+    const here = all()
+    apply((rows, ctx) => moveSibling(rows, ctx, [id('C')], 'up'))
+    expect(all()).toBe(here)
+    apply((rows, ctx) => moveSibling(rows, ctx, [id('C')], 'down'))
+    expect(view()).toBe('U\nA\n  A1\n  A2\nC\nB')
+    undo()
+    expect(tableShape()).toContain('C\nA\n  A1\n  A2\nB')
   })
 
   it('puts a line moved out to the root after the line it was under, in that line\'s pad, and in the hour', () => {
@@ -164,12 +186,17 @@ describe('the toolbar in an open hour', () => {
     expect(offered(inHour)).not.toContain('makePad')
   })
 
-  it('has no up, down or top for the hour\'s own lines, which keep no order, and has them for lines under one', () => {
+  it('has up and down for one of the hour\'s own lines only past a line of its own pad, and for lines under one', () => {
     openSlot(H)
-    // A is the second of the hour's two lines: it can go in under U, and nowhere else.
+    // A is the second of the hour's two lines, and U is Today's: it can go in under U, and
+    // cannot trade places with it.
     expect(lineAbilities(usePad.getState().rows, [id('A')])).toMatchObject({ up: false, down: false, indent: true, dedent: false })
     expect(lineAbilities(usePad.getState().rows, [id('U')])).toMatchObject({ up: false, down: false, indent: false })
     expect(lineAbilities(usePad.getState().rows, [id('A2')])).toMatchObject({ up: true, down: false, indent: true, dedent: true })
+    // With another Inbox line in the hour, the two can.
+    applyAll((rows, ctx) => setSlot(rows, ctx, [id('B')], H))
+    expect(lineAbilities(usePad.getState().rows, [id('A')])).toMatchObject({ up: false, down: true })
+    expect(lineAbilities(usePad.getState().rows, [id('B')])).toMatchObject({ up: true, down: false })
   })
 
   it('takes the selected lines out of the hour and leaves them in their pads', () => {

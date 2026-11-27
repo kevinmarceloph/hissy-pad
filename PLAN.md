@@ -439,6 +439,12 @@ Kevin: "rethink the hour view". The end result is a focused pad scoped to the ho
 
 Checked: web in the browser at desktop and 375px (add by tap, the title and +N, archive and unarchive in place, the search for an hour, Fresh start and the dot in Today, the done toggle), Playwright on both profiles. The phone draws the same shared screens; its own parts are the archived mark on `Row` and `assign` on the Search sheet.
 
+Later the same day (Kevin, from a screenshot of an open hour):
+
+- **The open hour has no title row.** It repeated the first line right above it. Open, the hour's label is a column beside the pad and the pad's first line is on its row, where the title was; the label closes the hour, as Close does. Closed, the row says that first line again.
+- **`1/3`, not `+2`.** `+N` is what a folded line says about its sub items, so the hour's other lines are now counted as done out of all, for an hour with two or more of its own lines: on the closed row, and at the foot of the open hour beside "✕N done".
+- **Lines reorder in the hour.** An hour still keeps no order of its own, so a move is a move in the pad: the line goes right after the hour's line now above it that shares its parent (the same pad, the same line over it), or right before the one below. In Today's Scheduled section that is the order of the lines in one hour, which `settleSchedule` keeps as given. A move past a line of another pad writes nothing, and the arrows are off for it. If the hour's own order becomes the one kept (Kevin: likely), this rule in `unscopeSlot` is the place that changes.
+
 Not done: what was typed as an hour's summary before is not turned into lines; flags have no place to be answered; the watch still knows nothing of hours.
 
 ## Category views, 2026-11-27

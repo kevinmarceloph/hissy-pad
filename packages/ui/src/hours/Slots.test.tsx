@@ -46,21 +46,21 @@ async function setup(host = false) {
 const hosted = () => setup(true);
 
 describe('the pad\'s lines in an hour', () => {
-  it('titles an hour with its first line and +N for the others, and is done when that line is', async () => {
+  it('titles an hour with its first line and its lines done out of all, and is done when that line is', async () => {
     await setup();
     await act(async () => {
       select([id('call the bank'), id('send invoice'), id('buy milk')]);
       cmdSetSlot(slotKey('2026-11-19', 14));
     });
-    // The first line as the pad has them, and how many more follow it.
-    expect(screen.getByLabelText('2pm, now: call the bank, and 2 more')).toBeTruthy();
-    expect(screen.getByText('+2')).toBeTruthy();
+    // The first line as the pad has them, and how many of the hour's lines are done.
+    expect(screen.getByLabelText('2pm, now: call the bank, 0 of 3 done')).toBeTruthy();
+    expect(screen.getByText('0/3')).toBeTruthy();
     // A later line crossed out changes nothing about the hour.
     await act(async () => void cross(id('send invoice')));
-    expect(screen.getByLabelText('2pm, now: call the bank, and 2 more')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: call the bank, 1 of 3 done')).toBeTruthy();
     // First item done = hour done. There is no switch for it.
     await act(async () => void cross(id('call the bank')));
-    expect(screen.getByLabelText('2pm, now: call the bank, and 2 more, done')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: call the bank, 2 of 3 done, done')).toBeTruthy();
     expect(screen.queryByRole('radio')).toBeNull();
     // An hour with nothing assigned says nothing about items.
     expect(screen.getByLabelText('1pm: blank')).toBeTruthy();
@@ -71,7 +71,7 @@ describe('the pad\'s lines in an hour', () => {
     await act(async () => {
       cmdSetSlot(slotKey('2026-11-19', 14), [id('send invoice'), id('buy milk')]);
     });
-    expect(screen.getByLabelText('2pm, now: send invoice, and 1 more')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: send invoice, 0 of 2 done')).toBeTruthy();
     await act(async () => {
       const invoice = id('send invoice');
       applyAll((rows, ctx) => insertAt(insertAt(rows, ctx, { parentId: invoice, afterId: null }, 'find the PO number').rows, ctx, { parentId: invoice, afterId: null }, 'export the PDF').rows);
@@ -79,7 +79,7 @@ describe('the pad\'s lines in an hour', () => {
       cross(id('buy milk'));
     });
     // The lines under one are not counted, nor as extra.
-    expect(screen.getByLabelText('2pm, now: send invoice, and 1 more')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: send invoice, 1 of 2 done')).toBeTruthy();
     expect(screen.queryByText(/^✕/)).toBeNull();
     // The hour has nothing of its own: no summary, no state, no flags to set.
     expect(day.getState().byHour[14]).toBeUndefined();
@@ -102,7 +102,8 @@ describe('the pad\'s lines in an hour', () => {
       });
     });
     expect(screen.getByLabelText('2pm, now: call the bank, done, 1 more done')).toBeTruthy();
-    expect(screen.getByText('✕1')).toBeTruthy();
+    // Open, the hour draws no title row: the count is on the toggle at its foot.
+    expect(screen.getByText(/✕1 done/)).toBeTruthy();
     // Not listed until asked for.
     expect(screen.queryByRole('list', { name: 'Lines done in this hour' })).toBeNull();
     const toggle = screen.getByLabelText('Done in this hour: 1');
@@ -133,7 +134,7 @@ describe('the pad\'s lines in an hour', () => {
     await fireEvent.press(screen.getByLabelText('Add a line to this hour'));
     const next = usePad.getState().editing!.id;
     await act(async () => void cmdSetText(next, 'book the dentist'));
-    expect(screen.getByLabelText('2pm, now: renew passport, and 1 more')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: renew passport, 0 of 2 done')).toBeTruthy();
   });
 
   it('puts a line into an hour that has not come', async () => {
@@ -462,7 +463,7 @@ describe('an open hour drawn by the host\'s own editor', () => {
     expect(screen.getByTestId('host-rows').textContent).toBe('call the bank | export the PDF | send invoice');
     expect(screen.queryByText('Archived')).toBeNull();
     // It still counts in the hour's title.
-    expect(screen.getByLabelText('2pm, now: call the bank, and 1 more')).toBeTruthy();
+    expect(screen.getByLabelText('2pm, now: call the bank, 1 of 2 done')).toBeTruthy();
     // The mark brings it back in place, as done as it was, with the line under it.
     await act(async () => void cmdSlotUnarchive(invoice));
     expect(all()[invoice]).toMatchObject({ deletedAt: null, slot: '2026-11-19T14', done: true });

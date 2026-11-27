@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
-import { slotDoneElsewhere, slotKey, slotLeftovers } from '@hissypad/core';
+import { slotDoneElsewhere, slotKey, slotLeftovers, slotProgress } from '@hissypad/core';
 import { closeSlot, cmdAppendAtEnd, hitKids, hitNote, lineHit, openSlot, usePad, type SearchHit } from '@hissypad/state';
 import { cmdFindForSlot, cmdSlotFresh, useLineCategory } from '@hissypad/state/hours';
 
@@ -8,7 +8,7 @@ import { CategoryBadge } from './CategoryBadge';
 
 import { StateMark } from './StateMark';
 import { Tap } from './Tap';
-import { LINE, ROW, serif, SIZE, SMALL, useTheme } from './theme';
+import { LINE, serif, SIZE, SMALL, useTheme } from './theme';
 
 // The app's own pad editor, handed to Hours by its host: these screens cannot import it
 // (the web's is DOM, the phone's its own rows). It draws the store's `rows`, which are the
@@ -58,6 +58,8 @@ export function HostedLines({ day, hour, onClose }: Props) {
   // What the row counts as ✕N, in the order it was crossed out (Kevin, 2026-11-25).
   const finished = useMemo(() => slotDoneElsewhere(all)[slot] ?? [], [all, slot]);
   const [listed, setListed] = useState(false);
+  const count = useMemo(() => slotProgress(all, slot).count, [all, slot]);
+  const total = count.done + count.open;
   // What Fresh start would take out of the hour: its lines that are not crossed out.
   const leftovers = useMemo(() => slotLeftovers(all, slot).length, [all, slot]);
 
@@ -75,6 +77,12 @@ export function HostedLines({ day, hour, onClose }: Props) {
         <Tap aria-label="Find a line in a pad for this hour" onPress={() => cmdFindForSlot(day, hour)} hitSlop={6} style={styles.icon} activeStyle={{ backgroundColor: theme.paper }}>
           <FindIcon color={theme.inkSoft} />
         </Tap>
+        {total > 1 && (
+          // The hour's own lines, done out of all: what its row says once it is closed.
+          <Text aria-label={`${count.done} of ${total} done`} style={[styles.small, styles.count, { color: theme.inkSoft }]}>
+            {count.done}/{total}
+          </Text>
+        )}
         {finished.length > 0 && (
           <Tap aria-expanded={listed} aria-label={`Done in this hour: ${finished.length}`} onPress={() => setListed(!listed)} hitSlop={6} style={styles.link} activeStyle={{ backgroundColor: theme.paper }}>
             <Text style={[styles.small, styles.underline, { color: theme.inkSoft }]}>
@@ -156,7 +164,8 @@ function FindIcon({ color }: { color: string }) {
 const styles = StyleSheet.create({
   // The tap target under the lines: a line and a half of nothing, like the foot of a pad.
   space: { minHeight: Math.round(LINE * 1.5) },
-  blank: { minHeight: ROW, justifyContent: 'center', paddingLeft: Platform.OS === 'web' ? 9 : 10 },
+  // (One line tall: the hour's label beside it is centered on the pad's first line.)
+  blank: { minHeight: LINE + 8, paddingBottom: 8, justifyContent: 'center', paddingLeft: Platform.OS === 'web' ? 9 : 10 },
   hint: { fontStyle: 'italic' },
   foot: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4, minHeight: 32 },
   gap: { flex: 1 },
@@ -164,6 +173,7 @@ const styles = StyleSheet.create({
   link: { minHeight: 32, justifyContent: 'center', paddingHorizontal: 8, borderRadius: 4 },
   off: { opacity: 0.45 },
   underline: { textDecorationLine: 'underline' },
+  count: { paddingHorizontal: 4, fontVariant: ['tabular-nums'] },
   // A line as the pad draws one: a bullet in its own column, the words in the pad's line.
   // The bullet sits where each app's pad puts its own: measured against the web's rows,
   // and the phone's 36pt gutter.

@@ -6,7 +6,7 @@
 // a dropdown (⋯) on both. An action with an `icon` is drawn as that icon, by each app's own
 // icon set. Actions marked `floats` (Done, Hour…, Category…, Boomerang…) are not on the bar: both apps
 // draw them as round buttons floating above it, Done as the open / doing / done switch.
-import { buildIndex, childrenOf, topmost, type NodeKind, type Rows } from '@hissypad/core'
+import { buildIndex, childrenOf, topmost, type NodeKind, type Rows, scopeSlot, type NodeRow } from '@hissypad/core'
 import {
   cmdAddAbove, cmdAddBelow, cmdCopySelection, cmdCutSelection, cmdDedent, cmdDeleteSelection, cmdIndent, cmdMove, cmdMoveToBottom, cmdMoveToTop, cmdPaste, cmdTogglePin, cmdToggleCollapsed, cmdSplitOpen, cmdToggleDone, cmdUngroup, useClipboard,
 } from './commands'
@@ -35,8 +35,9 @@ export interface LineAbilities {
   paste: boolean    // the clipboard may hold text (off only where the platform can tell it does not)
 }
 
-// `hour`: the rows are an open hour's lines. Its own lines, at the root, have no order to
-// change (an hour lists them as the pads have them), so up, down, top and bottom are off for them.
+// `hour`: the rows are an open hour's lines. One of its own lines, at the root, moves in
+// its pad (core's unscopeSlot), so up and down are on only when a line with the same
+// parent there is on that side: a line cannot pass another pad's.
 // Pinned lines move only among the pins, and the others only under them (core's pins.ts).
 export function lineAbilities(
   rows: Rows, ids: readonly string[], hour: boolean = usePad.getState().slotId !== null, zoomed: boolean = usePad.getState().zoomId !== null || usePad.getState().catId !== null,
@@ -48,6 +49,8 @@ export function lineAbilities(
   const tops = topmost(index, ids).filter((id) => rows[id] !== undefined)
   const set = new Set(tops)
   const pads = !hour && !zoomed
+  const { all, slotId } = usePad.getState()
+  const homes = hour && slotId !== null ? scopeSlot(all, slotId).homes : null
   const can: LineAbilities = { indent: false, dedent: false, up: false, down: false, children: false, folded: false, single: tops.length === 1, mixed: false, hour, pads, pin: false, pinned: false, paste }
   let open = false
   let unpinned = false
@@ -55,11 +58,12 @@ export function lineAbilities(
     const parent = index.parentOf.get(id) ?? null
     const sibs = childrenOf(index, parent)
     const i = sibs.findIndex((s) => s.id === id)
-    const ordered = !(hour && parent === null)
+    // In an hour, the lines at the root it can trade places with: the ones from its own parent.
+    const mate = (s: NodeRow) => !homes || parent !== null || homes.get(s.id)?.parentId === homes.get(id)?.parentId
     const pinned = rows[id]!.pinned
     const before = sibs.slice(0, i).filter((s) => !set.has(s.id))
-    if (before.length) { if (!before.at(-1)!.divider) can.indent = true; if (ordered && before.some((s) => s.pinned === pinned)) can.up = true }
-    if (ordered && sibs.slice(i + 1).some((s) => !set.has(s.id) && s.pinned === pinned)) can.down = true
+    if (before.length) { if (!before.at(-1)!.divider) can.indent = true; if (before.some((s) => s.pinned === pinned && mate(s))) can.up = true }
+    if (sibs.slice(i + 1).some((s) => !set.has(s.id) && s.pinned === pinned && mate(s))) can.down = true
     if (pads && parent === null && !rows[id]!.pad) { can.pin = true; if (!pinned) unpinned = true }
     if (parent !== null) can.dedent = true
     const kids = childrenOf(index, id)

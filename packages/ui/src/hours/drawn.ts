@@ -1,4 +1,4 @@
-import { slotKey, slotProgress, type NodeRow, type Rows } from '@hissypad/core';
+import { slotKey, slotProgress, type NodeRow, type Rows, type SlotCount } from '@hissypad/core';
 import { findCategory, type Category } from '@hissypad/core/hours';
 import type { DayKey } from '@hissypad/core/hours';
 import { hourShown, type Entry, type HourShown } from '@hissypad/core/hours';
@@ -15,6 +15,8 @@ export type DrawnHour = {
   // The line on top of the hour's list, and how many more of its own lines follow.
   top: NodeRow | undefined;
   more: number;
+  // Its own lines, crossed out and open: the row says "1/3".
+  count: SlotCount;
   // What its row says: the first line's words, category and state, or what an hour with
   // no lines falls back on (hourShown).
   says: HourShown;
@@ -35,7 +37,7 @@ export function drawHours(
   palette: Theme['palette'],
 ): DrawnHour[] {
   return slots.map(({ day, hour }) => {
-    const { top, more } = slotProgress(all, slotKey(day, hour));
+    const { top, more, count } = slotProgress(all, slotKey(day, hour));
     const says = hourShown(top, more, recurringAt(recurring, day, hour), byHour[hour]);
     const category = findCategory(categories, says.category);
     const cell: HourCell = {
@@ -44,6 +46,6 @@ export function drawHours(
       icon: category?.icon || null,
       any: says.from !== null,
     };
-    return { day, hour, top, more, says, cell };
+    return { day, hour, top, more, count, says, cell };
   });
 }

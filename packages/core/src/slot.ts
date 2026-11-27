@@ -343,8 +343,12 @@ export function scopeSlot(all: Rows, slot: string): SlotView {
 }
 
 // The rows an op changed in an hour's view (`view`, as scopeSlot gave it), back in table terms:
-//   - one of the hour's own lines still at the root goes back to its pad, where it was. A
-//     move among them writes nothing: an hour keeps no order.
+//   - one of the hour's own lines still at the root goes back to its pad, where it was.
+//     Moved up or down among the others, it moves in its pad: to right after the hour's
+//     line now above it that has the same parent there (the same pad, the same line over
+//     it), or right before the one now below it. The hour still lists its lines as the
+//     pads have them, so a move past a line of another pad writes nothing (Kevin,
+//     2026-11-27: reorder in the hour; the hour's own order may become the one kept).
 //   - a line moved out to the root joins the hour, and in its pad becomes the line after
 //     the one it came out from under (the hour's line above it in the view).
 //   - a line made at the root is new, and in this hour: in its pad it is the line after the
@@ -413,13 +417,56 @@ export function unscopeSlot(all: Rows, slot: string, view: SlotView, changed: re
     last.set(`<${next.id}`, rank)
     return { parentId: to.parentId, rank }
   }
+  // The hour's own lines that the op moved among themselves, with the rank each takes in
+  // its pad. Lines that share a parent there keep the order the view now has them in.
+  const byRank = (a: NodeRow, b: NodeRow) => (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0)
+  const placed = new Map<string, string>()
+  const movers = new Set(changed.filter((r) => r.parentId === null && homes.has(r.id) && rows[r.id] !== undefined && rows[r.id]!.rank !== r.rank).map((r) => r.id))
+  if (movers.size > 0) {
+    const now = new Map(changed.map((r) => [r.id, r]))
+    const tops = (from: (id: string) => NodeRow | undefined) =>
+      [...homes.keys()].map(from).filter((r): r is NodeRow => r !== undefined && r.parentId === null).sort(byRank)
+    const before = tops((id) => rows[id])
+    const order = tops((id) => now.get(id) ?? rows[id])
+    const group = (list: NodeRow[], parentId: string | null) => list.filter((r) => homes.get(r.id)!.parentId === parentId).map((r) => r.id).join(' ')
+    const at = (id: string) => placed.get(id) ?? homes.get(id)!.rank
+    // The ranks taken right under a parent: the lines there that are not being moved, and
+    // the moved ones already placed.
+    const taken = (parentId: string | null) => {
+      const ranks: string[] = []
+      for (const id in all) {
+        const r = all[id]!
+        if (r.parentId === parentId && !movers.has(id) && (isLive(r) || homes.has(id))) ranks.push(r.rank)
+      }
+      for (const [id, rank] of placed) if (homes.get(id)!.parentId === parentId) ranks.push(rank)
+      return ranks
+    }
+    order.forEach((r, i) => {
+      if (!movers.has(r.id)) return
+      const parentId = homes.get(r.id)!.parentId
+      // Nothing changed among the lines it shares a parent with: it only passed another pad's.
+      if (group(before, parentId) === group(order, parentId)) return
+      const mate = (o: NodeRow) => homes.get(o.id)!.parentId === parentId
+      const prev = order.slice(0, i).reverse().find(mate)
+      const next = order.slice(i + 1).find((o) => mate(o) && !movers.has(o.id))
+      if (prev) {
+        const from = at(prev.id)
+        const after = taken(parentId).filter((x) => x > from).sort()[0] ?? null
+        placed.set(r.id, between(from, after))
+      } else if (next) {
+        const to = at(next.id)
+        const under = taken(parentId).filter((x) => x < to).sort().at(-1) ?? null
+        placed.set(r.id, between(under, to))
+      }
+    })
+  }
   const out: NodeRow[] = []
-  for (const r of [...changed].sort((a, b) => (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0))) {
+  for (const r of [...changed].sort(byRank)) {
     let back = r
     if (r.parentId === null) {
       const home = homes.get(r.id)
       const stored = all[r.id]
-      if (home) back = { ...r, parentId: home.parentId, rank: home.rank }
+      if (home) back = { ...r, parentId: home.parentId, rank: placed.get(r.id) ?? home.rank }
       else {
         const place = after(r)
         if (place) back = { ...r, ...place, slot }
