@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { usePad } from '@hissypad/state'
 import { supabase } from '../platform/supabase'
 import { requestSync, syncLine } from '@hissypad/state'
+import { authRedirect, isMacApp } from '../platform/os'
 
 const syncEnabled = supabase !== null
 
@@ -26,20 +27,20 @@ export function Account() {
     }
   }, [])
 
-  if (!syncEnabled) return <span>Saved in this browser only.</span>
+  if (!syncEnabled) return <span>{isMacApp() ? 'Saved on this Mac only.' : 'Saved in this browser only.'}</span>
 
   async function sendLink(e: FormEvent) {
     e.preventDefault()
     if (!supabase) return
     setBusy(true)
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } })
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: authRedirect() } })
     setBusy(false)
-    setNote(error ? error.message : `Link sent to ${email}. Open it on this device.`)
+    setNote(error ? error.message : `Link sent to ${email}. Open it on this ${isMacApp() ? 'Mac: it comes back to this window' : 'device'}.`)
   }
 
   async function google() {
     if (!supabase) return
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: authRedirect() } })
     if (error) setNote(error.message)
   }
 
@@ -50,12 +51,12 @@ export function Account() {
   if (!session) {
     return (
       <>
-        <span>Saved in this browser. </span>
+        <span>{isMacApp() ? 'Saved on this Mac. ' : 'Saved in this browser. '}</span>
         <button type="button" className="link" onClick={() => dialog.current?.showModal()}>Sign in to sync across devices</button>
         <dialog ref={dialog} className="import" aria-labelledby="signin-title" onClose={() => setNote(null)}>
           <form onSubmit={sendLink}>
             <h2 id="signin-title">Sign in</h2>
-            <p>Your lines stay in this browser either way. Signing in copies them to your account and keeps every device the same.</p>
+            <p>Your lines stay {isMacApp() ? 'on this Mac' : 'in this browser'} either way. Signing in copies them to your account and keeps every device the same.</p>
             <label className="field">
               <span>Email for a magic link</span>
               <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />

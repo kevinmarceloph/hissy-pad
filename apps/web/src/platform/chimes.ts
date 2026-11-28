@@ -5,6 +5,7 @@
 // in the background. The phone app has local notifications instead (apps/mobile/src/chimes.ts).
 import { chimeTitle, cleanChimes, createChimer, type ChimeOutcome } from '@hissypad/core/hours'
 import type { ChimePlatform } from '@hissypad/state/hours'
+import { macAsk, macShell } from './os'
 
 type AudioWindow = Window & { webkitAudioContext?: typeof AudioContext };
 
@@ -65,9 +66,24 @@ const soundChime = () => {
   play();
 };
 
-const canNotify = () => inBrowser && 'Notification' in window;
+// The Mac app has no Notification of the page's: the app shows them, and says whether it
+// may ('default' until asked). Read when the page opens and after each ask.
+const viaMac = () => macShell()?.notifications === true;
+let macState: NotificationPermission = 'default';
+const readMacState = async (type: 'notifyState' | 'notifyAsk') => {
+  const said = await macAsk({ type });
+  if (said === 'granted' || said === 'denied' || said === 'default') macState = said;
+};
+if (viaMac()) void readMacState('notifyState');
+
+const canNotify = () => viaMac() || (inBrowser && 'Notification' in window);
+const permission = (): NotificationPermission => (viaMac() ? macState : Notification.permission);
 
 function notify(at: Date): void {
+  if (viaMac()) {
+    if (macState === 'granted') void macAsk({ type: 'notify', title: chimeTitle(at.getMinutes()), body: 'Click to open your hours.', tag: 'hissypad-chime' });
+    return;
+  }
   if (!canNotify() || Notification.permission !== 'granted') return;
   try {
     const note = new Notification(chimeTitle(at.getMinutes()), {
@@ -95,7 +111,7 @@ const chimer = createChimer({
 });
 
 const outcome = (minutes: number[]): ChimeOutcome =>
-  minutes.length === 0 ? 'off' : canNotify() && Notification.permission === 'granted' ? 'on' : 'sound';
+  minutes.length === 0 ? 'off' : canNotify() && permission() === 'granted' ? 'on' : 'sound';
 
 // From a press: starts the timer and asks, once, whether notifications may show.
 async function applyChimes(minutes: number[]): Promise<ChimeOutcome> {
@@ -103,9 +119,10 @@ async function applyChimes(minutes: number[]): Promise<ChimeOutcome> {
   chimer.set(chosen);
   if (chosen.length > 0) {
     unlockSound();
-    if (canNotify() && Notification.permission === 'default') {
+    if (canNotify() && permission() === 'default') {
       try {
-        await Notification.requestPermission();
+        if (viaMac()) await readMacState('notifyAsk');
+        else await Notification.requestPermission();
       } catch {
         // Asked outside a press, or not allowed here: the sound is what there is.
       }

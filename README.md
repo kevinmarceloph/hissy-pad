@@ -45,6 +45,14 @@ The iPhone app has a home-screen widget ("Inbox", medium and large, iOS 17+): on
 
 Sign-in on the phone returns through the `hissypad://auth` deep link, which must be in Supabase's redirect URL list. Press and hold a bullet to drag; Return splits the line; the toolbar sits above the keyboard in two rows. Round buttons float at the top right: + for a new line at the top, and while editing a check (cross out) and a chevron (done editing).
 
+### Mac
+
+```bash
+apps/mac/build.sh --install   # builds HissyPad.app (the web app in a Swift shell) and copies it to /Applications
+```
+
+It needs Xcode's command line tools. The app opens offline, keeps itself current from the live site, and has a sidebar in place of the top bar. More in [apps/mac/README.md](apps/mac/README.md).
+
 ### Sync (optional)
 
 Without `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` the app is local-only. For local sync:

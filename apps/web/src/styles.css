@@ -1129,3 +1129,71 @@ dialog.create::backdrop { background: var(--paper); }
   .sort-card { animation: none; transition: none; }
   .sort-card.is-ghost { display: none; }
 }
+
+/* The Mac app (apps/mac): two columns. The top bar is a sidebar at the left (the modes as a
+   list, with every pad and every category in it, the account line at its foot) and
+   everything else is the column at its right. The page draws under the window's title bar,
+   which stays the window's handle and takes the presses in its 28px: nothing to press sits
+   that high, and the toast is shown there, where a window's title would be. */
+.app.is-desk {
+  --side: 15rem;
+  --col: 46rem;
+  --edge: max(1.5rem, (100vw - var(--side) - var(--col)) / 2 + 1.5rem);
+  max-width: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: var(--side) minmax(0, 1fr); align-items: start;
+}
+.app.is-desk.is-wide { --col: 74rem; }
+.app.is-desk .top.side {
+  position: sticky; top: 0; z-index: 4;
+  height: 100dvh; margin: 0; padding: 2.4rem 0.6rem 0.75rem;
+  display: flex; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 0.6rem;
+  background: color-mix(in oklab, var(--ink) 3.5%, var(--paper));
+  border-right: 1px solid var(--rule);
+}
+.side-top { display: flex; align-items: center; justify-content: space-between; padding-left: 0.5rem; }
+.side-top .tools { margin-left: 0; gap: 0; }
+.side-top .tools .icon { width: 32px; }
+.side-top .more-menu { left: auto; right: 0; }
+.side-nav { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; margin: 0 -0.2rem; padding: 1px 0.2rem; scrollbar-width: thin; }
+.side-nav h2 { margin: 1.1rem 0 0.25rem; padding: 0 0.5rem; font-size: 0.72rem; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-mute); }
+.side-pads, .side-group { display: flex; flex-direction: column; gap: 1px; }
+.side-row { display: flex; gap: 2px; }
+.side-item {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 0.45rem;
+  min-height: 30px; padding: 0 0.5rem; border-radius: 5px;
+  text-align: left; font-size: 0.95rem; color: var(--ink-soft);
+}
+.side-item .glyph { flex: none; display: inline-flex; width: 16px; justify-content: center; color: var(--ink-mute); }
+.side-item .glyph svg { width: 15px; height: 15px; }
+.side-item .glyph.plus { font-size: 1.05rem; line-height: 1; }
+.side-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-item .n { flex: none; color: var(--ink-mute); font-size: 0.8em; font-variant-numeric: tabular-nums; }
+.side-nav > .side-item, .side-pads > .side-item, .side-group > .side-item { flex: none; }
+.side-item.is-sub { padding-left: 1.85rem; font-size: 0.9rem; min-height: 26px; }
+.side-item.add { color: var(--ink-mute); }
+.side-item:hover, .side-row .edit:hover { color: var(--ink); background: color-mix(in oklab, var(--ink) 7%, transparent); }
+/* The one on screen: raised paper, full ink and an accent line down its left edge, so it
+   does not rest on color alone. */
+.side-item[aria-current='page'] { color: var(--ink); background: var(--paper-raised); box-shadow: inset 2px 0 0 var(--accent), 0 0 0 1px var(--rule); }
+.side-item[aria-current='page'] .glyph { color: var(--ink); }
+.side-row .edit { flex: none; width: 28px; border-radius: 5px; color: var(--ink-mute); line-height: 1; }
+.side-none { margin: 0; padding: 0 0.5rem; font-size: 0.85rem; font-style: italic; color: var(--ink-mute); }
+.side-foot { margin-top: 0; padding: 0.6rem 0.5rem 0; border-top: 1px solid var(--rule); }
+.side-foot .account { flex-direction: column; gap: 0.1rem; align-items: flex-start; }
+.side-foot .who { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+.desk-main { min-width: 0; width: 100%; max-width: var(--col); margin: 0 auto; padding: 2.4rem 1.5rem 6rem; }
+.app.is-desk.is-hours { height: 100dvh; display: grid; }
+.app.is-desk.is-hours .desk-main { height: 100dvh; display: flex; flex-direction: column; padding: 1.9rem 1.5rem 0; }
+.desk-head { position: sticky; top: 0; z-index: 3; margin: -2.4rem 0 0; padding: 2.4rem 0 1.5rem; background: var(--paper); }
+.desk-head h2 { margin: 0; display: flex; align-items: center; font-size: 1.15rem; font-weight: 400; font-style: italic; letter-spacing: 0.01em; color: var(--ink-soft); }
+.app.is-desk .top.side .clear-done { position: fixed; z-index: 5; top: 2.45rem; bottom: auto; right: var(--edge); margin: 0; }
+.app.is-desk .top.side .toast {
+  position: fixed; z-index: 6; top: 5px; bottom: auto;
+  left: calc(var(--side) + 5rem); right: 5rem; margin: 0; max-width: none;
+  text-align: center; font-size: 0.82rem; line-height: 18px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+}
+.app.is-desk .selwrap { left: var(--side); max-width: calc(100vw - var(--side) - 32px); }
+html.is-mac { scroll-padding-top: 6rem; }

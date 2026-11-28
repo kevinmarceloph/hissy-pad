@@ -8,9 +8,10 @@ import { SearchPanel } from '../panels/Search'
 import { CategoriesDialog } from '../panels/Hours'
 import { clearLog, dumpLog, logEnabled } from '@hissypad/state'
 import { PadTabs } from '../pads/PadTabs'
-import { CategoryTabs } from '../pads/CategoryTabs'
+import { CategoryList, CategoryTabs } from '../pads/CategoryTabs'
+import { Account } from './Account'
 import { showToast, useToast } from './toast'
-import { MOD } from '../platform/os'
+import { MOD, macAsk } from '../platform/os'
 import { CategoryIcon, HoursIcon, MenuIcon, PadIcon, PlusIcon, SearchIcon, SortIcon } from './icons'
 
 type Theme = 'system' | 'light' | 'dark'
@@ -37,9 +38,15 @@ const MODES: { view: 'pad' | 'hours' | 'category' | 'sort'; label: string; title
   { view: 'sort', label: 'Sort', title: 'Sort: one line of the open pad at a time. Left for later, right for today, up for done, down to archive', icon: SortIcon },
 ]
 
+// The Mac app's sidebar: `go` opens a pad or a category from whatever mode is on screen and
+// ends in the mode that shows it.
+export type Side = { go: (view: 'pad' | 'category', open: () => void) => void }
+
 // `onCreate` opens the new item's card (the + beside Search). `onArchived` opens the Archive
-// screen at one line: an archived line found in Search.
-export function TopBar({ view, onView, onCreate, onArchived }: { view: View; onView: (view: View) => void; onCreate: () => void; onArchived: (id: string) => void }) {
+// screen at one line: an archived line found in Search. With `side` (the Mac app) the same
+// bar is a column at the left of the window: the modes as a list, with every pad and every
+// category in it, and the account line at its foot.
+export function TopBar({ view, onView, onCreate, onArchived, side }: { view: View; onView: (view: View) => void; onCreate: () => void; onArchived: (id: string) => void; side?: Side }) {
   const rows = usePad((s) => s.rows)
   const [theme, setTheme] = useState<Theme>(readTheme)
   const toast = useToast((s) => s.text)
@@ -67,7 +74,23 @@ export function TopBar({ view, onView, onCreate, onArchived }: { view: View; onV
   useEffect(() => {
     applyTheme(theme)
     try { localStorage.setItem('hissypad.theme', theme) } catch { /* per-device */ }
+    // The Mac app's window (its title bar, its menus) takes the same scheme.
+    void macAsk({ type: 'theme', theme })
   }, [theme])
+
+  // The Mac app's File menu: New Item and Search arrive as an event.
+  const create = useRef(onCreate)
+  create.current = onCreate
+  useEffect(() => {
+    const onMenu = (e: Event) => {
+      if (document.querySelector('dialog[open]')) return
+      const what = (e as CustomEvent<string>).detail
+      if (what === 'new') create.current()
+      else if (what === 'search') searchDialog.current?.showModal()
+    }
+    window.addEventListener('hissypad:menu', onMenu)
+    return () => window.removeEventListener('hissypad:menu', onMenu)
+  }, [])
 
   useEffect(() => {
     if (!toast) return
@@ -121,16 +144,7 @@ export function TopBar({ view, onView, onCreate, onArchived }: { view: View; onV
     run()
   }
 
-  return (
-    <header className="top">
-      <h1>HissyPad</h1>
-      <div className="modes" role="group" aria-label="Mode">
-        {MODES.map((m) => (
-          <button key={m.view} type="button" aria-label={m.label} aria-pressed={mode === m.view} title={m.title} onClick={() => onView(m.view)}>
-            <m.icon />
-          </button>
-        ))}
-      </div>
+  const tools = (
       <nav className="tools" aria-label="New item, search and more">
         <button type="button" className="icon" aria-label="New item" title="A new item: its words, its pad, its hour and its sub items" onClick={onCreate}>
           <PlusIcon />
@@ -163,9 +177,9 @@ export function TopBar({ view, onView, onCreate, onArchived }: { view: View; onV
           )}
         </span>
       </nav>
-      {/* The pad tabs are the pad's only: Sort picks its pad in its own title. */}
-      {mode === 'pad' && <PadTabs />}
-      {mode === 'category' && <CategoryTabs />}
+  )
+  const rest = (
+    <>
       {view === 'pad' && doneCount > 0 && (
         <button type="button" className="clear-done" onClick={deleteDone} title="Archive every crossed-out line in this pad (undo brings them back)">
           Archive {doneCount} completed
@@ -187,6 +201,52 @@ export function TopBar({ view, onView, onCreate, onArchived }: { view: View; onV
           </div>
         </form>
       </dialog>
+    </>
+  )
+
+  if (side) {
+    const item = (m: (typeof MODES)[number]) => (
+      <button key={m.view} type="button" className="side-item" aria-current={mode === m.view ? 'page' : undefined} title={m.title} onClick={() => onView(m.view)}>
+        <span className="glyph"><m.icon /></span>
+        <span className="name">{m.label}</span>
+      </button>
+    )
+    return (
+      <header className="top side">
+        <div className="side-top">
+          <h1>HissyPad</h1>
+          {tools}
+        </div>
+        <div className="side-nav">
+          {item(MODES[0]!)}
+          <h2>Pads</h2>
+          <PadTabs side={{ active: mode === 'pad', go: (open) => side.go('pad', open) }} />
+          <h2>Categories</h2>
+          <CategoryList active={mode === 'category'} go={(open) => side.go('category', open)} />
+          <h2>One at a time</h2>
+          {item(MODES[3]!)}
+        </div>
+        <footer className="foot side-foot"><Account /></footer>
+        {rest}
+      </header>
+    )
+  }
+
+  return (
+    <header className="top">
+      <h1>HissyPad</h1>
+      <div className="modes" role="group" aria-label="Mode">
+        {MODES.map((m) => (
+          <button key={m.view} type="button" aria-label={m.label} aria-pressed={mode === m.view} title={m.title} onClick={() => onView(m.view)}>
+            <m.icon />
+          </button>
+        ))}
+      </div>
+      {tools}
+      {/* The pad tabs are the pad's only: Sort picks its pad in its own title. */}
+      {mode === 'pad' && <PadTabs />}
+      {mode === 'category' && <CategoryTabs />}
+      {rest}
     </header>
   )
 }

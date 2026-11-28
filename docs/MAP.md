@@ -8,6 +8,7 @@ Three layers, each only knowing the one below it.
 
 ```
 apps/web, apps/mobile   draw the pad, catch keys, pointers and gestures
+apps/mac                the web app in a Mac window (Swift): serves it from disk, keeps it current, signs in by link
 packages/ui             screens both apps draw from one source (React Native): Hours
         |  call commands, read the store
 packages/state          the store, commands, undo, sync wiring: no DOM, no React Native
@@ -111,6 +112,20 @@ Screens written once in React Native. The phone draws them natively; the web app
 | `src/hours/host.tsx` | `BrandContext`: the app's name a host hands the Hours screens for the left of their first row (the phone); with it the day's own menu is left out. `RecurringApp` and `HoursSettingsApp` (`HoursApp.tsx`) are the recurring plans and the settings on their own, for the host's menu |
 | `src/hours/Mark.tsx`, `FlagMark.tsx`, `DayStrip.tsx`, `Tap.tsx`, `MoveButtons.tsx`, `ColorField.tsx`, `FlagOptions.tsx`, `PullRefresh.tsx` | the parts |
 | `src/testing/` | `rntl.ts` (the tests' events over React Testing Library), `setup.ts` |
+
+## apps/mac
+
+The Mac app: `apps/web` in a WKWebView. Its README says how to build and check it.
+
+| file | what is in it |
+|---|---|
+| `Sources/HissyPad/main.swift` | the window, the `app://hissypad/` scheme (`Files`), the menus, the `hissypad://` sign-in link, notifications, the update check, the probe |
+| `Sources/HissyPadKit/WebBundle.swift` | a build on disk and its `files.json`, which of two builds is shown (`pick`), `safePath`, `fileFor`, `linkParams` |
+| `Sources/HissyPadKit/Updater.swift` | fetches the live site's build into Application Support, whole or not at all |
+| `Tests/HissyPadKitTests` | XCTest for the two above (`swift test`) |
+| `build.sh`, `Info.plist` | the app bundle: web build + shell + icon, ad hoc signed |
+
+On the web side: `apps/web/src/platform/os.ts` (`isMacApp`, `macAsk`, `authRedirect`), `platform/mac.ts` (the sign-in link), `app/TopBar.tsx` with `side` (the sidebar), `app/DeskHead.tsx` (the column's title), `PadTabs` with `side` and `CategoryList` (the lists in the sidebar), the `.is-desk` block at the end of `styles.css`, and `fileList` in `vite.config.ts` (`files.json`). Tests: `app/Side.test.tsx`.
 
 ## apps/web
 

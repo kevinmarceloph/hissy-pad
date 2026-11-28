@@ -19,3 +19,7 @@ apps/mobile/android/
 
 # Claude Code worktrees (kept out of the EAS upload too)
 .claude/worktrees/
+
+# The Mac app
+apps/mac/.build/
+apps/mac/build/

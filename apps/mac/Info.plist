@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>HissyPad</string>
+  <key>CFBundleDisplayName</key>
+  <string>HissyPad</string>
+  <key>CFBundleIdentifier</key>
+  <string>ph.marcelo.hissypad.mac</string>
+  <key>CFBundleExecutable</key>
+  <string>HissyPad</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>0.1.0</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>13.0</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.productivity</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSPrincipalClass</key>
+  <string>NSApplication</string>
+  <key>NSSupportsAutomaticTermination</key>
+  <false/>
+  <!-- hissypad://auth#…: where a sign-in in the browser comes back to. -->
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>ph.marcelo.hissypad.mac</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>hissypad</string>
+      </array>
+    </dict>
+  </array>
+  <!-- The site whose build the app keeps a copy of. Empty: the app's own copy only. -->
+  <key>HissyPadSite</key>
+  <string>https://hissypad.marcelo.ph</string>
+</dict>
+</plist>

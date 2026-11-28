@@ -20,6 +20,7 @@ packages/state   Zustand store (all rows + the scoped pad), history, selection, 
 packages/ui      screens written once in React Native and drawn by both apps (the web through react-native-web): the Hours mode and the hour picker
 apps/web         Vite SPA on :5180: src/app (shell), src/pad (editor, drag), src/pads (tabs, fresh start), src/panels (trash, done, sort), src/platform (IndexedDB, clipboard); Playwright e2e
 apps/mobile      Expo SDK 58 shell: expo-sqlite store, screens in src/ui, the same toolbar registry, EAS build/update profiles
+apps/mac         the Mac app: a Swift shell (AppKit + WKWebView) around apps/web, built by apps/mac/build.sh
 supabase/        migrations (nodes, RLS, LWW trigger), pgTAP tests, functions (watch-token: the watch's sign-in), local stack on ports 54421-54429
 ```
 
@@ -75,6 +76,16 @@ Since 2026-11-27 Categories is a mode of its own, between Pad and Sort (the tag 
 
 Since 2026-11-27 a line can be a section divider (`divider` on the row, the fourth type in `LINE_KINDS`): a rule with its text centered and gray. It never has lines under it and is never done or counted. `setKind` kicks the sub items out; `moveNodes`, `indent`, `resolveDrop` and `insertOutline` refuse to put a line under one, so a new op that gives a line a parent has to go through `moveNodes` or check `divider` itself. The watch does not know it yet. Details in `PLAN.md` under "Section dividers".
 
+## The Mac app
+
+Since 2026-11-29 HissyPad is a Mac app too (`apps/mac`, details in its README and in `PLAN.md` under "The Mac app"): the web app in a WKWebView, served from disk under `app://hissypad/`. The rules that bite:
+
+- The page knows it is there by `window.hissypadMac` (`isMacApp()` in `apps/web/src/platform/os.ts`), and draws a sidebar in place of the top bar: `TopBar` with `side`, `.app.is-desk` in the stylesheet. A new control in the top bar has to be placed in both.
+- The page draws under the window's title bar, which takes every press in its top 28px. Nothing to press goes that high in the `.is-desk` layout.
+- A web change reaches the Mac app on its own: the shell fetches the live site's build (`files.json`, written by `fileList` in `vite.config.ts`). So step 1 of shipping covers it. A change under `apps/mac` needs `apps/mac/build.sh --install` run from the checkout at the repo root (it has `apps/web/.env.local`), and `cd apps/mac && swift test`.
+- Whatever a browser would do that a WKWebView does not (notifications, opening a link, a sign-in's way back) goes through the shell: `macAsk` on the page, `userContentController` in `main.swift`. There is no service worker there.
+- `apps/mac/README.md` has the probe: a way to open the built app with no saved data, run a script in its page and get a screenshot, with no hands.
+
 ## Commands
 
 ```bash
@@ -86,6 +97,7 @@ pnpm typecheck
 pnpm --filter @hissypad/web e2e     # Playwright drag tests, desktop + phone profiles
 pnpm --filter @hissypad/web build   # apps/web/dist, what Render serves
 supabase start && supabase test db  # local stack + pgTAP (RLS, last-write-wins)
+apps/mac/build.sh --install         # the Mac app: build, sign ad hoc, copy to /Applications
 ```
 
 Mobile commands (Expo, EAS, env pull, update channels) are in `README.md`. The phone cannot reach the local Supabase stack; `apps/mobile/.env.local` holds the hosted values and `.env.local.localstack` the local copy.

@@ -95,3 +95,32 @@ export function CategoryTabs() {
     </nav>
   )
 }
+
+// The same categories as a list down the Mac app's sidebar, "No category" last. `active` is
+// whether the Categories mode is on screen (the open one is only marked then); `go` runs an
+// opening from any mode and ends in that mode.
+export function CategoryList({ active, go }: { active: boolean; go: (open: () => void) => void }) {
+  const all = usePad((s) => s.all)
+  const catId = usePad((s) => s.catId)
+  const categories = useCategoryChoices()
+  const counts = useMemo(() => categoryCounts(all), [all])
+  if (categories.length === 0) return <p className="side-none">None yet. Make one from the menu's Categories.</p>
+
+  const item = (id: string, label: string, title: string) => {
+    const count = counts.get(id) ?? 0
+    return (
+      <button key={id} type="button" className="side-item" aria-current={active && id === catId ? 'page' : undefined} title={title} onClick={() => go(() => openCategory(id))}>
+        {id === NO_CATEGORY ? <span className="cat-none" aria-hidden="true" /> : <CatMark id={id} />}
+        <span className="name">{label}</span>
+        {count > 0 && <span className="n" aria-hidden="true">{count}</span>}
+      </button>
+    )
+  }
+
+  return (
+    <nav className="side-pads" aria-label="Categories">
+      {categories.map((c) => item(c.id, subName(c.label), c.label))}
+      {item(NO_CATEGORY, 'No category', 'The lines with no category')}
+    </nav>
+  )
+}

@@ -26,6 +26,15 @@ jobs:
           name: playwright-results
           path: apps/web/test-results
 
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build
+        working-directory: apps/mac
+      - run: swift test
+        working-directory: apps/mac
+
   database:
     runs-on: ubuntu-latest
     steps:

@@ -19,7 +19,13 @@ type Sheet = { mode: 'new' } | { mode: 'edit'; padId: string }
 // The pads as a row of tabs under the title. Today, Inbox and Later are always first, each
 // with its icon, and cannot be renamed, moved or deleted; clicking the open tab of any
 // other pad opens its name, place and delete.
-export function PadTabs() {
+//
+// `side`: the Mac app's sidebar draws them as a list down the page instead, every pad with
+// its sub-pads under it. `active` is whether the Pad mode is what is on screen (the open
+// pad is only marked then), and `go` runs an opening from any mode and ends in the pad.
+export type SidePads = { active: boolean; go: (open: () => void) => void }
+
+export function PadTabs({ side }: { side?: SidePads } = {}) {
   const all = usePad((s) => s.all)
   const padId = usePad((s) => s.padId)
   const pads = useMemo(() => padList(all), [all])
@@ -59,8 +65,10 @@ export function PadTabs() {
   function submit(e: FormEvent) {
     e.preventDefault()
     if (!sheet) return
-    if (sheet.mode === 'new') cmdNewPad(name)
-    else cmdRenamePad(sheet.padId, name)
+    if (sheet.mode === 'new') {
+      if (side) side.go(() => cmdNewPad(name))
+      else cmdNewPad(name)
+    } else cmdRenamePad(sheet.padId, name)
     dialog.current?.close()
   }
 
@@ -150,6 +158,116 @@ export function PadTabs() {
 
   const lines = sheet?.mode === 'edit' ? padTopLines(all, sheet.padId) : 0
 
+  const sheetDialog = (
+      <dialog ref={dialog} className="import pad-sheet" aria-labelledby="pad-title" onClose={() => setSheet(null)}>
+        <form onSubmit={submit}>
+          <h2 id="pad-title">{sheet?.mode === 'new' ? 'New pad' : 'This pad'}</h2>
+          <label className="field">
+            <span>Name</span>
+            <input ref={input} value={name} onChange={(e) => setName(e.target.value)} placeholder={sheet?.mode === 'new' ? 'Work, Ideas, a trip…' : ''} aria-label="Pad name" />
+          </label>
+          {sheet?.mode === 'edit' && (() => {
+            const i = pads.findIndex((p) => p.id === sheet.padId)
+            const first = pads.findIndex((p) => !p.fixed && p.id !== null)
+            return (
+              <div className="field order">
+                <span>Place among the pads</span>
+                <div>
+                  <button type="button" onClick={() => cmdMovePad(sheet.padId, -1)} disabled={i <= first} aria-label={side ? 'Move pad up' : 'Move pad left'}>{side ? '↑ Move up' : '← Move left'}</button>
+                  <button type="button" onClick={() => cmdMovePad(sheet.padId, 1)} disabled={i < 0 || i >= pads.length - 1} aria-label={side ? 'Move pad down' : 'Move pad right'}>{side ? 'Move down ↓' : 'Move right →'}</button>
+                </div>
+              </div>
+            )
+          })()}
+          {sheet?.mode === 'edit' && (
+            <label className="field">
+              <span>Category, for every line moved into this pad</span>
+              <select value={all[sheet.padId]?.category ?? ''} onChange={(e) => cmdSetPadCategory(sheet.padId, e.target.value || null)} aria-label="Pad category">
+                <option value="">None</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{categoryName(c)}</option>)}
+                {/* An archived category the pad still has. */}
+                {all[sheet.padId]?.category && !categories.some((c) => c.id === all[sheet.padId]!.category) && <option value={all[sheet.padId]!.category!}>(archived)</option>}
+              </select>
+            </label>
+          )}
+          {sheet?.mode === 'edit' && (
+            <label className="field check-field">
+              <input type="checkbox" checked={all[sheet.padId]?.countHidden !== true} onChange={(e) => cmdSetPadCount(sheet.padId, e.target.checked)} />
+              <span>Show the count of open lines {side ? 'beside this pad' : 'on this tab'}</span>
+            </label>
+          )}
+          {sheet?.mode === 'edit' && (
+            <div className="field order">
+              <span>Fold into another pad, as a line with this pad's lines under it</span>
+              <div>
+                <select value={into} onChange={(e) => setInto(e.target.value)} aria-label="Fold into">
+                  {foldTargets.map((p) => <option key={p.key} value={p.key}>{categoryPrefix(p.category)}{p.label}</option>)}
+                </select>
+                <button type="button" onClick={fold} aria-label="Fold in">Fold in</button>
+              </div>
+            </div>
+          )}
+          {confirming && (
+            <p role="status">Archive this pad{lines ? ` and the ${lines} ${lines === 1 ? 'line' : 'lines'} at its top level, with everything under them` : ''}? Undo or the Archive brings it back.</p>
+          )}
+          <div className="actions">
+            {sheet?.mode === 'edit' && !confirming && (
+              <button type="button" className="danger" onClick={() => setConfirming(true)}>Archive pad…</button>
+            )}
+            {sheet?.mode === 'edit' && confirming && (
+              <button type="button" className="danger" onClick={remove}>Archive</button>
+            )}
+            <span className="grow" />
+            <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>
+            <button type="submit" className="primary" disabled={!name.trim()}>{sheet?.mode === 'new' ? 'Create' : 'Save'}</button>
+          </div>
+        </form>
+      </dialog>
+  )
+
+  if (side) {
+    return (
+      <nav className="side-pads" aria-label="Pads">
+        {pads.map((p) => {
+          const Glyph = p.fixed ? FIXED_ICON[p.fixed] : null
+          const here = side.active && p.id === padId
+          return (
+            <div key={p.id ?? 'main'} className="side-group">
+              <div className="side-row">
+                <button
+                  type="button"
+                  className="side-item"
+                  aria-current={here ? 'page' : undefined}
+                  title={`Open ${p.name}` + (p.count > 0 ? `: ${p.count} open ${p.count === 1 ? 'line' : 'lines'}` : '')}
+                  onClick={() => side.go(() => openPad(p.id))}
+                >
+                  {Glyph ? <span className="glyph"><Glyph /></span> : p.category ? <CatMark id={p.category} /> : <span className="glyph" aria-hidden="true" />}
+                  <span className="name">{p.name}</span>
+                  {p.countShown && p.count > 0 && <span className="n" aria-hidden="true">{p.count}</span>}
+                </button>
+                {here && p.id !== null && !p.fixed && (
+                  <button type="button" className="edit" aria-label={`Rename, fold in or delete ${p.name}`} title="Rename, fold in or delete this pad" onClick={() => setSheet({ mode: 'edit', padId: p.id! })}>…</button>
+                )}
+              </div>
+              {p.subs.map((sp) => (
+                <button key={sp.id} type="button" className="side-item is-sub" title={`${p.name}: ${sp.name}`} onClick={() => side.go(() => { openPad(p.id); openSubPad(sp.id) })}>
+                  <CatMark id={sp.category} />
+                  <span className="name">{sp.name}</span>
+                  {p.countShown && sp.count > 0 && <span className="n" aria-hidden="true">{sp.count}</span>}
+                </button>
+              ))}
+            </div>
+          )
+        })}
+        <button type="button" className="side-item add" title="New pad" onClick={() => setSheet({ mode: 'new' })}>
+          <span className="glyph plus" aria-hidden="true">+</span>
+          <span className="name">New pad</span>
+        </button>
+        {sheetDialog}
+      </nav>
+    )
+  }
+
   return (
     <nav className="pads" aria-label="Pads">
       <div role="tablist" aria-label="Pads" ref={tablist}>
@@ -226,70 +344,7 @@ export function PadTabs() {
         </div>,
         document.body,
       )}
-      <dialog ref={dialog} className="import pad-sheet" aria-labelledby="pad-title" onClose={() => setSheet(null)}>
-        <form onSubmit={submit}>
-          <h2 id="pad-title">{sheet?.mode === 'new' ? 'New pad' : 'This pad'}</h2>
-          <label className="field">
-            <span>Name</span>
-            <input ref={input} value={name} onChange={(e) => setName(e.target.value)} placeholder={sheet?.mode === 'new' ? 'Work, Ideas, a trip…' : ''} aria-label="Pad name" />
-          </label>
-          {sheet?.mode === 'edit' && (() => {
-            const i = pads.findIndex((p) => p.id === sheet.padId)
-            const first = pads.findIndex((p) => !p.fixed && p.id !== null)
-            return (
-              <div className="field order">
-                <span>Place among the pads</span>
-                <div>
-                  <button type="button" onClick={() => cmdMovePad(sheet.padId, -1)} disabled={i <= first} aria-label="Move pad left">← Move left</button>
-                  <button type="button" onClick={() => cmdMovePad(sheet.padId, 1)} disabled={i < 0 || i >= pads.length - 1} aria-label="Move pad right">Move right →</button>
-                </div>
-              </div>
-            )
-          })()}
-          {sheet?.mode === 'edit' && (
-            <label className="field">
-              <span>Category, for every line moved into this pad</span>
-              <select value={all[sheet.padId]?.category ?? ''} onChange={(e) => cmdSetPadCategory(sheet.padId, e.target.value || null)} aria-label="Pad category">
-                <option value="">None</option>
-                {categories.map((c) => <option key={c.id} value={c.id}>{categoryName(c)}</option>)}
-                {/* An archived category the pad still has. */}
-                {all[sheet.padId]?.category && !categories.some((c) => c.id === all[sheet.padId]!.category) && <option value={all[sheet.padId]!.category!}>(archived)</option>}
-              </select>
-            </label>
-          )}
-          {sheet?.mode === 'edit' && (
-            <label className="field check-field">
-              <input type="checkbox" checked={all[sheet.padId]?.countHidden !== true} onChange={(e) => cmdSetPadCount(sheet.padId, e.target.checked)} />
-              <span>Show the count of open lines on this tab</span>
-            </label>
-          )}
-          {sheet?.mode === 'edit' && (
-            <div className="field order">
-              <span>Fold into another pad, as a line with this pad's lines under it</span>
-              <div>
-                <select value={into} onChange={(e) => setInto(e.target.value)} aria-label="Fold into">
-                  {foldTargets.map((p) => <option key={p.key} value={p.key}>{categoryPrefix(p.category)}{p.label}</option>)}
-                </select>
-                <button type="button" onClick={fold} aria-label="Fold in">Fold in</button>
-              </div>
-            </div>
-          )}
-          {confirming && (
-            <p role="status">Archive this pad{lines ? ` and the ${lines} ${lines === 1 ? 'line' : 'lines'} at its top level, with everything under them` : ''}? Undo or the Archive brings it back.</p>
-          )}
-          <div className="actions">
-            {sheet?.mode === 'edit' && !confirming && (
-              <button type="button" className="danger" onClick={() => setConfirming(true)}>Archive pad…</button>
-            )}
-            {sheet?.mode === 'edit' && confirming && (
-              <button type="button" className="danger" onClick={remove}>Archive</button>
-            )}
-            <span className="grow" />
-            <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>
-            <button type="submit" className="primary" disabled={!name.trim()}>{sheet?.mode === 'new' ? 'Create' : 'Save'}</button>
-          </div>
-        </form>
-      </dialog>
+      {sheetDialog}
     </nav>
   )
 }

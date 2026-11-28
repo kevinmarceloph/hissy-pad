@@ -8,6 +8,9 @@ import { createIdbStore } from './platform/idb'
 import { webChimes } from './platform/chimes'
 import { supabase } from './platform/supabase'
 import { copyText, readClipboard } from './platform/clipboard'
+import { isMacApp } from './platform/os'
+import { bindMacLinks } from './platform/mac'
+import { showToast } from './app/toast'
 import './styles.css'
 
 initLog(
@@ -41,7 +44,9 @@ configureLocalStore(idb)
 configureHoursBackend(idb.hours)
 configureChimes(webChimes)
 bindAuth(supabase)
-registerSW({ immediate: true })
+// The Mac app serves the page from its own folder and keeps it current itself.
+if (isMacApp()) bindMacLinks(supabase, showToast)
+else registerSW({ immediate: true })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

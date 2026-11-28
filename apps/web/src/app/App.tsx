@@ -3,6 +3,7 @@ import { closeCategory, cmdApplyBoomerang, cmdCreateBegin, dismissStorageError, 
 import { Pad } from '../pad/Pad'
 import { SelectionBar } from '../pad/SelectionBar'
 import { TopBar, type View } from './TopBar'
+import { DeskHead } from './DeskHead'
 import { Account } from './Account'
 import { PullToRefresh } from './PullToRefresh'
 import { FreshStart } from '../pads/FreshStart'
@@ -14,7 +15,7 @@ import {
   cmdAddCategory, cmdApplyCategory, cmdApplySlot, cmdOpenCategories, openHours, setCategoryPickerOpener, setSlotPickerOpener, targetCategory, targetSlot, targetsHaveCategory,
 } from '@hissypad/state/hours'
 import { showToast } from './toast'
-import { MOD } from '../platform/os'
+import { MOD, isMacApp } from '../platform/os'
 
 const VIEWS: Record<string, View> = { '#hours': 'hours', '#pads': 'pad', '#categories': 'category', '#sort': 'sort', '#archive': 'archive' }
 const HASHES: Record<View, string> = { hours: '#hours', pad: '#pads', fresh: '#pads', category: '#categories', sort: '#sort', archive: '#archive' }
@@ -92,18 +93,17 @@ export function App() {
     }
   }, [])
 
-  return (
-    <main className={view === 'fresh' ? 'app is-wide' : view === 'hours' ? 'app is-hours' : 'app'}>
-      <PullToRefresh />
-      <TopBar
-        view={view}
-        onView={setView}
-        onCreate={() => setCreating(cmdCreateBegin())}
-        onArchived={(id) => {
-          setArchiveAt((at) => ({ id, rev: (at?.rev ?? 0) + 1 }))
-          setView('archive')
-        }}
-      />
+  // The Mac app: the top bar is a sidebar and everything else is the column at its right.
+  const desk = isMacApp()
+  // From the sidebar a pad or a category opens from any mode: Sort gives its pad back
+  // first, then the opening, then the mode that shows it.
+  const go = (next: 'pad' | 'category', open: () => void) => {
+    setSortMode(false)
+    open()
+    setView(next)
+  }
+  const body = (
+    <>
       {storageError && (
         <div className="banner" role="alert">
           <span>{storageError}</span>
@@ -173,7 +173,24 @@ export function App() {
           }}
         />
       )}
-      {view !== 'hours' && <footer className="foot"><Account /></footer>}
+    </>
+  )
+
+  return (
+    <main className={(view === 'fresh' ? 'app is-wide' : view === 'hours' ? 'app is-hours' : 'app') + (desk ? ' is-desk' : '')}>
+      <PullToRefresh />
+      <TopBar
+        view={view}
+        onView={setView}
+        onCreate={() => setCreating(cmdCreateBegin())}
+        onArchived={(id) => {
+          setArchiveAt((at) => ({ id, rev: (at?.rev ?? 0) + 1 }))
+          setView('archive')
+        }}
+        {...(desk ? { side: { go } } : {})}
+      />
+      {desk ? <div className="desk-main">{(view === 'pad' || view === 'category') && creating === null && <DeskHead view={view} />}{body}</div> : body}
+      {!desk && view !== 'hours' && <footer className="foot"><Account /></footer>}
     </main>
   )
 }
